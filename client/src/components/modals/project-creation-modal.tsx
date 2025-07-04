@@ -115,9 +115,11 @@ export default function ProjectCreationModal({
     };
 
     const project = await createProjectMutation.mutateAsync(projectData);
+    console.log('Project created:', project);
 
     // Generate milestones if requested
-    if (isGeneratingMilestones) {
+    if (isGeneratingMilestones && project && project.id) {
+      console.log('Generating milestones for project:', project.id);
       generateMilestonesMutation.mutate(project.id);
     }
   };

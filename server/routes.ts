@@ -89,7 +89,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only teachers can generate milestones" });
       }
 
+      console.log('Generate milestones request - Project ID param:', req.params.id);
       const projectId = parseInt(req.params.id);
+      console.log('Parsed project ID:', projectId);
+      
+      if (isNaN(projectId)) {
+        console.log('Invalid project ID received:', req.params.id);
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
       const project = await storage.getProject(projectId);
       
       if (!project) {

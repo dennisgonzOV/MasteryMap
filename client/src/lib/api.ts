@@ -8,7 +8,10 @@ export const api = {
   getProjects: () => fetch("/api/projects", { credentials: "include" }).then(res => res.json()),
   createProject: (data: any) => apiRequest("/api/projects", "POST", data),
   getProject: (id: number) => fetch(`/api/projects/${id}`, { credentials: "include" }).then(res => res.json()),
-  generateMilestones: (projectId: number) => apiRequest(`/api/projects/${projectId}/generate-milestones`, "POST"),
+  generateMilestones: (projectId: number) => {
+    console.log('API generateMilestones called with projectId:', projectId);
+    return apiRequest(`/api/projects/${projectId}/generate-milestones`, "POST");
+  },
   assignStudents: (projectId: number, studentIds: string[]) => 
     apiRequest(`/api/projects/${projectId}/assign`, "POST", { studentIds }),
   
