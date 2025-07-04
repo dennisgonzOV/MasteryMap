@@ -28,9 +28,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only teachers can create projects" });
       }
 
+      // Handle date conversion manually
+      const { dueDate, ...bodyData } = req.body;
       const projectData = insertProjectSchema.parse({
-        ...req.body,
+        ...bodyData,
         teacherId: userId,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
       });
 
       const project = await storage.createProject(projectData);
@@ -137,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create milestones" });
       }
 
@@ -151,23 +154,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assessment routes
-  app.post('/api/milestones/:id/generate-assessment', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/milestones/:id/generate-assessment', (req, res, next) => {
+    console.log('Route hit: generate-assessment for milestone', req.params.id);
+    next();
+  }, requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      console.log('Assessment generation request received for milestone:', req.params.id);
       const userId = req.user!.id;
       
-      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate assessments" });
       }
 
       const milestoneId = parseInt(req.params.id);
-      const milestone = await storage.getMilestonesByProject(milestoneId);
+      console.log('Fetching milestone:', milestoneId);
+      const milestone = await storage.getMilestone(milestoneId);
       
       if (!milestone) {
         return res.status(404).json({ message: "Milestone not found" });
       }
 
       const competencies = await storage.getCompetencies();
-      const assessmentData = await generateAssessment(milestone[0], competencies);
+      const assessmentData = await generateAssessment(milestone, competencies);
       
       const assessment = await storage.createAssessment({
         milestoneId,
@@ -192,6 +200,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching assessments:", error);
       res.status(500).json({ message: "Failed to fetch assessments" });
+    }
+  });
+
+  // Assessment creation route
+  app.post('/api/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only teachers can create assessments" });
+      }
+
+      const assessmentData = insertAssessmentSchema.parse(req.body);
+      const assessment = await storage.createAssessment(assessmentData);
+      res.json(assessment);
+    } catch (error) {
+      console.error("Error creating assessment:", error);
+      res.status(500).json({ message: "Failed to create assessment" });
     }
   });
 

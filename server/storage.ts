@@ -62,6 +62,7 @@ export interface IStorage {
 
   // Milestone operations
   createMilestone(milestone: InsertMilestone): Promise<Milestone>;
+  getMilestone(id: number): Promise<Milestone | undefined>;
   getMilestonesByProject(projectId: number): Promise<Milestone[]>;
   updateMilestone(id: number, updates: Partial<InsertMilestone>): Promise<Milestone>;
   deleteMilestone(id: number): Promise<void>;
@@ -215,6 +216,14 @@ export class DatabaseStorage implements IStorage {
       .values(milestone)
       .returning();
     return newMilestone;
+  }
+
+  async getMilestone(id: number): Promise<Milestone | undefined> {
+    const [milestone] = await db
+      .select()
+      .from(milestones)
+      .where(eq(milestones.id, id));
+    return milestone;
   }
 
   async getMilestonesByProject(projectId: number): Promise<Milestone[]> {

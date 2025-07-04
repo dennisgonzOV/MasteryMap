@@ -88,6 +88,7 @@ export async function generateAssessment(
   competencies: Competency[]
 ): Promise<GeneratedAssessment> {
   try {
+    console.log('Generating assessment for milestone:', milestone.title);
     const competencyNames = competencies.map(c => c.name).join(', ');
     
     const prompt = `

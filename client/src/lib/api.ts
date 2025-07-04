@@ -20,6 +20,7 @@ export const api = {
   // Assessments
   getAssessments: (milestoneId: number) => 
     fetch(`/api/milestones/${milestoneId}/assessments`, { credentials: "include" }).then(res => res.json()),
+  createAssessment: (data: any) => apiRequest("POST", "/api/assessments", data),
   generateAssessment: (milestoneId: number) => 
     apiRequest("POST", `/api/milestones/${milestoneId}/generate-assessment`),
   

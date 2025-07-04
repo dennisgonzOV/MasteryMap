@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -278,6 +279,8 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  dueDate: z.coerce.date().optional(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
