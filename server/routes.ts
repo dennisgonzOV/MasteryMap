@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuthRoutes } from "./authRoutes";
+import { requireAuth, requireRole, type AuthenticatedRequest } from "./auth";
 import { 
   insertProjectSchema, 
   insertMilestoneSchema, 
@@ -15,26 +16,13 @@ import { generateMilestones, generateAssessment, generateFeedback } from "./open
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
-
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  // Setup auth routes
+  setupAuthRoutes(app);
 
   // Project routes
-  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create projects" });
@@ -53,10 +41,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects', isAuthenticated, async (req: any, res) => {
+  app.get('/api/projects', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       let projects;
       if (user?.role === 'teacher') {
@@ -74,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/projects/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
@@ -91,10 +78,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Milestone generation
-  app.post('/api/projects/:id/generate-milestones', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects/:id/generate-milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate milestones" });
@@ -136,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Milestone routes
-  app.get('/api/projects/:id/milestones', isAuthenticated, async (req: any, res) => {
+  app.get('/api/projects/:id/milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const milestones = await storage.getMilestonesByProject(projectId);
@@ -147,10 +133,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/milestones', isAuthenticated, async (req: any, res) => {
+  app.post('/api/milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create milestones" });
@@ -166,10 +151,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assessment routes
-  app.post('/api/milestones/:id/generate-assessment', isAuthenticated, async (req: any, res) => {
+  app.post('/api/milestones/:id/generate-assessment', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate assessments" });
@@ -200,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/milestones/:id/assessments', isAuthenticated, async (req: any, res) => {
+  app.get('/api/milestones/:id/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const milestoneId = parseInt(req.params.id);
       const assessments = await storage.getAssessmentsByMilestone(milestoneId);
@@ -212,10 +196,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submission routes
-  app.post('/api/submissions', isAuthenticated, async (req: any, res) => {
+  app.post('/api/submissions', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'student') {
         return res.status(403).json({ message: "Only students can submit assessments" });
@@ -234,9 +217,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/submissions/student', isAuthenticated, async (req: any, res) => {
+  app.get('/api/submissions/student', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.id;
       const submissions = await storage.getSubmissionsByStudent(userId);
       res.json(submissions);
     } catch (error) {
@@ -245,10 +228,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/assessments/:id/submissions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/assessments/:id/submissions', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can view submissions" });
@@ -264,10 +246,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Grading routes
-  app.post('/api/submissions/:id/grade', isAuthenticated, async (req: any, res) => {
+  app.post('/api/submissions/:id/grade', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can grade submissions" });
@@ -314,9 +295,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Credential routes
-  app.get('/api/credentials/student', isAuthenticated, async (req: any, res) => {
+  app.get('/api/credentials/student', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.id;
       const credentials = await storage.getCredentialsByStudent(userId);
       res.json(credentials);
     } catch (error) {
@@ -325,10 +306,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/credentials', isAuthenticated, async (req: any, res) => {
+  app.post('/api/credentials', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can award credentials" });
@@ -348,9 +328,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Portfolio routes
-  app.get('/api/portfolio/artifacts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/portfolio/artifacts', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.id;
       const artifacts = await storage.getPortfolioArtifactsByStudent(userId);
       res.json(artifacts);
     } catch (error) {
@@ -359,9 +339,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/portfolio/artifacts', isAuthenticated, async (req: any, res) => {
+  app.post('/api/portfolio/artifacts', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.id;
       const artifactData = insertPortfolioArtifactSchema.parse({
         ...req.body,
         studentId: userId,
@@ -376,10 +356,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project assignment routes
-  app.post('/api/projects/:id/assign', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects/:id/assign', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.id;
       
       if (user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can assign projects" });
@@ -402,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Competency routes
-  app.get('/api/competencies', isAuthenticated, async (req: any, res) => {
+  app.get('/api/competencies', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const competencies = await storage.getCompetencies();
       res.json(competencies);
@@ -412,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/competencies/:id/outcomes', isAuthenticated, async (req: any, res) => {
+  app.get('/api/competencies/:id/outcomes', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const competencyId = parseInt(req.params.id);
       const outcomes = await storage.getOutcomesByCompetency(competencyId);

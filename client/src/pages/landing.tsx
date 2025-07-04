@@ -22,10 +22,17 @@ export default function Landing() {
             </div>
             <div className="flex items-center space-x-4">
               <Button 
-                onClick={() => window.location.href = '/api/login'}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full btn-primary"
+                onClick={() => window.location.href = '/login'}
+                variant="outline"
+                className="px-6 py-2 rounded-full"
               >
                 Sign In
+              </Button>
+              <Button 
+                onClick={() => window.location.href = '/register'}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full btn-primary"
+              >
+                Get Started
               </Button>
             </div>
           </div>
@@ -45,7 +52,7 @@ export default function Landing() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center fade-in" style={{ animationDelay: "0.4s" }}>
             <Button 
-              onClick={() => window.location.href = '/api/login'}
+              onClick={() => window.location.href = '/register'}
               className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-3 rounded-full font-semibold btn-primary"
             >
               Get Started
@@ -201,7 +208,7 @@ export default function Landing() {
             Join thousands of educators revolutionizing learning with project-based education
           </p>
           <Button 
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => window.location.href = '/register'}
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold btn-primary text-lg"
           >
             Get Started Today

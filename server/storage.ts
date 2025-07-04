@@ -11,6 +11,7 @@ import {
   outcomes,
   grades,
   projectAssignments,
+  authTokens,
   type User,
   type UpsertUser,
   type InsertProject,
@@ -31,6 +32,8 @@ import {
   type Outcome,
   type Grade,
   type ProjectAssignment,
+  type AuthToken,
+  type InsertAuthToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, sql } from "drizzle-orm";
@@ -38,9 +41,16 @@ import { eq, and, desc, asc, inArray, sql } from "drizzle-orm";
 // Interface for storage operations
 export interface IStorage {
   // User operations
-  // (IMPORTANT) these user operations are mandatory for Replit Auth.
-  getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: UpsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<UpsertUser>): Promise<User>;
+  
+  // Auth token operations
+  createAuthToken(token: InsertAuthToken): Promise<AuthToken>;
+  getAuthToken(token: string): Promise<AuthToken | undefined>;
+  deleteAuthToken(token: string): Promise<void>;
+  deleteAuthTokensByUserId(userId: number): Promise<void>;
 
   // Project operations
   createProject(project: InsertProject): Promise<Project>;
@@ -95,25 +105,50 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  // (IMPORTANT) these user operations are mandatory for Replit Auth.
-  async getUser(id: string): Promise<User | undefined> {
+  async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<UpsertUser>): Promise<User> {
     const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  // Auth token operations
+  async createAuthToken(tokenData: InsertAuthToken): Promise<AuthToken> {
+    const [token] = await db.insert(authTokens).values(tokenData).returning();
+    return token;
+  }
+
+  async getAuthToken(token: string): Promise<AuthToken | undefined> {
+    const [tokenRecord] = await db
+      .select()
+      .from(authTokens)
+      .where(eq(authTokens.token, token));
+    return tokenRecord;
+  }
+
+  async deleteAuthToken(token: string): Promise<void> {
+    await db.delete(authTokens).where(eq(authTokens.token, token));
+  }
+
+  async deleteAuthTokensByUserId(userId: number): Promise<void> {
+    await db.delete(authTokens).where(eq(authTokens.userId, userId));
   }
 
   // Project operations

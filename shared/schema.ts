@@ -26,17 +26,28 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// User storage table with authentication support
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
+  id: serial("id").primaryKey(),
+  email: varchar("email").unique().notNull(),
+  password: varchar("password").notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { enum: ["admin", "teacher", "student"] }).notNull().default("student"),
+  emailConfirmed: boolean("email_confirmed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Authentication tokens table
+export const authTokens = pgTable("auth_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  token: varchar("token").notNull().unique(),
+  type: varchar("type", { enum: ["refresh", "reset", "confirmation"] }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // XQ Competencies and Outcomes
@@ -62,7 +73,7 @@ export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   title: varchar("title").notNull(),
   description: text("description"),
-  teacherId: varchar("teacher_id").references(() => users.id),
+  teacherId: integer("teacher_id").references(() => users.id),
   competencyIds: jsonb("competency_ids"), // Array of competency IDs
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
   dueDate: timestamp("due_date"),
@@ -85,7 +96,7 @@ export const milestones = pgTable("milestones", {
 export const projectAssignments = pgTable("project_assignments", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id),
-  studentId: varchar("student_id").references(() => users.id),
+  studentId: integer("student_id").references(() => users.id),
   assignedAt: timestamp("assigned_at").defaultNow(),
   completedAt: timestamp("completed_at"),
   progress: decimal("progress").default("0"), // 0-100
@@ -106,7 +117,7 @@ export const assessments = pgTable("assessments", {
 export const submissions = pgTable("submissions", {
   id: serial("id").primaryKey(),
   assessmentId: integer("assessment_id").references(() => assessments.id),
-  studentId: varchar("student_id").references(() => users.id),
+  studentId: integer("student_id").references(() => users.id),
   responses: jsonb("responses"), // Array of response objects
   artifacts: jsonb("artifacts"), // Array of file URLs/paths
   submittedAt: timestamp("submitted_at").defaultNow(),
@@ -122,14 +133,14 @@ export const grades = pgTable("grades", {
   rubricLevel: varchar("rubric_level", { enum: ["emerging", "developing", "proficient", "applying"] }),
   score: decimal("score"),
   feedback: text("feedback"),
-  gradedBy: varchar("graded_by").references(() => users.id),
+  gradedBy: integer("graded_by").references(() => users.id),
   gradedAt: timestamp("graded_at").defaultNow(),
 });
 
 // Credentials System
 export const credentials = pgTable("credentials", {
   id: serial("id").primaryKey(),
-  studentId: varchar("student_id").references(() => users.id),
+  studentId: integer("student_id").references(() => users.id),
   type: varchar("type", { enum: ["sticker", "badge", "plaque"] }).notNull(),
   outcomeId: integer("outcome_id").references(() => outcomes.id), // For stickers
   competencyId: integer("competency_id").references(() => competencies.id), // For badges
@@ -138,13 +149,13 @@ export const credentials = pgTable("credentials", {
   description: text("description"),
   iconUrl: varchar("icon_url"),
   awardedAt: timestamp("awarded_at").defaultNow(),
-  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedBy: integer("approved_by").references(() => users.id),
 });
 
 // Digital Portfolio
 export const portfolioArtifacts = pgTable("portfolio_artifacts", {
   id: serial("id").primaryKey(),
-  studentId: varchar("student_id").references(() => users.id),
+  studentId: integer("student_id").references(() => users.id),
   submissionId: integer("submission_id").references(() => submissions.id),
   title: varchar("title").notNull(),
   description: text("description"),
@@ -158,7 +169,7 @@ export const portfolioArtifacts = pgTable("portfolio_artifacts", {
 
 export const portfolios = pgTable("portfolios", {
   id: serial("id").primaryKey(),
-  studentId: varchar("student_id").references(() => users.id),
+  studentId: integer("student_id").references(() => users.id),
   title: varchar("title").notNull(),
   description: text("description"),
   qrCode: varchar("qr_code").unique(),
@@ -176,6 +187,14 @@ export const usersRelations = relations(users, ({ many }) => ({
   credentials: many(credentials),
   portfolioArtifacts: many(portfolioArtifacts),
   portfolios: many(portfolios),
+  authTokens: many(authTokens),
+}));
+
+export const authTokensRelations = relations(authTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [authTokens.userId],
+    references: [users.id],
+  }),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -251,6 +270,8 @@ export type Competency = typeof competencies.$inferSelect;
 export type Outcome = typeof outcomes.$inferSelect;
 export type Grade = typeof grades.$inferSelect;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;
+export type AuthToken = typeof authTokens.$inferSelect;
+export type InsertAuthToken = typeof authTokens.$inferInsert;
 
 // Zod schemas
 export const insertProjectSchema = createInsertSchema(projects).omit({
@@ -283,4 +304,25 @@ export const insertCredentialSchema = createInsertSchema(credentials).omit({
 export const insertPortfolioArtifactSchema = createInsertSchema(portfolioArtifacts).omit({
   id: true,
   createdAt: true,
+});
+
+// Auth schemas
+export const registerSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  emailConfirmed: true,
+}).extend({
+  password: createInsertSchema(users).shape.password.min(8),
+});
+
+export const loginSchema = createInsertSchema(users).pick({
+  email: true,
+  password: true,
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
