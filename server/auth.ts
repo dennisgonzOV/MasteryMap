@@ -9,14 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key';
 
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: number;
-    email: string;
-    role: 'admin' | 'teacher' | 'student';
-    firstName?: string | null;
-    lastName?: string | null;
-    profileImageUrl?: string | null;
-  };
+  user?: User;
 }
 
 export interface JWTPayload {

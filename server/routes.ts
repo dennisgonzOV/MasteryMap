@@ -24,7 +24,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create projects" });
       }
 
@@ -46,10 +46,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       
       let projects;
-      if (user?.role === 'teacher') {
-        projects = await storage.getProjectsByTeacher(userId);
-      } else if (user?.role === 'student') {
-        projects = await storage.getProjectsByStudent(userId);
+      if (req.user?.role === 'teacher') {
+        projects = await storage.getProjectsByTeacher(userId.toString());
+      } else if (req.user?.role === 'student') {
+        projects = await storage.getProjectsByStudent(userId.toString());
       } else {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -82,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate milestones" });
       }
 
@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create milestones" });
       }
 
@@ -155,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate assessments" });
       }
 
@@ -200,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'student') {
+      if (req.user?.role !== 'student') {
         return res.status(403).json({ message: "Only students can submit assessments" });
       }
 
@@ -232,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can view submissions" });
       }
 
@@ -250,7 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can grade submissions" });
       }
 
@@ -310,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can award credentials" });
       }
 
@@ -360,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can assign projects" });
       }
 
@@ -381,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Competency routes
-  app.get('/api/competencies', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/competencies', async (req, res) => {
     try {
       const competencies = await storage.getCompetencies();
       res.json(competencies);

@@ -154,6 +154,12 @@ Preferred communication style: Simple, everyday language.
   - Fixed API request parameter order in queryClient
   - Fixed landing page "Learn More" button visibility (blue text on white background)
   - Updated all branding and UI references
+- July 04, 2025: **Backend Fixes & XQ Competencies**
+  - Fixed variable name conflicts in routes.ts (user vs req.user)
+  - Added comprehensive XQ competencies database with 10 core and subject-specific competencies
+  - Added competency outcomes with rubric levels (Emerging → Developing → Proficient → Applying)
+  - Made competencies endpoint publicly accessible for frontend consumption
+  - Verified project creation with competency selection working correctly
 
 ## Action List Based on Documentation Analysis
 
