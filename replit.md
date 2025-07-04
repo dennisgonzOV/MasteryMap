@@ -31,10 +31,11 @@ EduFlow is a comprehensive AI-powered Project-Based Learning (PBL) management sy
 ## Key Components
 
 ### Authentication System
-- **Provider**: Replit Auth with OpenID Connect
-- **Session Storage**: PostgreSQL-based sessions
+- **Provider**: Custom JWT-based authentication system
+- **Session Storage**: HTTP-only cookies with JWT tokens
 - **Role-Based Access**: Admin, Teacher, Student roles
 - **Authorization**: Middleware-based route protection
+- **Password Security**: bcryptjs for password hashing
 
 ### AI Integration
 - **Service**: OpenAI GPT-4 API integration
@@ -141,5 +142,10 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
-Changelog:
-- July 04, 2025. Initial setup
+- July 04, 2025: Initial setup with Replit Auth
+- July 04, 2025: **Major Update** - Replaced Replit Auth with custom JWT authentication system
+  - Migrated from string-based to integer-based user IDs
+  - Added custom login/register pages with Apple-inspired design
+  - Implemented JWT tokens with HTTP-only cookies
+  - Added password hashing with bcryptjs
+  - Updated database schema and all authentication flows
