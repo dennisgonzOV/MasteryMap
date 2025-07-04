@@ -18,7 +18,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">EduFlow</h1>
+              <h1 className="text-2xl font-bold text-gray-900">MasteryMap</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Button 
@@ -60,7 +60,7 @@ export default function Landing() {
             </Button>
             <Button 
               variant="outline"
-              className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 rounded-full font-semibold"
+              className="border-2 border-white text-blue-600 bg-white hover:bg-gray-50 hover:text-blue-700 px-8 py-3 rounded-full font-semibold"
             >
               Learn More
             </Button>
@@ -221,12 +221,12 @@ export default function Landing() {
       <footer className="bg-white border-t border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">EduFlow</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">MasteryMap</h3>
             <p className="text-sm text-gray-600">
               Empowering project-based learning through innovative technology and AI-driven insights.
             </p>
             <div className="mt-4 text-xs text-gray-500">
-              © 2024 EduFlow. All rights reserved.
+              © 2024 MasteryMap. All rights reserved.
             </div>
           </div>
         </div>

@@ -1,8 +1,8 @@
-# EduFlow - Project-Based Learning Management System
+# MasteryMap - Project-Based Learning Management System
 
 ## Overview
 
-EduFlow is a comprehensive AI-powered Project-Based Learning (PBL) management system designed for educational institutions. The application facilitates project creation, milestone tracking, competency-based assessments, and digital portfolio management for teachers and students.
+MasteryMap is a comprehensive AI-powered Project-Based Learning (PBL) management system designed for educational institutions. The application facilitates project creation, milestone tracking, competency-based assessments, and digital portfolio management for teachers and students.
 
 ## System Architecture
 
@@ -149,3 +149,38 @@ Preferred communication style: Simple, everyday language.
   - Implemented JWT tokens with HTTP-only cookies
   - Added password hashing with bcryptjs
   - Updated database schema and all authentication flows
+- July 04, 2025: **Application Updates**
+  - Renamed application from EduFlow to MasteryMap
+  - Fixed API request parameter order in queryClient
+  - Fixed landing page "Learn More" button visibility (blue text on white background)
+  - Updated all branding and UI references
+
+## Action List Based on Documentation Analysis
+
+### High Priority Features (Phase 1)
+1. **Dashboard Implementation** - Create role-specific dashboards for Teachers, Students, and Admins
+2. **Project Management Core** - Implement project creation with competency selection
+3. **AI Milestone Generation** - Connect project competencies to AI-generated milestones
+4. **Student Assignment System** - Bulk assignment of students to projects
+5. **Assessment Module** - AI-powered assessment creation with rubric alignment
+
+### Medium Priority Features (Phase 2)
+6. **Progress Tracking** - Visual progress bars and milestone status tracking
+7. **Grading Interface** - Teacher-friendly grading with XQ rubric levels
+8. **Feedback System** - AI-generated personalized feedback for students
+9. **Credential System** - Stickers → Badges → Plaques hierarchy implementation
+10. **Notification System** - Real-time notifications for assignments and deadlines
+
+### Advanced Features (Phase 3)
+11. **Digital Portfolio** - Auto-compilation of student artifacts with QR sharing
+12. **Analytics Dashboard** - School-wide usage metrics and performance tracking
+13. **Collaboration Tools** - Group project assignments and peer feedback
+14. **Advanced AI Features** - Competency-based credential suggestions
+15. **Portfolio Curation** - Teacher/student portfolio management tools
+
+### Technical Implementation Requirements
+- **Testing**: Implement comprehensive unit and integration tests
+- **Performance**: Ensure sub-3-second AI response times
+- **Security**: HTTPS, role-based access control, FERPA compliance
+- **Accessibility**: WCAG 2.1 AA compliance throughout
+- **Monitoring**: Logging system with Winston/pino for structured logs
