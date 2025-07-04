@@ -332,6 +332,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/credentials/teacher-stats', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only teachers can view credential stats" });
+      }
+
+      // For now, return a simple count - this would be enhanced to show 
+      // credentials awarded by this teacher across their projects
+      const credentials = await storage.getCredentialsByStudent(userId); // This would be modified to get teacher stats
+      res.json(credentials);
+    } catch (error) {
+      console.error("Error fetching teacher credential stats:", error);
+      res.status(500).json({ message: "Failed to fetch teacher credential stats" });
+    }
+  });
+
   app.post('/api/credentials', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
