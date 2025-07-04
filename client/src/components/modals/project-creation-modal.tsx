@@ -110,7 +110,7 @@ export default function ProjectCreationModal({
   const onSubmit = async (data: z.infer<typeof projectSchema>) => {
     const projectData = {
       ...data,
-      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+      dueDate: data.dueDate || undefined,
       status: "draft",
     };
 

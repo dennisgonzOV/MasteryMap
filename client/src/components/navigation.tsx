@@ -72,7 +72,7 @@ export default function Navigation() {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Link href="/">
-                <h1 className="text-2xl font-bold text-gray-900 cursor-pointer">EduFlow</h1>
+                <h1 className="text-2xl font-bold text-gray-900 cursor-pointer">MasteryMap</h1>
               </Link>
             </div>
           </div>
@@ -136,7 +136,15 @@ export default function Navigation() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => window.location.href = '/api/logout'}
+                  onClick={async () => {
+                    try {
+                      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                      window.location.href = '/';
+                    } catch (error) {
+                      console.error('Logout error:', error);
+                      window.location.href = '/';
+                    }
+                  }}
                   className="text-red-600"
                 >
                   <span>Sign Out</span>

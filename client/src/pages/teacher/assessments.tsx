@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { 
   Plus, 
   Search, 
@@ -33,6 +34,7 @@ export default function TeacherAssessments() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const [showCreateAssessment, setShowCreateAssessment] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<number | undefined>();
   const [selectedMilestone, setSelectedMilestone] = useState<number | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
@@ -56,6 +58,14 @@ export default function TeacherAssessments() {
   const { data: projects = [] } = useQuery({
     queryKey: ["/api/projects"],
     enabled: isAuthenticated && user?.role === 'teacher',
+    retry: false,
+  });
+
+  // Fetch milestones for selected project
+  const { data: milestones = [] } = useQuery({
+    queryKey: ["/api/projects", selectedProject, "milestones"],
+    queryFn: () => selectedProject ? api.getMilestones(selectedProject) : Promise.resolve([]),
+    enabled: isAuthenticated && user?.role === 'teacher' && !!selectedProject,
     retry: false,
   });
 
@@ -136,7 +146,7 @@ export default function TeacherAssessments() {
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Assessments
@@ -145,14 +155,95 @@ export default function TeacherAssessments() {
                 Create and manage competency-based assessments for your projects.
               </p>
             </div>
-            <Button 
-              onClick={() => setShowCreateAssessment(true)}
-              className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Assessment
-            </Button>
           </div>
+
+          {/* Project and Milestone Selection for Assessment Creation */}
+          <Card className="apple-shadow border-0 mb-8">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-900">
+                Create New Assessment
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="project-select" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Select Project
+                  </Label>
+                  <Select 
+                    value={selectedProject?.toString() || ""} 
+                    onValueChange={(value) => {
+                      setSelectedProject(Number(value));
+                      setSelectedMilestone(undefined); // Reset milestone when project changes
+                    }}
+                  >
+                    <SelectTrigger className="focus-ring">
+                      <SelectValue placeholder="Choose a project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id.toString()}>
+                          {project.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="milestone-select" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Select Milestone
+                  </Label>
+                  <Select 
+                    value={selectedMilestone?.toString() || ""} 
+                    onValueChange={(value) => setSelectedMilestone(Number(value))}
+                    disabled={!selectedProject || milestones.length === 0}
+                  >
+                    <SelectTrigger className="focus-ring">
+                      <SelectValue placeholder={
+                        !selectedProject 
+                          ? "Select a project first" 
+                          : milestones.length === 0 
+                            ? "No milestones available" 
+                            : "Choose a milestone"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {milestones.map((milestone) => (
+                        <SelectItem key={milestone.id} value={milestone.id.toString()}>
+                          {milestone.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3 pt-2">
+                <Button 
+                  onClick={() => setShowCreateAssessment(true)}
+                  disabled={!selectedProject || !selectedMilestone}
+                  className="bg-blue-600 text-white hover:bg-blue-700 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Assessment
+                </Button>
+                
+                {selectedProject && selectedMilestone && (
+                  <p className="text-sm text-green-600 flex items-center">
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    AI Assessment available for this milestone
+                  </p>
+                )}
+              </div>
+              
+              {(!selectedProject || !selectedMilestone) && (
+                <p className="text-sm text-gray-500">
+                  Select both a project and milestone to enable assessment creation with AI assistance.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
