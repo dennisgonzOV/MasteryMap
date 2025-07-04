@@ -1,0 +1,145 @@
+# EduFlow - Project-Based Learning Management System
+
+## Overview
+
+EduFlow is a comprehensive AI-powered Project-Based Learning (PBL) management system designed for educational institutions. The application facilitates project creation, milestone tracking, competency-based assessments, and digital portfolio management for teachers and students.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React with TypeScript
+- **UI Library**: Radix UI with shadcn/ui components
+- **Styling**: Tailwind CSS with custom Apple-inspired design system
+- **State Management**: React Query for server state management
+- **Routing**: Wouter for client-side routing
+- **Build Tool**: Vite for development and production builds
+
+### Backend Architecture
+- **Runtime**: Node.js with Express.js
+- **Language**: TypeScript with ES modules
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Replit Auth with OpenID Connect
+- **Session Management**: PostgreSQL-based sessions with connect-pg-simple
+- **AI Integration**: OpenAI GPT-4 for content generation
+
+### Database Strategy
+- **ORM**: Drizzle ORM with PostgreSQL dialect
+- **Connection**: Neon Database serverless connection
+- **Schema**: Centralized schema definition in `shared/schema.ts`
+- **Migrations**: Drizzle Kit for schema management
+
+## Key Components
+
+### Authentication System
+- **Provider**: Replit Auth with OpenID Connect
+- **Session Storage**: PostgreSQL-based sessions
+- **Role-Based Access**: Admin, Teacher, Student roles
+- **Authorization**: Middleware-based route protection
+
+### AI Integration
+- **Service**: OpenAI GPT-4 API integration
+- **Capabilities**: 
+  - Automated milestone generation based on project competencies
+  - Assessment creation with rubric-aligned questions
+  - Personalized feedback generation
+  - Credential recommendation system
+
+### Project Management
+- **Project Creation**: Teacher-initiated with competency mapping
+- **Milestone Tracking**: AI-generated and manually created milestones
+- **Student Assignment**: Bulk assignment capabilities
+- **Progress Monitoring**: Real-time progress tracking with visual indicators
+
+### Assessment Module
+- **Dynamic Assessment Creation**: AI-powered question generation
+- **Rubric Integration**: XQ competency-based rubrics
+- **Grading Interface**: Teacher-friendly grading workflows
+- **Feedback System**: Automated and manual feedback mechanisms
+
+### Credential System
+- **Hierarchy**: Stickers (Outcomes) → Badges (Competencies) → Plaques (Subjects)
+- **Automation**: AI-suggested credential awarding
+- **Approval Workflow**: Teacher oversight for credential validation
+
+### Digital Portfolio
+- **Artifact Collection**: Automatic inclusion of milestone deliverables
+- **Curation Tools**: Teacher and student portfolio management
+- **Public Sharing**: QR code generation for portfolio access
+
+## Data Flow
+
+### User Authentication Flow
+1. User initiates login through Replit Auth
+2. OpenID Connect handles authentication
+3. Session created in PostgreSQL
+4. User redirected to role-specific dashboard
+
+### Project Creation Flow
+1. Teacher creates project with competency selection
+2. AI generates milestone suggestions
+3. Teacher reviews and approves milestones
+4. Students assigned to project
+5. Progress tracking begins
+
+### Assessment Flow
+1. Teacher or AI creates assessment for milestone
+2. Students complete assessment submissions
+3. AI provides initial grading suggestions
+4. Teacher reviews and finalizes grades
+5. Feedback generated and delivered to students
+
+### Credential Flow
+1. Student completes assessments
+2. AI evaluates performance against competencies
+3. Credential suggestions generated
+4. Teacher approves or modifies recommendations
+5. Credentials awarded to student portfolio
+
+## External Dependencies
+
+### Core Dependencies
+- **Database**: Neon Database (PostgreSQL)
+- **Authentication**: Replit Auth service
+- **AI Service**: OpenAI GPT-4 API
+- **UI Components**: Radix UI primitives
+
+### Development Dependencies
+- **Build Tools**: Vite, esbuild
+- **TypeScript**: Full-stack type safety
+- **Linting**: ESLint configuration
+- **CSS Processing**: PostCSS with Tailwind CSS
+
+### Runtime Dependencies
+- **Session Storage**: PostgreSQL with connect-pg-simple
+- **Form Handling**: React Hook Form with Zod validation
+- **Date Management**: date-fns for date formatting
+- **Icons**: Lucide React icons
+
+## Deployment Strategy
+
+### Development Environment
+- **Dev Server**: Vite development server with HMR
+- **Backend**: tsx for TypeScript execution
+- **Database**: Drizzle Kit for schema management
+- **Environment**: Replit-optimized development setup
+
+### Production Build
+- **Frontend**: Vite production build to `dist/public`
+- **Backend**: esbuild bundle to `dist/index.js`
+- **Assets**: Static asset optimization
+- **Database**: Schema deployment via Drizzle migrations
+
+### Environment Configuration
+- **Database**: `DATABASE_URL` for PostgreSQL connection
+- **Authentication**: Replit Auth configuration
+- **AI Service**: OpenAI API key configuration
+- **Session**: Session secret for security
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## Changelog
+
+Changelog:
+- July 04, 2025. Initial setup
