@@ -59,7 +59,7 @@ export default function Register() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
           <p className="text-sm text-muted-foreground text-center">
-            Sign up to get started with EduFlow
+            Sign up to get started with MasteryMap
           </p>
         </CardHeader>
         <CardContent>

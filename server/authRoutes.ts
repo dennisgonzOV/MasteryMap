@@ -90,7 +90,7 @@ export function setupAuthRoutes(app: Express) {
   });
 
   // Logout route
-  app.post('/api/auth/logout', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/auth/logout', async (req, res) => {
     try {
       const refreshToken = req.cookies.refresh_token;
       if (refreshToken) {
