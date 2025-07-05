@@ -124,9 +124,43 @@ export default function ProjectCreationModal({
     }
   };
 
-  const handleGenerateMilestones = () => {
-    setIsGeneratingMilestones(true);
-    form.handleSubmit(onSubmit)();
+  const handleGenerateMilestones = async () => {
+    try {
+      setIsGeneratingMilestones(true);
+      const isValid = await form.trigger();
+      if (!isValid) {
+        setIsGeneratingMilestones(false);
+        return;
+      }
+      
+      const formData = form.getValues();
+      const projectData = {
+        ...formData,
+        dueDate: formData.dueDate || undefined,
+        status: "draft",
+      };
+
+      console.log('Creating project with data:', projectData);
+      const project = await createProjectMutation.mutateAsync(projectData);
+      console.log('Project created:', project);
+
+      if (project && project.id) {
+        console.log('Generating milestones for project:', project.id);
+        await generateMilestonesMutation.mutateAsync(project.id);
+        
+        // Close modal and refresh projects
+        onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        form.reset();
+        setIsGeneratingMilestones(false);
+      } else {
+        console.error('Project creation failed or no ID returned:', project);
+        setIsGeneratingMilestones(false);
+      }
+    } catch (error) {
+      console.error('Error in handleGenerateMilestones:', error);
+      setIsGeneratingMilestones(false);
+    }
   };
 
   return (

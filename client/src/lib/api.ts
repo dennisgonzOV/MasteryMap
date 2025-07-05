@@ -6,11 +6,15 @@ export const api = {
   
   // Projects
   getProjects: () => fetch("/api/projects", { credentials: "include" }).then(res => res.json()),
-  createProject: (data: any) => apiRequest("/api/projects", "POST", data),
+  createProject: async (data: any) => {
+    const response = await apiRequest("/api/projects", "POST", data);
+    return response.json();
+  },
   getProject: (id: number) => fetch(`/api/projects/${id}`, { credentials: "include" }).then(res => res.json()),
-  generateMilestones: (projectId: number) => {
+  generateMilestones: async (projectId: number) => {
     console.log('API generateMilestones called with projectId:', projectId);
-    return apiRequest(`/api/projects/${projectId}/generate-milestones`, "POST");
+    const response = await apiRequest(`/api/projects/${projectId}/generate-milestones`, "POST");
+    return response.json();
   },
   assignStudents: (projectId: number, studentIds: string[]) => 
     apiRequest(`/api/projects/${projectId}/assign`, "POST", { studentIds }),
