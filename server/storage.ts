@@ -12,6 +12,8 @@ import {
   grades,
   projectAssignments,
   authTokens,
+  learnerOutcomes,
+  componentSkills,
   type User,
   type UpsertUser,
   type InsertProject,
@@ -34,6 +36,8 @@ import {
   type ProjectAssignment,
   type AuthToken,
   type InsertAuthToken,
+  type LearnerOutcome,
+  type ComponentSkill,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, sql } from "drizzle-orm";
@@ -90,7 +94,13 @@ export interface IStorage {
   getPortfolioArtifactsByStudent(studentId: string): Promise<PortfolioArtifact[]>;
   updatePortfolioArtifact(id: number, updates: Partial<InsertPortfolioArtifact>): Promise<PortfolioArtifact>;
 
-  // Competency operations
+  // 3-Level Hierarchy operations
+  getLearnerOutcomes(): Promise<LearnerOutcome[]>;
+  getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
+  getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
+  getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]>;
+
+  // Legacy competency operations
   getCompetencies(): Promise<Competency[]>;
   getOutcomesByCompetency(competencyId: number): Promise<Outcome[]>;
   getAllOutcomesWithCompetencies(): Promise<Array<Outcome & { competency: Competency }>>;
@@ -461,6 +471,61 @@ export class DatabaseStorage implements IStorage {
       .from(grades)
       .where(eq(grades.submissionId, submissionId))
       .orderBy(desc(grades.gradedAt));
+  }
+
+  // 3-Level Hierarchy operations
+  async getLearnerOutcomes(): Promise<LearnerOutcome[]> {
+    return await db.select().from(learnerOutcomes).orderBy(learnerOutcomes.name);
+  }
+
+  async getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>> {
+    const outcomes = await db.select().from(learnerOutcomes).orderBy(learnerOutcomes.name);
+    
+    const result = [];
+    for (const outcome of outcomes) {
+      const competenciesData = await db
+        .select()
+        .from(competencies)
+        .where(eq(competencies.learnerOutcomeId, outcome.id))
+        .orderBy(competencies.name);
+      
+      const competenciesWithSkills = [];
+      for (const competency of competenciesData) {
+        const skills = await db
+          .select()
+          .from(componentSkills)
+          .where(eq(componentSkills.competencyId, competency.id))
+          .orderBy(componentSkills.name);
+        
+        competenciesWithSkills.push({
+          ...competency,
+          componentSkills: skills,
+        });
+      }
+      
+      result.push({
+        ...outcome,
+        competencies: competenciesWithSkills,
+      });
+    }
+    
+    return result;
+  }
+
+  async getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]> {
+    return await db
+      .select()
+      .from(competencies)
+      .where(eq(competencies.learnerOutcomeId, learnerOutcomeId))
+      .orderBy(competencies.name);
+  }
+
+  async getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]> {
+    return await db
+      .select()
+      .from(componentSkills)
+      .where(eq(componentSkills.competencyId, competencyId))
+      .orderBy(componentSkills.name);
   }
 }
 

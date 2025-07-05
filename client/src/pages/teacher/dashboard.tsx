@@ -21,7 +21,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useState } from "react";
-import ProjectCreationModal from "@/components/modals/project-creation-modal";
+import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
@@ -339,11 +339,11 @@ export default function TeacherDashboard() {
 
       {/* Project Creation Modal */}
       <ProjectCreationModal
-        open={showCreateProject}
-        onOpenChange={setShowCreateProject}
-        onProjectCreated={(projectId) => {
-          console.log('Project created:', projectId);
-          // Optionally navigate to project details
+        isOpen={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+        onSuccess={() => {
+          console.log('Project created successfully');
+          setShowCreateProject(false);
         }}
       />
     </div>

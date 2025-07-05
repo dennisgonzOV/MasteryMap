@@ -454,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all learner outcomes with their competencies
+  // Get all learner outcomes with their competencies (legacy)
   app.get('/api/learner-outcomes', async (req, res) => {
     try {
       const outcomes = await storage.getAllOutcomesWithCompetencies();
@@ -462,6 +462,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching learner outcomes:", error);
       res.status(500).json({ message: "Failed to fetch learner outcomes" });
+    }
+  });
+
+  // 3-Level Hierarchy Routes
+  // Get all learner outcomes
+  app.get('/api/learner-outcomes-hierarchy', async (_req, res) => {
+    try {
+      const learnerOutcomes = await storage.getLearnerOutcomes();
+      res.json(learnerOutcomes);
+    } catch (error) {
+      console.error("Error fetching learner outcomes:", error);
+      res.status(500).json({ message: "Failed to fetch learner outcomes" });
+    }
+  });
+
+  // Get learner outcomes with complete hierarchy
+  app.get('/api/learner-outcomes-hierarchy/complete', async (_req, res) => {
+    try {
+      const learnerOutcomes = await storage.getLearnerOutcomesWithCompetencies();
+      res.json(learnerOutcomes);
+    } catch (error) {
+      console.error("Error fetching learner outcomes with competencies:", error);
+      res.status(500).json({ message: "Failed to fetch learner outcomes with competencies" });
+    }
+  });
+
+  // Get competencies by learner outcome
+  app.get('/api/learner-outcomes-hierarchy/:id/competencies', async (req, res) => {
+    try {
+      const learnerOutcomeId = parseInt(req.params.id);
+      const competencies = await storage.getCompetenciesByLearnerOutcome(learnerOutcomeId);
+      res.json(competencies);
+    } catch (error) {
+      console.error("Error fetching competencies by learner outcome:", error);
+      res.status(500).json({ message: "Failed to fetch competencies" });
+    }
+  });
+
+  // Get component skills by competency
+  app.get('/api/competencies-hierarchy/:id/component-skills', async (req, res) => {
+    try {
+      const competencyId = parseInt(req.params.id);
+      const componentSkills = await storage.getComponentSkillsByCompetency(competencyId);
+      res.json(componentSkills);
+    } catch (error) {
+      console.error("Error fetching component skills by competency:", error);
+      res.status(500).json({ message: "Failed to fetch component skills" });
     }
   });
 

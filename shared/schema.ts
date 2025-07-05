@@ -51,15 +51,33 @@ export const authTokens = pgTable("auth_tokens", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// XQ Competencies and Outcomes
+// XQ 3-Level Hierarchy: Learner Outcomes → Competencies → Component Skills
+export const learnerOutcomes = pgTable("learner_outcomes", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const competencies = pgTable("competencies", {
   id: serial("id").primaryKey(),
+  learnerOutcomeId: integer("learner_outcome_id").references(() => learnerOutcomes.id),
   name: varchar("name").notNull(),
   description: text("description"),
   category: varchar("category"), // e.g., "core", "subject-specific"
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const componentSkills = pgTable("component_skills", {
+  id: serial("id").primaryKey(),
+  competencyId: integer("competency_id").references(() => competencies.id),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  rubricLevels: jsonb("rubric_levels"), // JSON object with emerging, developing, proficient, applying
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Legacy table for backward compatibility
 export const outcomes = pgTable("outcomes", {
   id: serial("id").primaryKey(),
   competencyId: integer("competency_id").references(() => competencies.id),
@@ -76,7 +94,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   teacherId: integer("teacher_id").references(() => users.id),
   competencyIds: jsonb("competency_ids"), // Array of competency IDs (legacy)
-  learnerOutcomes: jsonb("learner_outcomes"), // Array of {outcomeId, competencyIds: []} objects
+  learnerOutcomes: jsonb("learner_outcomes"), // Array of {outcomeId, competencyIds: [], componentSkillIds: []} objects
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -237,11 +255,29 @@ export const submissionsRelations = relations(submissions, ({ one, many }) => ({
   portfolioArtifacts: many(portfolioArtifacts),
 }));
 
-export const competenciesRelations = relations(competencies, ({ many }) => ({
-  outcomes: many(outcomes),
+// 3-Level Hierarchy Relations
+export const learnerOutcomesRelations = relations(learnerOutcomes, ({ many }) => ({
+  competencies: many(competencies),
+}));
+
+export const competenciesRelations = relations(competencies, ({ one, many }) => ({
+  learnerOutcome: one(learnerOutcomes, {
+    fields: [competencies.learnerOutcomeId],
+    references: [learnerOutcomes.id],
+  }),
+  componentSkills: many(componentSkills),
+  outcomes: many(outcomes), // Legacy relation
   credentials: many(credentials),
 }));
 
+export const componentSkillsRelations = relations(componentSkills, ({ one }) => ({
+  competency: one(competencies, {
+    fields: [componentSkills.competencyId],
+    references: [competencies.id],
+  }),
+}));
+
+// Legacy relations
 export const outcomesRelations = relations(outcomes, ({ one, many }) => ({
   competency: one(competencies, {
     fields: [outcomes.competencyId],
@@ -268,7 +304,15 @@ export type InsertPortfolioArtifact = typeof portfolioArtifacts.$inferInsert;
 export type PortfolioArtifact = typeof portfolioArtifacts.$inferSelect;
 export type InsertPortfolio = typeof portfolios.$inferInsert;
 export type Portfolio = typeof portfolios.$inferSelect;
+// 3-Level Hierarchy Types
+export type LearnerOutcome = typeof learnerOutcomes.$inferSelect;
+export type InsertLearnerOutcome = typeof learnerOutcomes.$inferInsert;
 export type Competency = typeof competencies.$inferSelect;
+export type InsertCompetency = typeof competencies.$inferInsert;
+export type ComponentSkill = typeof componentSkills.$inferSelect;
+export type InsertComponentSkill = typeof componentSkills.$inferInsert;
+
+// Legacy and other types
 export type Outcome = typeof outcomes.$inferSelect;
 export type Grade = typeof grades.$inferSelect;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;

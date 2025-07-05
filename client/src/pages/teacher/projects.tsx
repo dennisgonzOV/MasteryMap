@@ -7,7 +7,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
-import ProjectCreationModal from "@/components/modals/project-creation-modal";
+import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -301,11 +301,11 @@ export default function TeacherProjects() {
 
       {/* Project Creation Modal */}
       <ProjectCreationModal
-        open={showCreateProject}
-        onOpenChange={setShowCreateProject}
-        onProjectCreated={(projectId) => {
-          console.log('Project created:', projectId);
-          // Refresh projects list
+        isOpen={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+        onSuccess={() => {
+          console.log('Project created successfully');
+          setShowCreateProject(false);
         }}
       />
     </div>
