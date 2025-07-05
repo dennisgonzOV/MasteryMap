@@ -93,6 +93,7 @@ export interface IStorage {
   // Competency operations
   getCompetencies(): Promise<Competency[]>;
   getOutcomesByCompetency(competencyId: number): Promise<Outcome[]>;
+  getAllOutcomesWithCompetencies(): Promise<Array<Outcome & { competency: Competency }>>;
 
   // Assignment operations
   assignStudentToProject(projectId: number, studentId: string): Promise<ProjectAssignment>;
@@ -389,6 +390,28 @@ export class DatabaseStorage implements IStorage {
       .from(outcomes)
       .where(eq(outcomes.competencyId, competencyId))
       .orderBy(asc(outcomes.name));
+  }
+
+  async getAllOutcomesWithCompetencies(): Promise<Array<Outcome & { competency: Competency }>> {
+    return await db
+      .select({
+        id: outcomes.id,
+        competencyId: outcomes.competencyId,
+        name: outcomes.name,
+        description: outcomes.description,
+        rubricLevels: outcomes.rubricLevels,
+        createdAt: outcomes.createdAt,
+        competency: {
+          id: competencies.id,
+          name: competencies.name,
+          description: competencies.description,
+          category: competencies.category,
+          createdAt: competencies.createdAt,
+        }
+      })
+      .from(outcomes)
+      .innerJoin(competencies, eq(outcomes.competencyId, competencies.id))
+      .orderBy(competencies.category, competencies.name, outcomes.name);
   }
 
   // Assignment operations

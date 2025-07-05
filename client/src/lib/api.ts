@@ -55,4 +55,6 @@ export const api = {
     fetch("/api/competencies", { credentials: "include" }).then(res => res.json()),
   getOutcomes: (competencyId: number) => 
     fetch(`/api/competencies/${competencyId}/outcomes`, { credentials: "include" }).then(res => res.json()),
+  getLearnerOutcomes: () => 
+    fetch("/api/learner-outcomes", { credentials: "include" }).then(res => res.json()),
 };

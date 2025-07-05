@@ -75,7 +75,8 @@ export const projects = pgTable("projects", {
   title: varchar("title").notNull(),
   description: text("description"),
   teacherId: integer("teacher_id").references(() => users.id),
-  competencyIds: jsonb("competency_ids"), // Array of competency IDs
+  competencyIds: jsonb("competency_ids"), // Array of competency IDs (legacy)
+  learnerOutcomes: jsonb("learner_outcomes"), // Array of {outcomeId, competencyIds: []} objects
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").defaultNow(),

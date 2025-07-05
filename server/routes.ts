@@ -454,6 +454,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all learner outcomes with their competencies
+  app.get('/api/learner-outcomes', async (req, res) => {
+    try {
+      const outcomes = await storage.getAllOutcomesWithCompetencies();
+      res.json(outcomes);
+    } catch (error) {
+      console.error("Error fetching learner outcomes:", error);
+      res.status(500).json({ message: "Failed to fetch learner outcomes" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

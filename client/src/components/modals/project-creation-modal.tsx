@@ -30,7 +30,10 @@ import { Sparkles, Loader2 } from "lucide-react";
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title too long"),
   description: z.string().min(1, "Description is required").max(500, "Description too long"),
-  competencyIds: z.array(z.number()).min(1, "Select at least one competency"),
+  learnerOutcomes: z.array(z.object({
+    outcomeId: z.number(),
+    competencyIds: z.array(z.number()).min(1, "At least one competency is required for each outcome"),
+  })).min(1, "At least one learner outcome is required"),
   dueDate: z.string().optional(),
 });
 
@@ -54,15 +57,15 @@ export default function ProjectCreationModal({
     defaultValues: {
       title: "",
       description: "",
-      competencyIds: [],
+      learnerOutcomes: [],
       dueDate: "",
     },
   });
 
-  // Fetch competencies
-  const { data: competencies = [], isLoading: competenciesLoading } = useQuery({
-    queryKey: ["/api/competencies"],
-    queryFn: api.getCompetencies,
+  // Fetch learner outcomes with their competencies
+  const { data: learnerOutcomes = [], isLoading: learnerOutcomesLoading } = useQuery({
+    queryKey: ["/api/learner-outcomes"],
+    queryFn: api.getLearnerOutcomes,
   });
 
   // Create project mutation
@@ -108,10 +111,18 @@ export default function ProjectCreationModal({
   });
 
   const onSubmit = async (data: z.infer<typeof projectSchema>) => {
+    // Extract all competency IDs for legacy compatibility
+    const allCompetencyIds = Array.from(new Set(
+      data.learnerOutcomes.flatMap(outcome => outcome.competencyIds)
+    ));
+
     const projectData = {
-      ...data,
+      title: data.title,
+      description: data.description,
       dueDate: data.dueDate || undefined,
       status: "draft",
+      competencyIds: allCompetencyIds, // Legacy support
+      learnerOutcomes: data.learnerOutcomes, // New structure
     };
 
     const project = await createProjectMutation.mutateAsync(projectData);
@@ -231,41 +242,96 @@ export default function ProjectCreationModal({
 
             <FormField
               control={form.control}
-              name="competencyIds"
+              name="learnerOutcomes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>XQ Competencies</FormLabel>
+                  <FormLabel>XQ Learner Outcomes & Competencies</FormLabel>
                   <FormControl>
-                    <div className="grid grid-cols-2 gap-3">
-                      {competenciesLoading ? (
-                        <div className="col-span-2 text-center py-4">
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {learnerOutcomesLoading ? (
+                        <div className="text-center py-4">
                           <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Loading competencies...</p>
+                          <p className="text-sm text-gray-600">Loading learner outcomes...</p>
                         </div>
                       ) : (
-                        competencies.map((competency) => (
-                          <div key={competency.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`competency-${competency.id}`}
-                              checked={field.value.includes(competency.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  field.onChange([...field.value, competency.id]);
-                                } else {
-                                  field.onChange(
-                                    field.value.filter((id) => id !== competency.id)
-                                  );
-                                }
-                              }}
-                            />
-                            <Label
-                              htmlFor={`competency-${competency.id}`}
-                              className="text-sm cursor-pointer"
-                            >
-                              {competency.name}
-                            </Label>
-                          </div>
-                        ))
+                        learnerOutcomes.map((outcome) => {
+                          const isOutcomeSelected = field.value.some(item => item.outcomeId === outcome.id);
+                          const selectedOutcome = field.value.find(item => item.outcomeId === outcome.id);
+                          
+                          return (
+                            <div key={outcome.id} className="border rounded-lg p-3 space-y-2">
+                              <div className="flex items-start space-x-2">
+                                <Checkbox
+                                  id={`outcome-${outcome.id}`}
+                                  checked={isOutcomeSelected}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      // Add outcome with the competency it belongs to selected by default
+                                      field.onChange([...field.value, {
+                                        outcomeId: outcome.id,
+                                        competencyIds: [outcome.competency.id]
+                                      }]);
+                                    } else {
+                                      // Remove outcome
+                                      field.onChange(field.value.filter(item => item.outcomeId !== outcome.id));
+                                    }
+                                  }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <Label
+                                    htmlFor={`outcome-${outcome.id}`}
+                                    className="text-sm font-medium cursor-pointer block"
+                                  >
+                                    {outcome.name}
+                                  </Label>
+                                  <p className="text-xs text-gray-600 mt-1">{outcome.description}</p>
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    From: {outcome.competency.name} ({outcome.competency.category})
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {isOutcomeSelected && (
+                                <div className="ml-6 mt-2 p-2 bg-gray-50 rounded">
+                                  <p className="text-xs font-medium text-gray-700 mb-2">
+                                    Available Competencies for this Outcome:
+                                  </p>
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`competency-${outcome.competency.id}-for-outcome-${outcome.id}`}
+                                      checked={selectedOutcome?.competencyIds.includes(outcome.competency.id) || false}
+                                      onCheckedChange={(checked) => {
+                                        const updatedOutcomes = field.value.map(item => {
+                                          if (item.outcomeId === outcome.id) {
+                                            if (checked) {
+                                              return {
+                                                ...item,
+                                                competencyIds: [...new Set([...item.competencyIds, outcome.competency.id])]
+                                              };
+                                            } else {
+                                              return {
+                                                ...item,
+                                                competencyIds: item.competencyIds.filter(id => id !== outcome.competency.id)
+                                              };
+                                            }
+                                          }
+                                          return item;
+                                        });
+                                        field.onChange(updatedOutcomes);
+                                      }}
+                                    />
+                                    <Label
+                                      htmlFor={`competency-${outcome.competency.id}-for-outcome-${outcome.id}`}
+                                      className="text-xs cursor-pointer"
+                                    >
+                                      {outcome.competency.name}
+                                    </Label>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </FormControl>
@@ -304,7 +370,7 @@ export default function ProjectCreationModal({
                 ) : (
                   <Sparkles className="h-4 w-4 mr-2" />
                 )}
-                Generate AI Milestones
+                Generate Milestones
               </Button>
             </DialogFooter>
           </form>
