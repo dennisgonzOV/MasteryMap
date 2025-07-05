@@ -76,15 +76,7 @@ export const componentSkills = pgTable("component_skills", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Legacy table for backward compatibility
-export const outcomes = pgTable("outcomes", {
-  id: serial("id").primaryKey(),
-  competencyId: integer("competency_id").references(() => competencies.id),
-  name: varchar("name").notNull(),
-  description: text("description"),
-  rubricLevels: jsonb("rubric_levels"), // JSON array of levels: emerging, developing, proficient, applying
-  createdAt: timestamp("created_at").defaultNow(),
-});
+// Removed legacy outcomes table - using 3-level hierarchy instead
 
 // Projects and Milestones
 export const projects = pgTable("projects", {
@@ -148,7 +140,7 @@ export const submissions = pgTable("submissions", {
 export const grades = pgTable("grades", {
   id: serial("id").primaryKey(),
   submissionId: integer("submission_id").references(() => submissions.id),
-  outcomeId: integer("outcome_id").references(() => outcomes.id),
+  componentSkillId: integer("component_skill_id").references(() => componentSkills.id),
   rubricLevel: varchar("rubric_level", { enum: ["emerging", "developing", "proficient", "applying"] }),
   score: decimal("score"),
   feedback: text("feedback"),
@@ -161,7 +153,7 @@ export const credentials = pgTable("credentials", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id").references(() => users.id),
   type: varchar("type", { enum: ["sticker", "badge", "plaque"] }).notNull(),
-  outcomeId: integer("outcome_id").references(() => outcomes.id), // For stickers
+  componentSkillId: integer("component_skill_id").references(() => componentSkills.id), // For stickers
   competencyId: integer("competency_id").references(() => competencies.id), // For badges
   subjectArea: varchar("subject_area"), // For plaques
   title: varchar("title").notNull(),
@@ -265,7 +257,7 @@ export const competenciesRelations = relations(competencies, ({ one, many }) => 
     references: [learnerOutcomes.id],
   }),
   componentSkills: many(componentSkills),
-  outcomes: many(outcomes), // Legacy relation
+  // Legacy outcomes relation removed
   credentials: many(credentials),
 }));
 
@@ -276,15 +268,7 @@ export const componentSkillsRelations = relations(componentSkills, ({ one }) => 
   }),
 }));
 
-// Legacy relations
-export const outcomesRelations = relations(outcomes, ({ one, many }) => ({
-  competency: one(competencies, {
-    fields: [outcomes.competencyId],
-    references: [competencies.id],
-  }),
-  grades: many(grades),
-  credentials: many(credentials),
-}));
+// Legacy relations removed - using 3-level hierarchy instead
 
 // Type exports
 export type UpsertUser = typeof users.$inferInsert;
@@ -311,8 +295,7 @@ export type InsertCompetency = typeof competencies.$inferInsert;
 export type ComponentSkill = typeof componentSkills.$inferSelect;
 export type InsertComponentSkill = typeof componentSkills.$inferInsert;
 
-// Legacy and other types
-export type Outcome = typeof outcomes.$inferSelect;
+// Other types
 export type Grade = typeof grades.$inferSelect;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;
 export type AuthToken = typeof authTokens.$inferSelect;
