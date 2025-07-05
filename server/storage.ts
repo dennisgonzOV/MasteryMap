@@ -186,7 +186,18 @@ export class DatabaseStorage implements IStorage {
 
   async getProjectsByStudent(studentId: number): Promise<Project[]> {
     return await db
-      .select()
+      .select({
+        id: projects.id,
+        title: projects.title,
+        description: projects.description,
+        teacherId: projects.teacherId,
+        competencyIds: projects.competencyIds,
+        learnerOutcomes: projects.learnerOutcomes,
+        status: projects.status,
+        dueDate: projects.dueDate,
+        createdAt: projects.createdAt,
+        updatedAt: projects.updatedAt,
+      })
       .from(projects)
       .innerJoin(projectAssignments, eq(projects.id, projectAssignments.projectId))
       .where(eq(projectAssignments.studentId, studentId))

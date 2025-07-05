@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,14 @@ interface LearnerOutcome {
 interface ProjectData {
   title: string;
   description: string;
+  dueDate?: string;
+  competencyIds: number[];
+  componentSkillIds: number[];
+}
+
+interface ProjectData {
+  title: string;
+  description: string;
   componentSkillIds: number[];
 }
 
@@ -50,6 +58,7 @@ interface ProjectCreationModalProps {
 export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: ProjectCreationModalProps) {
   const [projectTitle, setProjectTitle] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
+  const [projectDueDate, setProjectDueDate] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<Set<number>>(new Set());
   const [expandedOutcomes, setExpandedOutcomes] = useState<Set<number>>(new Set());
   const [expandedCompetencies, setExpandedCompetencies] = useState<Set<number>>(new Set());
@@ -58,7 +67,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
   const queryClient = useQueryClient();
 
   // Fetch the complete 3-level hierarchy
-  const { data: hierarchyData, isLoading } = useQuery({
+  const { data: hierarchyData = [], isLoading } = useQuery<LearnerOutcome[]>({
     queryKey: ['/api/learner-outcomes-hierarchy/complete'],
     enabled: isOpen,
   });
@@ -102,6 +111,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
   const resetForm = () => {
     setProjectTitle('');
     setProjectDescription('');
+    setProjectDueDate('');
     setSelectedSkills(new Set());
     setExpandedOutcomes(new Set());
     setExpandedCompetencies(new Set());
@@ -195,9 +205,23 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
       return;
     }
 
+    // Get all competency IDs from selected component skills
+    const selectedCompetencyIds = new Set<number>();
+    hierarchyData.forEach((outcome) => {
+      outcome.competencies?.forEach((competency) => {
+        competency.componentSkills?.forEach((skill) => {
+          if (selectedSkills.has(skill.id)) {
+            selectedCompetencyIds.add(competency.id);
+          }
+        });
+      });
+    });
+
     createProjectMutation.mutate({
       title: projectTitle,
       description: projectDescription,
+      dueDate: projectDueDate || undefined,
+      competencyIds: Array.from(selectedCompetencyIds),
       componentSkillIds: Array.from(selectedSkills),
     });
   };
@@ -230,6 +254,17 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
                 onChange={(e) => setProjectDescription(e.target.value)}
                 placeholder="Enter project description"
                 rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={projectDueDate}
+                onChange={(e) => setProjectDueDate(e.target.value)}
+                placeholder="Select due date"
               />
             </div>
           </div>
@@ -286,11 +321,6 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
                                 </div>
                                 <Checkbox
                                   checked={isCompetencyFullySelected(competency)}
-                                  ref={(el) => {
-                                    if (el) {
-                                      el.indeterminate = isCompetencyPartiallySelected(competency) && !isCompetencyFullySelected(competency);
-                                    }
-                                  }}
                                   onCheckedChange={() => toggleCompetencySelection(competency)}
                                 />
                               </div>
