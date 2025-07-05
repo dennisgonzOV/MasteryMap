@@ -309,6 +309,11 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   updatedAt: true,
 }).extend({
   dueDate: z.coerce.date().optional(),
+  learnerOutcomes: z.array(z.object({
+    outcomeId: z.number(),
+    competencyIds: z.array(z.number()).optional(),
+    componentSkillIds: z.array(z.number()).optional(),
+  })).optional(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({

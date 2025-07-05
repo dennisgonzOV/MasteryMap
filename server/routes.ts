@@ -30,13 +30,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle date conversion manually
       const { dueDate, ...bodyData } = req.body;
+      console.log('Received request body:', req.body);
+      
       const projectData = insertProjectSchema.parse({
         ...bodyData,
         teacherId: userId,
         dueDate: dueDate ? new Date(dueDate) : undefined,
       });
-
+      
+      console.log('Parsed project data:', projectData);
+      console.log('Learner outcomes field:', projectData.learnerOutcomes);
+      
+      // Ensure learnerOutcomes is properly handled
+      if (!projectData.learnerOutcomes || projectData.learnerOutcomes.length === 0) {
+        console.warn('Project created without learner outcomes');
+      }
+      
       const project = await storage.createProject(projectData);
+      console.log('Created project:', project);
       res.json(project);
     } catch (error) {
       console.error("Error creating project:", error);
