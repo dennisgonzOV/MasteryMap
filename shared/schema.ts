@@ -72,7 +72,6 @@ export const componentSkills = pgTable("component_skills", {
   id: serial("id").primaryKey(),
   competencyId: integer("competency_id").references(() => competencies.id),
   name: varchar("name").notNull(),
-  description: text("description"),
   rubricLevels: jsonb("rubric_levels"), // JSON object with emerging, developing, proficient, applying
   createdAt: timestamp("created_at").defaultNow(),
 });
