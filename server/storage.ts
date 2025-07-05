@@ -8,7 +8,6 @@ import {
   portfolioArtifacts,
   portfolios,
   competencies,
-  outcomes,
   grades,
   projectAssignments,
   authTokens,
@@ -31,7 +30,6 @@ import {
   type InsertPortfolio,
   type Portfolio,
   type Competency,
-  type Outcome,
   type Grade,
   type ProjectAssignment,
   type AuthToken,
@@ -59,8 +57,8 @@ export interface IStorage {
   // Project operations
   createProject(project: InsertProject): Promise<Project>;
   getProject(id: number): Promise<Project | undefined>;
-  getProjectsByTeacher(teacherId: string): Promise<Project[]>;
-  getProjectsByStudent(studentId: string): Promise<Project[]>;
+  getProjectsByTeacher(teacherId: number): Promise<Project[]>;
+  getProjectsByStudent(studentId: number): Promise<Project[]>;
   updateProject(id: number, updates: Partial<InsertProject>): Promise<Project>;
   deleteProject(id: number): Promise<void>;
 
@@ -80,18 +78,18 @@ export interface IStorage {
   // Submission operations
   createSubmission(submission: InsertSubmission): Promise<Submission>;
   getSubmission(id: number): Promise<Submission | undefined>;
-  getSubmissionsByStudent(studentId: string): Promise<Submission[]>;
+  getSubmissionsByStudent(studentId: number): Promise<Submission[]>;
   getSubmissionsByAssessment(assessmentId: number): Promise<Submission[]>;
   updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission>;
 
   // Credential operations
   createCredential(credential: InsertCredential): Promise<Credential>;
-  getCredentialsByStudent(studentId: string): Promise<Credential[]>;
+  getCredentialsByStudent(studentId: number): Promise<Credential[]>;
   updateCredential(id: number, updates: Partial<InsertCredential>): Promise<Credential>;
 
   // Portfolio operations
   createPortfolioArtifact(artifact: InsertPortfolioArtifact): Promise<PortfolioArtifact>;
-  getPortfolioArtifactsByStudent(studentId: string): Promise<PortfolioArtifact[]>;
+  getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]>;
   updatePortfolioArtifact(id: number, updates: Partial<InsertPortfolioArtifact>): Promise<PortfolioArtifact>;
 
   // 3-Level Hierarchy operations
@@ -102,13 +100,11 @@ export interface IStorage {
 
   // Legacy competency operations
   getCompetencies(): Promise<Competency[]>;
-  getOutcomesByCompetency(competencyId: number): Promise<Outcome[]>;
-  getAllOutcomesWithCompetencies(): Promise<Array<Outcome & { competency: Competency }>>;
 
   // Assignment operations
-  assignStudentToProject(projectId: number, studentId: string): Promise<ProjectAssignment>;
+  assignStudentToProject(projectId: number, studentId: number): Promise<ProjectAssignment>;
   getProjectAssignments(projectId: number): Promise<ProjectAssignment[]>;
-  updateProjectProgress(projectId: number, studentId: string, progress: number): Promise<void>;
+  updateProjectProgress(projectId: number, studentId: number, progress: number): Promise<void>;
 
   // Grade operations
   createGrade(grade: Omit<Grade, "id" | "gradedAt">): Promise<Grade>;
@@ -180,7 +176,7 @@ export class DatabaseStorage implements IStorage {
     return project;
   }
 
-  async getProjectsByTeacher(teacherId: string): Promise<Project[]> {
+  async getProjectsByTeacher(teacherId: number): Promise<Project[]> {
     return await db
       .select()
       .from(projects)
@@ -188,19 +184,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(projects.createdAt));
   }
 
-  async getProjectsByStudent(studentId: string): Promise<Project[]> {
+  async getProjectsByStudent(studentId: number): Promise<Project[]> {
     return await db
-      .select({
-        id: projects.id,
-        title: projects.title,
-        description: projects.description,
-        teacherId: projects.teacherId,
-        competencyIds: projects.competencyIds,
-        status: projects.status,
-        dueDate: projects.dueDate,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-      })
+      .select()
       .from(projects)
       .innerJoin(projectAssignments, eq(projects.id, projectAssignments.projectId))
       .where(eq(projectAssignments.studentId, studentId))
@@ -309,7 +295,7 @@ export class DatabaseStorage implements IStorage {
     return submission;
   }
 
-  async getSubmissionsByStudent(studentId: string): Promise<Submission[]> {
+  async getSubmissionsByStudent(studentId: number): Promise<Submission[]> {
     return await db
       .select()
       .from(submissions)
@@ -343,7 +329,7 @@ export class DatabaseStorage implements IStorage {
     return newCredential;
   }
 
-  async getCredentialsByStudent(studentId: string): Promise<Credential[]> {
+  async getCredentialsByStudent(studentId: number): Promise<Credential[]> {
     return await db
       .select()
       .from(credentials)
@@ -369,7 +355,7 @@ export class DatabaseStorage implements IStorage {
     return newArtifact;
   }
 
-  async getPortfolioArtifactsByStudent(studentId: string): Promise<PortfolioArtifact[]> {
+  async getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]> {
     return await db
       .select()
       .from(portfolioArtifacts)
@@ -394,38 +380,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(competencies.name));
   }
 
-  async getOutcomesByCompetency(competencyId: number): Promise<Outcome[]> {
-    return await db
-      .select()
-      .from(outcomes)
-      .where(eq(outcomes.competencyId, competencyId))
-      .orderBy(asc(outcomes.name));
-  }
 
-  async getAllOutcomesWithCompetencies(): Promise<Array<Outcome & { competency: Competency }>> {
-    return await db
-      .select({
-        id: outcomes.id,
-        competencyId: outcomes.competencyId,
-        name: outcomes.name,
-        description: outcomes.description,
-        rubricLevels: outcomes.rubricLevels,
-        createdAt: outcomes.createdAt,
-        competency: {
-          id: competencies.id,
-          name: competencies.name,
-          description: competencies.description,
-          category: competencies.category,
-          createdAt: competencies.createdAt,
-        }
-      })
-      .from(outcomes)
-      .innerJoin(competencies, eq(outcomes.competencyId, competencies.id))
-      .orderBy(competencies.category, competencies.name, outcomes.name);
-  }
 
   // Assignment operations
-  async assignStudentToProject(projectId: number, studentId: string): Promise<ProjectAssignment> {
+  async assignStudentToProject(projectId: number, studentId: number): Promise<ProjectAssignment> {
     const [assignment] = await db
       .insert(projectAssignments)
       .values({
@@ -444,7 +402,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(projectAssignments.projectId, projectId));
   }
 
-  async updateProjectProgress(projectId: number, studentId: string, progress: number): Promise<void> {
+  async updateProjectProgress(projectId: number, studentId: number, progress: number): Promise<void> {
     await db
       .update(projectAssignments)
       .set({ progress: progress.toString() })
