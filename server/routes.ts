@@ -50,9 +50,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let projects;
       if (req.user?.role === 'teacher') {
-        projects = await storage.getProjectsByTeacher(userId.toString());
+        projects = await storage.getProjectsByTeacher(userId);
       } else if (req.user?.role === 'student') {
-        projects = await storage.getProjectsByStudent(userId.toString());
+        projects = await storage.getProjectsByStudent(userId);
       } else {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -208,6 +208,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching assessments:", error);
       res.status(500).json({ message: "Failed to fetch assessments" });
+    }
+  });
+
+  // Get standalone assessments
+  app.get('/api/assessments/standalone', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const assessments = await storage.getStandaloneAssessments();
+      res.json(assessments);
+    } catch (error) {
+      console.error("Error fetching standalone assessments:", error);
+      res.status(500).json({ message: "Failed to fetch standalone assessments" });
     }
   });
 

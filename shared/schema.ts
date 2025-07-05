@@ -116,11 +116,12 @@ export const projectAssignments = pgTable("project_assignments", {
 // Assessments and Submissions
 export const assessments = pgTable("assessments", {
   id: serial("id").primaryKey(),
-  milestoneId: integer("milestone_id").references(() => milestones.id),
+  milestoneId: integer("milestone_id").references(() => milestones.id), // Optional - for milestone-linked assessments
   title: varchar("title").notNull(),
   description: text("description"),
   questions: jsonb("questions"), // Array of question objects
   rubricId: integer("rubric_id"),
+  componentSkillIds: jsonb("component_skill_ids"), // Array of component skill IDs for XQ competencies
   aiGenerated: boolean("ai_generated").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -318,6 +319,8 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   id: true,
   createdAt: true,
+}).extend({
+  milestoneId: z.number().optional(),
 });
 
 export const insertSubmissionSchema = createInsertSchema(submissions).omit({

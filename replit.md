@@ -173,6 +173,13 @@ Preferred communication style: Simple, everyday language.
   - Loaded complete XQ Competency Rubric CSV data: 5 learner outcomes, 28 competencies, 80 component skills
   - Optimized database structure by keeping category column on competencies for performance
   - Updated schema types and relations to reflect new structure
+- July 05, 2025: **Assessment System Enhancement & Project Learner Outcomes**
+  - Made assessments standalone by making milestoneId optional in assessments table
+  - Added componentSkillIds field to assessments for XQ competency tracking
+  - Implemented getStandaloneAssessments API endpoint
+  - Projects now properly record selected learner outcomes in learnerOutcomes field
+  - Created StandaloneAssessmentModal for creating assessments not tied to milestones
+  - Both milestone-linked and standalone assessments can measure XQ competencies
 
 ## Action List Based on Documentation Analysis
 

@@ -38,7 +38,7 @@ import {
   type ComponentSkill,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, sql, isNull } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -73,6 +73,7 @@ export interface IStorage {
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
   getAssessment(id: number): Promise<Assessment | undefined>;
   getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]>;
+  getStandaloneAssessments(): Promise<Assessment[]>; // Get all standalone assessments
   updateAssessment(id: number, updates: Partial<InsertAssessment>): Promise<Assessment>;
 
   // Submission operations
@@ -277,6 +278,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(assessments)
       .where(eq(assessments.milestoneId, milestoneId))
+      .orderBy(desc(assessments.createdAt));
+  }
+
+  async getStandaloneAssessments(): Promise<Assessment[]> {
+    return await db
+      .select()
+      .from(assessments)
+      .where(sql`${assessments.milestoneId} IS NULL`)
       .orderBy(desc(assessments.createdAt));
   }
 
