@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
 import GradingInterface from "@/components/grading-interface";
+import ViewSubmissionsModal from "@/components/modals/view-submissions-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,10 @@ import {
   Users,
   FileText,
   Sparkles,
-  BookOpen
+  BookOpen,
+  Share,
+  Eye,
+  Copy
 } from "lucide-react";
 import {
   Select,
@@ -41,6 +45,8 @@ export default function TeacherAssessments() {
   const [projectFilter, setProjectFilter] = useState("all");
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
   const [showGradingInterface, setShowGradingInterface] = useState(false);
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [selectedAssessmentForSubmissions, setSelectedAssessmentForSubmissions] = useState<number | null>(null);
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -104,6 +110,29 @@ export default function TeacherAssessments() {
   const totalAssessments = assessments.length;
   const pendingGrading = 13; // Mock data for now - would come from submissions API
   const aiGeneratedCount = assessments.filter(a => a.aiGenerated).length;
+
+  // Handler functions
+  const handleShareAssessment = async (assessmentId: number) => {
+    const shareUrl = `${window.location.origin}/assessment/${assessmentId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast({
+        title: "Assessment link copied!",
+        description: "Students can use this link to access the assessment after logging in.",
+      });
+    } catch (err) {
+      toast({
+        title: "Failed to copy link",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewSubmissions = (assessmentId: number) => {
+    setSelectedAssessmentForSubmissions(assessmentId);
+    setShowSubmissionsModal(true);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -299,16 +328,36 @@ export default function TeacherAssessments() {
                           <Badge variant="destructive">
                             6 pending
                           </Badge>
-                          <Button 
-                            size="sm"
-                            className="bg-blue-600 text-white hover:bg-blue-700"
-                            onClick={() => {
-                              setSelectedAssessmentId(assessment.id);
-                              setShowGradingInterface(true);
-                            }}
-                          >
-                            Grade Submissions
-                          </Button>
+                          <div className="flex items-center space-x-2">
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                              onClick={() => handleShareAssessment(assessment.id)}
+                            >
+                              <Share className="h-4 w-4 mr-1" />
+                              Share Assessment
+                            </Button>
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600 border-green-600 hover:bg-green-50"
+                              onClick={() => handleViewSubmissions(assessment.id)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Submissions
+                            </Button>
+                            <Button 
+                              size="sm"
+                              className="bg-blue-600 text-white hover:bg-blue-700"
+                              onClick={() => {
+                                setSelectedAssessmentId(assessment.id);
+                                setShowGradingInterface(true);
+                              }}
+                            >
+                              Grade Submissions
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -364,6 +413,21 @@ export default function TeacherAssessments() {
             setShowGradingInterface(false);
             setSelectedAssessmentId(null);
           }}
+        />
+      )}
+
+      {/* View Submissions Modal */}
+      {selectedAssessmentForSubmissions && (
+        <ViewSubmissionsModal
+          isOpen={showSubmissionsModal}
+          onClose={() => {
+            setShowSubmissionsModal(false);
+            setSelectedAssessmentForSubmissions(null);
+          }}
+          assessmentId={selectedAssessmentForSubmissions}
+          assessmentTitle={
+            assessments.find((a: any) => a.id === selectedAssessmentForSubmissions)?.title || 'Assessment'
+          }
         />
       )}
     </div>

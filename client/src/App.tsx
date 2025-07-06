@@ -15,6 +15,7 @@ import TeacherAssessments from "@/pages/teacher/assessments";
 import StudentDashboard from "@/pages/student/dashboard";
 import StudentProjects from "@/pages/student/projects";
 import StudentPortfolio from "@/pages/student/portfolio";
+import TakeAssessment from "@/pages/student/take-assessment";
 import AdminDashboard from "@/pages/admin/dashboard";
 
 function Router() {
@@ -35,6 +36,10 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      
+      {/* Public assessment route - accessible after login */}
+      <Route path="/assessment/:id" component={TakeAssessment} />
+      
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
