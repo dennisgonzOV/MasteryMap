@@ -64,8 +64,8 @@ export default function TakeAssessment() {
   }, [isAuthenticated, isLoading, toast]);
 
   // Fetch assessment data
-  const { data: assessment, isLoading: assessmentLoading } = useQuery({
-    queryKey: ['/api/assessments', id],
+  const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
+    queryKey: [`/api/assessments/${id}`],
     enabled: isAuthenticated && !!id,
     retry: false,
   });
