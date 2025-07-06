@@ -242,7 +242,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only teachers can create assessments" });
       }
 
-      const assessmentData = insertAssessmentSchema.parse(req.body);
+      // Handle date conversion manually
+      const { dueDate, ...bodyData } = req.body;
+      const assessmentData = insertAssessmentSchema.parse({
+        ...bodyData,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+      });
+      
       const assessment = await storage.createAssessment(assessmentData);
       res.json(assessment);
     } catch (error) {

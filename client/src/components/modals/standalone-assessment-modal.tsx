@@ -30,6 +30,7 @@ import { Sparkles, Loader2 } from "lucide-react";
 const assessmentSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title too long"),
   description: z.string().min(1, "Description is required").max(500, "Description too long"),
+  dueDate: z.string().min(1, "Due date is required"),
   componentSkillIds: z.array(z.number()).min(1, "At least one component skill is required"),
   questions: z.array(z.object({
     text: z.string().min(1, "Question text is required"),
@@ -59,6 +60,7 @@ export default function StandaloneAssessmentModal({
     defaultValues: {
       title: "",
       description: "",
+      dueDate: "",
       componentSkillIds: [],
       questions: [
         {
@@ -174,6 +176,24 @@ export default function StandaloneAssessmentModal({
                         placeholder="Describe what this assessment measures"
                         {...field}
                         rows={3}
+                        className="focus-ring"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="dueDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Due Date</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
                         className="focus-ring"
                       />
                     </FormControl>

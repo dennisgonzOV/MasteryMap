@@ -185,6 +185,12 @@ Preferred communication style: Simple, everyday language.
   - Deleted unused import scripts: import-complete-csv.ts, import-xq-3level-hierarchy.ts, import-xq-competencies.ts, import-xq-fixed.ts
   - Removed old project-creation-modal.tsx (replaced by project-creation-modal-new.tsx)
   - Cleaned up codebase for better maintainability
+- July 06, 2025: **Project Component Skills & Standalone Assessments**
+  - Replaced learner_outcomes column with component_skill_ids in projects table
+  - Projects now properly save selected component skills (verified in logs)
+  - Made assessments fully standalone with optional milestoneId and required dueDate
+  - Updated assessment creation UI to include due date field and remove milestone dependency
+  - Enhanced assessment schema to support standalone assessments with component skills tracking
 
 ## Action List Based on Documentation Analysis
 
