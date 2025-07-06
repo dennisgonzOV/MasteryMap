@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { loginSchema } from '@shared/schema';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +35,8 @@ export default function Login() {
         title: 'Success',
         description: 'Logged in successfully',
       });
+      // Invalidate auth query to refetch user data
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
       setLocation('/');
     },
     onError: (error) => {

@@ -6,6 +6,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import AssessmentModal from "@/components/modals/assessment-modal";
+import StandaloneAssessmentModal from "@/components/modals/standalone-assessment-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ export default function TeacherAssessments() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const [showCreateAssessment, setShowCreateAssessment] = useState(false);
+  const [showStandaloneAssessment, setShowStandaloneAssessment] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | undefined>();
   const [selectedMilestone, setSelectedMilestone] = useState<number | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -157,91 +159,29 @@ export default function TeacherAssessments() {
             </div>
           </div>
 
-          {/* Project and Milestone Selection for Assessment Creation */}
+          {/* Assessment Creation Options */}
           <Card className="apple-shadow border-0 mb-8">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">
                 Create New Assessment
               </CardTitle>
+              <p className="text-sm text-gray-600">
+                Create competency-based assessments for your projects.
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="project-select" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Select Project
-                  </Label>
-                  <Select 
-                    value={selectedProject?.toString() || ""} 
-                    onValueChange={(value) => {
-                      setSelectedProject(Number(value));
-                      setSelectedMilestone(undefined); // Reset milestone when project changes
-                    }}
-                  >
-                    <SelectTrigger className="focus-ring">
-                      <SelectValue placeholder="Choose a project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id.toString()}>
-                          {project.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="milestone-select" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Select Milestone
-                  </Label>
-                  <Select 
-                    value={selectedMilestone?.toString() || ""} 
-                    onValueChange={(value) => setSelectedMilestone(Number(value))}
-                    disabled={!selectedProject || milestones.length === 0}
-                  >
-                    <SelectTrigger className="focus-ring">
-                      <SelectValue placeholder={
-                        !selectedProject 
-                          ? "Select a project first" 
-                          : milestones.length === 0 
-                            ? "No milestones available" 
-                            : "Choose a milestone"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {milestones.map((milestone) => (
-                        <SelectItem key={milestone.id} value={milestone.id.toString()}>
-                          {milestone.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3 pt-2">
+              <div className="flex items-center space-x-3">
                 <Button 
-                  onClick={() => setShowCreateAssessment(true)}
-                  disabled={!selectedProject || !selectedMilestone}
-                  className="bg-blue-600 text-white hover:bg-blue-700 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setShowStandaloneAssessment(true)}
+                  className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Assessment
                 </Button>
-                
-                {selectedProject && selectedMilestone && (
-                  <p className="text-sm text-green-600 flex items-center">
-                    <Sparkles className="h-4 w-4 mr-1" />
-                    AI Assessment available for this milestone
-                  </p>
-                )}
-              </div>
-              
-              {(!selectedProject || !selectedMilestone) && (
                 <p className="text-sm text-gray-500">
-                  Select both a project and milestone to enable assessment creation with AI assistance.
+                  Create assessments that measure XQ competencies through component skills.
                 </p>
-              )}
+              </div>
             </CardContent>
           </Card>
 
@@ -446,6 +386,15 @@ export default function TeacherAssessments() {
         milestoneId={selectedMilestone}
         onAssessmentCreated={(assessmentId) => {
           console.log('Assessment created:', assessmentId);
+        }}
+      />
+
+      {/* Standalone Assessment Modal */}
+      <StandaloneAssessmentModal
+        open={showStandaloneAssessment}
+        onOpenChange={setShowStandaloneAssessment}
+        onAssessmentCreated={(assessmentId) => {
+          console.log('Standalone assessment created:', assessmentId);
         }}
       />
     </div>
