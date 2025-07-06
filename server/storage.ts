@@ -193,7 +193,7 @@ export class DatabaseStorage implements IStorage {
         description: projects.description,
         teacherId: projects.teacherId,
         competencyIds: projects.competencyIds,
-        learnerOutcomes: projects.learnerOutcomes,
+        componentSkillIds: projects.componentSkillIds,
         status: projects.status,
         dueDate: projects.dueDate,
         createdAt: projects.createdAt,

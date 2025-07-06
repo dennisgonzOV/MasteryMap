@@ -39,11 +39,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       console.log('Parsed project data:', projectData);
-      console.log('Learner outcomes field:', projectData.learnerOutcomes);
+      console.log('Component skills field:', projectData.componentSkillIds);
       
-      // Ensure learnerOutcomes is properly handled
-      if (!projectData.learnerOutcomes || projectData.learnerOutcomes.length === 0) {
-        console.warn('Project created without learner outcomes');
+      // Ensure componentSkillIds is properly handled
+      if (!projectData.componentSkillIds || projectData.componentSkillIds.length === 0) {
+        console.warn('Project created without component skills');
       }
       
       const project = await storage.createProject(projectData);

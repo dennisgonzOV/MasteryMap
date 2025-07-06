@@ -85,7 +85,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   teacherId: integer("teacher_id").references(() => users.id),
   competencyIds: jsonb("competency_ids"), // Array of competency IDs (legacy)
-  learnerOutcomes: jsonb("learner_outcomes"), // Array of {outcomeId, competencyIds: [], componentSkillIds: []} objects
+  componentSkillIds: jsonb("component_skill_ids").$type<number[]>().default([]), // Array of component skill IDs
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -121,7 +121,8 @@ export const assessments = pgTable("assessments", {
   description: text("description"),
   questions: jsonb("questions"), // Array of question objects
   rubricId: integer("rubric_id"),
-  componentSkillIds: jsonb("component_skill_ids"), // Array of component skill IDs for XQ competencies
+  componentSkillIds: jsonb("component_skill_ids").$type<number[]>().default([]), // Array of component skill IDs for XQ competencies
+  dueDate: timestamp("due_date"), // For standalone assessments
   aiGenerated: boolean("ai_generated").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -309,11 +310,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   updatedAt: true,
 }).extend({
   dueDate: z.coerce.date().optional(),
-  learnerOutcomes: z.array(z.object({
-    outcomeId: z.number(),
-    competencyIds: z.array(z.number()).optional(),
-    componentSkillIds: z.array(z.number()).optional(),
-  })).optional(),
+  componentSkillIds: z.array(z.number()).optional(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
@@ -326,6 +323,8 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   createdAt: true,
 }).extend({
   milestoneId: z.number().optional(),
+  dueDate: z.coerce.date().optional(),
+  componentSkillIds: z.array(z.number()).optional(),
 });
 
 export const insertSubmissionSchema = createInsertSchema(submissions).omit({
