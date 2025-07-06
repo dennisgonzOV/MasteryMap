@@ -151,6 +151,24 @@ export default function TeacherAssessments() {
   const filteredAssessments = assessments.filter(assessment => {
     const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          assessment.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Filter by project if a specific project is selected
+    if (projectFilter !== "all") {
+      const selectedProjectId = parseInt(projectFilter);
+      
+      // For milestone-linked assessments, check if milestone belongs to selected project
+      if (assessment.milestoneId) {
+        const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
+        if (!milestone || milestone.projectId !== selectedProjectId) {
+          return false;
+        }
+      } else {
+        // For standalone assessments, we don't have direct project association
+        // You could implement project-assessment relationship if needed
+        return false;
+      }
+    }
+    
     return matchesSearch;
   });
 
@@ -215,99 +233,96 @@ export default function TeacherAssessments() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
       
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
+          {/* Modern Header with Stats */}
           <div className="mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Assessments
-              </h1>
-              <p className="text-gray-600">
-                Create and manage competency-based assessments for your projects.
-              </p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                  Assessments
+                </h1>
+                <p className="text-lg text-gray-600">
+                  Create and manage competency-based assessments for your projects
+                </p>
+              </div>
+              <Button 
+                onClick={() => setShowCreateAssessment(true)}
+                className="bg-blue-600 text-white hover:bg-blue-700 px-6 py-3 rounded-xl shadow-lg"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Create Assessment
+              </Button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-blue-100 rounded-lg">
+                      <FileText className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">Total Assessments</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalAssessments}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-orange-100 rounded-lg">
+                      <Clock className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">Pending Grading</p>
+                      <p className="text-2xl font-bold text-gray-900">{pendingGrading}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-purple-100 rounded-lg">
+                      <Sparkles className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">AI Generated</p>
+                      <p className="text-2xl font-bold text-gray-900">{aiGeneratedCount}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-green-100 rounded-lg">
+                      <Calendar className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-500">Milestone-Linked</p>
+                      <p className="text-2xl font-bold text-gray-900">{assessments.filter(a => a.milestoneId).length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
 
-          {/* Assessment Creation Options */}
-          <Card className="apple-shadow border-0 mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-900">
-                Create New Assessment
-              </CardTitle>
-              <p className="text-sm text-gray-600">
-                Create competency-based assessments for your projects.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <Button 
-                  onClick={() => setShowCreateAssessment(true)}
-                  className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Assessment
-                </Button>
-                <p className="text-sm text-gray-500">
-                  Create assessments that measure XQ competencies through component skills.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="apple-shadow border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    <Target className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Assessments</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalAssessments}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="apple-shadow border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-3 bg-orange-100 rounded-full">
-                    <Clock className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Pending Grading</p>
-                    <p className="text-2xl font-bold text-gray-900">{pendingGrading}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="apple-shadow border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-3 bg-purple-100 rounded-full">
-                    <Sparkles className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">AI Generated</p>
-                    <p className="text-2xl font-bold text-gray-900">{aiGeneratedCount}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filters */}
-          <Card className="apple-shadow border-0 mb-8">
+          {/* Filters & Search */}
+          <Card className="bg-white border-0 shadow-sm mb-8">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
+                <div className="flex-1 relative">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
@@ -363,57 +378,63 @@ export default function TeacherAssessments() {
           ) : (
             <div className="space-y-6">
               {filteredAssessments.map((assessment) => (
-                <Card key={assessment.id} className="apple-shadow border-0 card-hover">
+                <Card key={assessment.id} className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <h3 className="text-xl font-semibold text-gray-900">
                             {assessment.title}
                           </h3>
                           {assessment.milestoneId && (
-                            <Badge variant="outline" className="flex items-center space-x-1">
+                            <Badge variant="outline" className="flex items-center space-x-1 bg-green-50 text-green-700 border-green-200">
                               <Calendar className="h-3 w-3" />
                               <span>Milestone-Linked</span>
                             </Badge>
                           )}
+                          {!assessment.milestoneId && (
+                            <Badge variant="outline" className="flex items-center space-x-1 bg-blue-50 text-blue-700 border-blue-200">
+                              <Target className="h-3 w-3" />
+                              <span>Standalone</span>
+                            </Badge>
+                          )}
                           {assessment.aiGenerated && (
-                            <Badge variant="secondary" className="flex items-center space-x-1">
+                            <Badge variant="secondary" className="flex items-center space-x-1 bg-purple-50 text-purple-700 border-purple-200">
                               <Sparkles className="h-3 w-3" />
                               <span>AI Generated</span>
                             </Badge>
                           )}
                         </div>
-                        <p className="text-gray-600 mb-3">{assessment.description}</p>
+                        <p className="text-gray-600 mb-4 leading-relaxed">{assessment.description}</p>
                         
                         {/* Competencies and Component Skills Display */}
                         {getCompetencyInfo(assessment) && (
-                          <div className="mb-4">
-                            <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                              <Target className="h-4 w-4 mr-2" />
+                          <div className="mb-6">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                              <Target className="h-4 w-4 mr-2 text-blue-600" />
                               Competencies Being Tested
                             </h4>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               {getCompetencyInfo(assessment).map((competency: any, index: number) => (
-                                <div key={index} className="bg-blue-50 rounded-lg p-3">
-                                  <div className="flex items-start justify-between">
-                                    <div>
-                                      <h5 className="font-medium text-blue-900">
+                                <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                      <h5 className="font-semibold text-blue-900 mb-1">
                                         {competency.competencyName}
                                       </h5>
-                                      <p className="text-sm text-blue-700">
+                                      <p className="text-sm text-blue-700 font-medium">
                                         {competency.learnerOutcomeName}
                                       </p>
                                     </div>
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge variant="outline" className="text-xs bg-white text-blue-800 border-blue-200">
                                       {competency.competencyCategory}
                                     </Badge>
                                   </div>
-                                  <div className="mt-2">
-                                    <p className="text-xs text-blue-600 mb-1">Component Skills:</p>
-                                    <div className="flex flex-wrap gap-1">
+                                  <div className="mt-3">
+                                    <p className="text-xs font-medium text-blue-800 mb-2">Component Skills:</p>
+                                    <div className="flex flex-wrap gap-2">
                                       {competency.skills.map((skill: any) => (
-                                        <Badge key={skill.id} variant="secondary" className="text-xs">
+                                        <Badge key={skill.id} className="text-xs bg-blue-600 text-white hover:bg-blue-700">
                                           {skill.name}
                                         </Badge>
                                       ))}
@@ -425,80 +446,82 @@ export default function TeacherAssessments() {
                           </div>
                         )}
                         
-                        <div className="flex items-center space-x-6 text-sm text-gray-600">
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-4 w-4" />
-                            <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy') : 'No due date'}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <FileText className="h-4 w-4" />
-                            <span>{assessment.questions?.length || 0} questions</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Users className="h-4 w-4" />
-                            <span>24 submissions</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Target className="h-4 w-4" />
-                            <span>Standalone Assessment</span>
+                        {/* Assessment Info Footer */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-6 text-sm text-gray-600">
+                              <div className="flex items-center space-x-2">
+                                <Clock className="h-4 w-4 text-orange-500" />
+                                <span className="font-medium">Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy') : 'No due date'}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <FileText className="h-4 w-4 text-blue-500" />
+                                <span>{assessment.questions?.length || 0} questions</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Users className="h-4 w-4 text-green-500" />
+                                <span>24 submissions</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="destructive" className="bg-red-100 text-red-800">
+                                6 pending
+                              </Badge>
+                              <span className="text-sm text-gray-500">
+                                Created {assessment.createdAt ? format(new Date(assessment.createdAt), 'MMM d, yyyy') : 'recently'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
                       
-                      <div className="flex flex-col items-end space-y-2">
-                        <span className="text-sm text-gray-500">
-                          {assessment.createdAt ? format(new Date(assessment.createdAt), 'MMM d, yyyy') : 'Recently created'}
-                        </span>
+                      {/* Action Buttons */}
+                      <div className="flex flex-col items-end space-y-2 ml-6">
                         <div className="flex items-center space-x-2">
-                          <Badge variant="destructive">
-                            6 pending
-                          </Badge>
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                              onClick={() => handleShareAssessment(assessment.id)}
-                            >
-                              <Share className="h-4 w-4 mr-1" />
-                              Share Assessment
-                            </Button>
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              className="text-green-600 border-green-600 hover:bg-green-50"
-                              onClick={() => handleViewSubmissions(assessment.id)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View Submissions
-                            </Button>
-                            <Button 
-                              size="sm"
-                              className="bg-blue-600 text-white hover:bg-blue-700"
-                              onClick={() => {
-                                setSelectedAssessmentId(assessment.id);
-                                setShowGradingInterface(true);
-                              }}
-                            >
-                              Grade Submissions
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
-                                  className="text-red-600 focus:text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete Assessment
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                            onClick={() => handleShareAssessment(assessment.id)}
+                          >
+                            <Share className="h-4 w-4 mr-1" />
+                            Share
+                          </Button>
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600 border-green-600 hover:bg-green-50"
+                            onClick={() => handleViewSubmissions(assessment.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button 
+                            size="sm"
+                            className="bg-blue-600 text-white hover:bg-blue-700"
+                            onClick={() => {
+                              setSelectedAssessmentId(assessment.id);
+                              setShowGradingInterface(true);
+                            }}
+                          >
+                            Grade
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Assessment
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </div>
@@ -507,13 +530,11 @@ export default function TeacherAssessments() {
                     <div className="mt-4">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-600">Grading Progress</span>
-                        <span className="text-sm font-medium text-gray-900">
-                          67%
-                        </span>
+                        <span className="text-sm font-medium text-gray-900">67%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="bg-green-500 h-2 rounded-full progress-bar"
+                          className="bg-green-500 h-2 rounded-full"
                           style={{ width: '67%' }}
                         />
                       </div>
