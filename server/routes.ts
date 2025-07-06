@@ -233,6 +233,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get individual assessment by ID
+  app.get('/api/assessments/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const assessmentId = parseInt(req.params.id);
+      const assessment = await storage.getAssessment(assessmentId);
+      
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+      
+      res.json(assessment);
+    } catch (error) {
+      console.error("Error fetching assessment:", error);
+      res.status(500).json({ message: "Failed to fetch assessment" });
+    }
+  });
+
   // Assessment creation route
   app.post('/api/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {

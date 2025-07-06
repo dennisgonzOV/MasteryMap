@@ -58,7 +58,7 @@ export default function TakeAssessment() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        setLocation("/login");
       }, 1000);
     }
   }, [isAuthenticated, isLoading, toast]);
