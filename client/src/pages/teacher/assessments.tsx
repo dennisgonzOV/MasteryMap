@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 import Navigation from "@/components/navigation";
 import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
 import GradingInterface from "@/components/grading-interface";
@@ -24,7 +25,9 @@ import {
   BookOpen,
   Share,
   Eye,
-  Copy
+  Copy,
+  Trash2,
+  MoreVertical
 } from "lucide-react";
 import {
   Select,
@@ -33,6 +36,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 
 export default function TeacherAssessments() {
@@ -169,6 +178,39 @@ export default function TeacherAssessments() {
   const handleViewSubmissions = (assessmentId: number) => {
     setSelectedAssessmentForSubmissions(assessmentId);
     setShowSubmissionsModal(true);
+  };
+
+  // Delete assessment mutation
+  const deleteAssessmentMutation = useMutation({
+    mutationFn: async (assessmentId: number) => {
+      const response = await fetch(`/api/assessments/${assessmentId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete assessment');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Assessment deleted",
+        description: "Assessment has been successfully deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments/standalone"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete failed", 
+        description: error.message || "Failed to delete assessment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteAssessment = (assessmentId: number, assessmentTitle: string) => {
+    if (confirm(`Are you sure you want to delete "${assessmentTitle}"? This action cannot be undone.`)) {
+      deleteAssessmentMutation.mutate(assessmentId);
+    }
   };
 
   return (
@@ -433,6 +475,22 @@ export default function TeacherAssessments() {
                             >
                               Grade Submissions
                             </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
+                                  className="text-red-600 focus:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Assessment
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       </div>

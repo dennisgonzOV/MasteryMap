@@ -91,6 +91,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if user owns this project
+      if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedProject = await storage.updateProject(projectId, req.body);
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  app.delete('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if user owns this project
+      if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteProject(projectId);
+      res.json({ message: "Project deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
   // AI Milestone generation
   app.post('/api/projects/:id/generate-milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -169,6 +213,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating milestone:", error);
       res.status(500).json({ message: "Failed to create milestone" });
+    }
+  });
+
+  app.put('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const milestoneId = parseInt(req.params.id);
+      const milestone = await storage.getMilestone(milestoneId);
+      
+      if (!milestone) {
+        return res.status(404).json({ message: "Milestone not found" });
+      }
+      
+      const updatedMilestone = await storage.updateMilestone(milestoneId, req.body);
+      res.json(updatedMilestone);
+    } catch (error) {
+      console.error("Error updating milestone:", error);
+      res.status(500).json({ message: "Failed to update milestone" });
+    }
+  });
+
+  app.delete('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const milestoneId = parseInt(req.params.id);
+      await storage.deleteMilestone(milestoneId);
+      res.json({ message: "Milestone deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting milestone:", error);
+      res.status(500).json({ message: "Failed to delete milestone" });
     }
   });
 
@@ -271,6 +343,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating assessment:", error);
       res.status(500).json({ message: "Failed to create assessment" });
+    }
+  });
+
+  // Assessment deletion route
+  app.delete('/api/assessments/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const assessmentId = parseInt(req.params.id);
+      await storage.deleteAssessment(assessmentId);
+      res.json({ message: "Assessment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting assessment:", error);
+      res.status(500).json({ message: "Failed to delete assessment" });
     }
   });
 

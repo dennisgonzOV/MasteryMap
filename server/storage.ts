@@ -75,6 +75,7 @@ export interface IStorage {
   getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]>;
   getStandaloneAssessments(): Promise<Assessment[]>; // Get all standalone assessments
   updateAssessment(id: number, updates: Partial<InsertAssessment>): Promise<Assessment>;
+  deleteAssessment(id: number): Promise<void>;
 
   // Submission operations
   createSubmission(submission: InsertSubmission): Promise<Submission>;
@@ -297,6 +298,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(assessments.id, id))
       .returning();
     return updatedAssessment;
+  }
+
+  async deleteAssessment(id: number): Promise<void> {
+    await db.delete(assessments).where(eq(assessments.id, id));
   }
 
   // Submission operations

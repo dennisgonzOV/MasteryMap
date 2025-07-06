@@ -7,7 +7,8 @@ import { Progress } from '@/components/ui/progress';
 import Navigation from '@/components/navigation';
 import NotificationSystem from '@/components/notification-system';
 import ProgressTracker from '@/components/progress-tracker';
-import { useAuth } from '@/hooks/use-auth';
+import ProjectManagementModal from '@/components/modals/project-management-modal';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   BookOpen, 
   Users, 
@@ -54,6 +55,8 @@ interface PendingTask {
 export default function EnhancedTeacherDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [showProjectManagement, setShowProjectManagement] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   // Mock data - replace with real API calls
   const stats: TeacherDashboardStats = {
@@ -348,9 +351,23 @@ export default function EnhancedTeacherDashboard() {
                       </Badge>
                     </div>
 
-                    <Button variant="outline" className="w-full">
-                      View Details
-                    </Button>
+                    <div className="space-y-2">
+                      <Button variant="outline" className="w-full">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="w-full text-blue-600 border-blue-600 hover:bg-blue-50"
+                        onClick={() => {
+                          setSelectedProjectId(project.id);
+                          setShowProjectManagement(true);
+                        }}
+                      >
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        Manage Project
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -443,6 +460,18 @@ export default function EnhancedTeacherDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Project Management Modal */}
+      {selectedProjectId && (
+        <ProjectManagementModal
+          projectId={selectedProjectId}
+          isOpen={showProjectManagement}
+          onClose={() => {
+            setShowProjectManagement(false);
+            setSelectedProjectId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
