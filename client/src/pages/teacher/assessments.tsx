@@ -85,6 +85,13 @@ export default function TeacherAssessments() {
     retry: false,
   });
 
+  // Fetch component skills with competency details
+  const { data: componentSkillsDetails = [] } = useQuery({
+    queryKey: ["/api/component-skills/details"],
+    enabled: isAuthenticated && user?.role === 'teacher',
+    retry: false,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
@@ -99,6 +106,36 @@ export default function TeacherAssessments() {
   if (!isAuthenticated || user?.role !== 'teacher') {
     return null;
   }
+
+  // Helper function to get competency information for an assessment
+  const getCompetencyInfo = (assessment: any) => {
+    if (!assessment.componentSkillIds || !componentSkillsDetails) return null;
+    
+    const skillIds = Array.isArray(assessment.componentSkillIds) 
+      ? assessment.componentSkillIds 
+      : JSON.parse(assessment.componentSkillIds || '[]');
+    
+    const skills = componentSkillsDetails.filter((skill: any) => 
+      skillIds.includes(skill.id)
+    );
+    
+    // Group by competency
+    const competencyGroups = skills.reduce((acc: any, skill: any) => {
+      const key = skill.competencyId;
+      if (!acc[key]) {
+        acc[key] = {
+          competencyName: skill.competencyName,
+          competencyCategory: skill.competencyCategory,
+          learnerOutcomeName: skill.learnerOutcomeName,
+          skills: []
+        };
+      }
+      acc[key].skills.push(skill);
+      return acc;
+    }, {});
+    
+    return Object.values(competencyGroups);
+  };
 
   // Filter assessments
   const filteredAssessments = assessments.filter(assessment => {
@@ -299,6 +336,45 @@ export default function TeacherAssessments() {
                           )}
                         </div>
                         <p className="text-gray-600 mb-3">{assessment.description}</p>
+                        
+                        {/* Competencies and Component Skills Display */}
+                        {getCompetencyInfo(assessment) && (
+                          <div className="mb-4">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                              <Target className="h-4 w-4 mr-2" />
+                              Competencies Being Tested
+                            </h4>
+                            <div className="space-y-2">
+                              {getCompetencyInfo(assessment).map((competency: any, index: number) => (
+                                <div key={index} className="bg-blue-50 rounded-lg p-3">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <h5 className="font-medium text-blue-900">
+                                        {competency.competencyName}
+                                      </h5>
+                                      <p className="text-sm text-blue-700">
+                                        {competency.learnerOutcomeName}
+                                      </p>
+                                    </div>
+                                    <Badge variant="outline" className="text-xs">
+                                      {competency.competencyCategory}
+                                    </Badge>
+                                  </div>
+                                  <div className="mt-2">
+                                    <p className="text-xs text-blue-600 mb-1">Component Skills:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {competency.skills.map((skill: any) => (
+                                        <Badge key={skill.id} variant="secondary" className="text-xs">
+                                          {skill.name}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="flex items-center space-x-6 text-sm text-gray-600">
                           <div className="flex items-center space-x-1">

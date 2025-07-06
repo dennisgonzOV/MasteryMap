@@ -488,10 +488,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get component skills with competency and learner outcome details
+  app.get('/api/component-skills/details', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const skills = await storage.getComponentSkillsWithDetails();
+      res.json(skills);
+    } catch (error) {
+      console.error("Error fetching component skills details:", error);
+      res.status(500).json({ message: "Failed to fetch component skills details" });
+    }
+  });
+
   app.get('/api/competencies/:id/outcomes', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const competencyId = parseInt(req.params.id);
-      const outcomes = await storage.getOutcomesByCompetency(competencyId);
+      const outcomes = await storage.getComponentSkillsByCompetency(competencyId);
       res.json(outcomes);
     } catch (error) {
       console.error("Error fetching outcomes:", error);
@@ -502,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all learner outcomes with their competencies (legacy)
   app.get('/api/learner-outcomes', async (req, res) => {
     try {
-      const outcomes = await storage.getAllOutcomesWithCompetencies();
+      const outcomes = await storage.getLearnerOutcomesWithCompetencies();
       res.json(outcomes);
     } catch (error) {
       console.error("Error fetching learner outcomes:", error);

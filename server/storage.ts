@@ -98,6 +98,7 @@ export interface IStorage {
   getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
   getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
   getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]>;
+  getComponentSkillsWithDetails(): Promise<any[]>;
 
   // Legacy competency operations
   getCompetencies(): Promise<Competency[]>;
@@ -513,6 +514,23 @@ export class DatabaseStorage implements IStorage {
       .from(componentSkills)
       .where(eq(componentSkills.competencyId, competencyId))
       .orderBy(componentSkills.name);
+  }
+
+  async getComponentSkillsWithDetails(): Promise<any[]> {
+    return await db
+      .select({
+        id: componentSkills.id,
+        name: componentSkills.name,
+        competencyId: componentSkills.competencyId,
+        competencyName: competencies.name,
+        competencyCategory: competencies.category,
+        learnerOutcomeId: competencies.learnerOutcomeId,
+        learnerOutcomeName: learnerOutcomes.name,
+      })
+      .from(componentSkills)
+      .innerJoin(competencies, eq(componentSkills.competencyId, competencies.id))
+      .innerJoin(learnerOutcomes, eq(competencies.learnerOutcomeId, learnerOutcomes.id))
+      .orderBy(componentSkills.id);
   }
 }
 
