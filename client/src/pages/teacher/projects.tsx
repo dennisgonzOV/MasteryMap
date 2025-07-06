@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
 import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
+import ProjectManagementModal from "@/components/modals/project-management-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,8 @@ export default function TeacherProjects() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [showProjectManagement, setShowProjectManagement] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -280,8 +283,8 @@ export default function TeacherProjects() {
                   studentCount={Math.floor(Math.random() * 30) + 15} // This would come from actual assignments
                   userRole="teacher"
                   onViewProject={(id) => {
-                    // Navigate to project details page
-                    console.log('Navigate to project:', id);
+                    setSelectedProjectId(id);
+                    setShowProjectManagement(true);
                   }}
                 />
               ))}
@@ -308,6 +311,18 @@ export default function TeacherProjects() {
           setShowCreateProject(false);
         }}
       />
+
+      {/* Project Management Modal */}
+      {selectedProjectId && (
+        <ProjectManagementModal
+          projectId={selectedProjectId}
+          isOpen={showProjectManagement}
+          onClose={() => {
+            setShowProjectManagement(false);
+            setSelectedProjectId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

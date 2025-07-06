@@ -22,11 +22,14 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
+import ProjectManagementModal from "@/components/modals/project-management-modal";
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [showProjectManagement, setShowProjectManagement] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -327,7 +330,10 @@ export default function TeacherDashboard() {
                       progress={Math.random() * 100} // This would come from actual progress calculation
                       studentCount={Math.floor(Math.random() * 30) + 15} // This would come from actual assignments
                       userRole="teacher"
-                      onViewProject={(id) => console.log('View project', id)}
+                      onViewProject={(id) => {
+                        setSelectedProjectId(id);
+                        setShowProjectManagement(true);
+                      }}
                     />
                   ))}
                 </div>
@@ -346,6 +352,18 @@ export default function TeacherDashboard() {
           setShowCreateProject(false);
         }}
       />
+
+      {/* Project Management Modal */}
+      {selectedProjectId && (
+        <ProjectManagementModal
+          projectId={selectedProjectId}
+          isOpen={showProjectManagement}
+          onClose={() => {
+            setShowProjectManagement(false);
+            setSelectedProjectId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
