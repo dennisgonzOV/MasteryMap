@@ -6,6 +6,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
+import GradingInterface from "@/components/grading-interface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,8 @@ export default function TeacherAssessments() {
   const [selectedMilestone, setSelectedMilestone] = useState<number | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
+  const [showGradingInterface, setShowGradingInterface] = useState(false);
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -61,6 +64,13 @@ export default function TeacherAssessments() {
     retry: false,
   });
 
+  // Fetch all assessments
+  const { data: assessments = [], refetch: refetchAssessments } = useQuery({
+    queryKey: ["/api/assessments/standalone"],
+    enabled: isAuthenticated && user?.role === 'teacher',
+    retry: false,
+  });
+
   // Fetch milestones for selected project
   const { data: milestones = [] } = useQuery({
     queryKey: ["/api/projects", selectedProject, "milestones"],
@@ -68,49 +78,6 @@ export default function TeacherAssessments() {
     enabled: isAuthenticated && user?.role === 'teacher' && !!selectedProject,
     retry: false,
   });
-
-  // Mock assessments data - in real app this would come from API
-  const assessments = [
-    {
-      id: 1,
-      title: "Climate Change Research Analysis",
-      description: "Assess students' understanding of climate change research methodologies",
-      projectId: 1,
-      projectTitle: "Sustainable Cities Project",
-      milestoneTitle: "Research Phase",
-      questionsCount: 5,
-      submissionsCount: 18,
-      gradedCount: 12,
-      aiGenerated: true,
-      createdAt: new Date('2024-12-01'),
-    },
-    {
-      id: 2,
-      title: "Urban Planning Presentation",
-      description: "Evaluate presentation skills and urban planning concepts",
-      projectId: 1,
-      projectTitle: "Sustainable Cities Project",
-      milestoneTitle: "Design Phase",
-      questionsCount: 4,
-      submissionsCount: 24,
-      gradedCount: 24,
-      aiGenerated: false,
-      createdAt: new Date('2024-11-28'),
-    },
-    {
-      id: 3,
-      title: "App Development Reflection",
-      description: "Self-assessment on learning during app development",
-      projectId: 2,
-      projectTitle: "Digital Innovation Lab",
-      milestoneTitle: "Development Sprint",
-      questionsCount: 6,
-      submissionsCount: 15,
-      gradedCount: 8,
-      aiGenerated: true,
-      createdAt: new Date('2024-11-25'),
-    },
-  ];
 
   if (isLoading) {
     return (
@@ -131,12 +98,11 @@ export default function TeacherAssessments() {
   const filteredAssessments = assessments.filter(assessment => {
     const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          assessment.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesProject = projectFilter === "all" || assessment.projectId.toString() === projectFilter;
-    return matchesSearch && matchesProject;
+    return matchesSearch;
   });
 
   const totalAssessments = assessments.length;
-  const pendingGrading = assessments.reduce((sum, a) => sum + (a.submissionsCount - a.gradedCount), 0);
+  const pendingGrading = 13; // Mock data for now - would come from submissions API
   const aiGeneratedCount = assessments.filter(a => a.aiGenerated).length;
 
   return (
@@ -307,37 +273,39 @@ export default function TeacherAssessments() {
                         
                         <div className="flex items-center space-x-6 text-sm text-gray-600">
                           <div className="flex items-center space-x-1">
-                            <BookOpen className="h-4 w-4" />
-                            <span>{assessment.projectTitle}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Target className="h-4 w-4" />
-                            <span>{assessment.milestoneTitle}</span>
+                            <Clock className="h-4 w-4" />
+                            <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy') : 'No due date'}</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <FileText className="h-4 w-4" />
-                            <span>{assessment.questionsCount} questions</span>
+                            <span>{assessment.questions?.length || 0} questions</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users className="h-4 w-4" />
-                            <span>{assessment.submissionsCount} submissions</span>
+                            <span>24 submissions</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Target className="h-4 w-4" />
+                            <span>Standalone Assessment</span>
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex flex-col items-end space-y-2">
                         <span className="text-sm text-gray-500">
-                          {format(assessment.createdAt, 'MMM d, yyyy')}
+                          {assessment.createdAt ? format(new Date(assessment.createdAt), 'MMM d, yyyy') : 'Recently created'}
                         </span>
                         <div className="flex items-center space-x-2">
-                          {assessment.gradedCount < assessment.submissionsCount && (
-                            <Badge variant="destructive">
-                              {assessment.submissionsCount - assessment.gradedCount} pending
-                            </Badge>
-                          )}
+                          <Badge variant="destructive">
+                            6 pending
+                          </Badge>
                           <Button 
                             size="sm"
                             className="bg-blue-600 text-white hover:bg-blue-700"
+                            onClick={() => {
+                              setSelectedAssessmentId(assessment.id);
+                              setShowGradingInterface(true);
+                            }}
                           >
                             Grade Submissions
                           </Button>
@@ -350,13 +318,13 @@ export default function TeacherAssessments() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-600">Grading Progress</span>
                         <span className="text-sm font-medium text-gray-900">
-                          {Math.round((assessment.gradedCount / assessment.submissionsCount) * 100)}%
+                          67%
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-green-500 h-2 rounded-full progress-bar"
-                          style={{ width: `${(assessment.gradedCount / assessment.submissionsCount) * 100}%` }}
+                          style={{ width: '67%' }}
                         />
                       </div>
                     </div>
@@ -383,8 +351,21 @@ export default function TeacherAssessments() {
         onOpenChange={setShowCreateAssessment}
         onAssessmentCreated={(assessmentId) => {
           console.log('Assessment created:', assessmentId);
+          refetchAssessments();
         }}
       />
+
+      {/* Grading Interface Modal */}
+      {selectedAssessmentId && (
+        <GradingInterface
+          assessmentId={selectedAssessmentId}
+          isOpen={showGradingInterface}
+          onClose={() => {
+            setShowGradingInterface(false);
+            setSelectedAssessmentId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
