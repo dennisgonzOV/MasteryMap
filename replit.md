@@ -180,6 +180,11 @@ Preferred communication style: Simple, everyday language.
   - Projects now properly record selected learner outcomes in learnerOutcomes field
   - Created StandaloneAssessmentModal for creating assessments not tied to milestones
   - Both milestone-linked and standalone assessments can measure XQ competencies
+- July 05, 2025: **Codebase Cleanup**
+  - Removed vestigial files: cookies.txt, server/replitAuth.ts, test-project-creation.js
+  - Deleted unused import scripts: import-complete-csv.ts, import-xq-3level-hierarchy.ts, import-xq-competencies.ts, import-xq-fixed.ts
+  - Removed old project-creation-modal.tsx (replaced by project-creation-modal-new.tsx)
+  - Cleaned up codebase for better maintainability
 
 ## Action List Based on Documentation Analysis
 
