@@ -33,8 +33,10 @@ import {
   AlertCircle,
   Save,
   X,
-  Sparkles
+  Sparkles,
+  Plus
 } from 'lucide-react';
+import ProjectTeamSelectionModal from './project-team-selection-modal';
 
 interface ProjectManagementModalProps {
   projectId: number;
@@ -74,6 +76,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     description: '',
     dueDate: ''
   });
+  const [showTeamModal, setShowTeamModal] = useState(false);
 
   // Fetch project details
   const { data: project, isLoading: projectLoading } = useQuery<Project>({
@@ -84,6 +87,12 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
   // Fetch project milestones
   const { data: milestones = [], isLoading: milestonesLoading } = useQuery<Milestone[]>({
     queryKey: [`/api/projects/${projectId}/milestones`],
+    enabled: isOpen && !!projectId,
+  });
+
+  // Fetch project teams
+  const { data: teams = [], isLoading: teamsLoading } = useQuery<any[]>({
+    queryKey: [`/api/projects/${projectId}/teams`],
     enabled: isOpen && !!projectId,
   });
 
@@ -481,7 +490,76 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
               )}
             </CardContent>
           </Card>
+
+          {/* Project Teams */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center">
+                <Users className="h-5 w-5 mr-2" />
+                Project Teams
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowTeamModal(true)}
+                disabled={!project?.schoolId}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Team
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {teamsLoading ? (
+                <div className="text-center py-4 text-gray-500">Loading teams...</div>
+              ) : teams.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No teams yet</h3>
+                  <p className="text-gray-500 mb-4">
+                    Create teams to organize students for this project. 
+                    All milestones will be automatically assigned to team members.
+                  </p>
+                  <Button 
+                    onClick={() => setShowTeamModal(true)}
+                    disabled={!project?.schoolId}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Team
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {teams.map((team: any) => (
+                    <div key={team.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{team.name}</h4>
+                          <p className="text-sm text-gray-600">{team.description}</p>
+                        </div>
+                        <Badge variant="secondary">
+                          {team.memberCount || 0} members
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Team Selection Modal */}
+        {project && (
+          <ProjectTeamSelectionModal
+            open={showTeamModal}
+            onOpenChange={setShowTeamModal}
+            projectId={projectId}
+            schoolId={project.schoolId}
+            onTeamCreated={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/teams`] });
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

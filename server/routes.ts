@@ -32,9 +32,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { dueDate, ...bodyData } = req.body;
       console.log('Received request body:', req.body);
       
+      // Get teacher's school ID
+      const teacher = await storage.getUser(userId);
+      const teacherSchoolId = teacher?.schoolId;
+
       const projectData = insertProjectSchema.parse({
         ...bodyData,
         teacherId: userId,
+        schoolId: teacherSchoolId,
         dueDate: dueDate ? new Date(dueDate) : undefined,
       });
       
@@ -756,6 +761,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching component skills by competency:", error);
       res.status(500).json({ message: "Failed to fetch component skills" });
+    }
+  });
+
+  // Schools routes
+  app.get('/api/schools', async (_req, res) => {
+    try {
+      const schools = await storage.getSchools();
+      res.json(schools);
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+      res.status(500).json({ message: "Failed to fetch schools" });
+    }
+  });
+
+  // Get students by school (for team selection)
+  app.get('/api/schools/:id/students', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const schoolId = parseInt(req.params.id);
+      const students = await storage.getStudentsBySchool(schoolId);
+      res.json(students);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
+  // Project teams routes
+  app.post('/api/project-teams', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const team = await storage.createProjectTeam(req.body);
+      res.json(team);
+    } catch (error) {
+      console.error("Error creating project team:", error);
+      res.status(500).json({ message: "Failed to create project team" });
+    }
+  });
+
+  app.get('/api/projects/:id/teams', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const teams = await storage.getProjectTeams(projectId);
+      res.json(teams);
+    } catch (error) {
+      console.error("Error fetching project teams:", error);
+      res.status(500).json({ message: "Failed to fetch project teams" });
+    }
+  });
+
+  app.post('/api/project-team-members', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const member = await storage.addTeamMember(req.body);
+      res.json(member);
+    } catch (error) {
+      console.error("Error adding team member:", error);
+      res.status(500).json({ message: "Failed to add team member" });
+    }
+  });
+
+  app.get('/api/project-teams/:id/members', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const teamId = parseInt(req.params.id);
+      const members = await storage.getTeamMembers(teamId);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      res.status(500).json({ message: "Failed to fetch team members" });
     }
   });
 

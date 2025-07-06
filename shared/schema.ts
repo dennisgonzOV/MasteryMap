@@ -27,6 +27,17 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Schools table
+export const schools = pgTable("schools", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  address: varchar("address"),
+  city: varchar("city"),
+  state: varchar("state"),
+  zipCode: varchar("zip_code"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // User storage table with authentication support
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -36,6 +47,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { enum: ["admin", "teacher", "student"] }).notNull().default("student"),
+  schoolId: integer("school_id").references(() => schools.id),
   emailConfirmed: boolean("email_confirmed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -84,6 +96,7 @@ export const projects = pgTable("projects", {
   title: varchar("title").notNull(),
   description: text("description"),
   teacherId: integer("teacher_id").references(() => users.id),
+  schoolId: integer("school_id").references(() => schools.id), // Add school association
   competencyIds: jsonb("competency_ids"), // Array of competency IDs (legacy)
   componentSkillIds: jsonb("component_skill_ids").$type<number[]>().default([]), // Array of component skill IDs
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
@@ -103,11 +116,30 @@ export const milestones = pgTable("milestones", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Student-Project Assignments
+// Project Teams - Each project can have multiple teams
+export const projectTeams = pgTable("project_teams", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id),
+  name: varchar("name").notNull(), // Team name like "Team A", "Green Team", etc.
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Project Team Members
+export const projectTeamMembers = pgTable("project_team_members", {
+  id: serial("id").primaryKey(),
+  teamId: integer("team_id").references(() => projectTeams.id),
+  studentId: integer("student_id").references(() => users.id),
+  role: varchar("role").default("member"), // member, leader, etc.
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+// Student-Project Assignments (Legacy - keeping for backward compatibility)
 export const projectAssignments = pgTable("project_assignments", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id),
   studentId: integer("student_id").references(() => users.id),
+  teamId: integer("team_id").references(() => projectTeams.id), // Optional team reference
   assignedAt: timestamp("assigned_at").defaultNow(),
   completedAt: timestamp("completed_at"),
   progress: decimal("progress").default("0"), // 0-100
@@ -193,15 +225,6 @@ export const portfolios = pgTable("portfolios", {
 });
 
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  projects: many(projects),
-  assignments: many(projectAssignments),
-  submissions: many(submissions),
-  credentials: many(credentials),
-  portfolioArtifacts: many(portfolioArtifacts),
-  portfolios: many(portfolios),
-  authTokens: many(authTokens),
-}));
 
 export const authTokensRelations = relations(authTokens, ({ one }) => ({
   user: one(users, {
@@ -270,6 +293,47 @@ export const componentSkillsRelations = relations(componentSkills, ({ one }) => 
   }),
 }));
 
+// Project Teams Relations
+export const projectTeamsRelations = relations(projectTeams, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [projectTeams.projectId],
+    references: [projects.id],
+  }),
+  members: many(projectTeamMembers),
+  assignments: many(projectAssignments),
+}));
+
+export const projectTeamMembersRelations = relations(projectTeamMembers, ({ one }) => ({
+  team: one(projectTeams, {
+    fields: [projectTeamMembers.teamId],
+    references: [projectTeams.id],
+  }),
+  student: one(users, {
+    fields: [projectTeamMembers.studentId],
+    references: [users.id],
+  }),
+}));
+
+// Schools Relations
+export const schoolsRelations = relations(schools, ({ many }) => ({
+  users: many(users),
+}));
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  school: one(schools, {
+    fields: [users.schoolId],
+    references: [schools.id],
+  }),
+  teacherProjects: many(projects),
+  projectAssignments: many(projectAssignments),
+  teamMemberships: many(projectTeamMembers),
+  submissions: many(submissions),
+  credentials: many(credentials),
+  portfolioArtifacts: many(portfolioArtifacts),
+  authTokens: many(authTokens),
+}));
+
+
 // Legacy relations removed - using 3-level hierarchy instead
 
 // Type exports
@@ -302,6 +366,12 @@ export type Grade = typeof grades.$inferSelect;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;
 export type AuthToken = typeof authTokens.$inferSelect;
 export type InsertAuthToken = typeof authTokens.$inferInsert;
+export type School = typeof schools.$inferSelect;
+export type InsertSchool = typeof schools.$inferInsert;
+export type ProjectTeam = typeof projectTeams.$inferSelect;
+export type InsertProjectTeam = typeof projectTeams.$inferInsert;
+export type ProjectTeamMember = typeof projectTeamMembers.$inferSelect;
+export type InsertProjectTeamMember = typeof projectTeamMembers.$inferInsert;
 
 // Zod schemas
 export const insertProjectSchema = createInsertSchema(projects).omit({
@@ -311,6 +381,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
 }).extend({
   dueDate: z.coerce.date().optional(),
   componentSkillIds: z.array(z.number()).optional(),
+  schoolId: z.number().optional(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
@@ -351,6 +422,7 @@ export const registerSchema = createInsertSchema(users).omit({
   emailConfirmed: true,
 }).extend({
   password: createInsertSchema(users).shape.password.min(8),
+  schoolId: z.number().int().positive().optional(),
 });
 
 export const loginSchema = createInsertSchema(users).pick({

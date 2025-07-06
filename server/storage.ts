@@ -13,6 +13,9 @@ import {
   authTokens,
   learnerOutcomes,
   componentSkills,
+  schools,
+  projectTeams,
+  projectTeamMembers,
   type User,
   type UpsertUser,
   type InsertProject,
@@ -36,6 +39,12 @@ import {
   type InsertAuthToken,
   type LearnerOutcome,
   type ComponentSkill,
+  type School,
+  type InsertSchool,
+  type ProjectTeam,
+  type InsertProjectTeam,
+  type ProjectTeamMember,
+  type InsertProjectTeamMember,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, sql, isNull } from "drizzle-orm";
@@ -53,6 +62,18 @@ export interface IStorage {
   getAuthToken(token: string): Promise<AuthToken | undefined>;
   deleteAuthToken(token: string): Promise<void>;
   deleteAuthTokensByUserId(userId: number): Promise<void>;
+
+  // School operations
+  getSchools(): Promise<School[]>;
+  getSchool(id: number): Promise<School | undefined>;
+  createSchool(school: InsertSchool): Promise<School>;
+
+  // Project team operations
+  createProjectTeam(team: InsertProjectTeam): Promise<ProjectTeam>;
+  getProjectTeams(projectId: number): Promise<ProjectTeam[]>;
+  addTeamMember(teamMember: InsertProjectTeamMember): Promise<ProjectTeamMember>;
+  getTeamMembers(teamId: number): Promise<ProjectTeamMember[]>;
+  getStudentsBySchool(schoolId: number): Promise<User[]>;
 
   // Project operations
   createProject(project: InsertProject): Promise<Project>;
@@ -544,6 +565,47 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(competencies, eq(componentSkills.competencyId, competencies.id))
       .innerJoin(learnerOutcomes, eq(competencies.learnerOutcomeId, learnerOutcomes.id))
       .orderBy(componentSkills.id);
+  }
+
+  // School operations
+  async getSchools(): Promise<School[]> {
+    return await db.select().from(schools).orderBy(schools.name);
+  }
+
+  async getSchool(id: number): Promise<School | undefined> {
+    const [school] = await db.select().from(schools).where(eq(schools.id, id));
+    return school;
+  }
+
+  async createSchool(schoolData: InsertSchool): Promise<School> {
+    const [school] = await db.insert(schools).values(schoolData).returning();
+    return school;
+  }
+
+  // Project team operations
+  async createProjectTeam(teamData: InsertProjectTeam): Promise<ProjectTeam> {
+    const [team] = await db.insert(projectTeams).values(teamData).returning();
+    return team;
+  }
+
+  async getProjectTeams(projectId: number): Promise<ProjectTeam[]> {
+    return await db.select().from(projectTeams).where(eq(projectTeams.projectId, projectId));
+  }
+
+  async addTeamMember(memberData: InsertProjectTeamMember): Promise<ProjectTeamMember> {
+    const [member] = await db.insert(projectTeamMembers).values(memberData).returning();
+    return member;
+  }
+
+  async getTeamMembers(teamId: number): Promise<ProjectTeamMember[]> {
+    return await db.select().from(projectTeamMembers).where(eq(projectTeamMembers.teamId, teamId));
+  }
+
+  async getStudentsBySchool(schoolId: number): Promise<User[]> {
+    return await db.select().from(users).where(and(
+      eq(users.schoolId, schoolId),
+      eq(users.role, 'student')
+    )).orderBy(users.firstName, users.lastName);
   }
 }
 

@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { registerSchema } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,15 @@ export default function Register() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  // Fetch schools for selection
+  const { data: schools } = useQuery({
+    queryKey: ['/api/schools'],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const schoolsArray = Array.isArray(schools) ? schools : [];
+  console.log('Schools data:', schools, 'Array:', schoolsArray);
+
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -26,6 +35,7 @@ export default function Register() {
       firstName: '',
       lastName: '',
       role: 'student',
+      schoolId: undefined,
     },
   });
 
@@ -135,6 +145,30 @@ export default function Register() {
                         {...field}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="schoolId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>School</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your school" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {schoolsArray.map((school: any) => (
+                          <SelectItem key={school.id} value={school.id.toString()}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
