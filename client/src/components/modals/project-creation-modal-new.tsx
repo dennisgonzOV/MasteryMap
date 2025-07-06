@@ -62,6 +62,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
   const [selectedSkills, setSelectedSkills] = useState<Set<number>>(new Set());
   const [expandedOutcomes, setExpandedOutcomes] = useState<Set<number>>(new Set());
   const [expandedCompetencies, setExpandedCompetencies] = useState<Set<number>>(new Set());
+  const [generateMilestones, setGenerateMilestones] = useState(true);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -90,12 +91,38 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async (createdProject) => {
       toast({
         title: "Success",
         description: "Project created successfully!",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      
+      // Automatically generate milestones and assessments if option is checked
+      if (generateMilestones && selectedSkills.size > 0) {
+        try {
+          const response = await fetch(`/api/projects/${createdProject.id}/generate-milestones-and-assessments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            toast({
+              title: "AI Generation Complete",
+              description: data.message || "Milestones and assessments generated successfully!",
+            });
+            queryClient.invalidateQueries({ queryKey: [`/api/projects/${createdProject.id}/milestones`] });
+            queryClient.invalidateQueries({ queryKey: ["/api/assessments/standalone"] });
+          } else {
+            console.error('Failed to generate milestones and assessments');
+          }
+        } catch (error) {
+          console.error('Error generating milestones and assessments:', error);
+        }
+      }
+      
       onSuccess();
       resetForm();
     },
@@ -115,6 +142,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
     setSelectedSkills(new Set());
     setExpandedOutcomes(new Set());
     setExpandedCompetencies(new Set());
+    setGenerateMilestones(true);
   };
 
   const handleClose = () => {
@@ -266,6 +294,17 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
                 onChange={(e) => setProjectDueDate(e.target.value)}
                 placeholder="Select due date"
               />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="generateMilestones"
+                checked={generateMilestones}
+                onCheckedChange={(checked) => setGenerateMilestones(checked as boolean)}
+              />
+              <Label htmlFor="generateMilestones" className="text-sm font-medium">
+                Automatically generate milestones and assessments with AI
+              </Label>
             </div>
           </div>
 

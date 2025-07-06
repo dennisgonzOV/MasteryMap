@@ -12,7 +12,7 @@ import {
   insertPortfolioArtifactSchema,
   type User
 } from "@shared/schema";
-import { generateMilestones, generateAssessment, generateFeedback } from "./openai";
+import { generateMilestones, generateAssessment, generateFeedback, generateMilestonesFromComponentSkills, generateAssessmentFromComponentSkills } from "./openai";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -184,6 +184,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating milestones:", error);
       res.status(500).json({ message: "Failed to generate milestones" });
+    }
+  });
+
+  // AI Milestone and Assessment generation based on component skills
+  app.post('/api/projects/:id/generate-milestones-and-assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only teachers can generate milestones and assessments" });
+      }
+
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+      
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Check if user owns this project
+      if (req.user?.role === 'teacher' && project.teacherId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get component skills for the project
+      const componentSkillDetails = await storage.getComponentSkillsWithDetails();
+      const selectedComponentSkills = componentSkillDetails.filter(skill => 
+        project.componentSkillIds?.includes(skill.id)
+      );
+
+      if (!selectedComponentSkills.length) {
+        return res.status(400).json({ message: "No component skills found for this project" });
+      }
+
+      // Generate milestones based on component skills
+      const milestones = await generateMilestonesFromComponentSkills(
+        project.title,
+        project.description || "",
+        project.dueDate?.toISOString().split('T')[0] || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        selectedComponentSkills
+      );
+      
+      // Save generated milestones to database
+      const savedMilestones = await Promise.all(
+        milestones.map((milestone, index) => 
+          storage.createMilestone({
+            projectId,
+            title: milestone.title,
+            description: milestone.description,
+            dueDate: milestone.dueDate ? new Date(milestone.dueDate) : null,
+            order: index + 1,
+            aiGenerated: true,
+          })
+        )
+      );
+
+      // Generate assessments for each milestone
+      const assessmentsWithMilestones = await Promise.all(
+        savedMilestones.map(async (milestone) => {
+          try {
+            const assessment = await generateAssessmentFromComponentSkills(
+              milestone.title,
+              milestone.description || "",
+              milestone.dueDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+              selectedComponentSkills
+            );
+
+            const savedAssessment = await storage.createAssessment({
+              milestoneId: milestone.id,
+              title: assessment.title,
+              description: assessment.description,
+              questions: assessment.questions,
+              dueDate: milestone.dueDate || new Date(),
+              componentSkillIds: project.componentSkillIds || [],
+              aiGenerated: true,
+            });
+
+            return { milestone, assessment: savedAssessment };
+          } catch (error) {
+            console.error(`Error generating assessment for milestone ${milestone.id}:`, error);
+            return { milestone, assessment: null };
+          }
+        })
+      );
+
+      res.json({
+        milestones: savedMilestones,
+        assessments: assessmentsWithMilestones.map(item => item.assessment).filter(Boolean),
+        message: `Generated ${savedMilestones.length} milestones and ${assessmentsWithMilestones.filter(item => item.assessment).length} assessments`
+      });
+    } catch (error) {
+      console.error("Error generating milestones and assessments:", error);
+      res.status(500).json({ message: "Failed to generate milestones and assessments" });
     }
   });
 

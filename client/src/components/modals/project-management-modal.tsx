@@ -32,7 +32,8 @@ import {
   CheckCircle,
   AlertCircle,
   Save,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 
 interface ProjectManagementModalProps {
@@ -182,6 +183,33 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     },
   });
 
+  // Generate milestones and assessments mutation
+  const generateMilestonesAndAssessmentsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/generate-milestones-and-assessments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to generate milestones and assessments');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Generation successful",
+        description: data.message || "Milestones and assessments generated successfully"
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments/standalone"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEditProject = () => {
     if (project) {
       setProjectForm({
@@ -227,6 +255,12 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     }
   };
 
+  const handleGenerateMilestonesAndAssessments = () => {
+    if (confirm(`Generate AI-powered milestones and assessments for "${project?.title}"? This will create new milestones based on the project's component skills.`)) {
+      generateMilestonesAndAssessmentsMutation.mutate();
+    }
+  };
+
   if (!isOpen) return null;
 
   if (projectLoading || milestonesLoading) {
@@ -265,6 +299,10 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
               <Button variant="outline" onClick={handleEditProject}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Project
+              </Button>
+              <Button variant="outline" onClick={() => handleGenerateMilestonesAndAssessments()}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Milestones & Assessments
               </Button>
               <Button variant="destructive" onClick={handleDeleteProject}>
                 <Trash2 className="h-4 w-4 mr-2" />
