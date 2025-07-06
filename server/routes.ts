@@ -294,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can view submissions" });
       }
 
@@ -312,7 +312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      if (req.user?.role !== 'teacher' && user?.role !== 'admin') {
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can grade submissions" });
       }
 
@@ -324,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gradeData.map((grade: any) => 
           storage.createGrade({
             submissionId,
-            outcomeId: grade.outcomeId,
+            componentSkillId: grade.componentSkillId,
             rubricLevel: grade.rubricLevel,
             score: grade.score,
             feedback: grade.feedback,
