@@ -5,8 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
-import AssessmentModal from "@/components/modals/assessment-modal";
-import StandaloneAssessmentModal from "@/components/modals/standalone-assessment-modal";
+import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +34,6 @@ export default function TeacherAssessments() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const [showCreateAssessment, setShowCreateAssessment] = useState(false);
-  const [showStandaloneAssessment, setShowStandaloneAssessment] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | undefined>();
   const [selectedMilestone, setSelectedMilestone] = useState<number | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -172,7 +170,7 @@ export default function TeacherAssessments() {
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Button 
-                  onClick={() => setShowStandaloneAssessment(true)}
+                  onClick={() => setShowCreateAssessment(true)}
                   className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -380,21 +378,11 @@ export default function TeacherAssessments() {
       </main>
 
       {/* Assessment Creation Modal */}
-      <AssessmentModal
+      <CreateAssessmentModal
         open={showCreateAssessment}
         onOpenChange={setShowCreateAssessment}
-        milestoneId={selectedMilestone}
         onAssessmentCreated={(assessmentId) => {
           console.log('Assessment created:', assessmentId);
-        }}
-      />
-
-      {/* Standalone Assessment Modal */}
-      <StandaloneAssessmentModal
-        open={showStandaloneAssessment}
-        onOpenChange={setShowStandaloneAssessment}
-        onAssessmentCreated={(assessmentId) => {
-          console.log('Standalone assessment created:', assessmentId);
         }}
       />
     </div>
