@@ -74,6 +74,7 @@ export interface IStorage {
   getAssessment(id: number): Promise<Assessment | undefined>;
   getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]>;
   getStandaloneAssessments(): Promise<Assessment[]>; // Get all standalone assessments
+  getAllAssessments(): Promise<Assessment[]>; // Get all assessments (both milestone-linked and standalone)
   updateAssessment(id: number, updates: Partial<InsertAssessment>): Promise<Assessment>;
   deleteAssessment(id: number): Promise<void>;
 
@@ -288,6 +289,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(assessments)
       .where(sql`${assessments.milestoneId} IS NULL`)
+      .orderBy(desc(assessments.createdAt));
+  }
+
+  async getAllAssessments(): Promise<Assessment[]> {
+    return await db
+      .select()
+      .from(assessments)
       .orderBy(desc(assessments.createdAt));
   }
 

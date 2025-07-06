@@ -27,7 +27,8 @@ import {
   Eye,
   Copy,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Calendar
 } from "lucide-react";
 import {
   Select,
@@ -79,9 +80,9 @@ export default function TeacherAssessments() {
     retry: false,
   });
 
-  // Fetch all assessments
+  // Fetch all assessments (including milestone-linked ones)
   const { data: assessments = [], refetch: refetchAssessments } = useQuery({
-    queryKey: ["/api/assessments/standalone"],
+    queryKey: ["/api/assessments"],
     enabled: isAuthenticated && user?.role === 'teacher',
     retry: false,
   });
@@ -370,6 +371,12 @@ export default function TeacherAssessments() {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {assessment.title}
                           </h3>
+                          {assessment.milestoneId && (
+                            <Badge variant="outline" className="flex items-center space-x-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>Milestone-Linked</span>
+                            </Badge>
+                          )}
                           {assessment.aiGenerated && (
                             <Badge variant="secondary" className="flex items-center space-x-1">
                               <Sparkles className="h-3 w-3" />

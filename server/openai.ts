@@ -92,6 +92,11 @@ export async function generateMilestonesFromComponentSkills(
   try {
     const skillNames = componentSkills.map(skill => skill.name).join(', ');
     
+    // Calculate date constraints
+    const todayDate = new Date();
+    const projectDueDateObj = new Date(projectDueDate);
+    const todayStr = todayDate.toISOString().split('T')[0];
+    
     const prompt = `
 You are an expert educational consultant specializing in project-based learning and competency-based education. 
 Generate 4-6 meaningful milestones for the following project that align with the specified XQ component skills.
@@ -100,6 +105,13 @@ Project Title: ${projectTitle}
 Project Description: ${projectDescription}
 Project Due Date: ${projectDueDate}
 Target Component Skills: ${skillNames}
+
+CRITICAL DATE REQUIREMENTS:
+- Today's date: ${todayStr}
+- Project due date: ${projectDueDate}
+- ALL milestone due dates must be between ${todayStr} and ${projectDueDate}
+- Space milestones evenly between these dates
+- No milestone can be due before today or after the project due date
 
 Create milestones that:
 1. Build progressively toward the project goal
@@ -110,7 +122,7 @@ Create milestones that:
 6. Each milestone should target 1-3 specific component skills
 7. Earlier milestones should focus on foundational skills, later ones on synthesis and application
 
-Calculate appropriate due dates for each milestone, spacing them evenly between now and the project due date.
+Calculate appropriate due dates for each milestone, spacing them evenly between today and the project due date.
 
 Respond with JSON in this format:
 {
@@ -142,7 +154,32 @@ Respond with JSON in this format:
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
-    return result.milestones || [];
+    const milestones = result.milestones || [];
+    
+    // Validate and fix milestone dates
+    const todayValidation = new Date();
+    const projectDueValidation = new Date(projectDueDate);
+    
+    const validatedMilestones = milestones.map((milestone: any, index: number) => {
+      let milestoneDate = new Date(milestone.dueDate);
+      
+      // If milestone date is invalid, before today, or after project due date, fix it
+      if (isNaN(milestoneDate.getTime()) || milestoneDate < todayValidation || milestoneDate > projectDueValidation) {
+        // Calculate a reasonable date by dividing the time between today and project due date
+        const totalDays = Math.ceil((projectDueValidation.getTime() - todayValidation.getTime()) / (1000 * 60 * 60 * 24));
+        const intervalDays = Math.floor(totalDays / (milestones.length + 1));
+        const daysFromToday = (index + 1) * intervalDays;
+        
+        const fixedDate = new Date(todayValidation);
+        fixedDate.setDate(fixedDate.getDate() + daysFromToday);
+        
+        milestone.dueDate = fixedDate.toISOString().split('T')[0];
+      }
+      
+      return milestone;
+    });
+    
+    return validatedMilestones;
   } catch (error) {
     console.error("Error generating milestones from component skills:", error);
     throw new Error("Failed to generate milestones");

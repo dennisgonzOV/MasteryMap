@@ -114,7 +114,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
               description: data.message || "Milestones and assessments generated successfully!",
             });
             queryClient.invalidateQueries({ queryKey: [`/api/projects/${createdProject.id}/milestones`] });
-            queryClient.invalidateQueries({ queryKey: ["/api/assessments/standalone"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
           } else {
             console.error('Failed to generate milestones and assessments');
           }
