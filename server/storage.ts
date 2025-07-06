@@ -323,10 +323,19 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(submissions.submittedAt));
   }
 
-  async getSubmissionsByAssessment(assessmentId: number): Promise<Submission[]> {
+  async getSubmissionsByAssessment(assessmentId: number): Promise<any[]> {
     return await db
-      .select()
+      .select({
+        id: submissions.id,
+        assessmentId: submissions.assessmentId,
+        studentId: submissions.studentId,
+        responses: submissions.responses,
+        submittedAt: submissions.submittedAt,
+        studentName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+        studentEmail: users.email,
+      })
       .from(submissions)
+      .innerJoin(users, eq(submissions.studentId, users.id))
       .where(eq(submissions.assessmentId, assessmentId))
       .orderBy(desc(submissions.submittedAt));
   }
