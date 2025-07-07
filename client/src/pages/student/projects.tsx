@@ -20,7 +20,8 @@ import {
   Calendar,
   Target,
   FileText,
-  Users
+  Users,
+  AlertCircle
 } from "lucide-react";
 import {
   Select,
