@@ -523,6 +523,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/submissions/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const submissionId = parseInt(req.params.id);
+      const submission = await storage.getSubmission(submissionId);
+      
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      res.json(submission);
+    } catch (error) {
+      console.error("Error fetching submission:", error);
+      res.status(500).json({ message: "Failed to fetch submission" });
+    }
+  });
+
   // Grading routes
   app.post('/api/submissions/:id/grade', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -533,21 +549,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const submissionId = parseInt(req.params.id);
-      const { grades: gradeData, feedback } = req.body;
+      const { grades: gradeData, feedback, grade } = req.body;
 
-      // Save grades
-      const savedGrades = await Promise.all(
-        gradeData.map((grade: any) => 
-          storage.createGrade({
-            submissionId,
-            componentSkillId: grade.componentSkillId,
-            rubricLevel: grade.rubricLevel,
-            score: grade.score,
-            feedback: grade.feedback,
-            gradedBy: userId,
-          })
-        )
-      );
+      // Save grades - support both detailed component skill grading and simple overall grading
+      let savedGrades = [];
+      if (gradeData && Array.isArray(gradeData)) {
+        savedGrades = await Promise.all(
+          gradeData.map((gradeItem: any) => 
+            storage.createGrade({
+              submissionId,
+              componentSkillId: gradeItem.componentSkillId,
+              rubricLevel: gradeItem.rubricLevel,
+              score: gradeItem.score,
+              feedback: gradeItem.feedback,
+              gradedBy: userId,
+            })
+          )
+        );
+      }
 
       // Generate AI feedback if requested
       let aiFeedback = feedback;
@@ -558,12 +577,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Update submission with feedback
-      await storage.updateSubmission(submissionId, {
+      // Update submission with feedback and grade
+      const updateData: any = {
         feedback: aiFeedback,
         gradedAt: new Date(),
-        aiGeneratedFeedback: req.body.generateAiFeedback || false,
-      });
+      };
+      
+      if (grade !== undefined) {
+        updateData.grade = grade;
+      }
+      
+      
+      if (req.body.generateAiFeedback) {
+        updateData.aiGeneratedFeedback = true;
+      }
+      
+      await storage.updateSubmission(submissionId, updateData);
 
       res.json({ grades: savedGrades, feedback: aiFeedback });
     } catch (error) {

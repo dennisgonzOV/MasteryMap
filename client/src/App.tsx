@@ -14,6 +14,7 @@ import TeacherProjects from "@/pages/teacher/projects";
 import TeacherAssessments from "@/pages/teacher/assessments";
 import AssessmentDetails from "@/pages/teacher/assessment-details";
 import AssessmentSubmissions from "@/pages/teacher/assessment-submissions";
+import SubmissionReview from "@/pages/teacher/submission-review";
 import StudentDashboard from "@/pages/student/dashboard";
 import StudentProjects from "@/pages/student/projects";
 import StudentProjectDetail from "@/pages/student/project-detail";
@@ -54,6 +55,7 @@ function Router() {
               <Route path="/teacher/dashboard" component={TeacherDashboard} />
               <Route path="/teacher/projects" component={TeacherProjects} />
               <Route path="/teacher/assessments" component={TeacherAssessments} />
+              <Route path="/teacher/assessments/:assessmentId/submissions/:submissionId" component={SubmissionReview} />
               <Route path="/teacher/assessments/:id/submissions" component={AssessmentSubmissions} />
               <Route path="/teacher/assessments/:id" component={AssessmentDetails} />
             </>
