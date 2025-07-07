@@ -37,6 +37,7 @@ import {
   Plus
 } from 'lucide-react';
 import ProjectTeamSelectionModal from './project-team-selection-modal';
+import TeamEditModal from './team-edit-modal';
 
 interface ProjectManagementModalProps {
   projectId: number;
@@ -77,6 +78,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     dueDate: ''
   });
   const [showTeamModal, setShowTeamModal] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<any>(null);
 
   // Fetch project details
   const { data: project, isLoading: projectLoading } = useQuery<Project>({
@@ -536,9 +538,14 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                           <h4 className="font-semibold text-gray-900">{team.name}</h4>
                           <p className="text-sm text-gray-600">{team.description}</p>
                         </div>
-                        <Badge variant="secondary">
-                          {team.memberCount || 0} members
-                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingTeam(team)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Team
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -556,6 +563,19 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
             projectId={projectId}
             schoolId={project.schoolId}
             onTeamCreated={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/teams`] });
+            }}
+          />
+        )}
+
+        {/* Team Edit Modal */}
+        {editingTeam && project && (
+          <TeamEditModal
+            open={!!editingTeam}
+            onOpenChange={(open) => !open && setEditingTeam(null)}
+            team={editingTeam}
+            schoolId={project.schoolId}
+            onTeamUpdated={() => {
               queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/teams`] });
             }}
           />

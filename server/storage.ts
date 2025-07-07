@@ -72,6 +72,7 @@ export interface IStorage {
   createProjectTeam(team: InsertProjectTeam): Promise<ProjectTeam>;
   getProjectTeams(projectId: number): Promise<ProjectTeam[]>;
   addTeamMember(teamMember: InsertProjectTeamMember): Promise<ProjectTeamMember>;
+  removeTeamMember(memberId: number): Promise<void>;
   getTeamMembers(teamId: number): Promise<ProjectTeamMember[]>;
   getStudentsBySchool(schoolId: number): Promise<User[]>;
 
@@ -630,8 +631,24 @@ export class DatabaseStorage implements IStorage {
     return member;
   }
 
+  async removeTeamMember(memberId: number): Promise<void> {
+    await db.delete(projectTeamMembers).where(eq(projectTeamMembers.id, memberId));
+  }
+
   async getTeamMembers(teamId: number): Promise<ProjectTeamMember[]> {
-    return await db.select().from(projectTeamMembers).where(eq(projectTeamMembers.teamId, teamId));
+    return await db.select({
+      id: projectTeamMembers.id,
+      teamId: projectTeamMembers.teamId,
+      studentId: projectTeamMembers.studentId,
+      student: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    }).from(projectTeamMembers)
+    .innerJoin(users, eq(projectTeamMembers.studentId, users.id))
+    .where(eq(projectTeamMembers.teamId, teamId));
   }
 
   async getStudentsBySchool(schoolId: number): Promise<User[]> {
