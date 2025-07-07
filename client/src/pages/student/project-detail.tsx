@@ -26,6 +26,37 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   const [, setLocation] = useLocation();
   const projectId = parseInt(params.id);
 
+  // Function to handle milestone completion
+  const handleMilestoneComplete = async (milestoneId: number) => {
+    try {
+      // Fetch assessments for this milestone
+      const response = await fetch(`/api/milestones/${milestoneId}/assessments`);
+      if (!response.ok) throw new Error('Failed to fetch milestone assessments');
+      
+      const assessments = await response.json();
+      
+      if (assessments.length > 0) {
+        // Navigate to the first assessment for this milestone
+        setLocation(`/student/assessments/${assessments[0].id}`);
+      } else {
+        // If no assessments, show the milestone detail page
+        setLocation(`/student/milestones/${milestoneId}`);
+        toast({
+          title: "No Assessment Available",
+          description: "This milestone doesn't have an assessment yet. Contact your teacher for more information.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching milestone assessments:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load milestone assessment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Fetch project details
   const { data: project, isLoading: projectLoading } = useQuery({
     queryKey: ["/api/projects", projectId],
@@ -254,7 +285,13 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                             <Button
                               size="sm"
                               variant={milestone.status === 'completed' ? 'outline' : 'default'}
-                              onClick={() => setLocation(`/student/milestones/${milestone.id}`)}
+                              onClick={() => {
+                                if (milestone.status === 'completed') {
+                                  setLocation(`/student/milestones/${milestone.id}`);
+                                } else {
+                                  handleMilestoneComplete(milestone.id);
+                                }
+                              }}
                               className={milestone.status === 'completed' ? 'text-green-600' : ''}
                             >
                               {milestone.status === 'completed' ? 'View Details' : 'Complete'}
