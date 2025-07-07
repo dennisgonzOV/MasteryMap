@@ -75,9 +75,10 @@ export default function AssessmentDetails() {
   const { toast } = useToast();
 
   // Fetch assessment data
-  const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
+  const { data: assessment, isLoading: assessmentLoading, error: assessmentError } = useQuery<Assessment>({
     queryKey: [`/api/assessments/${id}`],
     enabled: isAuthenticated && !!id,
+    retry: false,
   });
 
   // Fetch component skills with competency details
