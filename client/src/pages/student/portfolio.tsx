@@ -51,9 +51,6 @@ export default function StudentPortfolio() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
       return;
     }
   }, [isAuthenticated, isLoading, toast]);
@@ -102,11 +99,8 @@ export default function StudentPortfolio() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
     }
-  }, [credentialsError, artifactsError, toast]);
+  }, [projectsError, setLocation]);
 
   if (isLoading) {
     return (

@@ -57,9 +57,7 @@ export default function TakeAssessment() {
         description: "You need to log in to access this assessment.",
         variant: "destructive",
       });
-      setTimeout(() => {
-        setLocation("/login");
-      }, 1000);
+      setLocation("/login");
     }
   }, [isAuthenticated, isLoading, toast]);
 

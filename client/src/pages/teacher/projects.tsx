@@ -47,12 +47,10 @@ export default function TeacherProjects() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
+      setLocation("/login");
       return;
     }
-  }, [isAuthenticated, isLoading, toast]);
+  }, [isAuthenticated, isLoading, setLocation]);
 
   // Fetch projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
@@ -69,11 +67,9 @@ export default function TeacherProjects() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
+      setLocation("/login");
     }
-  }, [projectsError, toast]);
+  }, [projectsError, setLocation]);
 
   if (isLoading) {
     return (

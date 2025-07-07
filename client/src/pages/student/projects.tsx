@@ -38,20 +38,13 @@ export default function StudentProjects() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [, setLocation] = useLocation();
 
-  // Redirect to home if not authenticated
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
+      setLocation("/login");
       return;
     }
-  }, [isAuthenticated, isLoading, toast]);
+  }, [isAuthenticated, isLoading, setLocation]);
 
   // Fetch student projects (includes team projects)
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
@@ -91,11 +84,8 @@ export default function StudentProjects() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
     }
-  }, [projectsError, toast]);
+  }, [projectsError, setLocation]);
 
   if (isLoading) {
     return (

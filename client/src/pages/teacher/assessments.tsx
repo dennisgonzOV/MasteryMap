@@ -68,9 +68,6 @@ export default function TeacherAssessments() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
       return;
     }
   }, [isAuthenticated, isLoading, toast]);

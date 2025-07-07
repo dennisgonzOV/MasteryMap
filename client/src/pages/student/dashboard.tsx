@@ -37,9 +37,6 @@ export default function StudentDashboard() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
       return;
     }
   }, [isAuthenticated, isLoading, toast]);
@@ -73,11 +70,8 @@ export default function StudentDashboard() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
     }
-  }, [projectsError, toast]);
+  }, [projectsError, setLocation]);
 
   if (isLoading) {
     return (
