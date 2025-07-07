@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
+import QRCode from "qrcode";
 import Navigation from "@/components/navigation";
 import CredentialBadge from "@/components/credential-badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export default function StudentPortfolio() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -69,6 +71,27 @@ export default function StudentPortfolio() {
     enabled: isAuthenticated && user?.role === 'student',
     retry: false,
   });
+
+  // Generate QR code for portfolio sharing
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const portfolioUrl = `${window.location.origin}/portfolio/student/${user.id}`;
+      QRCode.toDataURL(portfolioUrl, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#1F2937', // Dark gray
+          light: '#FFFFFF', // White
+        },
+      })
+        .then((dataUrl) => {
+          setQrCodeDataUrl(dataUrl);
+        })
+        .catch((error) => {
+          console.error('Error generating QR code:', error);
+        });
+    }
+  }, [isAuthenticated, user]);
 
   // Handle unauthorized errors
   useEffect(() => {
@@ -188,21 +211,7 @@ export default function StudentPortfolio() {
     return credentials.filter(c => c.type === type).length;
   };
 
-  const handleGenerateQR = () => {
-    toast({
-      title: "QR Code Generated",
-      description: "Your portfolio QR code has been generated and copied to clipboard.",
-    });
-  };
 
-  const handleSharePortfolio = () => {
-    const portfolioUrl = `${window.location.origin}/portfolio/${user?.id}`;
-    navigator.clipboard.writeText(portfolioUrl);
-    toast({
-      title: "Portfolio Link Copied",
-      description: "Your portfolio link has been copied to clipboard.",
-    });
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -221,13 +230,19 @@ export default function StudentPortfolio() {
               </p>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" onClick={handleSharePortfolio}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const portfolioUrl = `${window.location.origin}/portfolio/student/${user?.id}`;
+                  navigator.clipboard.writeText(portfolioUrl);
+                  toast({
+                    title: "Link copied!",
+                    description: "Portfolio link has been copied to clipboard.",
+                  });
+                }}
+              >
                 <Share className="h-4 w-4 mr-2" />
-                Share
-              </Button>
-              <Button onClick={handleGenerateQR} className="bg-blue-600 text-white hover:bg-blue-700 btn-primary">
-                <QrCode className="h-4 w-4 mr-2" />
-                Generate QR Code
+                Share Portfolio
               </Button>
             </div>
           </div>
@@ -490,18 +505,34 @@ export default function StudentPortfolio() {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Share Your Portfolio</h4>
                   <p className="text-sm text-gray-600">
-                    Generate a QR code or link to share your portfolio with others
+                    Scan this QR code or copy the link to share your portfolio with others
                   </p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <QrCode className="w-8 h-8 text-gray-600" />
+                  <div className="w-24 h-24 bg-white rounded-lg border border-gray-200 flex items-center justify-center">
+                    {qrCodeDataUrl ? (
+                      <img 
+                        src={qrCodeDataUrl} 
+                        alt="Portfolio QR Code"
+                        className="w-20 h-20"
+                      />
+                    ) : (
+                      <div className="animate-pulse w-20 h-20 bg-gray-200 rounded"></div>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Button onClick={handleGenerateQR} className="bg-blue-600 text-white hover:bg-blue-700 btn-primary">
-                      Generate QR Code
-                    </Button>
-                    <Button variant="outline" onClick={handleSharePortfolio} className="w-full">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        const portfolioUrl = `${window.location.origin}/portfolio/student/${user?.id}`;
+                        navigator.clipboard.writeText(portfolioUrl);
+                        toast({
+                          title: "Link copied!",
+                          description: "Portfolio link has been copied to clipboard.",
+                        });
+                      }}
+                      className="w-full"
+                    >
                       Copy Link
                     </Button>
                   </div>
