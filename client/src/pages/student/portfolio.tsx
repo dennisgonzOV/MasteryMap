@@ -100,7 +100,7 @@ export default function StudentPortfolio() {
         variant: "destructive",
       });
     }
-  }, [projectsError, setLocation]);
+  }, [credentialsError, artifactsError, toast]);
 
   if (isLoading) {
     return (
