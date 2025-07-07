@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -48,6 +49,7 @@ import { format } from "date-fns";
 export default function TeacherAssessments() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
   const [showCreateAssessment, setShowCreateAssessment] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | undefined>();
   const [selectedMilestone, setSelectedMilestone] = useState<number | undefined>();
@@ -491,10 +493,10 @@ export default function TeacherAssessments() {
                             size="sm"
                             variant="outline"
                             className="text-green-600 border-green-600 hover:bg-green-50"
-                            onClick={() => handleViewSubmissions(assessment.id)}
+                            onClick={() => setLocation(`/teacher/assessments/${assessment.id}`)}
                           >
                             <Eye className="h-4 w-4 mr-1" />
-                            View
+                            Details
                           </Button>
                           <Button 
                             size="sm"
