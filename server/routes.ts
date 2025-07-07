@@ -30,7 +30,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle date conversion manually
       const { dueDate, ...bodyData } = req.body;
-      console.log('Received request body:', req.body);
       
       // Get teacher's school ID
       const teacher = await storage.getUser(userId);
@@ -43,16 +42,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate: dueDate ? new Date(dueDate) : undefined,
       });
       
-      console.log('Parsed project data:', projectData);
-      console.log('Component skills field:', projectData.componentSkillIds);
-      
       // Ensure componentSkillIds is properly handled
       if (!projectData.componentSkillIds || projectData.componentSkillIds.length === 0) {
         console.warn('Project created without component skills');
       }
       
       const project = await storage.createProject(projectData);
-      console.log('Created project:', project);
       res.json(project);
     } catch (error) {
       console.error("Error creating project:", error);
@@ -149,12 +144,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only teachers can generate milestones" });
       }
 
-      console.log('Generate milestones request - Project ID param:', req.params.id);
       const projectId = parseInt(req.params.id);
-      console.log('Parsed project ID:', projectId);
       
       if (isNaN(projectId)) {
-        console.log('Invalid project ID received:', req.params.id);
         return res.status(400).json({ message: "Invalid project ID" });
       }
       
@@ -362,12 +354,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assessment routes
-  app.post('/api/milestones/:id/generate-assessment', (req, res, next) => {
-    console.log('Route hit: generate-assessment for milestone', req.params.id);
-    next();
-  }, requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/milestones/:id/generate-assessment', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      console.log('Assessment generation request received for milestone:', req.params.id);
       const userId = req.user!.id;
       
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
@@ -375,7 +363,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const milestoneId = parseInt(req.params.id);
-      console.log('Fetching milestone:', milestoneId);
       const milestone = await storage.getMilestone(milestoneId);
       
       if (!milestone) {
