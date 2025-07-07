@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, User, Plus, X } from 'lucide-react';
+import { Users, User, Plus, X, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProjectTeamSelectionModalProps {
@@ -37,15 +37,30 @@ export default function ProjectTeamSelectionModal({
   const [teamName, setTeamName] = useState('');
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
   // Fetch students from the same school
-  const { data: students, isLoading } = useQuery({
-    queryKey: ['/api/schools', schoolId, 'students'],
+  const { data: students, isLoading, error } = useQuery({
+    queryKey: [`/api/schools/${schoolId}/students`],
     enabled: !!schoolId && open,
+    retry: false,
   });
 
+  console.log('Students data:', students, 'Loading:', isLoading, 'Error:', error);
+
   const studentsArray = Array.isArray(students) ? students : [];
+
+  // Filter students based on search query
+  const filteredStudents = useMemo(() => {
+    if (!searchQuery.trim()) return studentsArray;
+    
+    const query = searchQuery.toLowerCase();
+    return studentsArray.filter(student => 
+      `${student.firstName} ${student.lastName}`.toLowerCase().includes(query) ||
+      student.email.toLowerCase().includes(query)
+    );
+  }, [studentsArray, searchQuery]);
 
   const handleStudentToggle = (studentId: number) => {
     setSelectedStudents(prev => 
@@ -181,6 +196,17 @@ export default function ProjectTeamSelectionModal({
               </Badge>
             </div>
 
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search students by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
             {isLoading ? (
               <div className="text-center py-8 text-gray-500">
                 Loading students...
@@ -188,13 +214,13 @@ export default function ProjectTeamSelectionModal({
             ) : (
               <ScrollArea className="h-64 border rounded-lg">
                 <div className="p-4 space-y-3">
-                  {studentsArray.length === 0 ? (
+                  {filteredStudents.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No students found in this school</p>
+                      <p>{searchQuery ? 'No students match your search' : 'No students found in this school'}</p>
                     </div>
                   ) : (
-                    studentsArray.map((student: Student) => (
+                    filteredStudents.map((student: Student) => (
                       <div
                         key={student.id}
                         className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
