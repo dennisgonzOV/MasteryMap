@@ -317,60 +317,6 @@ export default function StudentProjects() {
                         </Button>
                       </div>
 
-                      {/* Milestones Section */}
-                      {milestones.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-3">
-                            Milestones ({milestones.length})
-                          </h4>
-                          <div className="space-y-2">
-                            {milestones.slice(0, 3).map((milestone) => (
-                              <div key={milestone.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {milestone.title}
-                                    </span>
-                                    {milestone.dueDate && (
-                                      <span className={`text-xs px-2 py-1 rounded-full ${
-                                        new Date(milestone.dueDate) < new Date() 
-                                          ? 'bg-red-100 text-red-800' 
-                                          : 'bg-blue-100 text-blue-800'
-                                      }`}>
-                                        Due {format(new Date(milestone.dueDate), 'MMM d')}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-gray-600 mt-1">
-                                    {milestone.description}
-                                  </p>
-                                </div>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                  onClick={() => setLocation(`/student/milestones/${milestone.id}`)}
-                                >
-                                  Complete
-                                </Button>
-                              </div>
-                            ))}
-                            {milestones.length > 3 && (
-                              <div className="text-center">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-blue-600 hover:bg-blue-50"
-                                  onClick={() => setLocation(`/student/projects/${project.id}/milestones`)}
-                                >
-                                  View all {milestones.length} milestones
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Project Stats */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
