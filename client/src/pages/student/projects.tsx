@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
+import { useLocation } from "wouter";
 import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
 import ProgressBar from "@/components/progress-bar";
@@ -35,6 +36,7 @@ export default function StudentProjects() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [, setLocation] = useLocation();
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -309,6 +311,7 @@ export default function StudentProjects() {
                         </div>
                         <Button 
                           className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
+                          onClick={() => setLocation(`/student/projects/${project.id}`)}
                         >
                           View Project
                         </Button>
@@ -346,6 +349,7 @@ export default function StudentProjects() {
                                   size="sm" 
                                   variant="outline" 
                                   className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                  onClick={() => setLocation(`/student/milestones/${milestone.id}`)}
                                 >
                                   Complete
                                 </Button>
@@ -357,6 +361,7 @@ export default function StudentProjects() {
                                   variant="ghost" 
                                   size="sm" 
                                   className="text-blue-600 hover:bg-blue-50"
+                                  onClick={() => setLocation(`/student/projects/${project.id}/milestones`)}
                                 >
                                   View all {milestones.length} milestones
                                 </Button>

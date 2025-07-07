@@ -16,6 +16,8 @@ import AssessmentDetails from "@/pages/teacher/assessment-details";
 import AssessmentSubmissions from "@/pages/teacher/assessment-submissions";
 import StudentDashboard from "@/pages/student/dashboard";
 import StudentProjects from "@/pages/student/projects";
+import StudentProjectDetail from "@/pages/student/project-detail";
+import StudentMilestoneDetail from "@/pages/student/milestone-detail";
 import StudentPortfolio from "@/pages/student/portfolio";
 import TakeAssessment from "@/pages/student/take-assessment";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -60,6 +62,9 @@ function Router() {
             <>
               <Route path="/student/dashboard" component={StudentDashboard} />
               <Route path="/student/projects" component={StudentProjects} />
+              <Route path="/student/projects/:id" component={StudentProjectDetail} />
+              <Route path="/student/milestones/:id" component={StudentMilestoneDetail} />
+              <Route path="/student/assessments/:id" component={TakeAssessment} />
               <Route path="/student/portfolio" component={StudentPortfolio} />
             </>
           )}

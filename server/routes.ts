@@ -300,6 +300,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/milestones/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const milestoneId = parseInt(req.params.id);
+      const milestone = await storage.getMilestone(milestoneId);
+      
+      if (!milestone) {
+        return res.status(404).json({ message: "Milestone not found" });
+      }
+      
+      res.json(milestone);
+    } catch (error) {
+      console.error("Error fetching milestone:", error);
+      res.status(500).json({ message: "Failed to fetch milestone" });
+    }
+  });
+
   app.post('/api/milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
