@@ -85,9 +85,20 @@ export default function SubmissionReview() {
   });
 
   // Fetch submission data
-  const { data: submission, isLoading: submissionLoading } = useQuery({
+  const { data: submission, isLoading: submissionLoading, error: submissionError } = useQuery({
     queryKey: ["/api/submissions", submissionId],
     enabled: !!submissionId,
+  });
+
+  // Debug logging
+  console.log("SubmissionReview Debug:", {
+    assessmentId,
+    submissionId,
+    assessment,
+    submission,
+    submissionError,
+    assessmentLoading,
+    submissionLoading
   });
 
   // Fetch component skills for context

@@ -525,6 +525,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/submissions/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const userId = req.user!.id;
+      
+      // Only teachers and admins can view submissions, or students viewing their own
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        const submissionId = parseInt(req.params.id);
+        const submission = await storage.getSubmission(submissionId);
+        
+        if (!submission || submission.studentId !== userId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
       const submissionId = parseInt(req.params.id);
       const submission = await storage.getSubmission(submissionId);
       
