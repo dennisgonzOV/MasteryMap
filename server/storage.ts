@@ -210,12 +210,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectsByStudent(studentId: number): Promise<Project[]> {
-    return await db
+    // Get projects where student is a team member
+    const teamProjects = await db
       .select({
         id: projects.id,
         title: projects.title,
         description: projects.description,
         teacherId: projects.teacherId,
+        schoolId: projects.schoolId,
+        competencyIds: projects.competencyIds,
+        componentSkillIds: projects.componentSkillIds,
+        status: projects.status,
+        dueDate: projects.dueDate,
+        createdAt: projects.createdAt,
+        updatedAt: projects.updatedAt,
+      })
+      .from(projects)
+      .innerJoin(projectTeams, eq(projects.id, projectTeams.projectId))
+      .innerJoin(projectTeamMembers, eq(projectTeams.id, projectTeamMembers.teamId))
+      .where(eq(projectTeamMembers.studentId, studentId))
+      .orderBy(desc(projects.createdAt));
+
+    // Get directly assigned projects (legacy support)
+    const assignedProjects = await db
+      .select({
+        id: projects.id,
+        title: projects.title,
+        description: projects.description,
+        teacherId: projects.teacherId,
+        schoolId: projects.schoolId,
         competencyIds: projects.competencyIds,
         componentSkillIds: projects.componentSkillIds,
         status: projects.status,
@@ -227,6 +250,16 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(projectAssignments, eq(projects.id, projectAssignments.projectId))
       .where(eq(projectAssignments.studentId, studentId))
       .orderBy(desc(projects.createdAt));
+
+    // Combine and deduplicate projects
+    const allProjects = [...teamProjects, ...assignedProjects];
+    const uniqueProjects = allProjects.filter((project, index, self) => 
+      index === self.findIndex(p => p.id === project.id)
+    );
+
+    return uniqueProjects.sort((a, b) => 
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
   }
 
   async updateProject(id: number, updates: Partial<InsertProject>): Promise<Project> {

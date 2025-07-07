@@ -51,11 +51,34 @@ export default function StudentProjects() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  // Fetch student projects
+  // Fetch student projects (includes team projects)
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
     queryKey: ["/api/projects"],
     enabled: isAuthenticated && user?.role === 'student',
     retry: false,
+  });
+
+  // Fetch milestones for all student projects
+  const { data: projectMilestones = {} } = useQuery({
+    queryKey: ["/api/projects/milestones", projects.map(p => p.id)],
+    enabled: isAuthenticated && projects.length > 0,
+    queryFn: async () => {
+      const milestonesData: Record<number, any[]> = {};
+      for (const project of projects) {
+        try {
+          const response = await fetch(`/api/projects/${project.id}/milestones`);
+          if (response.ok) {
+            milestonesData[project.id] = await response.json();
+          } else {
+            milestonesData[project.id] = [];
+          }
+        } catch (error) {
+          console.error(`Error fetching milestones for project ${project.id}:`, error);
+          milestonesData[project.id] = [];
+        }
+      }
+      return milestonesData;
+    },
   });
 
   // Handle unauthorized errors
@@ -99,24 +122,7 @@ export default function StudentProjects() {
     return projects.filter(p => p.status === status).length;
   };
 
-  // Mock project assignments with detailed progress
-  const projectAssignments = projects.map(project => ({
-    ...project,
-    myProgress: Math.random() * 100,
-    myRole: "Team Member",
-    nextMilestone: "Research Phase",
-    nextDeadline: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000),
-    totalMilestones: Math.floor(Math.random() * 6) + 4,
-    completedMilestones: Math.floor(Math.random() * 3) + 1,
-    pendingSubmissions: Math.floor(Math.random() * 3),
-  }));
 
-  const filteredAssignments = projectAssignments.filter(assignment => {
-    const matchesSearch = assignment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         assignment.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || assignment.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -172,7 +178,7 @@ export default function StudentProjects() {
                     <span className="text-sm font-medium text-gray-700">Milestones</span>
                   </div>
                   <span className="text-lg font-bold text-gray-900">
-                    {projectAssignments.reduce((sum, p) => sum + p.completedMilestones, 0)}
+                    {projects.reduce((sum, p) => sum + (projectMilestones[p.id]?.length || 0), 0)}
                   </span>
                 </div>
               </CardContent>
@@ -186,7 +192,10 @@ export default function StudentProjects() {
                     <span className="text-sm font-medium text-gray-700">Pending</span>
                   </div>
                   <span className="text-lg font-bold text-gray-900">
-                    {projectAssignments.reduce((sum, p) => sum + p.pendingSubmissions, 0)}
+                    {projects.reduce((sum, p) => {
+                      const milestones = projectMilestones[p.id] || [];
+                      return sum + milestones.filter(m => m.dueDate && new Date(m.dueDate) < new Date()).length;
+                    }, 0)}
                   </span>
                 </div>
               </CardContent>
@@ -248,7 +257,7 @@ export default function StudentProjects() {
                 </div>
               ))}
             </div>
-          ) : filteredAssignments.length === 0 ? (
+          ) : filteredProjects.length === 0 ? (
             <div className="text-center py-12">
               <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-medium text-gray-900 mb-2">
@@ -263,101 +272,137 @@ export default function StudentProjects() {
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredAssignments.map((assignment) => (
-                <Card key={assignment.id} className="apple-shadow border-0 card-hover">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {assignment.title}
-                          </h3>
-                          <Badge 
-                            className={
-                              assignment.status === 'active' ? 'bg-green-100 text-green-800' :
-                              assignment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }
-                          >
-                            {assignment.status}
-                          </Badge>
-                        </div>
-                        <p className="text-gray-600 mb-3">{assignment.description}</p>
-                        <p className="text-sm text-blue-600 mb-4">My Role: {assignment.myRole}</p>
-                      </div>
-                      <Button 
-                        className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
-                      >
-                        Continue Project
-                      </Button>
-                    </div>
-
-                    {/* Progress Section */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">My Progress</span>
-                        <span className="text-sm font-medium text-gray-900">
-                          {Math.round(assignment.myProgress)}%
-                        </span>
-                      </div>
-                      <ProgressBar 
-                        value={assignment.myProgress} 
-                        size="sm"
-                        className="mb-3"
-                      />
-                    </div>
-
-                    {/* Project Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Target className="h-4 w-4" />
-                        <span>
-                          {assignment.completedMilestones} of {assignment.totalMilestones} milestones
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Calendar className="h-4 w-4" />
-                        <span>
-                          Next: {format(assignment.nextDeadline, 'MMM d, yyyy')}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <FileText className="h-4 w-4" />
-                        <span>
-                          {assignment.pendingSubmissions} pending submissions
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Next Milestone */}
-                    {assignment.status === 'active' && (
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-blue-900">
-                              Next Milestone: {assignment.nextMilestone}
-                            </p>
-                            <p className="text-xs text-blue-700">
-                              Due {format(assignment.nextDeadline, 'EEEE, MMM d')}
-                            </p>
+              {filteredProjects.map((project) => {
+                const milestones = projectMilestones[project.id] || [];
+                const overdueMilestones = milestones.filter(m => 
+                  m.dueDate && new Date(m.dueDate) < new Date()
+                );
+                const upcomingMilestones = milestones.filter(m => 
+                  m.dueDate && new Date(m.dueDate) >= new Date()
+                );
+                
+                return (
+                  <Card key={project.id} className="apple-shadow border-0 card-hover">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {project.title}
+                            </h3>
+                            <Badge 
+                              className={
+                                project.status === 'active' ? 'bg-green-100 text-green-800' :
+                                project.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }
+                            >
+                              {project.status}
+                            </Badge>
                           </div>
-                          <Button size="sm" variant="outline" className="text-blue-600 border-blue-200">
-                            View Details
-                          </Button>
+                          <p className="text-gray-600 mb-3">{project.description}</p>
+                          {project.dueDate && (
+                            <p className="text-sm text-blue-600 mb-4">
+                              Due: {format(new Date(project.dueDate), 'MMM d, yyyy')}
+                            </p>
+                          )}
                         </div>
+                        <Button 
+                          className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
+                        >
+                          View Project
+                        </Button>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+
+                      {/* Milestones Section */}
+                      {milestones.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">
+                            Milestones ({milestones.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {milestones.slice(0, 3).map((milestone) => (
+                              <div key={milestone.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {milestone.title}
+                                    </span>
+                                    {milestone.dueDate && (
+                                      <span className={`text-xs px-2 py-1 rounded-full ${
+                                        new Date(milestone.dueDate) < new Date() 
+                                          ? 'bg-red-100 text-red-800' 
+                                          : 'bg-blue-100 text-blue-800'
+                                      }`}>
+                                        Due {format(new Date(milestone.dueDate), 'MMM d')}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    {milestone.description}
+                                  </p>
+                                </div>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                >
+                                  Complete
+                                </Button>
+                              </div>
+                            ))}
+                            {milestones.length > 3 && (
+                              <div className="text-center">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-blue-600 hover:bg-blue-50"
+                                >
+                                  View all {milestones.length} milestones
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Project Stats */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <Target className="h-4 w-4" />
+                          <span>
+                            {milestones.length} milestones
+                          </span>
+                        </div>
+                        {overdueMilestones.length > 0 && (
+                          <div className="flex items-center space-x-2 text-sm text-red-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>
+                              {overdueMilestones.length} overdue
+                            </span>
+                          </div>
+                        )}
+                        {upcomingMilestones.length > 0 && (
+                          <div className="flex items-center space-x-2 text-sm text-blue-600">
+                            <Calendar className="h-4 w-4" />
+                            <span>
+                              {upcomingMilestones.length} upcoming
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
 
           {/* Show results count */}
-          {!projectsLoading && filteredAssignments.length > 0 && (
+          {!projectsLoading && filteredProjects.length > 0 && (
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
-                Showing {filteredAssignments.length} of {projectAssignments.length} projects
+                Showing {filteredProjects.length} of {projects.length} projects
               </p>
             </div>
           )}
