@@ -378,11 +378,11 @@ export default function TeacherAssessments() {
             <div className="space-y-6">
               {filteredAssessments.map((assessment) => (
                 <Card key={assessment.id} className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-3">
-                          <h3 className="text-xl font-semibold text-gray-900">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
                             {assessment.title}
                           </h3>
                           {assessment.milestoneId && (
@@ -397,41 +397,32 @@ export default function TeacherAssessments() {
                               <span>Standalone</span>
                             </Badge>
                           )}
-                          {assessment.aiGenerated && (
-                            <Badge variant="secondary" className="flex items-center space-x-1 bg-purple-50 text-purple-700 border-purple-200">
-                              <Sparkles className="h-3 w-3" />
-                              <span>AI Generated</span>
-                            </Badge>
-                          )}
                         </div>
-                        <p className="text-gray-600 mb-4 leading-relaxed">{assessment.description}</p>
+                        <p className="text-gray-600 mb-3 text-sm leading-relaxed">{assessment.description}</p>
                         
                         {/* Competencies and Component Skills Display */}
                         {getCompetencyInfo(assessment) && (
-                          <div className="mb-6">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                              <Target className="h-4 w-4 mr-2 text-blue-600" />
+                          <div className="mb-4">
+                            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center">
+                              <Target className="h-3 w-3 mr-1 text-blue-600" />
                               Competencies Being Tested
                             </h4>
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                               {getCompetencyInfo(assessment).map((competency: any, index: number) => (
-                                <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-                                  <div className="flex items-start justify-between mb-3">
+                                <div key={index} className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                                  <div className="flex items-start justify-between mb-2">
                                     <div className="flex-1">
-                                      <h5 className="font-semibold text-blue-900 mb-1">
+                                      <h5 className="font-medium text-blue-900 text-sm mb-1">
                                         {competency.competencyName}
                                       </h5>
-                                      <p className="text-sm text-blue-700 font-medium">
+                                      <p className="text-xs text-blue-700">
                                         {competency.learnerOutcomeName}
                                       </p>
                                     </div>
-                                    <Badge variant="outline" className="text-xs bg-white text-blue-800 border-blue-200">
-                                      {competency.competencyCategory}
-                                    </Badge>
                                   </div>
-                                  <div className="mt-3">
-                                    <p className="text-xs font-medium text-blue-800 mb-2">Component Skills:</p>
-                                    <div className="flex flex-wrap gap-2">
+                                  <div className="mt-2">
+                                    <p className="text-xs font-medium text-blue-800 mb-1">Component Skills:</p>
+                                    <div className="flex flex-wrap gap-1">
                                       {competency.skills.map((skill: any) => (
                                         <Badge key={skill.id} className="text-xs bg-blue-600 text-white hover:bg-blue-700">
                                           {skill.name}
@@ -446,27 +437,27 @@ export default function TeacherAssessments() {
                         )}
                         
                         {/* Assessment Info Footer */}
-                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-6 text-sm text-gray-600">
-                              <div className="flex items-center space-x-2">
-                                <Clock className="h-4 w-4 text-orange-500" />
-                                <span className="font-medium">Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy') : 'No due date'}</span>
+                            <div className="flex items-center space-x-4 text-xs text-gray-600">
+                              <div className="flex items-center space-x-1">
+                                <Clock className="h-3 w-3 text-orange-500" />
+                                <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy') : 'No due date'}</span>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <FileText className="h-4 w-4 text-blue-500" />
+                              <div className="flex items-center space-x-1">
+                                <FileText className="h-3 w-3 text-blue-500" />
                                 <span>{assessment.questions?.length || 0} questions</span>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <Users className="h-4 w-4 text-green-500" />
+                              <div className="flex items-center space-x-1">
+                                <Users className="h-3 w-3 text-green-500" />
                                 <span>24 submissions</span>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Badge variant="destructive" className="bg-red-100 text-red-800">
+                              <Badge variant="destructive" className="bg-red-100 text-red-800 text-xs">
                                 6 pending
                               </Badge>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-xs text-gray-500">
                                 Created {assessment.createdAt ? format(new Date(assessment.createdAt), 'MMM d, yyyy') : 'recently'}
                               </span>
                             </div>
@@ -475,29 +466,29 @@ export default function TeacherAssessments() {
                       </div>
                       
                       {/* Action Buttons */}
-                      <div className="flex flex-col items-end space-y-2 ml-6">
-                        <div className="flex items-center space-x-2">
+                      <div className="flex flex-col items-end space-y-1 ml-4">
+                        <div className="flex items-center space-x-1">
                           <Button 
                             size="sm"
                             variant="outline"
-                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50 text-xs px-2 py-1"
                             onClick={() => handleShareAssessment(assessment.id)}
                           >
-                            <Share className="h-4 w-4 mr-1" />
+                            <Share className="h-3 w-3 mr-1" />
                             Share
                           </Button>
                           <Button 
                             size="sm"
                             variant="outline"
-                            className="text-green-600 border-green-600 hover:bg-green-50"
+                            className="text-green-600 border-green-600 hover:bg-green-50 text-xs px-2 py-1"
                             onClick={() => setLocation(`/teacher/assessments/${assessment.id}`)}
                           >
-                            <Eye className="h-4 w-4 mr-1" />
+                            <Eye className="h-3 w-3 mr-1" />
                             Details
                           </Button>
                           <Button 
                             size="sm"
-                            className="bg-blue-600 text-white hover:bg-blue-700"
+                            className="bg-blue-600 text-white hover:bg-blue-700 text-xs px-2 py-1"
                             onClick={() => {
                               setSelectedAssessmentId(assessment.id);
                               setShowGradingInterface(true);
@@ -507,8 +498,8 @@ export default function TeacherAssessments() {
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <MoreVertical className="h-4 w-4" />
+                              <Button variant="outline" size="sm" className="text-xs px-2 py-1">
+                                <MoreVertical className="h-3 w-3" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
