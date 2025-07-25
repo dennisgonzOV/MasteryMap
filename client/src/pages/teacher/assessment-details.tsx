@@ -251,15 +251,19 @@ export default function AssessmentDetails() {
 
             {/* Action Buttons */}
             <div className="flex items-center space-x-3">
-              <Button
-                variant="outline"
-                onClick={handleCopyShareCode}
-                className="flex items-center space-x-2"
-                disabled={!shareCode}
-              >
-                <Share2 className="h-4 w-4" />
-                <span>Copy Code</span>
-              </Button>
+              {shareCode && (
+                <div className="flex items-center space-x-2 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg px-3 py-2">
+                  <Share2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-800">Code:</span>
+                  <div 
+                    className="bg-white px-3 py-1 rounded-md border-2 border-green-300 cursor-pointer hover:bg-green-50 transition-colors"
+                    onClick={handleCopyShareCode}
+                    title="Click to copy code"
+                  >
+                    <span className="font-mono font-bold text-green-800 text-lg">{shareCode}</span>
+                  </div>
+                </div>
+              )}
               <Button
                 variant="outline"
                 className="flex items-center space-x-2"
