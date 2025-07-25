@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,8 @@ interface Assessment {
   aiGenerated: boolean;
   createdAt: string;
   milestoneId?: number;
+  shareCode?: string;
+  shareCodeExpiresAt?: string;
 }
 
 interface ComponentSkill {
@@ -74,6 +77,7 @@ export default function AssessmentDetails() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const [shareCode, setShareCode] = useState<string | null>(null);
 
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading, error: assessmentError } = useQuery<Assessment>({
@@ -94,6 +98,16 @@ export default function AssessmentDetails() {
     enabled: isAuthenticated && !!id,
   });
 
+  // Set existing share code when assessment loads
+  useEffect(() => {
+    if (assessment?.shareCode && assessment?.shareCodeExpiresAt) {
+      const expiresAt = new Date(assessment.shareCodeExpiresAt);
+      if (expiresAt > new Date()) {
+        setShareCode(assessment.shareCode);
+      }
+    }
+  }, [assessment]);
+
 
 
   const handleShareAssessment = async () => {
@@ -110,12 +124,13 @@ export default function AssessmentDetails() {
       }
 
       const data = await response.json();
-      const shareCode = data.shareCode;
+      const generatedCode = data.shareCode;
+      setShareCode(generatedCode);
 
-      await navigator.clipboard.writeText(shareCode);
+      await navigator.clipboard.writeText(generatedCode);
       toast({
         title: "Share code copied!",
-        description: `Students can enter this code: ${shareCode}`,
+        description: `Students can enter this code: ${generatedCode}`,
       });
     } catch (err) {
       toast({
@@ -274,6 +289,33 @@ export default function AssessmentDetails() {
               </Button>
             </div>
           </div>
+
+          {/* Share Code Display */}
+          {shareCode && (
+            <div className="mt-6">
+              <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-green-600 p-2 rounded-full">
+                        <Share2 className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-green-800">Assessment Code Generated</h3>
+                        <p className="text-sm text-green-700">Share this code with your students</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-green-800 font-mono bg-white px-4 py-2 rounded-lg border-2 border-green-300">
+                        {shareCode}
+                      </div>
+                      <p className="text-xs text-green-600 mt-1">Code copied to clipboard</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
