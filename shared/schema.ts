@@ -282,7 +282,7 @@ export const discussionPosts = pgTable("discussion_posts", {
   attachments: jsonb("attachments"), // Array of file URLs
   isAnswer: boolean("is_answer").default(false), // Mark helpful answers
   likeCount: integer("like_count").default(0),
-  replyToId: integer("reply_to_id").references(() => discussionPosts.id), // For nested replies
+  replyToId: integer("reply_to_id"), // For nested replies
   isEdited: boolean("is_edited").default(false),
   editedAt: timestamp("edited_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -448,11 +448,6 @@ export const discussionPostsRelations = relations(discussionPosts, ({ one, many 
     fields: [discussionPosts.authorId],
     references: [users.id],
   }),
-  replyTo: one(discussionPosts, {
-    fields: [discussionPosts.replyToId],
-    references: [discussionPosts.id],
-  }),
-  replies: many(discussionPosts),
   likes: many(discussionLikes),
 }));
 
