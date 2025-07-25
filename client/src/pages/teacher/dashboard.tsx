@@ -108,30 +108,6 @@ export default function TeacherDashboard() {
   const pendingGrades = 8; // This would come from submissions API
   const credentialsAwarded = credentials.length || 45;
 
-  const recentActivity = [
-    {
-      id: 1,
-      message: "Sarah Johnson submitted \"Climate Change Research\"",
-      time: "2 hours ago",
-      type: "submission",
-      color: "bg-green-500"
-    },
-    {
-      id: 2,
-      message: "AI generated milestones for \"Renewable Energy Project\"",
-      time: "4 hours ago",
-      type: "ai",
-      color: "bg-blue-500"
-    },
-    {
-      id: 3,
-      message: "Michael Chen earned \"Problem Solving\" sticker",
-      time: "6 hours ago",
-      type: "credential",
-      color: "bg-orange-500"
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <Navigation />
@@ -209,35 +185,6 @@ export default function TeacherDashboard() {
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            {/* Recent Activity */}
-            <div className="lg:col-span-2">
-              <Card className="apple-shadow border-0">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold text-gray-900">
-                      Recent Activity
-                    </CardTitle>
-                    <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                      View All
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {recentActivity.map((activity) => (
-                      <div key={activity.id} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-                        <div className={`w-2 h-2 ${activity.color} rounded-full`}></div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                          <p className="text-xs text-gray-600">{activity.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Quick Actions */}
             <div className="space-y-6">
               <Card className="apple-shadow border-0">
