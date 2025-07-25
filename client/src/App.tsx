@@ -22,6 +22,7 @@ import StudentProjectDetail from "@/pages/student/project-detail";
 import StudentMilestoneDetail from "@/pages/student/milestone-detail";
 import StudentPortfolio from "@/pages/student/portfolio";
 import TakeAssessment from "@/pages/student/take-assessment";
+import EnterCode from "@/pages/student/enter-code";
 import AdminDashboard from "@/pages/admin/dashboard";
 
 function Router() {
@@ -43,8 +44,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
 
-      {/* Public assessment route - accessible after login */}
-      <Route path="/assessment/:id" component={TakeAssessment} />
+
 
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
@@ -69,6 +69,7 @@ function Router() {
               <Route path="/student/projects/:id" component={StudentProjectDetail} />
               <Route path="/student/milestones/:id" component={StudentMilestoneDetail} />
               <Route path="/student/assessments/:id" component={TakeAssessment} />
+              <Route path="/student/enter-code" component={EnterCode} />
               <Route path="/student/portfolio" component={StudentPortfolio} />
             </>
           )}

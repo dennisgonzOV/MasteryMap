@@ -159,6 +159,8 @@ export const assessments = pgTable("assessments", {
   aiGenerated: boolean("ai_generated").default(false),
   assessmentType: varchar("assessment_type", { enum: ["teacher", "self-evaluation"] }).default("teacher"),
   allowSelfEvaluation: boolean("allow_self_evaluation").default(false),
+  shareCode: varchar("share_code", { length: 5 }).unique(), // 5-letter code for sharing
+  shareCodeExpiresAt: timestamp("share_code_expires_at"), // Optional expiration for codes
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -535,6 +537,8 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
 }).extend({
   milestoneId: z.number().optional(),
   dueDate: z.coerce.date().optional(),
+  shareCode: z.string().length(5).optional(),
+  shareCodeExpiresAt: z.coerce.date().optional(),
 });
 
 export const insertSelfEvaluationSchema = createInsertSchema(selfEvaluations).omit({

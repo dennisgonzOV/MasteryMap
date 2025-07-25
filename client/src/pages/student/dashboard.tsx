@@ -23,7 +23,8 @@ import {
   ArrowRight,
   Star,
   Trophy,
-  AlertCircle
+  AlertCircle,
+  Hash
 } from "lucide-react";
 
 export default function StudentDashboard() {
@@ -129,12 +130,42 @@ export default function StudentDashboard() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {user.firstName}!
-            </h1>
-            <p className="text-gray-600">
-              Continue your learning journey and track your progress across all projects.
-            </p>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  Welcome back, {user.firstName}!
+                </h1>
+                <p className="text-gray-600">
+                  Continue your learning journey and track your progress across all projects.
+                </p>
+              </div>
+              
+              {/* Assessment Code Entry */}
+              <div className="lg:min-w-0 lg:flex-shrink-0">
+                <Card className="bg-gradient-to-r from-blue-600 to-purple-600 border-0 text-white">
+                  <CardContent className="p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-white/20 p-3 rounded-full">
+                        <Hash className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1">Join Assessment</h3>
+                        <p className="text-white/90 text-sm mb-3">Enter your teacher's 5-letter code</p>
+                        <Link href="/student/enter-code">
+                          <Button 
+                            size="sm" 
+                            className="bg-white text-blue-600 hover:bg-white/90 font-medium"
+                          >
+                            Enter Code
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
 
           {/* Learning Progress Overview */}

@@ -60,6 +60,16 @@ import {
 import { db } from "./db";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, like, or } from "drizzle-orm";
 
+// Utility function to generate random 5-letter codes
+function generateRandomCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let result = '';
+  for (let i = 0; i < 5; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 // Interface for storage operations
 export interface IStorage {
   // User operations
@@ -112,6 +122,11 @@ export interface IStorage {
   getAllAssessments(): Promise<Assessment[]>; // Get all assessments (both milestone-linked and standalone)
   updateAssessment(id: number, updates: Partial<InsertAssessment>): Promise<Assessment>;
   deleteAssessment(id: number): Promise<void>;
+  
+  // Share code operations
+  generateShareCode(assessmentId: number): Promise<string>;
+  getAssessmentByShareCode(shareCode: string): Promise<Assessment | undefined>;
+  regenerateShareCode(assessmentId: number): Promise<string>;
 
   // Submission operations
   createSubmission(submission: InsertSubmission): Promise<Submission>;
@@ -423,6 +438,56 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAssessment(id: number): Promise<void> {
     await db.delete(assessments).where(eq(assessments.id, id));
+  }
+
+  // Share code operations
+  async generateShareCode(assessmentId: number): Promise<string> {
+    let shareCode: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    // Try to generate a unique code
+    do {
+      shareCode = generateRandomCode();
+      attempts++;
+      
+      // Check if code already exists
+      const [existing] = await db
+        .select()
+        .from(assessments)
+        .where(eq(assessments.shareCode, shareCode))
+        .limit(1);
+      
+      if (!existing) {
+        break;
+      }
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Unable to generate unique share code');
+      }
+    } while (true);
+
+    // Update the assessment with the new share code
+    await db
+      .update(assessments)
+      .set({ shareCode })
+      .where(eq(assessments.id, assessmentId));
+
+    return shareCode;
+  }
+
+  async getAssessmentByShareCode(shareCode: string): Promise<Assessment | undefined> {
+    const [assessment] = await db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.shareCode, shareCode))
+      .limit(1);
+    
+    return assessment;
+  }
+
+  async regenerateShareCode(assessmentId: number): Promise<string> {
+    return this.generateShareCode(assessmentId);
   }
 
   // Submission operations

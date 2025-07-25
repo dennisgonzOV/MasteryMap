@@ -835,6 +835,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Share code routes for assessments
+  app.post('/api/assessments/:id/generate-share-code', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const assessmentId = parseInt(req.params.id);
+      const assessment = await storage.getAssessment(assessmentId);
+
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // Only teachers can generate share codes for their assessments
+      // For now, we'll allow any teacher to generate codes - you might want to add ownership checks later
+
+      const shareCode = await storage.generateShareCode(assessmentId);
+      
+      res.json({ 
+        shareCode,
+        message: "Share code generated successfully"
+      });
+    } catch (error) {
+      console.error("Error generating share code:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to generate share code", 
+        error: errorMessage 
+      });
+    }
+  });
+
+  app.get('/api/assessments/by-code/:code', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const shareCode = req.params.code.toUpperCase();
+      
+      if (shareCode.length !== 5) {
+        return res.status(400).json({ message: "Invalid share code format" });
+      }
+
+      const assessment = await storage.getAssessmentByShareCode(shareCode);
+
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found with this code" });
+      }
+
+      // Check if the code has expired (if expiration is set)
+      if (assessment.shareCodeExpiresAt && new Date() > new Date(assessment.shareCodeExpiresAt)) {
+        return res.status(410).json({ message: "This share code has expired" });
+      }
+
+      res.json(assessment);
+    } catch (error) {
+      console.error("Error accessing assessment by code:", error);
+      res.status(500).json({ message: "Failed to access assessment" });
+    }
+  });
+
+  app.post('/api/assessments/:id/regenerate-share-code', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const assessmentId = parseInt(req.params.id);
+      const assessment = await storage.getAssessment(assessmentId);
+
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      const newShareCode = await storage.regenerateShareCode(assessmentId);
+      
+      res.json({ 
+        shareCode: newShareCode,
+        message: "Share code regenerated successfully"
+      });
+    } catch (error) {
+      console.error("Error regenerating share code:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to regenerate share code", 
+        error: errorMessage 
+      });
+    }
+  });
+
   // Submission routes
   app.post('/api/submissions', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {

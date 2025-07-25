@@ -97,16 +97,29 @@ export default function AssessmentDetails() {
 
 
   const handleShareAssessment = async () => {
-    const shareUrl = `${window.location.origin}/assessment/${id}`;
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      const response = await fetch(`/api/assessments/${id}/generate-share-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate share code');
+      }
+
+      const data = await response.json();
+      const shareCode = data.shareCode;
+
+      await navigator.clipboard.writeText(shareCode);
       toast({
-        title: "Assessment link copied!",
-        description: "Students can use this link to access the assessment after logging in.",
+        title: "Share code copied!",
+        description: `Students can enter this code: ${shareCode}`,
       });
     } catch (err) {
       toast({
-        title: "Failed to copy link",
+        title: "Failed to generate share code",
         description: "Please try again.",
         variant: "destructive",
       });
