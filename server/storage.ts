@@ -1,53 +1,64 @@
-import {
-  users,
-  projects,
-  milestones,
-  assessments,
-  submissions,
-  credentials,
+import { 
+  users, 
+  projects, 
+  milestones, 
+  assessments, 
+  submissions, 
+  credentials, 
   portfolioArtifacts,
-  portfolios,
-  competencies,
-  grades,
-  projectAssignments,
-  authTokens,
   learnerOutcomes,
+  competencies,
   componentSkills,
+  projectAssignments,
   schools,
+  authTokens,
   projectTeams,
   projectTeamMembers,
+  bestStandards,
+  selfEvaluations,
+  grades,
+  assessmentAssignments,
+  discussionThreads,
+  discussionPosts,
+  discussionLikes,
   type User,
+  type Project,
+  type Milestone,
+  type Assessment,
+  type Submission,
+  type Credential,
+  type PortfolioArtifact,
+  type LearnerOutcome,
+  type Competency,
+  type ComponentSkill,
+  type ProjectAssignment,
+  type School,
+  type AuthToken,
+  type ProjectTeam,
+  type ProjectTeamMember,
+  type BestStandard,
+  type SelfEvaluation,
+  type Grade,
+  type AssessmentAssignment,
   type UpsertUser,
   type InsertProject,
-  type Project,
   type InsertMilestone,
-  type Milestone,
   type InsertAssessment,
-  type Assessment,
   type InsertSubmission,
-  type Submission,
   type InsertCredential,
-  type Credential,
   type InsertPortfolioArtifact,
-  type PortfolioArtifact,
-  type InsertPortfolio,
-  type Portfolio,
-  type Competency,
-  type Grade,
-  type ProjectAssignment,
-  type AuthToken,
   type InsertAuthToken,
-  type LearnerOutcome,
-  type ComponentSkill,
-  type School,
   type InsertSchool,
-  type ProjectTeam,
   type InsertProjectTeam,
-  type ProjectTeamMember,
   type InsertProjectTeamMember,
-} from "@shared/schema";
+  type InsertSelfEvaluation,
+  type DiscussionThread,
+  type InsertDiscussionThread,
+  type DiscussionPost,
+  type InsertDiscussionPost
+} from "../shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, inArray, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, inArray, ne, sql, like, or } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -56,7 +67,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: UpsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<UpsertUser>): Promise<User>;
-  
+
   // Auth token operations
   createAuthToken(token: InsertAuthToken): Promise<AuthToken>;
   getAuthToken(token: string): Promise<AuthToken | undefined>;
@@ -71,6 +82,8 @@ export interface IStorage {
   // Project team operations
   createProjectTeam(team: InsertProjectTeam): Promise<ProjectTeam>;
   getProjectTeams(projectId: number): Promise<ProjectTeam[]>;
+  getProjectTeam(teamId: number): Promise<ProjectTeam | undefined>;
+  deleteProjectTeam(teamId: number): Promise<void>;
   addTeamMember(teamMember: InsertProjectTeamMember): Promise<ProjectTeamMember>;
   removeTeamMember(memberId: number): Promise<void>;
   getTeamMembers(teamId: number): Promise<ProjectTeamMember[]>;
@@ -123,6 +136,7 @@ export interface IStorage {
   getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
   getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]>;
   getComponentSkillsWithDetails(): Promise<any[]>;
+  getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
 
   // Legacy competency operations
   getCompetencies(): Promise<Competency[]>;
@@ -135,6 +149,56 @@ export interface IStorage {
   // Grade operations
   createGrade(grade: Omit<Grade, "id" | "gradedAt">): Promise<Grade>;
   getGradesBySubmission(submissionId: number): Promise<Grade[]>;
+  getStudentCompetencyProgress(studentId: number): Promise<Array<{
+    competencyId: number;
+    competencyName: string;
+    componentSkillId: number;
+    componentSkillName: string;
+    averageScore: number;
+    totalScores: number[];
+    lastScore: number;
+    lastUpdated: string;
+    progressDirection: 'improving' | 'declining' | 'stable';
+  }>>;
+
+  // Discussion Forum operations
+  createDiscussionThread(data: InsertDiscussionThread): Promise<DiscussionThread>;
+  getDiscussionThreadsByProject(projectId: number): Promise<DiscussionThread[]>;
+  getDiscussionThread(threadId: number): Promise<DiscussionThread | null>;
+  createDiscussionPost(data: InsertDiscussionPost): Promise<DiscussionPost>;
+  getDiscussionPostsByThread(threadId: number): Promise<DiscussionPost[]>;
+  updateDiscussionThread(threadId: number, data: Partial<InsertDiscussionThread>): Promise<DiscussionThread | undefined>;
+  deleteDiscussionPost(postId: number): Promise<void>;
+  toggleDiscussionLike(postId: number, userId: number): Promise<boolean>;
+
+  // Self-evaluation operations
+  createSelfEvaluation(selfEvaluation: InsertSelfEvaluation): Promise<SelfEvaluation>;
+  getSelfEvaluation(id: number): Promise<SelfEvaluation | undefined>;
+  getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]>;
+  getSelfEvaluationsByStudent(studentId: number): Promise<SelfEvaluation[]>;
+  updateSelfEvaluation(id: number, updates: Partial<InsertSelfEvaluation>): Promise<SelfEvaluation>;
+  flagRiskySelfEvaluation(id: number, teacherNotified: boolean): Promise<void>;
+
+    // B.E.S.T. Standards methods
+  getBestStandards(): Promise<BestStandard[]>;
+  getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
+  getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
+  searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
+
+  // Generate unique assessment access code
+  generateAssessmentAccessCode(): Promise<string>;
+
+  // Update assessment with access code
+  updateAssessmentAccessCode(assessmentId: number, accessCode: string): Promise<Assessment[]>;
+
+  // Get assessment by access code
+  getAssessmentByAccessCode(accessCode: string): Promise<Assessment | null>;
+
+  // Assign assessment to student via code
+  assignAssessmentToStudentViaCode(assessmentId: number, studentId: number): Promise<AssessmentAssignment>;
+
+  // Get assessments assigned to student via codes
+  getCodeAssignedAssessments(studentId: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -211,6 +275,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectsByStudent(studentId: number): Promise<Project[]> {
+    // Get projects where student is a direct assignment
+    const directProjects = await db
+      .select({
+        id: projects.id,
+        title: projects.title,
+        description: projects.description,
+        teacherId: projects.teacherId,
+        schoolId: projects.schoolId,
+        competencyIds: projects.competencyIds,
+        componentSkillIds: projects.componentSkillIds,
+        status: projects.status,
+        dueDate: projects.dueDate,
+        createdAt: projects.createdAt,
+        updatedAt: projects.updatedAt,
+      })
+      .from(projects)
+      .innerJoin(projectAssignments, eq(projects.id, projectAssignments.projectId))
+      .where(and(
+        eq(projectAssignments.studentId, studentId),
+        ne(projects.status, 'draft')
+      ));
+
     // Get projects where student is a team member
     const teamProjects = await db
       .select({
@@ -229,38 +315,22 @@ export class DatabaseStorage implements IStorage {
       .from(projects)
       .innerJoin(projectTeams, eq(projects.id, projectTeams.projectId))
       .innerJoin(projectTeamMembers, eq(projectTeams.id, projectTeamMembers.teamId))
-      .where(eq(projectTeamMembers.studentId, studentId))
-      .orderBy(desc(projects.createdAt));
-
-    // Get directly assigned projects (legacy support)
-    const assignedProjects = await db
-      .select({
-        id: projects.id,
-        title: projects.title,
-        description: projects.description,
-        teacherId: projects.teacherId,
-        schoolId: projects.schoolId,
-        competencyIds: projects.competencyIds,
-        componentSkillIds: projects.componentSkillIds,
-        status: projects.status,
-        dueDate: projects.dueDate,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-      })
-      .from(projects)
-      .innerJoin(projectAssignments, eq(projects.id, projectAssignments.projectId))
-      .where(eq(projectAssignments.studentId, studentId))
-      .orderBy(desc(projects.createdAt));
+      .where(and(
+        eq(projectTeamMembers.studentId, studentId),
+        ne(projects.status, 'draft')
+      ))
+      .where(and(
+        eq(projectTeamMembers.studentId, studentId),
+        ne(projects.status, 'draft')
+      ));
 
     // Combine and deduplicate projects
-    const allProjects = [...teamProjects, ...assignedProjects];
-    const uniqueProjects = allProjects.filter((project, index, self) => 
-      index === self.findIndex(p => p.id === project.id)
+    const allProjects = [...directProjects, ...teamProjects];
+    const uniqueProjects = Array.from(
+      new Map(allProjects.map(p => [p.id, p])).values()
     );
 
-    return uniqueProjects.sort((a, b) => 
-      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
+    return uniqueProjects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async updateProject(id: number, updates: Partial<InsertProject>): Promise<Project> {
@@ -315,19 +385,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Assessment operations
-  async createAssessment(assessment: InsertAssessment): Promise<Assessment> {
-    const [newAssessment] = await db
-      .insert(assessments)
-      .values(assessment)
-      .returning();
-    return newAssessment;
+  async createAssessment(data: InsertAssessment): Promise<Assessment> {
+    // Ensure questions with options have them properly serialized
+    const processedData = {
+      ...data,
+      questions: data.questions ? data.questions.map((q: any) => ({
+        ...q,
+        options: q.options && Array.isArray(q.options) ? q.options : (q.options ? JSON.parse(q.options) : undefined)
+      })) : data.questions
+    };
+
+    const [assessment] = await db.insert(assessments).values(processedData).returning();
+    return assessment;
   }
 
   async getAssessment(id: number): Promise<Assessment | undefined> {
-    const [assessment] = await db
-      .select()
-      .from(assessments)
-      .where(eq(assessments.id, id));
+    const [assessment] = await db.select().from(assessments).where(eq(assessments.id, id));
+
+    if (assessment && assessment.questions) {
+      // Ensure options are properly parsed for multiple choice questions
+      assessment.questions = assessment.questions.map((q: any) => {
+        if (q.type === 'multiple-choice' && q.options) {
+          return {
+            ...q,
+            options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options
+          };
+        }
+        return q;
+      });
+    }
+
     return assessment;
   }
 
@@ -529,6 +616,110 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(grades.gradedAt));
   }
 
+  async getStudentCompetencyProgress(studentId: number): Promise<Array<{
+    competencyId: number;
+    competencyName: string;
+    componentSkillId: number;
+    componentSkillName: string;
+    averageScore: number;
+    totalScores: number[];
+    lastScore: number;
+    lastUpdated: string;
+    progressDirection: 'improving' | 'declining' | 'stable';
+  }>> {
+    try {
+      // Get all grades for the student with related component skills and competencies
+      const studentGrades = await db
+        .select({
+          gradeId: grades.id,
+          score: grades.score,
+          gradedAt: grades.gradedAt,
+          componentSkillId: grades.componentSkillId,
+          componentSkillName: componentSkills.name,
+          competencyId: competencies.id,
+          competencyName: competencies.name,
+          submissionId: grades.submissionId,
+        })
+        .from(grades)
+        .innerJoin(submissions, eq(grades.submissionId, submissions.id))
+        .innerJoin(componentSkills, eq(grades.componentSkillId, componentSkills.id))
+        .innerJoin(competencies, eq(componentSkills.competencyId, competencies.id))
+        .where(eq(submissions.studentId, studentId))
+        .orderBy(desc(grades.gradedAt));
+
+      // Group by competency and component skill
+      const progressMap = new Map<string, {
+        competencyId: number;
+        competencyName: string;
+        componentSkillId: number;
+        componentSkillName: string;
+        scores: { score: number; date: Date }[];
+      }>();
+
+      studentGrades.forEach(grade => {
+        const key = `${grade.competencyId}-${grade.componentSkillId}`;
+        const score = Number(grade.score) || 0;
+
+        if (!progressMap.has(key)) {
+          progressMap.set(key, {
+            competencyId: grade.competencyId,
+            competencyName: grade.competencyName,
+            componentSkillId: grade.componentSkillId,
+            componentSkillName: grade.componentSkillName,
+            scores: [],
+          });
+        }
+
+        progressMap.get(key)!.scores.push({
+          score,
+          date: grade.gradedAt,
+        });
+      });
+
+      // Calculate progress metrics for each competency/component skill
+      const results = Array.from(progressMap.values()).map(item => {
+        // Sort scores by date (most recent first)
+        item.scores.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const totalScores = item.scores.map(s => s.score);
+        const averageScore = totalScores.length > 0 ? 
+          Math.round(totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length) : 0;
+
+        const lastScore = totalScores[0] || 0;
+        const secondLastScore = totalScores[1];
+
+        // Determine progress direction
+        let progressDirection: 'improving' | 'declining' | 'stable' = 'stable';
+        if (totalScores.length > 1 && secondLastScore !== undefined) {
+          if (lastScore > secondLastScore + 5) { // 5-point threshold for improvement
+            progressDirection = 'improving';
+          } else if (lastScore < secondLastScore - 5) { // 5-point threshold for decline
+            progressDirection = 'declining';
+          }
+        }
+
+        const lastUpdated = item.scores[0]?.date?.toISOString() || new Date().toISOString();
+
+        return {
+          competencyId: item.competencyId,
+          competencyName: item.competencyName,
+          componentSkillId: item.componentSkillId,
+          componentSkillName: item.componentSkillName,
+          averageScore,
+          totalScores,
+          lastScore,
+          lastUpdated,
+          progressDirection,
+        };
+      });
+
+      return results.sort((a, b) => a.competencyName.localeCompare(b.competencyName));
+    } catch (error) {
+      console.error("Error fetching student competency progress:", error);
+      return [];
+    }
+  }
+
   // 3-Level Hierarchy operations
   async getLearnerOutcomes(): Promise<LearnerOutcome[]> {
     return await db.select().from(learnerOutcomes).orderBy(learnerOutcomes.name);
@@ -536,7 +727,7 @@ export class DatabaseStorage implements IStorage {
 
   async getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>> {
     const outcomes = await db.select().from(learnerOutcomes).orderBy(learnerOutcomes.name);
-    
+
     const result = [];
     for (const outcome of outcomes) {
       const competenciesData = await db
@@ -544,7 +735,7 @@ export class DatabaseStorage implements IStorage {
         .from(competencies)
         .where(eq(competencies.learnerOutcomeId, outcome.id))
         .orderBy(competencies.name);
-      
+
       const competenciesWithSkills = [];
       for (const competency of competenciesData) {
         const skills = await db
@@ -552,19 +743,19 @@ export class DatabaseStorage implements IStorage {
           .from(componentSkills)
           .where(eq(componentSkills.competencyId, competency.id))
           .orderBy(componentSkills.name);
-        
+
         competenciesWithSkills.push({
           ...competency,
           componentSkills: skills,
         });
       }
-      
+
       result.push({
         ...outcome,
         competencies: competenciesWithSkills,
       });
     }
-    
+
     return result;
   }
 
@@ -584,6 +775,39 @@ export class DatabaseStorage implements IStorage {
       .orderBy(componentSkills.name);
   }
 
+  // B.E.S.T. Standards methods
+  async getBestStandards(): Promise<BestStandard[]> {
+    return await db.select().from(bestStandards).orderBy(bestStandards.benchmarkNumber);
+  }
+
+  async getBestStandardsBySubject(subject: string): Promise<BestStandard[]> {
+    return await db.select()
+      .from(bestStandards)
+      .where(eq(bestStandards.subject, subject))
+      .orderBy(bestStandards.benchmarkNumber);
+  }
+
+  async getBestStandardsByGrade(grade: string): Promise<BestStandard[]> {
+    return await db.select()
+      .from(bestStandards)
+      .where(eq(bestStandards.grade, grade))
+      .orderBy(bestStandards.benchmarkNumber);
+  }
+
+  async searchBestStandards(searchTerm: string): Promise<BestStandard[]> {
+    return await db.select()
+      .from(bestStandards)
+      .where(
+        or(
+          like(bestStandards.description, `%${searchTerm}%`),
+          like(bestStandards.benchmarkNumber, `%${searchTerm}%`),
+          like(bestStandards.ideaStandard, `%${searchTerm}%`)
+        )
+      )
+      .orderBy(bestStandards.benchmarkNumber);
+  }
+
+  // Get component skills with full details
   async getComponentSkillsWithDetails(): Promise<any[]> {
     return await db
       .select({
@@ -599,6 +823,72 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(competencies, eq(componentSkills.competencyId, competencies.id))
       .innerJoin(learnerOutcomes, eq(competencies.learnerOutcomeId, learnerOutcomes.id))
       .orderBy(componentSkills.id);
+  }
+
+  async getComponentSkillsByIds(skillIds: number[]) {
+    if (!skillIds || skillIds.length === 0) {
+      return [];
+    }
+
+    try {
+      // First get the component skills
+      const skills = await db
+        .select()
+        .from(componentSkills)
+        .where(inArray(componentSkills.id, skillIds));
+
+      if (!skills || skills.length === 0) {
+        return [];
+      }
+
+      // Then enrich each skill with competency and learner outcome data
+      const enrichedSkills = await Promise.all(
+        skills.map(async (skill) => {
+          try {
+            // Get competency data
+            const [competency] = await db
+              .select()
+              .from(competencies)
+              .where(eq(competencies.id, skill.competencyId));
+
+            let learnerOutcome = null;
+            if (competency?.learnerOutcomeId) {
+              const [outcome] = await db
+                .select()
+                .from(learnerOutcomes)
+                .where(eq(learnerOutcomes.id, competency.learnerOutcomeId));
+              learnerOutcome = outcome;
+            }
+
+            return {
+              id: skill.id,
+              name: skill.name,
+              description: skill.description,
+              rubricLevels: skill.rubricLevels,
+              competencyId: skill.competencyId,
+              competencyName: competency?.name || 'Unknown Competency',
+              learnerOutcomeName: learnerOutcome?.name || 'Unknown Learner Outcome',
+            };
+          } catch (skillError) {
+            console.error(`Error enriching skill ${skill.id}:`, skillError);
+            return {
+              id: skill.id,
+              name: skill.name,
+              description: skill.description,
+              rubricLevels: skill.rubricLevels,
+              competencyId: skill.competencyId,
+              competencyName: 'Unknown Competency',
+              learnerOutcomeName: 'Unknown Learner Outcome',
+            };
+          }
+        })
+      );
+
+      return enrichedSkills;
+    } catch (error) {
+      console.error("Error in getComponentSkillsByIds:", error);
+      return [];
+    }
   }
 
   // School operations
@@ -653,9 +943,261 @@ export class DatabaseStorage implements IStorage {
 
   async getStudentsBySchool(schoolId: number): Promise<User[]> {
     return await db.select().from(users).where(and(
-      eq(users.schoolId, schoolId),
+      eq(users.schoolId,schoolId),
       eq(users.role, 'student')
-    )).orderBy(users.firstName, users.lastName);
+    )).orderBy(asc(users.firstName), asc(users.lastName));
+  }
+
+  async getProjectTeam(teamId: number): Promise<ProjectTeam | undefined> {
+    const [team] = await db.select().from(projectTeams).where(eq(projectTeams.id, teamId));
+    return team;
+  }
+
+  async deleteProjectTeam(teamId: number): Promise<void> {
+    // First delete all team members
+    await db.delete(projectTeamMembers).where(eq(projectTeamMembers.teamId, teamId));
+    // Then delete the team
+    await db.delete(projectTeams).where(eq(projectTeams.id, teamId));
+  }
+
+  // Discussion Forum Methods
+  async createDiscussionThread(data: InsertDiscussionThread): Promise<DiscussionThread> {
+    const result = await db.insert(discussionThreads).values(data).returning();
+    return result[0];
+  }
+
+  async getDiscussionThreadsByProject(projectId: number): Promise<DiscussionThread[]> {
+    return await db.select().from(discussionThreads)
+      .where(eq(discussionThreads.projectId, projectId))
+      .orderBy(desc(discussionThreads.isPinned), desc(discussionThreads.lastActivityAt));
+  }
+
+  async getDiscussionThread(threadId: number): Promise<DiscussionThread | null> {
+    const result = await db.select().from(discussionThreads)
+      .where(eq(discussionThreads.id, threadId));
+    return result[0] || null;
+  }
+
+  async createDiscussionPost(data: InsertDiscussionPost): Promise<DiscussionPost> {
+    const result = await db.insert(discussionPosts).values(data).returning();
+    return result[0];
+  }
+
+  async getDiscussionPostsByThread(threadId: number): Promise<DiscussionPost[]> {
+    return await db.select().from(discussionPosts)
+      .where(eq(discussionPosts.threadId, threadId))
+      .orderBy(asc(discussionPosts.createdAt));
+  }
+
+  async updateDiscussionThread(threadId: number, data: Partial<InsertDiscussionThread>): Promise<DiscussionThread | undefined> {
+    const result = await db.update(discussionThreads)
+      .set(data)
+      .where(eq(discussionThreads.id, threadId))
+      .returning();
+    return result[0];
+  }
+
+  async deleteDiscussionPost(postId: number): Promise<void> {
+    return db.delete(discussionPosts).where(eq(discussionPosts.id, postId));
+  }
+
+  async toggleDiscussionLike(postId: number, userId: number): Promise<boolean> {
+    const existingLike = await db.select()
+      .from(discussionLikes)
+      .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
+
+    if (existingLike.length > 0) {
+      await db.delete(discussionLikes)
+        .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
+      return false;
+    } else {
+      await db.insert(discussionLikes).values({ postId, userId });
+      return true;
+    }
+  }
+
+  // Self-evaluation operations
+  async createSelfEvaluation(selfEvaluationData: InsertSelfEvaluation): Promise<SelfEvaluation> {
+    const [selfEvaluation] = await db.insert(selfEvaluations).values(selfEvaluationData).returning();
+    return selfEvaluation;
+  }
+
+  async getSelfEvaluation(id: number): Promise<SelfEvaluation | undefined> {
+    const [selfEvaluation] = await db.select().from(selfEvaluations).where(eq(selfEvaluations.id, id));
+    return selfEvaluation;
+  }
+
+  async getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]> {
+    return await db.select()
+      .from(selfEvaluations)
+      .where(eq(selfEvaluations.assessmentId, assessmentId))
+      .orderBy(desc(selfEvaluations.submittedAt));
+  }
+
+  async getSelfEvaluationsByStudent(studentId: number): Promise<SelfEvaluation[]> {
+    return await db.select()
+      .from(selfEvaluations)
+      .where(eq(selfEvaluations.studentId, studentId))
+      .orderBy(desc(selfEvaluations.submittedAt));
+  }
+
+  async updateSelfEvaluation(id: number, updates: Partial<InsertSelfEvaluation>): Promise<SelfEvaluation> {
+    const [updated] = await db.update(selfEvaluations)
+      .set(updates)
+      .where(eq(selfEvaluations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async flagRiskySelfEvaluation(id: number, teacherNotified: boolean): Promise<void> {
+    await db.update(selfEvaluations)
+      .set({ hasRiskyContent: true, teacherNotified })
+      .where(eq(selfEvaluations.id, id));
+  }
+
+  // B.E.S.T. Standards methods
+  async getBestStandards(): Promise<BestStandard[]> {
+    return await db.select().from(bestStandards).orderBy(bestStandards.benchmarkNumber);
+  }
+
+  async getBestStandardsBySubject(subject: string): Promise<BestStandard[]> {
+    return await db.select()
+      .from(bestStandards)
+      .where(eq(bestStandards.subject, subject))
+      .orderBy(bestStandards.benchmarkNumber);
+  }
+
+  async getBestStandardsByGrade(grade: string): Promise<BestStandard[]> {
+    return await db.select()
+      .from(bestStandards)
+      .where(eq(bestStandards.grade, grade))
+      .orderBy(bestStandards.benchmarkNumber);
+  }
+
+  async searchBestStandards(searchTerm: string): Promise<BestStandard[]> {
+    const searchPattern = '%' + searchTerm + '%';
+    return await db.select()
+      .from(bestStandards)
+      .where(or(
+        like(bestStandards.description, searchPattern),
+        like(bestStandards.benchmarkNumber, searchPattern)
+      ))
+      .orderBy(bestStandards.benchmarkNumber);
+  }
+
+  // Generate unique assessment access code
+  async generateAssessmentAccessCode(): Promise<string> {
+    let code: string;
+    let exists = true;
+
+    while (exists) {
+      // Generate 6-digit code
+      code = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Check if code already exists
+      const existing = await db.select().from(assessments).where(eq(assessments.accessCode, code)).limit(1);
+      exists = existing.length > 0;
+    }
+
+    return code!;
+  }
+
+  // Update assessment with access code
+  async updateAssessmentAccessCode(assessmentId: number, accessCode: string): Promise<Assessment[]> {
+    const [updatedAssessment] = await db
+      .update(assessments)
+      .set({ accessCode })
+      .where(eq(assessments.id, assessmentId))
+      .returning();
+    return updatedAssessment;
+  }
+
+  // Get assessment by access code
+  async getAssessmentByAccessCode(accessCode: string) {
+    const result = await db.select().from(assessments).where(eq(assessments.accessCode, accessCode)).limit(1);
+    return result[0] || null;
+  }
+
+  // Assign assessment to student via access code
+  async assignAssessmentToStudentViaCode(assessmentId: number, studentId: number) {
+    const existingAssignment = await db.select()
+      .from(assessmentAssignments)
+      .where(and(
+        eq(assessmentAssignments.assessmentId, assessmentId),
+        eq(assessmentAssignments.studentId, studentId)
+      ))
+      .limit(1);
+
+    if (existingAssignment.length > 0) {
+      return existingAssignment[0];
+    }
+
+    const [assignment] = await db.insert(assessmentAssignments)
+      .values({
+        assessmentId,
+        studentId,
+        assignedAt: new Date()
+      })
+      .returning();
+
+    return assignment;
+  }
+
+  // Get code-assigned assessments for a student
+  async getCodeAssignedAssessments(studentId: number) {
+    return await db.select({
+      id: assessments.id,
+      title: assessments.title,
+      description: assessments.description,
+      dueDate: assessments.dueDate,
+      assessmentType: assessments.assessmentType,
+      accessCode: assessments.accessCode,
+      assignedAt: assessmentAssignments.assignedAt
+    })
+    .from(assessmentAssignments)
+    .innerJoin(assessments, eq(assessmentAssignments.assessmentId, assessments.id))
+    .where(eq(assessmentAssignments.studentId, studentId))
+    .orderBy(desc(assessmentAssignments.assignedAt));
+  }
+
+  // Assign assessment to student via code
+  async assignAssessmentToStudentViaCode(assessmentId: number, studentId: number) {
+    // Check if already assigned
+    const existing = await db.select()
+      .from(assessmentAssignments)
+      .where(and(
+        eq(assessmentAssignments.assessmentId, assessmentId),
+        eq(assessmentAssignments.studentId, studentId)
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    // Create new assignment
+    const result = await db.insert(assessmentAssignments)
+      .values({ assessmentId, studentId })
+      .returning();
+
+    return result[0];
+  }
+
+  // Get assessments assigned to student via codes
+  async getCodeAssignedAssessments(studentId: number) {
+    return await db.select({
+      id: assessments.id,
+      title: assessments.title,
+      description: assessments.description,
+      dueDate: assessments.dueDate,
+      assessmentType: assessments.assessmentType,
+      componentSkillIds: assessments.componentSkillIds,
+      assignedAt: assessmentAssignments.assignedAt,
+    })
+    .from(assessmentAssignments)
+    .innerJoin(assessments, eq(assessmentAssignments.assessmentId, assessments.id))
+    .where(eq(assessmentAssignments.studentId, studentId))
+    .orderBy(desc(assessmentAssignments.assignedAt));
   }
 }
 

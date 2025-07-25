@@ -8,7 +8,6 @@ import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import Navigation from "@/components/navigation";
 import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
-import GradingInterface from "@/components/grading-interface";
 import ViewSubmissionsModal from "@/components/modals/view-submissions-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,8 @@ import {
   Copy,
   Trash2,
   MoreVertical,
-  Calendar
+  Calendar,
+
 } from "lucide-react";
 import {
   Select,
@@ -56,7 +56,6 @@ export default function TeacherAssessments() {
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
-  const [showGradingInterface, setShowGradingInterface] = useState(false);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [selectedAssessmentForSubmissions, setSelectedAssessmentForSubmissions] = useState<number | null>(null);
 
@@ -86,11 +85,12 @@ export default function TeacherAssessments() {
     retry: false,
   });
 
-  // Fetch milestones for selected project
+  // Fetch milestones for filtered project
+  const selectedProjectId = projectFilter !== "all" ? parseInt(projectFilter) : null;
   const { data: milestones = [] } = useQuery({
-    queryKey: ["/api/projects", selectedProject, "milestones"],
-    queryFn: () => selectedProject ? api.getMilestones(selectedProject) : Promise.resolve([]),
-    enabled: isAuthenticated && user?.role === 'teacher' && !!selectedProject,
+    queryKey: ["/api/projects", selectedProjectId, "milestones"],
+    queryFn: () => selectedProjectId ? api.getMilestones(selectedProjectId) : Promise.resolve([]),
+    enabled: isAuthenticated && user?.role === 'teacher' && !!selectedProjectId,
     retry: false,
   });
 
@@ -119,15 +119,15 @@ export default function TeacherAssessments() {
   // Helper function to get competency information for an assessment
   const getCompetencyInfo = (assessment: any) => {
     if (!assessment.componentSkillIds || !componentSkillsDetails) return null;
-    
+
     const skillIds = Array.isArray(assessment.componentSkillIds) 
       ? assessment.componentSkillIds 
       : JSON.parse(assessment.componentSkillIds || '[]');
-    
+
     const skills = componentSkillsDetails.filter((skill: any) => 
       skillIds.includes(skill.id)
     );
-    
+
     // Group by competency
     const competencyGroups = skills.reduce((acc: any, skill: any) => {
       const key = skill.competencyId;
@@ -142,7 +142,7 @@ export default function TeacherAssessments() {
       acc[key].skills.push(skill);
       return acc;
     }, {});
-    
+
     return Object.values(competencyGroups);
   };
 
@@ -150,24 +150,29 @@ export default function TeacherAssessments() {
   const filteredAssessments = assessments.filter(assessment => {
     const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          assessment.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Filter by project if a specific project is selected
+
+    // Filter by project if a specific filter is selected
     if (projectFilter !== "all") {
-      const selectedProjectId = parseInt(projectFilter);
-      
-      // For milestone-linked assessments, check if milestone belongs to selected project
-      if (assessment.milestoneId) {
-        const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
-        if (!milestone || milestone.projectId !== selectedProjectId) {
+      if (projectFilter === "standalone") {
+        // Show only standalone assessments (those without milestoneId)
+        return !assessment.milestoneId;
+      } else {
+        const filterProjectId = parseInt(projectFilter);
+
+        // For milestone-linked assessments, check if milestone belongs to selected project
+        if (assessment.milestoneId) {
+          const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
+          if (!milestone || milestone.projectId !== filterProjectId) {
+            return false;
+          }
+        } else {
+          // For standalone assessments, they don't belong to any project
+          // so exclude them when filtering by specific project
           return false;
         }
-      } else {
-        // For standalone assessments, we don't have direct project association
-        // You could implement project-assessment relationship if needed
-        return false;
       }
     }
-    
+
     return matchesSearch;
   });
 
@@ -197,6 +202,32 @@ export default function TeacherAssessments() {
     setSelectedAssessmentForSubmissions(assessmentId);
     setShowSubmissionsModal(true);
   };
+
+    const handleGenerateCode = async (assessmentId: number) => {
+        try {
+            const response = await api.generateAssessmentCode(assessmentId);
+            
+            if (response.accessCode) {
+                toast({
+                    title: "Access code generated!",
+                    description: `New access code: ${response.accessCode}`,
+                });
+                // Refresh assessments to show the new code
+                refetchAssessments();
+            } else {
+                throw new Error("No access code received");
+            }
+        } catch (error) {
+            console.error("Error generating access code:", error);
+            toast({
+                title: "Failed to generate code",
+                description: "Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+
 
   // Delete assessment mutation
   const deleteAssessmentMutation = useMutation({
@@ -234,7 +265,7 @@ export default function TeacherAssessments() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
+
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Modern Header with Stats */}
@@ -339,6 +370,7 @@ export default function TeacherAssessments() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Projects</SelectItem>
+                      <SelectItem value="standalone">Assessments without projects</SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id.toString()}>
                           {project.title}
@@ -399,7 +431,7 @@ export default function TeacherAssessments() {
                           )}
                         </div>
                         <p className="text-gray-600 mb-3 text-sm leading-relaxed">{assessment.description}</p>
-                        
+
                         {/* Competencies and Component Skills Display */}
                         {getCompetencyInfo(assessment) && (
                           <div className="mb-4">
@@ -435,7 +467,7 @@ export default function TeacherAssessments() {
                             </div>
                           </div>
                         )}
-                        
+
                         {/* Assessment Info Footer */}
                         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                           <div className="flex items-center justify-between">
@@ -464,19 +496,38 @@ export default function TeacherAssessments() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Action Buttons */}
                       <div className="flex flex-col items-end space-y-1 ml-4">
-                        <div className="flex items-center space-x-1">
-                          <Button 
-                            size="sm"
-                            variant="outline"
-                            className="text-blue-600 border-blue-600 hover:bg-blue-50 text-xs px-2 py-1"
-                            onClick={() => handleShareAssessment(assessment.id)}
-                          >
-                            <Share className="h-3 w-3 mr-1" />
-                            Share
-                          </Button>
+                        <div className="flex items-center space-x-2">
+                          {assessment.accessCode ? (
+                            <div className="flex items-center space-x-1">
+                              <Badge variant="secondary" className="font-mono text-xs">
+                                {assessment.accessCode}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(assessment.accessCode);
+                                  toast({ title: "Code copied!", description: "Access code copied to clipboard." });
+                                }}
+                                className="h-6 w-6 p-0"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button 
+                              variant="outline"
+                              className="text-blue-600 border-blue-600 hover:bg-blue-50 text-xs px-2 py-1"
+                              onClick={() => handleGenerateCode(assessment.id)}
+                            >
+                              <Share className="h-3 w-3 mr-1" />
+                              Generate Code
+                            </Button>
+                          )}
+
                           <Button 
                             size="sm"
                             variant="outline"
@@ -489,10 +540,7 @@ export default function TeacherAssessments() {
                           <Button 
                             size="sm"
                             className="bg-blue-600 text-white hover:bg-blue-700 text-xs px-2 py-1"
-                            onClick={() => {
-                              setSelectedAssessmentId(assessment.id);
-                              setShowGradingInterface(true);
-                            }}
+                            onClick={() => setLocation(`/teacher/assessments/${assessment.id}/submissions`)}
                           >
                             Grade
                           </Button>
@@ -515,7 +563,7 @@ export default function TeacherAssessments() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="mt-4">
                       <div className="flex items-center justify-between mb-2">
@@ -555,18 +603,6 @@ export default function TeacherAssessments() {
           refetchAssessments();
         }}
       />
-
-      {/* Grading Interface Modal */}
-      {selectedAssessmentId && (
-        <GradingInterface
-          assessmentId={selectedAssessmentId}
-          isOpen={showGradingInterface}
-          onClose={() => {
-            setShowGradingInterface(false);
-            setSelectedAssessmentId(null);
-          }}
-        />
-      )}
 
       {/* View Submissions Modal */}
       {selectedAssessmentForSubmissions && (
