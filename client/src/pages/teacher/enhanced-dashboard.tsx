@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import Navigation from '@/components/navigation';
-import NotificationSystem from '@/components/notification-system';
 import ProgressTracker from '@/components/progress-tracker';
 import ProjectManagementModal from '@/components/modals/project-management-modal';
 import StudentProgressView from '@/components/student-progress-view';
@@ -146,7 +145,6 @@ export default function EnhancedTeacherDashboard() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <NotificationSystem userId={user?.id || 0} userRole="teacher" />
             <Button 
               variant="outline"
               onClick={() => setShowStudentProgress(true)}
