@@ -238,7 +238,7 @@ export default function AssessmentDetails() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <FileText className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-700">{assessment.questions.length} questions</span>
+                  <span className="text-gray-700">{assessment.questions?.length || 0} questions</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="h-4 w-4 text-gray-500" />
@@ -341,7 +341,7 @@ export default function AssessmentDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {assessment.questions.map((question, index) => (
+                  {(assessment.questions || []).map((question, index) => (
                     <div key={question.id} className="border border-gray-200 rounded-lg p-4 bg-white">
                       <div className="flex items-start space-x-3">
                         <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
