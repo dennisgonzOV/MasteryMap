@@ -280,6 +280,13 @@ Preferred communication style: Simple, everyday language.
   - Added prominent "Join Assessment" card to student dashboard for code entry
   - Removed legacy URL-based assessment route for improved security
   - Students now enter 5-letter codes provided by teachers to access assessments
+- July 25, 2025: **Persistent Share Codes Implementation**
+  - Modified assessment creation to automatically generate unique 5-letter codes for all new assessments
+  - Updated 61 existing assessments in database to have persistent share codes with 7-day expiration
+  - Added prominent green share code display boxes in assessment list and details pages
+  - Replaced "Share" button with "Copy Code" functionality for existing codes
+  - Codes are now persistent and visible immediately without manual generation
+  - Enhanced UI with gradient green backgrounds for share code visibility
 
 ## Action List Based on Documentation Analysis
 
