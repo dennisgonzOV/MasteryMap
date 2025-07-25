@@ -274,66 +274,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
 
-          {/* Active Projects */}
-          <Card className="apple-shadow border-0">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-gray-900">
-                  Active Projects
-                </CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                    Filter
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                    Sort
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {projectsLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="bg-gray-200 rounded-xl h-48"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : projects.length === 0 ? (
-                <div className="text-center py-12">
-                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
-                  <p className="text-gray-600 mb-4">
-                    Create your first project to start engaging your students.
-                  </p>
-                  <Button 
-                    onClick={() => setShowCreateProject(true)}
-                    className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Project
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {projects.slice(0, 6).map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      progress={Math.random() * 100} // This would come from actual progress calculation
-                      studentCount={Math.floor(Math.random() * 30) + 15} // This would come from actual assignments
-                      userRole="teacher"
-                      onViewProject={(id) => {
-                        setSelectedProjectId(id);
-                        setShowProjectManagement(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          
         </div>
       </main>
 
