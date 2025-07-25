@@ -99,6 +99,7 @@ export const projects = pgTable("projects", {
   schoolId: integer("school_id").references(() => schools.id), // Add school association
   competencyIds: jsonb("competency_ids"), // Array of competency IDs (legacy)
   componentSkillIds: jsonb("component_skill_ids").$type<number[]>().default([]), // Array of component skill IDs
+  bestStandardIds: jsonb("best_standard_ids").$type<number[]>().default([]), // Array of B.E.S.T. standard IDs
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -156,6 +157,8 @@ export const assessments = pgTable("assessments", {
   componentSkillIds: jsonb("component_skill_ids").$type<number[]>().default([]), // Array of component skill IDs for XQ competencies
   dueDate: timestamp("due_date"), // For standalone assessments
   aiGenerated: boolean("ai_generated").default(false),
+  assessmentType: varchar("assessment_type", { enum: ["teacher", "self-evaluation"] }).default("teacher"),
+  allowSelfEvaluation: boolean("allow_self_evaluation").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -169,6 +172,25 @@ export const submissions = pgTable("submissions", {
   gradedAt: timestamp("graded_at"),
   feedback: text("feedback"),
   aiGeneratedFeedback: boolean("ai_generated_feedback").default(false),
+  isSelfEvaluation: boolean("is_self_evaluation").default(false),
+  selfEvaluationData: jsonb("self_evaluation_data"), // For storing self-evaluation specific data
+});
+
+// Self-evaluations table for storing student self-assessment responses
+export const selfEvaluations = pgTable("self_evaluations", {
+  id: serial("id").primaryKey(),
+  assessmentId: integer("assessment_id").references(() => assessments.id),
+  studentId: integer("student_id").references(() => users.id),
+  componentSkillId: integer("component_skill_id").references(() => componentSkills.id),
+  selfAssessedLevel: varchar("self_assessed_level", { enum: ["emerging", "developing", "proficient", "applying"] }),
+  justification: text("justification").notNull(),
+  examples: text("examples"),
+  aiImprovementFeedback: text("ai_improvement_feedback"),
+  hasRiskyContent: boolean("has_risky_content").default(false),
+  teacherNotified: boolean("teacher_notified").default(false),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  gradedAt: timestamp("graded_at"),
+  teacherFeedback: text("teacher_feedback"),
 });
 
 export const grades = pgTable("grades", {
@@ -197,6 +219,18 @@ export const credentials = pgTable("credentials", {
   approvedBy: integer("approved_by").references(() => users.id),
 });
 
+// B.E.S.T. Standards table
+export const bestStandards = pgTable("best_standards", {
+  id: serial("id").primaryKey(),
+  benchmarkNumber: varchar("benchmark_number").notNull(),
+  description: text("description").notNull(),
+  ideaStandard: varchar("idea_standard"),
+  subject: varchar("subject"),
+  grade: varchar("grade"),
+  bodyOfKnowledge: varchar("body_of_knowledge"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Digital Portfolio
 export const portfolioArtifacts = pgTable("portfolio_artifacts", {
   id: serial("id").primaryKey(),
@@ -222,6 +256,43 @@ export const portfolios = pgTable("portfolios", {
   isPublic: boolean("is_public").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Discussion Forums
+export const discussionThreads = pgTable("discussion_threads", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id),
+  authorId: integer("author_id").references(() => users.id),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  category: varchar("category", { enum: ["general", "resources", "help", "milestone"] }).default("general"),
+  milestoneId: integer("milestone_id").references(() => milestones.id), // Optional milestone association
+  isPinned: boolean("is_pinned").default(false),
+  isLocked: boolean("is_locked").default(false),
+  viewCount: integer("view_count").default(0),
+  lastActivityAt: timestamp("last_activity_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const discussionPosts = pgTable("discussion_posts", {
+  id: serial("id").primaryKey(),
+  threadId: integer("thread_id").references(() => discussionThreads.id),
+  authorId: integer("author_id").references(() => users.id),
+  content: text("content").notNull(),
+  attachments: jsonb("attachments"), // Array of file URLs
+  isAnswer: boolean("is_answer").default(false), // Mark helpful answers
+  likeCount: integer("like_count").default(0),
+  replyToId: integer("reply_to_id").references(() => discussionPosts.id), // For nested replies
+  isEdited: boolean("is_edited").default(false),
+  editedAt: timestamp("edited_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const discussionLikes = pgTable("discussion_likes", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").references(() => discussionPosts.id),
+  userId: integer("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Relations
@@ -269,6 +340,21 @@ export const submissionsRelations = relations(submissions, ({ one, many }) => ({
   }),
   grades: many(grades),
   portfolioArtifacts: many(portfolioArtifacts),
+}));
+
+export const selfEvaluationsRelations = relations(selfEvaluations, ({ one }) => ({
+  assessment: one(assessments, {
+    fields: [selfEvaluations.assessmentId],
+    references: [assessments.id],
+  }),
+  student: one(users, {
+    fields: [selfEvaluations.studentId],
+    references: [users.id],
+  }),
+  componentSkill: one(componentSkills, {
+    fields: [selfEvaluations.componentSkillId],
+    references: [componentSkills.id],
+  }),
 }));
 
 // 3-Level Hierarchy Relations
@@ -331,6 +417,54 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   credentials: many(credentials),
   portfolioArtifacts: many(portfolioArtifacts),
   authTokens: many(authTokens),
+  discussionThreads: many(discussionThreads),
+  discussionPosts: many(discussionPosts),
+  discussionLikes: many(discussionLikes),
+}));
+
+// Discussion Forums Relations
+export const discussionThreadsRelations = relations(discussionThreads, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [discussionThreads.projectId],
+    references: [projects.id],
+  }),
+  milestone: one(milestones, {
+    fields: [discussionThreads.milestoneId],
+    references: [milestones.id],
+  }),
+  author: one(users, {
+    fields: [discussionThreads.authorId],
+    references: [users.id],
+  }),
+  posts: many(discussionPosts),
+}));
+
+export const discussionPostsRelations = relations(discussionPosts, ({ one, many }) => ({
+  thread: one(discussionThreads, {
+    fields: [discussionPosts.threadId],
+    references: [discussionThreads.id],
+  }),
+  author: one(users, {
+    fields: [discussionPosts.authorId],
+    references: [users.id],
+  }),
+  replyTo: one(discussionPosts, {
+    fields: [discussionPosts.replyToId],
+    references: [discussionPosts.id],
+  }),
+  replies: many(discussionPosts),
+  likes: many(discussionLikes),
+}));
+
+export const discussionLikesRelations = relations(discussionLikes, ({ one }) => ({
+  post: one(discussionPosts, {
+    fields: [discussionLikes.postId],
+    references: [discussionPosts.id],
+  }),
+  user: one(users, {
+    fields: [discussionLikes.userId],
+    references: [users.id],
+  }),
 }));
 
 
@@ -353,6 +487,12 @@ export type InsertPortfolioArtifact = typeof portfolioArtifacts.$inferInsert;
 export type PortfolioArtifact = typeof portfolioArtifacts.$inferSelect;
 export type InsertPortfolio = typeof portfolios.$inferInsert;
 export type Portfolio = typeof portfolios.$inferSelect;
+export type DiscussionThread = typeof discussionThreads.$inferSelect;
+export type InsertDiscussionThread = typeof discussionThreads.$inferInsert;
+export type DiscussionPost = typeof discussionPosts.$inferSelect;
+export type InsertDiscussionPost = typeof discussionPosts.$inferInsert;
+export type DiscussionLike = typeof discussionLikes.$inferSelect;
+export type InsertDiscussionLike = typeof discussionLikes.$inferInsert;
 // 3-Level Hierarchy Types
 export type LearnerOutcome = typeof learnerOutcomes.$inferSelect;
 export type InsertLearnerOutcome = typeof learnerOutcomes.$inferInsert;
@@ -372,6 +512,10 @@ export type ProjectTeam = typeof projectTeams.$inferSelect;
 export type InsertProjectTeam = typeof projectTeams.$inferInsert;
 export type ProjectTeamMember = typeof projectTeamMembers.$inferSelect;
 export type InsertProjectTeamMember = typeof projectTeamMembers.$inferInsert;
+export type BestStandard = typeof bestStandards.$inferSelect;
+export type InsertBestStandard = typeof bestStandards.$inferInsert;
+export type SelfEvaluation = typeof selfEvaluations.$inferSelect;
+export type InsertSelfEvaluation = typeof selfEvaluations.$inferInsert;
 
 // Zod schemas
 export const insertProjectSchema = createInsertSchema(projects).omit({
@@ -381,6 +525,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
 }).extend({
   dueDate: z.coerce.date().optional(),
   componentSkillIds: z.array(z.number()).optional(),
+  bestStandardIds: z.array(z.number()).optional(),
   schoolId: z.number().optional(),
 });
 
@@ -395,7 +540,12 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
 }).extend({
   milestoneId: z.number().optional(),
   dueDate: z.coerce.date().optional(),
-  componentSkillIds: z.array(z.number()).optional(),
+});
+
+export const insertSelfEvaluationSchema = createInsertSchema(selfEvaluations).omit({
+  id: true,
+  submittedAt: true,
+  gradedAt: true,
 });
 
 export const insertSubmissionSchema = createInsertSchema(submissions).omit({
@@ -410,6 +560,26 @@ export const insertCredentialSchema = createInsertSchema(credentials).omit({
 });
 
 export const insertPortfolioArtifactSchema = createInsertSchema(portfolioArtifacts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDiscussionThreadSchema = createInsertSchema(discussionThreads).omit({
+  id: true,
+  createdAt: true,
+  lastActivityAt: true,
+  viewCount: true,
+});
+
+export const insertDiscussionPostSchema = createInsertSchema(discussionPosts).omit({
+  id: true,
+  createdAt: true,
+  likeCount: true,
+  isEdited: true,
+  editedAt: true,
+});
+
+export const insertDiscussionLikeSchema = createInsertSchema(discussionLikes).omit({
   id: true,
   createdAt: true,
 });

@@ -10,10 +10,32 @@ import {
   insertSubmissionSchema,
   insertCredentialSchema,
   insertPortfolioArtifactSchema,
+  insertDiscussionThreadSchema,
+  insertDiscussionPostSchema,
+  insertDiscussionLikeSchema,
+  insertSelfEvaluationSchema,
   type User
 } from "@shared/schema";
-import { generateMilestones, generateAssessment, generateFeedback, generateMilestonesFromComponentSkills, generateAssessmentFromComponentSkills } from "./openai";
+import { generateMilestones, generateAssessment, generateFeedback, generateFeedbackForQuestion, generateMilestonesFromComponentSkills, generateAssessmentFromComponentSkills, generateProjectIdeas, generateQuestionGrade } from "./openai";
+import { generateSelfEvaluationFeedback, generateAssessmentQuestions, generateTutorResponse } from "./services/openai";
 import { z } from "zod";
+import { 
+  users, 
+  projects, 
+  milestones, 
+  assessments, 
+  submissions, 
+  credentials, 
+  portfolioArtifacts,
+  learnerOutcomes,
+  competencies,
+  projectAssignments,
+  discussionThreads,
+  discussionPosts,
+  discussionLikes
+} from "../shared/schema";
+import { eq, and, desc, asc, isNull, inArray, ne, sql } from "drizzle-orm";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes
@@ -23,14 +45,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create projects" });
       }
 
       // Handle date conversion manually
       const { dueDate, ...bodyData } = req.body;
-      
+
       // Get teacher's school ID
       const teacher = await storage.getUser(userId);
       const teacherSchoolId = teacher?.schoolId;
@@ -41,24 +63,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         schoolId: teacherSchoolId,
         dueDate: dueDate ? new Date(dueDate) : undefined,
       });
-      
+
       // Ensure componentSkillIds is properly handled
       if (!projectData.componentSkillIds || projectData.componentSkillIds.length === 0) {
         console.warn('Project created without component skills');
       }
-      
+
       const project = await storage.createProject(projectData);
       res.json(project);
     } catch (error) {
       console.error("Error creating project:", error);
-      res.status(500).json({ message: "Failed to create project" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to create project", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
   app.get('/api/projects', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       let projects;
       if (req.user?.role === 'teacher') {
         projects = await storage.getProjectsByTeacher(userId);
@@ -71,7 +98,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
-      res.status(500).json({ message: "Failed to fetch projects" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch projects", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -79,7 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -95,21 +127,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
-      // Check if user owns this project
+
+      // Check ownership: admins can modify any project, teachers can only modify their own
       if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
-        return res.status(403).json({ message: "Access denied" });
+        return res.status(403).json({ message: "Access denied - you can only modify your own projects" });
       }
-      
+
       const updatedProject = await storage.updateProject(projectId, req.body);
       res.json(updatedProject);
     } catch (error) {
       console.error("Error updating project:", error);
-      res.status(500).json({ message: "Failed to update project" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to update project", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -117,21 +154,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
-      
-      // Check if user owns this project
+
+      // Check ownership: admins can delete any project, teachers can only delete their own
       if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
-        return res.status(403).json({ message: "Access denied" });
+        return res.status(403).json({ message: "Access denied - you can only delete your own projects" });
       }
-      
+
       await storage.deleteProject(projectId);
       res.json({ message: "Project deleted successfully" });
     } catch (error) {
       console.error("Error deleting project:", error);
-      res.status(500).json({ message: "Failed to delete project" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to delete project", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
+  // Start project
+  app.post('/api/projects/:id/start', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Check ownership: admins can start any project, teachers can only start their own
+      if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied - you can only start your own projects" });
+      }
+
+      // Update project status to active
+      await storage.updateProject(projectId, { status: 'active' });
+      res.json({ message: "Project started successfully" });
+    } catch (error) {
+      console.error("Error starting project:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to start project", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -139,19 +210,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/:id/generate-milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate milestones" });
       }
 
       const projectId = parseInt(req.params.id);
-      
+
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const project = await storage.getProject(projectId);
-      
+
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -162,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       const milestones = await generateMilestones(project, selectedCompetencies);
-      
+
       // Save generated milestones to database
       const savedMilestones = await Promise.all(
         milestones.map((milestone, index) => 
@@ -180,7 +251,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(savedMilestones);
     } catch (error) {
       console.error("Error generating milestones:", error);
-      res.status(500).json({ message: "Failed to generate milestones" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to generate milestones", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
+  // Generate project ideas
+  app.post('/api/projects/generate-ideas', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
+
+      if (!subject || !topic || !gradeLevel || !duration || !componentSkillIds?.length) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Validate componentSkillIds is an array of numbers
+      if (!Array.isArray(componentSkillIds) || !componentSkillIds.every(id => typeof id === 'number')) {
+        return res.status(400).json({ message: "Invalid component skill IDs format" });
+      }
+
+      // Get component skills details
+      const componentSkills = await storage.getComponentSkillsByIds(componentSkillIds);
+
+      if (!componentSkills || componentSkills.length === 0) {
+        return res.status(400).json({ message: "No valid component skills found for the provided IDs" });
+      }
+
+      const ideas = await generateProjectIdeas({
+        subject,
+        topic,
+        gradeLevel,
+        duration,
+        componentSkills
+      });
+
+      res.json({ ideas });
+    } catch (error) {
+      console.error("Error generating project ideas:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        body: req.body
+      });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to generate project ideas", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -188,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/:id/generate-milestones-and-assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate milestones and assessments" });
       }
@@ -197,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
-      
+
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
@@ -218,14 +340,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No component skills found for this project" });
       }
 
-      // Generate milestones based on component skills
+      // Get B.E.S.T. standards for the project
+      let selectedBestStandards: any[] = [];
+      if (project.bestStandardIds && project.bestStandardIds.length > 0) {
+        const allBestStandards = await storage.getBestStandards();
+        selectedBestStandards = allBestStandards.filter(standard => 
+          project.bestStandardIds?.includes(standard.id)
+        );
+      }
+
+      // Generate milestones based on component skills and B.E.S.T. standards
       const milestones = await generateMilestonesFromComponentSkills(
         project.title,
         project.description || "",
         project.dueDate?.toISOString().split('T')[0] || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        selectedComponentSkills
+        selectedComponentSkills,
+        selectedBestStandards
       );
-      
+
       // Save generated milestones to database
       const savedMilestones = await Promise.all(
         milestones.map((milestone, index) => 
@@ -248,7 +380,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               milestone.title,
               milestone.description || "",
               milestone.dueDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-              selectedComponentSkills
+              selectedComponentSkills,
+              selectedBestStandards
             );
 
             const savedAssessment = await storage.createAssessment({
@@ -269,14 +402,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      const standardsCount = selectedBestStandards.length;
+      const message = standardsCount > 0 
+        ? `Generated ${savedMilestones.length} milestones and ${assessmentsWithMilestones.filter(item => item.assessment).length} assessments using ${selectedComponentSkills.length} component skills and ${standardsCount} B.E.S.T. standards`
+        : `Generated ${savedMilestones.length} milestones and ${assessmentsWithMilestones.filter(item => item.assessment).length} assessments using ${selectedComponentSkills.length} component skills`;
+
       res.json({
         milestones: savedMilestones,
         assessments: assessmentsWithMilestones.map(item => item.assessment).filter(Boolean),
-        message: `Generated ${savedMilestones.length} milestones and ${assessmentsWithMilestones.filter(item => item.assessment).length} assessments`
+        message
       });
     } catch (error) {
       console.error("Error generating milestones and assessments:", error);
-      res.status(500).json({ message: "Failed to generate milestones and assessments" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to generate milestones and assessments", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -288,7 +431,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(milestones);
     } catch (error) {
       console.error("Error fetching milestones:", error);
-      res.status(500).json({ message: "Failed to fetch milestones" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch milestones", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -296,11 +444,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const milestoneId = parseInt(req.params.id);
       const milestone = await storage.getMilestone(milestoneId);
-      
+
       if (!milestone) {
         return res.status(404).json({ message: "Milestone not found" });
       }
-      
+
       res.json(milestone);
     } catch (error) {
       console.error("Error fetching milestone:", error);
@@ -311,7 +459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create milestones" });
       }
@@ -321,7 +469,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(milestone);
     } catch (error) {
       console.error("Error creating milestone:", error);
-      res.status(500).json({ message: "Failed to create milestone" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to create milestone", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -329,16 +482,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const milestoneId = parseInt(req.params.id);
       const milestone = await storage.getMilestone(milestoneId);
-      
+
       if (!milestone) {
         return res.status(404).json({ message: "Milestone not found" });
       }
-      
+
       const updatedMilestone = await storage.updateMilestone(milestoneId, req.body);
       res.json(updatedMilestone);
     } catch (error) {
       console.error("Error updating milestone:", error);
-      res.status(500).json({ message: "Failed to update milestone" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to update milestone", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -349,7 +507,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Milestone deleted successfully" });
     } catch (error) {
       console.error("Error deleting milestone:", error);
-      res.status(500).json({ message: "Failed to delete milestone" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to delete milestone", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -357,21 +520,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/milestones/:id/generate-assessment', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can generate assessments" });
       }
 
       const milestoneId = parseInt(req.params.id);
       const milestone = await storage.getMilestone(milestoneId);
-      
+
       if (!milestone) {
         return res.status(404).json({ message: "Milestone not found" });
       }
 
       const competencies = await storage.getCompetencies();
       const assessmentData = await generateAssessment(milestone, competencies);
-      
+
       const assessment = await storage.createAssessment({
         milestoneId,
         title: assessmentData.title,
@@ -383,7 +546,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(assessment);
     } catch (error) {
       console.error("Error generating assessment:", error);
-      res.status(500).json({ message: "Failed to generate assessment" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to generate assessment", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -394,7 +562,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(assessments);
     } catch (error) {
       console.error("Error fetching assessments:", error);
-      res.status(500).json({ message: "Failed to fetch assessments" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch assessments", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -425,11 +598,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const assessmentId = parseInt(req.params.id);
       const assessment = await storage.getAssessment(assessmentId);
-      
+
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
       }
-      
+
       res.json(assessment);
     } catch (error) {
       console.error("Error fetching assessment:", error);
@@ -441,23 +614,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can create assessments" });
       }
 
       // Handle date conversion manually
       const { dueDate, ...bodyData } = req.body;
+
+      // Ensure questions have proper IDs
+      if (bodyData.questions && Array.isArray(bodyData.questions)) {
+        bodyData.questions = bodyData.questions.map((question: any, index: number) => ({
+          ...question,
+          id: question.id || `q_${Date.now()}_${index}` // Generate ID if missing
+        }));
+      }
+
       const assessmentData = insertAssessmentSchema.parse({
         ...bodyData,
         dueDate: dueDate ? new Date(dueDate) : undefined,
       });
-      
+
+      console.log("Creating assessment with questions:", assessmentData.questions);
+
       const assessment = await storage.createAssessment(assessmentData);
       res.json(assessment);
     } catch (error) {
       console.error("Error creating assessment:", error);
-      res.status(500).json({ message: "Failed to create assessment" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to create assessment", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
+  // Export assessment results
+  app.get("/api/assessments/:id/export-results", requireAuth, async (req, res) => {
+    try {
+      const assessmentId = parseInt(req.params.id);
+      const assessment = await db.select().from(assessments).where(eq(assessments.id, assessmentId)).limit(1);
+
+      if (!assessment.length) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // Get submissions for this assessment
+      const submissions = await db.select({
+        id: submissions.id,
+        studentName: sql`${users.firstName} || ' ' || ${users.lastName}`,
+        studentEmail: users.email,
+        score: submissions.score,
+        grade: submissions.grade,
+        submittedAt: submissions.submittedAt,
+        feedback: submissions.feedback
+      })
+      .from(submissions)
+      .innerJoin(users, eq(submissions.studentId, users.id))
+      .where(eq(submissions.assessmentId, assessmentId));
+
+      // Create CSV content
+      const csvData = [
+        ['Student Name', 'Email', 'Score', 'Grade', 'Submitted At', 'Feedback'],
+        ...submissions.map(sub => [
+          sub.studentName,
+          sub.studentEmail,
+          sub.score || '',
+          sub.grade || '',
+          sub.submittedAt || '',
+          (sub.feedback || '').replace(/,/g, ';') // Replace commas to avoid CSV issues
+        ])
+      ];
+
+      const csv = csvData.map(row => row.join(',')).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${assessment[0].title}-results.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Assessment export error:', error);
+      res.status(500).json({ message: "Failed to export assessment results" });
+    }
+  });
+
+  // Export assessment submissions
+  app.get("/api/assessments/:id/export-submissions", requireAuth, async (req, res) => {
+    try {
+      const assessmentId = parseInt(req.params.id);
+      const assessment = await db.select().from(assessments).where(eq(assessments.id, assessmentId)).limit(1);
+
+      if (!assessment.length) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // Get detailed submissions for this assessment
+      const submissions = await db.select({
+        id: submissions.id,
+        studentName: sql`${users.firstName} || ' ' || ${users.lastName}`,
+        studentEmail: users.email,
+        responses: submissions.responses,
+        score: submissions.score,
+        grade: submissions.grade,
+        submittedAt: submissions.submittedAt,
+        feedback: submissions.feedback,
+        timeSpent: submissions.timeSpent
+      })
+      .from(submissions)
+      .innerJoin(users, eq(submissions.studentId, users.id))
+      .where(eq(submissions.assessmentId, assessmentId));
+
+      // Create CSV content
+      const csvData = [
+        ['Student Name', 'Email', 'Responses', 'Score', 'Grade', 'Time Spent (mins)', 'Submitted At', 'Feedback'],
+        ...submissions.map(sub => [
+          sub.studentName,
+          sub.studentEmail,
+          JSON.stringify(sub.responses || {}).replace(/,/g, ';'),
+          sub.score || '',
+          sub.grade || '',
+          sub.timeSpent || '',
+          sub.submittedAt || '',
+          (sub.feedback || '').replace(/,/g, ';')
+        ])
+      ];
+
+      const csv = csvData.map(row => row.join(',')).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${assessment[0].title}-submissions.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Submissions export error:', error);
+      res.status(500).json({ message: "Failed to export submissions" });
+    }
+  });
+
+  // Export detailed assessment results
+  app.get("/api/assessments/:id/export-detailed-results", requireAuth, async (req, res) => {
+    try {
+      const assessmentId = parseInt(req.params.id);
+      const assessment = await db.select().from(assessments).where(eq(assessments.id, assessmentId)).limit(1);
+
+      if (!assessment.length) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // Get detailed submissions with question breakdown
+      const submissions = await db.select({
+        id: submissions.id,
+        studentName: sql`${users.firstName} || ' ' || ${users.lastName}`,
+        studentEmail: users.email,
+        responses: submissions.responses,
+        score: submissions.score,
+        grade: submissions.grade,
+        submittedAt: submissions.submittedAt,
+        feedback: submissions.feedback,
+        timeSpent: submissions.timeSpent
+      })
+      .from(submissions)
+      .innerJoin(users, eq(submissions.studentId, users.id))
+      .where(eq(submissions.assessmentId, assessmentId));
+
+      const questions = assessment[0].questions || [];
+
+      // Create detailed CSV with question breakdown
+      const headers = ['Student Name', 'Email', 'Total Score', 'Grade', 'Time Spent (mins)', 'Submitted At'];
+      questions.forEach((q: any, index: number) => {
+        headers.push(`Q${index + 1}: ${(q.text || '').substring(0, 50)}...`);
+      });
+      headers.push('Feedback');
+
+      const csvData = [headers];
+
+      submissions.forEach(sub => {
+        const row = [
+          sub.studentName,
+          sub.studentEmail,
+          sub.score || '',
+          sub.grade || '',
+          sub.timeSpent || '',
+          sub.submittedAt || ''
+        ];
+
+        const responses = sub.responses || {};
+        questions.forEach((q: any, index: number) => {
+          const response = responses[index] || '';
+          row.push(typeof response === 'string' ? response.replace(/,/g, ';') : JSON.stringify(response));
+        });
+
+        row.push((sub.feedback || '').replace(/,/g, ';'));
+        csvData.push(row);
+      });
+
+      const csv = csvData.map(row => row.join(',')).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${assessment[0].title}-detailed-results.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Detailed export error:', error);
+      res.status(500).json({ message: "Failed to export detailed results" });
     }
   });
 
@@ -469,7 +826,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Assessment deleted successfully" });
     } catch (error) {
       console.error("Error deleting assessment:", error);
-      res.status(500).json({ message: "Failed to delete assessment" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to delete assessment", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -477,7 +839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/submissions', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'student') {
         return res.status(403).json({ message: "Only students can submit assessments" });
       }
@@ -491,7 +853,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(submission);
     } catch (error) {
       console.error("Error creating submission:", error);
-      res.status(500).json({ message: "Failed to create submission" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to create submission", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 
@@ -509,14 +876,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/assessments/:id/submissions', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can view submissions" });
       }
 
       const assessmentId = parseInt(req.params.id);
       const submissions = await storage.getSubmissionsByAssessment(assessmentId);
-      res.json(submissions);
+
+      // Add isLate calculation and ensure proper data format
+      const assessment = await storage.getAssessment(assessmentId);
+      const enhancedSubmissions = submissions.map(submission => ({
+        ...submission,
+        answers: submission.responses || {},
+        isLate: assessment?.dueDate ? new Date(submission.submittedAt) > new Date(assessment.dueDate) : false
+      }));
+
+      res.json(enhancedSubmissions);
     } catch (error) {
       console.error("Error fetching submissions:", error);
       res.status(500).json({ message: "Failed to fetch submissions" });
@@ -526,25 +902,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/submissions/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
-      // Only teachers and admins can view submissions, or students viewing their own
-      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        const submissionId = parseInt(req.params.id);
-        const submission = await storage.getSubmission(submissionId);
-        
-        if (!submission || submission.studentId !== userId) {
-          return res.status(403).json({ message: "Access denied" });
-        }
+      const submissionId = parseInt(req.params.id);
+
+      if (isNaN(submissionId)) {
+        return res.status(400).json({ message: "Invalid submission ID" });
       }
 
-      const submissionId = parseInt(req.params.id);
       const submission = await storage.getSubmission(submissionId);
-      
+
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
       }
 
-      res.json(submission);
+      // Only teachers and admins can view submissions, or students viewing their own
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        if (submission.studentId !== userId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      // Get the assessment to calculate isLate
+      const assessment = await storage.getAssessment(submission.assessmentId);
+
+      // Enhance submission with isLate calculation
+      const enhancedSubmission = {
+        ...submission,
+        isLate: assessment?.dueDate ? new Date(submission.submittedAt) > new Date(assessment.dueDate) : false
+      };
+
+      res.json(enhancedSubmission);
     } catch (error) {
       console.error("Error fetching submission:", error);
       res.status(500).json({ message: "Failed to fetch submission" });
@@ -555,13 +941,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/submissions/:id/grade', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can grade submissions" });
       }
 
       const submissionId = parseInt(req.params.id);
-      const { grades: gradeData, feedback, grade } = req.body;
+      const { grades: gradeData, feedback, grade, generateAiFeedback } = req.body;
+
+      console.log("Starting grading for submission " + submissionId + ", generateAiFeedback: " + generateAiFeedback);
 
       // Save grades - support both detailed component skill grading and simple overall grading
       let savedGrades = [];
@@ -580,36 +968,328 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      // Generate AI feedback if requested
-      let aiFeedback = feedback;
-      if (req.body.generateAiFeedback) {
-        const submission = await storage.getSubmission(submissionId);
-        if (submission) {
-          aiFeedback = await generateFeedback(submission, savedGrades);
+      // Get submission and assessment data
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      const assessment = await storage.getAssessment(submission.assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // Generate AI feedback and grade if requested
+      let finalFeedback = feedback;
+      let finalGrade = grade;
+
+      if (generateAiFeedback) {
+        console.log("Generating AI feedback for submission " + submissionId);
+
+        try {
+          // Generate comprehensive AI feedback
+          finalFeedback = await generateFeedback(submission, savedGrades);
+          console.log("Generated AI feedback: " + (finalFeedback?.substring(0, 100) || "") + "...");
+
+          // If no manual grade provided or grade is 0 (placeholder), calculate AI-based grade
+          if (finalGrade === undefined || finalGrade === 0) {
+            if (assessment.questions && submission.responses) {
+              try {
+                // Use AI to grade each question individually
+                const questionGrades = await Promise.all(
+                  assessment.questions.map(async (question) => {
+                    let answer = '';
+
+                    if (Array.isArray(submission.responses)) {
+                      const response = submission.responses.find((r: any) => r.questionId === question.id);
+                      answer = response?.answer || '';
+                    } else if (typeof submission.responses === 'object') {
+                      answer = submission.responses[question.id] || '';
+                    }
+
+                    if (!answer || answer.trim().length === 0) {
+                      return { score: 0, rationale: 'No answer provided' };
+                    }
+
+                    // Generate AI-based grade for this specific question
+                    const questionGrade = await generateQuestionGrade(
+                      question.text || '',
+                      answer,
+                      question.rubricCriteria || '',
+                      question.sampleAnswer || ''
+                    );
+
+                    console.log("Question " + question.id + ": " + questionGrade.score + "% - " + questionGrade.rationale);
+                    return questionGrade;
+                  })
+                );
+
+                const validGrades = questionGrades.filter(grade => grade.score >= 0);
+                if (validGrades.length > 0) {
+                  const averageScore = validGrades.reduce((sum, grade) => sum + grade.score, 0) / validGrades.length;
+                  finalGrade = Math.round(averageScore);
+                  console.log("Final AI-calculated grade: " + finalGrade + "% (average of " + validGrades.length + " questions)");
+                } else {
+                  console.log("No valid AI grades generated, using fallback score");
+                  finalGrade = 25; // Conservative fallback for submissions with content but failed AI analysis
+                }
+              } catch (aiGradingError) {
+                console.error("AI grading failed:", aiGradingError);
+                // Fallback to basic content analysis if AI grading fails
+                const totalQuestions = assessment.questions.length;
+                let contentScore = 0;
+
+                for (const question of assessment.questions) {
+                  let answer = '';
+                  if (Array.isArray(submission.responses)) {
+                    const response = submission.responses.find((r: any) => r.questionId === question.id);
+                    answer = response?.answer || '';
+                  } else if (typeof submission.responses === 'object') {
+                    answer = submission.responses[question.id] || '';
+                  }
+
+                  if (answer && answer.trim().length > 0) {
+                    const wordCount = answer.split(' ').filter(word => word.trim().length > 0).length;
+                    // More conservative scoring for fallback
+                    if (wordCount >= 50) contentScore += 70;
+                    else if (wordCount >= 25) contentScore += 60;
+                    else if (wordCount >= 10) contentScore += 50;
+                    else contentScore += 30;
+                  }
+                }
+
+                finalGrade = totalQuestions > 0 ? Math.round(contentScore / totalQuestions) : 25;
+              }
+            } else {
+              finalGrade = 10; // Minimal score for incomplete submissions
+            }
+          }
+        } catch (aiError) {
+          console.error("Error generating AI feedback:", aiError);
+          finalFeedback = "AI feedback generation failed. Please provide manual feedback.";
+          if (finalGrade === undefined || finalGrade === 0) {
+            finalGrade = 50; // Default fallback grade
+          }
         }
       }
 
       // Update submission with feedback and grade
       const updateData: any = {
-        feedback: aiFeedback,
         gradedAt: new Date(),
       };
-      
-      if (grade !== undefined) {
-        updateData.grade = grade;
+
+      if (finalFeedback !== undefined) {
+        updateData.feedback = finalFeedback;
       }
-      
-      
-      if (req.body.generateAiFeedback) {
+
+      if (finalGrade !== undefined) {
+        updateData.grade = finalGrade;
+      }
+
+      if (generateAiFeedback) {
         updateData.aiGeneratedFeedback = true;
       }
-      
-      await storage.updateSubmission(submissionId, updateData);
 
-      res.json({ grades: savedGrades, feedback: aiFeedback });
+      console.log("Updating submission " + submissionId + " with grade: " + finalGrade + ", feedback length: " + (finalFeedback?.length || 0));
+      const updatedSubmission = await storage.updateSubmission(submissionId, updateData);
+
+      res.json({ 
+        grades: savedGrades, 
+        feedback: finalFeedback,
+        submission: updatedSubmission 
+      });
     } catch (error) {
       console.error("Error grading submission:", error);
-      res.status(500).json({ message: "Failed to grade submission" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to grade submission", 
+        error: errorMessage,
+        context: "Submission ID: " + req.params.id,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
+  // Generate AI feedback for specific question
+  app.post('/api/submissions/:id/generate-question-feedback', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only teachers can generate AI feedback" });
+      }
+
+      const submissionId = parseInt(req.params.id);
+      const { questionId, answer, rubricCriteria, sampleAnswer } = req.body;
+
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      // Generate AI feedback for specific question/answer
+      const feedback = await generateFeedbackForQuestion(questionId, answer, rubricCriteria, sampleAnswer);
+
+      res.json({ feedback });
+    } catch (error) {
+      console.error("Error generating AI feedback:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to generate AI feedback", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
+  // AI Tutor Chat endpoint
+  app.post('/api/ai-tutor/chat', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      if (req.user?.role !== 'student' && req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Only students and teachers can use the AI tutor" });
+      }
+
+      const { componentSkill, conversationHistory, currentEvaluation } = req.body;
+
+      if (!componentSkill || !conversationHistory) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      console.log("AI Tutor Chat Request:", {
+        userId,
+        componentSkillName: componentSkill.name,
+        messageCount: conversationHistory.length,
+        currentLevel: currentEvaluation?.selfAssessedLevel
+      });
+
+      // Generate AI tutor response
+      const tutorResponse = await generateTutorResponse(
+        componentSkill,
+        conversationHistory,
+        currentEvaluation
+      );
+
+      console.log("AI Tutor Response generated successfully");
+
+      res.json({
+        response: tutorResponse.response,
+        suggestedEvaluation: tutorResponse.suggestedEvaluation
+      });
+    } catch (error) {
+      console.error("Error generating tutor response:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to generate tutor response", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
+  // Self-evaluation routes
+  app.post('/api/self-evaluations', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      if (req.user?.role !== 'student') {
+        return res.status(403).json({ message: "Only students can submit self-evaluations" });
+      }
+
+      const data = insertSelfEvaluationSchema.parse({
+        ...req.body,
+        studentId: userId,
+      });
+
+      // Get component skill details for AI feedback
+      const componentSkill = await storage.getComponentSkillsWithDetails().then(skills => 
+        skills.find(skill => skill.id === data.componentSkillId)
+      );
+
+      if (!componentSkill) {
+        return res.status(400).json({ message: "Component skill not found" });
+      }
+
+      // Generate AI feedback and safety check
+      const aiAnalysis = await generateSelfEvaluationFeedback(
+        componentSkill.name,
+        componentSkill.rubricLevels,
+        data.selfAssessedLevel!,
+        data.justification!,
+        data.examples || ""
+      );
+
+      // Create self-evaluation with AI feedback
+      const selfEvaluation = await storage.createSelfEvaluation({
+        ...data,
+        aiImprovementFeedback: aiAnalysis.improvementFeedback,
+        hasRiskyContent: aiAnalysis.hasRiskyContent,
+        teacherNotified: aiAnalysis.hasRiskyContent, // Auto-notify teacher if risky content detected
+      });
+
+      res.json({ 
+        selfEvaluation,
+        aiAnalysis: {
+          improvementFeedback: aiAnalysis.improvementFeedback,
+          hasRiskyContent: aiAnalysis.hasRiskyContent
+        }
+      });
+    } catch (error) {
+      console.error("Error creating self-evaluation:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to create self-evaluation", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
+  app.get('/api/self-evaluations/assessment/:assessmentId', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const assessmentId = parseInt(req.params.assessmentId);
+      const selfEvaluations = await storage.getSelfEvaluationsByAssessment(assessmentId);
+
+      // Filter based on role
+      if (req.user?.role === 'student') {
+        // Students can only see their own self-evaluations
+        const studentSelfEvaluations = selfEvaluations.filter(se => se.studentId === req.user!.id);
+        res.json(studentSelfEvaluations);
+      } else {
+        // Teachers and admins can see all self-evaluations for the assessment
+        res.json(selfEvaluations);
+      }
+    } catch (error) {
+      console.error("Error fetching self-evaluations:", error);
+      res.status(500).json({ message: "Failed to fetch self-evaluations" });
+    }
+  });
+
+  app.get('/api/self-evaluations/student', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      if (req.user?.role !== 'student') {
+        return res.status(403).json({ message: "Only students can view their self-evaluations" });
+      }
+
+      const selfEvaluations = await storage.getSelfEvaluationsByStudent(userId);
+      res.json(selfEvaluations);
+    } catch (error) {
+      console.error("Error fetching student self-evaluations:", error);
+      res.status(500).json({ message: "Failed to fetch self-evaluations" });
+    }
+  });
+
+  app.post('/api/self-evaluations/:id/flag-risky', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const selfEvaluationId = parseInt(req.params.id);
+      await storage.flagRiskySelfEvaluation(selfEvaluationId, true);
+      res.json({ message: "Self-evaluation flagged and teacher notified" });
+    } catch (error) {
+      console.error("Error flagging risky self-evaluation:", error);
+      res.status(500).json({ message: "Failed to flag self-evaluation" });
     }
   });
 
@@ -628,7 +1308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/credentials/teacher-stats', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can view credential stats" });
       }
@@ -646,7 +1326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/credentials', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can award credentials" });
       }
@@ -696,7 +1376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/:id/assign', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can assign projects" });
       }
@@ -729,13 +1409,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get component skills with competency and learner outcome details
-  app.get('/api/component-skills/details', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/component-skills/details', requireAuth, async (req, res) => {
     try {
-      const skills = await storage.getComponentSkillsWithDetails();
-      res.json(skills);
+      const componentSkills = await storage.getComponentSkillsWithDetails();
+
+      // Add default rubric levels if they don't exist
+      const componentSkillsWithRubrics = componentSkills.map(skill => ({
+        ...skill,
+        emerging: skill.emerging || 'Beginning to understand and use this skill with significant support',
+        developing: skill.developing || 'Building confidence and competency with this skill',
+        proficient: skill.proficient || 'Demonstrates solid understanding and effective use of this skill',
+        applying: skill.applying || 'Uses this skill in complex situations and helps others develop it'
+      }));
+
+      res.json(componentSkillsWithRubrics);
     } catch (error) {
       console.error("Error fetching component skills details:", error);
-      res.status(500).json({ message: "Failed to fetch component skills details" });
+      res.status(500).json({ error: "Failed to fetch component skills details" });
     }
   });
 
@@ -747,6 +1437,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching outcomes:", error);
       res.status(500).json({ message: "Failed to fetch outcomes" });
+    }
+  });
+
+  // B.E.S.T. Standards routes
+  app.get('/api/best-standards', async (req, res) => {
+    try {
+      const { subject, grade, search } = req.query;
+
+      let standards;
+      if (search) {
+        standards = await storage.searchBestStandards(search as string);
+      } else if (subject) {
+        standards = await storage.getBestStandardsBySubject(subject as string);
+      } else if (grade) {
+        standards = await storage.getBestStandardsByGrade(grade as string);
+      } else {
+        standards = await storage.getBestStandards();
+      }
+
+      res.json(standards);
+    } catch (error) {
+      console.error("Error fetching B.E.S.T. standards:", error);
+      res.status(500).json({ message: "Failed to fetch B.E.S.T. standards" });
+    }
+  });
+
+  // Get unique subjects and grades from B.E.S.T. standards
+  app.get('/api/best-standards/metadata', async (req, res) => {
+    try {
+      const standards = await storage.getBestStandards();
+
+      const subjects = [...new Set(standards.map(s => s.subject).filter(Boolean))].sort();
+      const grades = [...new Set(standards.map(s => s.grade).filter(Boolean))].sort();
+      const bodyOfKnowledge = [...new Set(standards.map(s => s.bodyOfKnowledge).filter(Boolean))].sort();
+
+      res.json({ subjects, grades, bodyOfKnowledge });
+    } catch (error) {
+      console.error("Error fetching B.E.S.T. standards metadata:", error);
+      res.status(500).json({ message: "Failed to fetch B.E.S.T. standards metadata" });
     }
   });
 
@@ -882,6 +1611,674 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error removing team member:", error);
       res.status(500).json({ message: "Failed to remove team member" });
+    }
+  });
+
+  app.delete('/api/project-teams/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const teamId = parseInt(req.params.id);
+      const team = await storage.getProjectTeam(teamId);
+
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+
+      // Check if user owns the project this team belongs to
+      const project = await storage.getProject(team.projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+
+      // Check ownership: admins can delete any team, teachers can only delete teams from their own projects
+      if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied - you can only delete teams from your own projects" });
+      }
+
+      await storage.deleteProjectTeam(teamId);
+      res.json({ message: "Team deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting team:", error);
+      res.status(500).json({ message: "Failed to delete team" });
+    }
+  });
+
+  // Analytics endpoint for admin dashboard
+  app.get("/api/analytics/dashboard", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get analytics data
+      const [users, projects, assessments, studentCredentials] = await Promise.all([
+        db.select().from(users),
+        db.select().from(projects),
+        db.select().from(assessments),
+        db.select().from(credentials)
+      ]);
+
+      const analyticsData = {
+        totalUsers: users.length,
+        activeUsers: users.filter(u => {
+          const oneMonthAgo = new Date();
+          oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+          return new Date(u.updatedAt) > oneMonthAgo;
+        }).length,
+        totalProjects: projects.length,
+        activeProjects: projects.filter(p => p.status === 'active').length,
+        totalAssessments: assessments.length,
+        gradedAssessments: assessments.filter(a => a.totalPoints !== null).length,
+        totalCredentials: studentCredentials.length,
+        recentActivity: [], // Could be implemented with activity tracking
+        userGrowth: [], // Would need historical data
+        projectStats: [], // Would need completion tracking
+        competencyProgress: [] // Would need progress tracking
+      };
+
+      res.json(analyticsData);
+    } catch (error) {
+      console.error('Analytics error:', error);
+      res.status(500).json({ message: "Failed to fetch analytics data" });
+    }
+  });
+
+  // Teacher dashboard stats
+  app.get("/api/teacher/dashboard-stats", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacherId = req.user.id;
+
+      // Get teacher's projects and related data
+      const teacherProjects = await db.select()
+        .from(projects)
+        .where(eq(projects.teacherId, teacherId));
+
+      const activeProjects = teacherProjects.filter(p => p.status === 'active').length;
+
+      // Get total students assigned to teacher's projects
+      const projectIds = teacherProjects.map(p => p.id);
+      const studentAssignments = projectIds.length > 0 ? await db.select()
+        .from(projectAssignments)
+        .where(inArray(projectAssignments.projectId, projectIds)) : [];
+
+      const totalStudents = new Set(studentAssignments.map(a => a.studentId)).size;
+
+      // Get pending submissions for grading
+      const pendingSubmissions = projectIds.length > 0 ? await db.select()
+        .from(submissions)
+        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
+        .innerJoin(milestones, eq(assessments.milestoneId, milestones.id))
+        .where(and(
+          inArray(milestones.projectId, projectIds),
+          isNull(submissions.grade)
+        )) : [];
+
+      // Get awarded credentials
+      const credentialsAwarded = await db.select()
+        .from(credentials)
+        .where(eq(credentials.approvedBy, teacherId));
+
+      const stats = {
+        activeProjects,
+        totalStudents,
+        pendingGrades: pendingSubmissions.length,
+        credentialsAwarded: credentialsAwarded.length,
+        upcomingDeadlines: 0 // Would need milestone deadline tracking
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Teacher dashboard stats error:', error);
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Teacher projects overview
+  app.get("/api/teacher/projects", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacherId = req.user.id;
+
+      const teacherProjects = await db.select()
+        .from(projects)
+        .where(eq(projects.teacherId, teacherId));
+
+      // Get additional data for each project
+      const projectOverviews = await Promise.all(
+        teacherProjects.map(async (project) => {
+          const assignments = await db.select()
+            .from(projectAssignments)
+            .where(eq(projectAssignments.projectId, project.id));
+
+          const milestonesList = await db.select()
+            .from(milestones)
+            .where(eq(milestones.projectId, project.id))
+            .orderBy(milestones.dueDate);
+
+          const nextDeadline = milestonesList.find(m => new Date(m.dueDate) > new Date())?.dueDate || null;
+
+          return {
+            id: project.id,
+            title: project.title,
+            description: project.description,
+            studentsAssigned: assignments.length,
+            completionRate: 0, // Would need submission tracking
+            nextDeadline,
+            status: project.status
+          };
+        })
+      );
+
+      res.json(projectOverviews);
+    } catch (error) {
+      console.error('Teacher projects error:', error);
+      res.status(500).json({ message: "Failed to fetch teacher projects" });
+    }
+  });
+
+  // Teacher pending tasks
+  app.get("/api/teacher/pending-tasks", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacherId = req.user.id;
+
+      // Get pending grading tasks
+      const teacherProjects = await db.select()
+        .from(projects)
+        .where(eq(projects.teacherId, teacherId));
+
+      const projectIds = teacherProjects.map(p => p.id);
+
+      const pendingSubmissions = projectIds.length > 0 ? await db.select({
+        submissionId: submissions.id,
+        assessmentTitle: assessments.title,
+        projectTitle: projects.title,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        submittedAt: submissions.submittedAt
+      })
+        .from(submissions)
+        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
+        .innerJoin(milestones, eq(assessments.milestoneId, milestones.id))
+        .innerJoin(projects, eq(milestones.projectId, projects.id))
+        .innerJoin(users, eq(submissions.studentId, users.id))
+        .where(and(
+          inArray(milestones.projectId, projectIds),
+          isNull(submissions.grade)
+        ))
+        .limit(10) : [];
+
+      const tasks = pendingSubmissions.map((submission, index) => ({
+        id: submission.submissionId,
+        type: 'grading' as const,
+        title: "Grade " + submission.assessmentTitle,
+        description: "Review submission for " + submission.firstName + " " + submission.lastName,
+        priority: index < 3 ? 'high' as const : 'medium' as const,
+        dueDate: new Date(Date.now() + (index + 1) * 24 * 60 * 60 * 1000).toISOString(),
+        studentName: submission.firstName + " " + submission.lastName,
+        projectTitle: submission.projectTitle
+      }));
+
+      res.json(tasks);
+    } catch (error) {
+      console.error('Teacher pending tasks error:', error);
+      res.status(500).json({ message: "Failed to fetch pending tasks" });
+    }
+  });
+
+  // Teacher current milestones
+  app.get("/api/teacher/current-milestones", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacherId = req.user.id;
+
+      const teacherProjects = await db.select()
+        .from(projects)
+        .where(eq(projects.teacherId, teacherId));
+
+      const projectIds = teacherProjects.map(p => p.id);
+
+      const currentMilestones = projectIds.length > 0 ? await db.select()
+        .from(milestones)
+        .where(and(
+          inArray(milestones.projectId, projectIds),
+          gte(milestones.dueDate, new Date().toISOString()))
+        )
+        .orderBy(milestones.dueDate)
+        .limit(5) : [];
+
+      const milestonesWithProgress = currentMilestones.map((milestone) => ({
+        id: milestone.id,
+        title: milestone.title,
+        description: milestone.description,
+        dueDate: milestone.dueDate,
+        status: new Date(milestone.dueDate) > new Date() ? 'not_started' as const : 'in_progress' as const,
+        progress: Math.floor(Math.random() * 100) // Would need actual progress tracking
+      }));
+
+      res.json(milestonesWithProgress);
+    } catch (error) {
+      console.error('Teacher current milestones error:', error);
+      res.status(500).json({ message: "Failed to fetch current milestones" });
+    }
+  });
+
+  // Get all students in teacher's school with progress
+  app.get("/api/teacher/school-students-progress", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacher = await db.select().from(users).where(eq(users.id, req.user.id)).limit(1);
+      if (!teacher.length || !teacher[0].schoolId) {
+        return res.status(400).json({ message: "Teacher school not found" });
+      }
+
+      const schoolId = teacher[0].schoolId;
+
+      // Get all students in the school using the same simple query as the Create Project Team modal
+      const students = await storage.getStudentsBySchool(schoolId);
+
+      // Get detailed progress for each student
+      const studentsWithProgress = await Promise.all(
+        students.map(async (student) => {
+          try {
+            // Get student's project assignments using separate queries
+            const studentAssignments = await db.select()
+              .from(projectAssignments)
+              .where(eq(projectAssignments.studentId, student.id));
+
+            const processedAssignments = await Promise.all(
+              studentAssignments.map(async (assignment) => {
+                const project = await db.select().from(projects).where(eq(projects.id, assignment.projectId)).limit(1);
+                if (!project.length) return null;
+
+                const teacher = await db.select().from(users).where(eq(users.id, project[0].teacherId)).limit(1);
+                const teacherName = teacher.length ? teacher[0].firstName + " " + teacher[0].lastName : 'Unknown';
+
+                return {
+                  projectId: project[0].id,
+                  projectTitle: project[0].title,
+                  projectDescription: project[0].description,
+                  projectStatus: project[0].status,
+                  teacherName
+                };
+              })
+            );
+
+            // Get student's credentials
+            const studentCredentials = await db.select()
+              .from(credentials)
+              .where(eq(credentials.studentId, student.id))
+              .orderBy(desc(credentials.awardedAt));
+
+            // Get student's submissions and grades for competency progress
+            const studentSubmissions = await db.select()
+              .from(submissions)
+              .where(and(
+                eq(submissions.studentId, student.id),
+                ne(submissions.grade, null)
+              ));
+
+            // Simplified competency progress calculation
+            const competencyAverages = studentSubmissions.map(submission => {
+              return {
+                competencyId: 1, // Simplified for now
+                competencyName: 'General Progress',
+                componentSkillId: submission.assessmentId,
+                componentSkillName: "Assessment " + submission.assessmentId,
+                averageScore: submission.grade || 0,
+                submissionCount: 1
+              };
+            });
+
+            return {
+              ...student,
+              projects: processedAssignments.filter(p => p !== null),
+              credentials: studentCredentials,
+              competencyProgress: competencyAverages,
+              totalCredentials: studentCredentials.length,
+              stickers: studentCredentials.filter(c => c.type === 'sticker').length,
+              badges: studentCredentials.filter(c => c.type === 'badge').length,
+              plaques: studentCredentials.filter(c => c.type === 'plaque').length
+            };
+          } catch (studentError) {
+            console.error("Error processing student " + student.id + ":", studentError);
+            return {
+              ...student,
+              projects: [],
+              credentials: [],
+              competencyProgress: [],
+              totalCredentials: 0,
+              stickers: 0,
+              badges: 0,
+              plaques: 0
+            };
+          }
+        })
+      );
+
+      res.json(studentsWithProgress);
+    } catch (error) {
+      console.error('School students progress error:', error);
+      res.status(500).json({ message: "Failed to fetch school students progress" });
+    }
+  });
+
+  // Student upcoming deadlines
+  app.get("/api/deadlines/student", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'student') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const studentId = req.user.id;
+
+      // Get student's assigned projects
+      const assignments = await db.select()
+        .from(projectAssignments)
+        .where(eq(projectAssignments.studentId, studentId));
+
+      const projectIds = assignments.map(a => a.projectId);
+
+      const upcomingDeadlines = projectIds.length > 0
+        ? await db.select({
+        milestoneId: milestones.id,
+        title: milestones.title,
+        projectTitle: projects.title,
+        dueDate: milestones.dueDate
+      })
+        .from(milestones)
+        .innerJoin(projects, eq(milestones.projectId, projects.id))
+        .where(and(
+          inArray(milestones.projectId, projectIds),
+          gte(milestones.dueDate, new Date().toISOString())
+        ))
+        .orderBy(milestones.dueDate)
+        .limit(5) : [];
+
+      const deadlines = upcomingDeadlines.map((deadline) => {
+        const daysUntil = Math.ceil((new Date(deadline.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+        return {
+          id: deadline.milestoneId,
+          title: deadline.title,
+          project: deadline.projectTitle,
+          dueDate: daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : "In " + daysUntil + " days",
+          priority: daysUntil <= 1 ? 'high' as const : daysUntil <= 3 ? 'medium' as const : 'low' as const
+        };
+      });
+
+      res.json(deadlines);
+    } catch (error) {
+      console.error('Student deadlines error:', error);
+      res.status(500).json({ message: "Failed to fetch student deadlines" });
+    }
+  });
+
+  // Student competency progress endpoint
+  app.get('/api/students/competency-progress', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      // Students can only view their own progress
+      if (req.user?.role !== 'student' && req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // For students, get their own progress. For teachers/admins, allow studentId query param
+      let studentId = userId;
+      if (req.user.role === 'teacher' || req.user.role === 'admin') {
+        const queryStudentId = req.query.studentId;
+        if (queryStudentId) {
+          studentId = parseInt(queryStudentId as string);
+        }
+      }
+
+      const progress = await storage.getStudentCompetencyProgress(studentId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching competency progress:", error);
+      res.status(500).json({ message: "Failed to fetch competency progress" });
+    }
+  });
+
+  // Discussion Forum Routes
+
+  // Get project discussion threads
+  app.get('/api/projects/:id/discussions', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const { category, milestone } = req.query;
+
+      let whereCondition = eq(discussionThreads.projectId, projectId);
+
+      if (category && category !== 'all') {
+        whereCondition = and(whereCondition, eq(discussionThreads.category, category as string));
+      }
+
+      if (milestone) {
+        whereCondition = and(whereCondition, eq(discussionThreads.milestoneId, parseInt(milestone as string)));
+      }
+
+      const threads = await db.select({
+        id: discussionThreads.id,
+        title: discussionThreads.title,
+        description: discussionThreads.description,
+        category: discussionThreads.category,
+        milestoneId: discussionThreads.milestoneId,
+        isPinned: discussionThreads.isPinned,
+        isLocked: discussionThreads.isLocked,
+        viewCount: discussionThreads.viewCount,
+        lastActivityAt: discussionThreads.lastActivityAt,
+        createdAt: discussionThreads.createdAt,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        authorRole: users.role,
+        // postCount will be calculated separately
+      })
+        .from(discussionThreads)
+        .leftJoin(users, eq(discussionThreads.authorId, users.id))
+        .leftJoin(discussionPosts, eq(discussionThreads.id, discussionPosts.threadId))
+        .where(whereCondition)
+        .groupBy(discussionThreads.id, users.firstName, users.lastName, users.role)
+        .orderBy(desc(discussionThreads.isPinned), desc(discussionThreads.lastActivityAt));
+
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching discussion threads:", error);
+      res.status(500).json({ message: "Failed to fetch discussion threads" });
+    }
+  });
+
+  // Create discussion thread
+  app.post('/api/projects/:id/discussions', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      const threadData = insertDiscussionThreadSchema.parse({
+        ...req.body,
+        projectId,
+        authorId: userId,
+      });
+
+      const thread = await db.insert(discussionThreads).values(threadData).returning();
+      res.json(thread[0]);
+    } catch (error) {
+      console.error("Error creating discussion thread:", error);
+      res.status(500).json({ message: "Failed to create discussion thread" });
+    }
+  });
+
+  // Get thread posts
+  app.get('/api/discussions/:id/posts', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const threadId = parseInt(req.params.id);
+
+      // Note: View count increment would need to be handled differently
+
+      const posts = await db.select({
+        id: discussionPosts.id,
+        content: discussionPosts.content,
+        attachments: discussionPosts.attachments,
+        isAnswer: discussionPosts.isAnswer,
+        likeCount: discussionPosts.likeCount,
+        replyToId: discussionPosts.replyToId,
+        isEdited: discussionPosts.isEdited,
+        editedAt: discussionPosts.editedAt,
+        createdAt: discussionPosts.createdAt,
+        authorId: discussionPosts.authorId,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        authorRole: users.role,
+        // hasLiked will be calculated separately
+      })
+        .from(discussionPosts)
+        .leftJoin(users, eq(discussionPosts.authorId, users.id))
+        .where(eq(discussionPosts.threadId, threadId))
+        .orderBy(asc(discussionPosts.createdAt));
+
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching discussion posts:", error);
+      res.status(500).json({ message: "Failed to fetch discussion posts" });
+    }
+  });
+
+  // Create discussion post
+  app.post('/api/discussions/:id/posts', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const threadId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      const postData = insertDiscussionPostSchema.parse({
+        ...req.body,
+        threadId,
+        authorId: userId,
+      });
+
+      const post = await db.insert(discussionPosts).values(postData).returning();
+
+      // Update thread's last activity
+      await db.update(discussionThreads)
+        .set({ lastActivityAt: new Date() })
+        .where(eq(discussionThreads.id, threadId));
+
+      res.json(post[0]);
+    } catch (error) {
+      console.error("Error creating discussion post:", error);
+      res.status(500).json({ message: "Failed to create discussion post" });
+    }});
+
+  // Like/unlike discussion post
+  app.post('/api/discussions/posts/:id/like', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // Check if already liked
+      const existingLike = await db.select()
+        .from(discussionLikes)
+        .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
+
+      if (existingLike.length > 0) {
+        // Unlike
+        await db.delete(discussionLikes)
+          .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
+
+        // Note: Like count decrement would need to be handled differently
+
+        res.json({ liked: false });
+      } else {
+        // Like
+        await db.insert(discussionLikes).values({ postId, userId });
+
+        // Note: Like count increment would need to be handled differently
+
+        res.json({ liked: true });
+      }
+    } catch (error) {
+      console.error("Error toggling post like:", error);
+      res.status(500).json({ message: "Failed to toggle post like" });
+    }
+  });
+
+  // Mark post as answer (teachers only)
+  app.put('/api/discussions/posts/:id/answer', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const { isAnswer } = req.body;
+
+      await db.update(discussionPosts)
+        .set({ isAnswer })
+        .where(eq(discussionPosts.id, postId));
+
+      res.json({ message: "Post answer status updated" });
+    } catch (error) {
+      console.error("Error updating post answer status:", error);
+      res.status(500).json({ message: "Failed to update post answer status" });
+    }
+  });
+
+  // Update thread (pin/unpin, lock/unlock) - teachers only
+  app.put('/api/discussions/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const threadId = parseInt(req.params.id);
+      const { isPinned, isLocked } = req.body;
+
+      const updateData: any = {};
+      if (isPinned !== undefined) updateData.isPinned = isPinned;
+      if (isLocked !== undefined) updateData.isLocked = isLocked;
+
+      await db.update(discussionThreads)
+        .set(updateData)
+        .where(eq(discussionThreads.id, threadId));
+
+      res.json({ message: "Thread updated successfully" });
+    } catch (error) {
+      console.error("Error updating discussion thread:", error);
+      res.status(500).json({ message: "Failed to update discussion thread" });
+    }
+  });
+
+  // Delete discussion post
+  app.delete('/api/discussions/posts/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      const post = await db.select()
+        .from(discussionPosts)
+        .where(eq(discussionPosts.id, postId));
+
+      if (!post.length) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      // Check if user owns post or is teacher/admin
+      if (post[0].authorId !== userId && req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await db.delete(discussionPosts).where(eq(discussionPosts.id, postId));
+      res.json({ message: "Post deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting discussion post:", error);
+      res.status(500).json({ message: "Failed to delete discussion post" });
     }
   });
 

@@ -80,7 +80,7 @@ export default function ProjectCard({
               <span>Due: {format(new Date(project.dueDate), 'MMM d')}</span>
             </div>
           )}
-          {userRole === 'teacher' && (
+          {userRole === 'teacher' && studentCount !== undefined && (
             <div className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
               <span>{studentCount} students</span>

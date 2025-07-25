@@ -32,14 +32,14 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock notifications for demonstration - replace with real API calls
+  // Mock notifications for demonstration - using proper timestamp format
   const mockNotifications: Notification[] = [
     {
       id: 1,
       type: 'assignment',
       title: 'New Project Assignment',
       message: 'You have been assigned to "Digital Portfolio Creation" project',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
       read: false,
       actionUrl: '/projects/1',
       metadata: { projectId: 1 }
@@ -49,7 +49,7 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
       type: 'deadline',
       title: 'Assessment Due Soon',
       message: 'Skills Assessment is due in 2 days',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
       read: false,
       actionUrl: '/assessments/5',
       metadata: { assessmentId: 5 }
@@ -59,7 +59,7 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
       type: 'feedback',
       title: 'New Feedback Available',
       message: 'Your teacher has provided feedback on your latest submission',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
       read: true,
       actionUrl: '/submissions/12',
       metadata: { submissionId: 12 }
@@ -69,7 +69,7 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
       type: 'credential',
       title: 'Badge Earned!',
       message: 'Congratulations! You earned the "Digital Literacy" badge',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
       read: false,
       actionUrl: '/portfolio/credentials'
     }

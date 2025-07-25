@@ -42,7 +42,7 @@ export function setupAuthRoutes(app: Express) {
       AuthService.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
       // Return user data (without password)
-      const { password, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user;
       res.status(201).json(userWithoutPassword);
     } catch (error) {
       console.error('Registration error:', error);
@@ -160,7 +160,7 @@ export function setupAuthRoutes(app: Express) {
       }
       
       // Return user data (without password)
-      const { password, ...userWithoutPassword } = req.user;
+      const { password: _, ...userWithoutPassword } = req.user;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error('Get user error:', error);

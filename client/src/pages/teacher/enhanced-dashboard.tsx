@@ -8,6 +8,7 @@ import Navigation from '@/components/navigation';
 import NotificationSystem from '@/components/notification-system';
 import ProgressTracker from '@/components/progress-tracker';
 import ProjectManagementModal from '@/components/modals/project-management-modal';
+import StudentProgressView from '@/components/student-progress-view';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   BookOpen, 
@@ -57,101 +58,41 @@ export default function EnhancedTeacherDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showProjectManagement, setShowProjectManagement] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showStudentProgress, setShowStudentProgress] = useState(false);
 
-  // Mock data - replace with real API calls
-  const stats: TeacherDashboardStats = {
-    activeProjects: 8,
-    totalStudents: 145,
-    pendingGrades: 23,
-    credentialsAwarded: 89,
-    upcomingDeadlines: 5
-  };
+  // Fetch real dashboard stats
+  const { data: stats = {
+    activeProjects: 0,
+    totalStudents: 0,
+    pendingGrades: 0,
+    credentialsAwarded: 0,
+    upcomingDeadlines: 0
+  } } = useQuery({
+    queryKey: ["/api/teacher/dashboard-stats"],
+    enabled: isAuthenticated && user?.role === 'teacher',
+    retry: false,
+  });
 
-  const projects: ProjectOverview[] = [
-    {
-      id: 1,
-      title: 'Digital Portfolio Creation',
-      description: 'Students create comprehensive digital portfolios showcasing their learning',
-      studentsAssigned: 32,
-      completionRate: 78,
-      nextDeadline: '2024-12-15',
-      status: 'active'
-    },
-    {
-      id: 2,
-      title: 'Sustainable Innovation Challenge',
-      description: 'Teams develop solutions for environmental sustainability',
-      studentsAssigned: 28,
-      completionRate: 65,
-      nextDeadline: '2024-12-20',
-      status: 'active'
-    },
-    {
-      id: 3,
-      title: 'Data Storytelling Workshop',
-      description: 'Learn to visualize and communicate insights from data',
-      studentsAssigned: 24,
-      completionRate: 92,
-      nextDeadline: '2024-12-10',
-      status: 'active'
-    }
-  ];
+  // Fetch teacher's projects
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/teacher/projects"],
+    enabled: isAuthenticated && user?.role === 'teacher',
+    retry: false,
+  });
 
-  const pendingTasks: PendingTask[] = [
-    {
-      id: 1,
-      type: 'grading',
-      title: 'Grade Milestone Submissions',
-      description: 'Review and grade 12 milestone submissions for Digital Portfolio project',
-      priority: 'high',
-      dueDate: '2024-12-08',
-      projectTitle: 'Digital Portfolio Creation'
-    },
-    {
-      id: 2,
-      type: 'credential-approval',
-      title: 'Approve Badge Recommendations',
-      description: 'Review AI-suggested badges for 8 students who reached proficient level',
-      priority: 'medium',
-      dueDate: '2024-12-10',
-    },
-    {
-      id: 3,
-      type: 'feedback',
-      title: 'Provide Assessment Feedback',
-      description: 'Complete feedback for skills assessment submissions',
-      priority: 'medium',
-      dueDate: '2024-12-12',
-      studentName: 'Sarah Chen'
-    }
-  ];
+  // Fetch pending tasks
+  const { data: pendingTasks = [] } = useQuery({
+    queryKey: ["/api/teacher/pending-tasks"],
+    enabled: isAuthenticated && user?.role === 'teacher',
+    retry: false,
+  });
 
-  const milestones = [
-    {
-      id: 1,
-      title: 'Research Phase Complete',
-      description: 'Complete initial research and planning',
-      dueDate: '2024-12-15',
-      status: 'in_progress' as const,
-      progress: 75
-    },
-    {
-      id: 2,
-      title: 'Prototype Development',
-      description: 'Create working prototype of solution',
-      dueDate: '2024-12-20',
-      status: 'not_started' as const,
-      progress: 0
-    },
-    {
-      id: 3,
-      title: 'Final Presentation',
-      description: 'Present final solution to panel',
-      dueDate: '2024-12-25',
-      status: 'not_started' as const,
-      progress: 0
-    }
-  ];
+  // Fetch current project milestones
+  const { data: milestones = [] } = useQuery({
+    queryKey: ["/api/teacher/current-milestones"],
+    enabled: isAuthenticated && user?.role === 'teacher',
+    retry: false,
+  });
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -206,6 +147,14 @@ export default function EnhancedTeacherDashboard() {
           </div>
           <div className="flex items-center space-x-4">
             <NotificationSystem userId={user?.id || 0} userRole="teacher" />
+            <Button 
+              variant="outline"
+              onClick={() => setShowStudentProgress(true)}
+              className="mr-2"
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              View Student Progress
+            </Button>
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Plus className="h-4 w-4 mr-2" />
               New Project
@@ -471,6 +420,29 @@ export default function EnhancedTeacherDashboard() {
             setSelectedProjectId(null);
           }}
         />
+      )}
+
+      {/* Student Progress Modal */}
+      {showStudentProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Student Progress Overview</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowStudentProgress(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="sr-only">Close</span>
+                ✕
+              </Button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <StudentProgressView />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

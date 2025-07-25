@@ -8,8 +8,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCircle, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ComponentSkill {
   id: number;
@@ -41,28 +43,33 @@ interface ProjectData {
   dueDate?: string;
   competencyIds: number[];
   componentSkillIds: number[];
-}
-
-interface ProjectData {
-  title: string;
-  description: string;
-  componentSkillIds: number[];
+  bestStandardIds: number[];
 }
 
 interface ProjectCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  projectIdea?: {
+    title: string;
+    description: string;
+    selectedComponentSkillIds: number[];
+  };
 }
 
-export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: ProjectCreationModalProps) {
+export default function ProjectCreationModal({ isOpen, onClose, onSuccess, projectIdea }: ProjectCreationModalProps) {
   const [projectTitle, setProjectTitle] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [projectDueDate, setProjectDueDate] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<Set<number>>(new Set());
+  const [selectedStandards, setSelectedStandards] = useState<Set<number>>(new Set());
   const [expandedOutcomes, setExpandedOutcomes] = useState<Set<number>>(new Set());
   const [expandedCompetencies, setExpandedCompetencies] = useState<Set<number>>(new Set());
   const [generateMilestones, setGenerateMilestones] = useState(true);
+  const [standardsSearchTerm, setStandardsSearchTerm] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState('');
+  const [activeTab, setActiveTab] = useState('skills');
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -72,6 +79,59 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
     queryKey: ['/api/learner-outcomes-hierarchy/complete'],
     enabled: isOpen,
   });
+
+  // Fetch B.E.S.T. Standards metadata for filters
+  const { data: standardsMetadata } = useQuery({
+    queryKey: ['/api/best-standards/metadata'],
+    enabled: isOpen,
+  });
+
+  // Fetch B.E.S.T. Standards based on search/filter criteria
+  const { data: bestStandards = [], isLoading: isLoadingStandards } = useQuery({
+    queryKey: ['/api/best-standards', { 
+      search: standardsSearchTerm || undefined,
+      subject: selectedSubject || undefined,
+      grade: selectedGrade || undefined
+    }],
+    enabled: isOpen,
+  });
+
+  // Populate form when projectIdea is provided
+  useEffect(() => {
+    if (projectIdea && isOpen) {
+      setProjectTitle(projectIdea.title);
+      setProjectDescription(projectIdea.description);
+      setSelectedSkills(new Set(projectIdea.selectedComponentSkillIds));
+      
+      // Expand all relevant outcomes and competencies that contain the selected skills
+      if (hierarchyData && hierarchyData.length > 0) {
+        const newExpandedOutcomes = new Set<number>();
+        const newExpandedCompetencies = new Set<number>();
+        
+        hierarchyData.forEach((outcome) => {
+          let hasSelectedSkill = false;
+          outcome.competencies?.forEach((competency) => {
+            let competencyHasSelectedSkill = false;
+            competency.componentSkills?.forEach((skill) => {
+              if (projectIdea.selectedComponentSkillIds.includes(skill.id)) {
+                hasSelectedSkill = true;
+                competencyHasSelectedSkill = true;
+              }
+            });
+            if (competencyHasSelectedSkill) {
+              newExpandedCompetencies.add(competency.id);
+            }
+          });
+          if (hasSelectedSkill) {
+            newExpandedOutcomes.add(outcome.id);
+          }
+        });
+        
+        setExpandedOutcomes(newExpandedOutcomes);
+        setExpandedCompetencies(newExpandedCompetencies);
+      }
+    }
+  }, [projectIdea, isOpen, hierarchyData]);
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectData) => {
@@ -140,9 +200,14 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
     setProjectDescription('');
     setProjectDueDate('');
     setSelectedSkills(new Set());
+    setSelectedStandards(new Set());
     setExpandedOutcomes(new Set());
     setExpandedCompetencies(new Set());
     setGenerateMilestones(true);
+    setStandardsSearchTerm('');
+    setSelectedSubject('');
+    setSelectedGrade('');
+    setActiveTab('skills');
   };
 
   const handleClose = () => {
@@ -212,6 +277,19 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
     });
   };
 
+  // B.E.S.T. Standards helper functions
+  const toggleStandardSelection = (standardId: number) => {
+    setSelectedStandards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(standardId)) {
+        newSet.delete(standardId);
+      } else {
+        newSet.add(standardId);
+      }
+      return newSet;
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -224,10 +302,10 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
       return;
     }
 
-    if (selectedSkills.size === 0) {
+    if (selectedSkills.size === 0 && selectedStandards.size === 0) {
       toast({
         title: "Error",
-        description: "Please select at least one component skill",
+        description: "Please select at least one component skill or B.E.S.T. standard",
         variant: "destructive",
       });
       return;
@@ -251,6 +329,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
       dueDate: projectDueDate || undefined,
       competencyIds: Array.from(selectedCompetencyIds),
       componentSkillIds: Array.from(selectedSkills),
+      bestStandardIds: Array.from(selectedStandards),
     });
   };
 
@@ -309,93 +388,187 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess }: Pro
           </div>
 
           <div className="flex-1 min-h-0">
-            <Label className="text-base font-semibold">Select Component Skills</Label>
+            <Label className="text-base font-semibold">Select Learning Standards</Label>
             <p className="text-sm text-muted-foreground mb-3">
-              Choose the specific component skills students will develop in this project
+              Choose the component skills and/or B.E.S.T. standards for this project
             </p>
             
-            {isLoading ? (
-              <div className="flex items-center justify-center h-48">
-                <div className="text-muted-foreground">Loading competency framework...</div>
-              </div>
-            ) : (
-              <ScrollArea className="h-96 border rounded-md p-4">
-                <div className="space-y-2">
-                  {hierarchyData?.map((outcome: LearnerOutcome) => (
-                    <div key={outcome.id} className="border border-gray-200 rounded-lg">
-                      {/* Learner Outcome Header */}
-                      <div
-                        className="flex items-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 cursor-pointer rounded-t-lg"
-                        onClick={() => toggleOutcomeExpansion(outcome.id)}
-                      >
-                        {expandedOutcomes.has(outcome.id) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                        <span className="font-semibold text-blue-900">{outcome.name}</span>
-                        <span className="text-sm text-blue-700">({outcome.competencies.length} competencies)</span>
-                      </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="skills">Component Skills</TabsTrigger>
+                <TabsTrigger value="standards">B.E.S.T. Standards</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="skills" className="flex-1 space-y-2">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-muted-foreground">Loading competency framework...</div>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-80 border rounded-md p-4">
+                    <div className="space-y-2">
+                      {hierarchyData?.map((outcome: LearnerOutcome) => (
+                        <div key={outcome.id} className="border border-gray-200 rounded-lg">
+                          {/* Learner Outcome Header */}
+                          <div
+                            className="flex items-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 cursor-pointer rounded-t-lg"
+                            onClick={() => toggleOutcomeExpansion(outcome.id)}
+                          >
+                            {expandedOutcomes.has(outcome.id) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                            <span className="font-semibold text-blue-900">{outcome.name}</span>
+                            <span className="text-sm text-blue-700">({outcome.competencies.length} competencies)</span>
+                          </div>
 
-                      {/* Competencies */}
-                      {expandedOutcomes.has(outcome.id) && (
-                        <div className="border-t border-gray-200">
-                          {outcome.competencies.map((competency: Competency) => (
-                            <div key={competency.id} className="border-b border-gray-100 last:border-b-0">
-                              {/* Competency Header */}
-                              <div className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100">
-                                <div
-                                  className="flex items-center gap-2 flex-1 cursor-pointer"
-                                  onClick={() => toggleCompetencyExpansion(competency.id)}
-                                >
-                                  {expandedCompetencies.has(competency.id) ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                  <span className="font-medium">{competency.name}</span>
-                                  <span className="text-sm text-gray-600">
-                                    ({competency.componentSkills.length} skills)
-                                  </span>
-                                </div>
-                                <Checkbox
-                                  checked={isCompetencyFullySelected(competency)}
-                                  onCheckedChange={() => toggleCompetencySelection(competency)}
-                                />
-                              </div>
-
-                              {/* Component Skills */}
-                              {expandedCompetencies.has(competency.id) && (
-                                <div className="pl-6 pr-3 pb-2">
-                                  {competency.componentSkills.map((skill: ComponentSkill) => (
-                                    <div key={skill.id} className="flex items-center gap-2 py-2">
-                                      <Checkbox
-                                        checked={selectedSkills.has(skill.id)}
-                                        onCheckedChange={() => toggleSkillSelection(skill.id)}
-                                      />
-                                      <span className="text-sm">{skill.name}</span>
-                                      {selectedSkills.has(skill.id) && (
-                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                          {/* Competencies */}
+                          {expandedOutcomes.has(outcome.id) && (
+                            <div className="border-t border-gray-200">
+                              {outcome.competencies.map((competency: Competency) => (
+                                <div key={competency.id} className="border-b border-gray-100 last:border-b-0">
+                                  {/* Competency Header */}
+                                  <div className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100">
+                                    <div
+                                      className="flex items-center gap-2 flex-1 cursor-pointer"
+                                      onClick={() => toggleCompetencyExpansion(competency.id)}
+                                    >
+                                      {expandedCompetencies.has(competency.id) ? (
+                                        <ChevronDown className="h-4 w-4" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4" />
                                       )}
+                                      <span className="font-medium">{competency.name}</span>
+                                      <span className="text-sm text-gray-600">
+                                        ({competency.componentSkills.length} skills)
+                                      </span>
                                     </div>
-                                  ))}
+                                    <Checkbox
+                                      checked={isCompetencyFullySelected(competency)}
+                                      onCheckedChange={() => toggleCompetencySelection(competency)}
+                                    />
+                                  </div>
+
+                                  {/* Component Skills */}
+                                  {expandedCompetencies.has(competency.id) && (
+                                    <div className="pl-6 pr-3 pb-2">
+                                      {competency.componentSkills.map((skill: ComponentSkill) => (
+                                        <div key={skill.id} className="flex items-center gap-2 py-2">
+                                          <Checkbox
+                                            checked={selectedSkills.has(skill.id)}
+                                            onCheckedChange={() => toggleSkillSelection(skill.id)}
+                                          />
+                                          <span className="text-sm">{skill.name}</span>
+                                          {selectedSkills.has(skill.id) && (
+                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              ))}
                             </div>
-                          ))}
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </TabsContent>
+
+              <TabsContent value="standards" className="flex-1 space-y-3">
+                {/* B.E.S.T. Standards Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search standards..."
+                      value={standardsSearchTerm}
+                      onChange={(e) => setStandardsSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={selectedSubject || "all"} onValueChange={(value) => setSelectedSubject(value === "all" ? "" : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Subjects</SelectItem>
+                      {standardsMetadata?.subjects?.map((subject: string) => (
+                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedGrade || "all"} onValueChange={(value) => setSelectedGrade(value === "all" ? "" : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Grades</SelectItem>
+                      {standardsMetadata?.grades?.map((grade: string) => (
+                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* B.E.S.T. Standards List */}
+                {isLoadingStandards ? (
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-muted-foreground">Loading B.E.S.T. standards...</div>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-72 border rounded-md p-4">
+                    <div className="space-y-3">
+                      {bestStandards.map((standard: any) => (
+                        <div key={standard.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={selectedStandards.has(standard.id)}
+                              onCheckedChange={() => toggleStandardSelection(standard.id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-blue-900">{standard.benchmarkNumber}</span>
+                                {selectedStandards.has(standard.id) && (
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-700">{standard.description}</p>
+                              <div className="flex gap-2 text-xs text-gray-500">
+                                {standard.subject && <span className="bg-blue-100 px-2 py-1 rounded">{standard.subject}</span>}
+                                {standard.grade && <span className="bg-green-100 px-2 py-1 rounded">Grade {standard.grade}</span>}
+                                {standard.bodyOfKnowledge && <span className="bg-purple-100 px-2 py-1 rounded">{standard.bodyOfKnowledge}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {bestStandards.length === 0 && (
+                        <div className="text-center text-gray-500 py-8">
+                          No standards found matching your criteria
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
+                  </ScrollArea>
+                )}
+              </TabsContent>
+            </Tabs>
 
-            {selectedSkills.size > 0 && (
+            {/* Selection Summary */}
+            {(selectedSkills.size > 0 || selectedStandards.size > 0) && (
               <div className="mt-3 p-3 bg-green-50 rounded-md">
-                <p className="text-sm text-green-800">
-                  <strong>{selectedSkills.size}</strong> component skills selected
-                </p>
+                <div className="text-sm text-green-800 space-y-1">
+                  {selectedSkills.size > 0 && (
+                    <p><strong>{selectedSkills.size}</strong> component skills selected</p>
+                  )}
+                  {selectedStandards.size > 0 && (
+                    <p><strong>{selectedStandards.size}</strong> B.E.S.T. standards selected</p>
+                  )}
+                </div>
               </div>
             )}
           </div>

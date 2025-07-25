@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DiscussionForum from "@/components/discussion-forum";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -17,7 +19,8 @@ import {
   CheckCircle, 
   Clock, 
   AlertCircle,
-  Users
+  Users,
+  MessageCircle
 } from "lucide-react";
 
 export default function StudentProjectDetail({ params }: { params: { id: string } }) {
@@ -234,77 +237,99 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
             </div>
           </div>
 
-          {/* Milestones Section */}
+          {/* Project Content Tabs */}
           <Card className="apple-shadow border-0">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Target className="h-5 w-5" />
-                <span>Project Milestones</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {milestonesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  <span className="ml-2 text-gray-600">Loading milestones...</span>
-                </div>
-              ) : milestones.length === 0 ? (
-                <div className="text-center py-8">
-                  <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No milestones have been created for this project yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {milestones.map((milestone, index) => (
-                    <div 
-                      key={milestone.id}
-                      className="flex items-start space-x-4 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex-shrink-0 mt-1">
-                        {milestone.status === 'completed' ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : milestone.dueDate && new Date(milestone.dueDate) < new Date() ? (
-                          <AlertCircle className="h-5 w-5 text-red-600" />
-                        ) : (
-                          <Clock className="h-5 w-5 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-medium text-gray-900">{milestone.title}</h3>
-                          <div className="flex items-center space-x-2">
-                            {milestone.dueDate && (
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                milestone.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                new Date(milestone.dueDate) < new Date() ? 'bg-red-100 text-red-800' :
-                                'bg-blue-100 text-blue-800'
-                              }`}>
-                                Due {format(new Date(milestone.dueDate), 'MMM d')}
-                              </span>
+            <Tabs defaultValue="milestones" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="milestones" className="flex items-center space-x-2">
+                  <Target className="h-4 w-4" />
+                  <span>Milestones</span>
+                </TabsTrigger>
+                <TabsTrigger value="discussions" className="flex items-center space-x-2">
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Discussions</span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="milestones" className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Target className="h-5 w-5" />
+                    <span>Project Milestones</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {milestonesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600">Loading milestones...</span>
+                    </div>
+                  ) : milestones.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No milestones have been created for this project yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {milestones.map((milestone, index) => (
+                        <div 
+                          key={milestone.id}
+                          className="flex items-start space-x-4 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex-shrink-0 mt-1">
+                            {milestone.status === 'completed' ? (
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            ) : milestone.dueDate && new Date(milestone.dueDate) < new Date() ? (
+                              <AlertCircle className="h-5 w-5 text-red-600" />
+                            ) : (
+                              <Clock className="h-5 w-5 text-gray-400" />
                             )}
-                            <Button
-                              size="sm"
-                              variant={milestone.status === 'completed' ? 'outline' : 'default'}
-                              onClick={() => {
-                                if (milestone.status === 'completed') {
-                                  setLocation(`/student/milestones/${milestone.id}`);
-                                } else {
-                                  handleMilestoneComplete(milestone.id);
-                                }
-                              }}
-                              className={milestone.status === 'completed' ? 'text-green-600' : ''}
-                            >
-                              {milestone.status === 'completed' ? 'View Details' : 'Complete'}
-                            </Button>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="font-medium text-gray-900">{milestone.title}</h3>
+                              <div className="flex items-center space-x-2">
+                                {milestone.dueDate && (
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    milestone.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    new Date(milestone.dueDate) < new Date() ? 'bg-red-100 text-red-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    Due {format(new Date(milestone.dueDate), 'MMM d')}
+                                  </span>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant={milestone.status === 'completed' ? 'outline' : 'default'}
+                                  onClick={() => {
+                                    if (milestone.status === 'completed') {
+                                      setLocation(`/student/milestones/${milestone.id}`);
+                                    } else {
+                                      handleMilestoneComplete(milestone.id);
+                                    }
+                                  }}
+                                  className={milestone.status === 'completed' ? 'text-green-600' : ''}
+                                >
+                                  {milestone.status === 'completed' ? 'View Details' : 'Complete'}
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600">{milestone.description}</p>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600">{milestone.description}</p>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
+                  )}
+                </CardContent>
+              </TabsContent>
+              
+              <TabsContent value="discussions" className="mt-6">
+                <DiscussionForum 
+                  projectId={projectId} 
+                  milestones={milestones.map(m => ({ id: m.id, title: m.title }))}
+                />
+              </TabsContent>
+            </Tabs>
           </Card>
         </div>
       </main>

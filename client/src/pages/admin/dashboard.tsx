@@ -147,11 +147,38 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExportData = () => {
-    toast({
-      title: "Export Started",
-      description: "Analytics data export has been initiated. You'll receive an email when ready.",
-    });
+  const handleExportData = async () => {
+    try {
+      const response = await fetch('/api/admin/export-analytics', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analytics-data-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Complete",
+        description: "Analytics data has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export analytics data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

@@ -23,31 +23,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface PortfolioArtifact {
-  id: number;
-  title: string;
-  description: string;
-  type: 'document' | 'image' | 'video' | 'link' | 'project';
-  url?: string;
-  thumbnailUrl?: string;
-  createdAt: string;
-  projectId?: number;
-  projectTitle?: string;
-  milestoneTitle?: string;
-  isPublic: boolean;
-  tags: string[];
-  reflectionText?: string;
-}
-
-interface Credential {
-  id: number;
-  type: 'sticker' | 'badge' | 'plaque';
-  title: string;
-  description: string;
-  earnedAt: string;
-  competencyArea: string;
-  rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
-}
+// Import types from schema
+import { PortfolioArtifact, Credential } from '../../../shared/schema';
 
 interface DigitalPortfolioProps {
   studentId: number;
@@ -70,96 +47,127 @@ export default function DigitalPortfolio({
   const [showQRCode, setShowQRCode] = useState(false);
   const [selectedArtifact, setSelectedArtifact] = useState<PortfolioArtifact | null>(null);
 
-  // Mock data for demonstration
+  // Mock data for demonstration - matching database schema
   const mockArtifacts: PortfolioArtifact[] = [
     {
       id: 1,
+      studentId: studentId,
+      submissionId: 1,
       title: 'Digital Storytelling Project',
       description: 'Interactive narrative about environmental conservation',
-      type: 'project',
-      url: '/projects/digital-storytelling',
-      thumbnailUrl: '/api/placeholder/300/200',
-      createdAt: '2024-11-15T10:00:00Z',
-      projectId: 1,
-      projectTitle: 'Digital Media Creation',
-      milestoneTitle: 'Final Project Submission',
+      artifactUrl: '/projects/digital-storytelling',
+      artifactType: 'project',
+      tags: ['creativity', 'digital-media', 'environmental-awareness'] as any,
       isPublic: true,
-      tags: ['creativity', 'digital-media', 'environmental-awareness'],
-      reflectionText: 'This project helped me understand how digital tools can be used to create compelling narratives about important issues.'
+      isApproved: true,
+      createdAt: new Date('2024-11-15T10:00:00Z')
     },
     {
       id: 2,
+      studentId: studentId,
+      submissionId: 2,
       title: 'Data Visualization Report',
       description: 'Analysis of local community demographics using charts and graphs',
-      type: 'document',
-      url: '/documents/data-viz-report.pdf',
-      thumbnailUrl: '/api/placeholder/300/200',
-      createdAt: '2024-11-10T14:30:00Z',
-      projectId: 2,
-      projectTitle: 'Data Analysis Fundamentals',
-      milestoneTitle: 'Research Report',
+      artifactUrl: '/documents/data-viz-report.pdf',
+      artifactType: 'document',
+      tags: ['data-analysis', 'research', 'critical-thinking'] as any,
       isPublic: true,
-      tags: ['data-analysis', 'research', 'critical-thinking'],
-      reflectionText: 'Learning to interpret data and present findings visually was challenging but rewarding.'
+      isApproved: true,
+      createdAt: new Date('2024-11-10T14:30:00Z')
     },
     {
       id: 3,
+      studentId: studentId,
+      submissionId: 3,
       title: 'Collaborative Wiki Entry',
       description: 'Contributed to class wiki on sustainable technologies',
-      type: 'link',
-      url: 'https://class-wiki.edu/sustainable-tech',
-      createdAt: '2024-11-05T09:15:00Z',
-      projectId: 3,
-      projectTitle: 'Research Collaboration',
-      milestoneTitle: 'Wiki Contribution',
+      artifactUrl: '/wiki/sustainable-tech',
+      artifactType: 'link',
+      tags: ['collaboration', 'research', 'sustainability'] as any,
       isPublic: true,
-      tags: ['collaboration', 'research', 'sustainability']
+      isApproved: true,
+      createdAt: new Date('2024-11-05T09:15:00Z')
     }
   ];
 
   const mockCredentials: Credential[] = [
     {
       id: 1,
+      studentId: studentId,
       type: 'badge',
+      competencyId: 1,
+      componentSkillId: null,
+      subjectArea: null,
       title: 'Digital Literacy Expert',
       description: 'Demonstrated proficiency in multiple digital tools and platforms',
-      earnedAt: '2024-11-15T10:00:00Z',
-      competencyArea: 'Digital Literacy',
-      rubricLevel: 'proficient'
+      iconUrl: null,
+      awardedAt: new Date('2024-11-15T10:00:00Z'),
+      approvedBy: 1
     },
     {
       id: 2,
+      studentId: studentId,
       type: 'sticker',
+      competencyId: null,
+      componentSkillId: 1,
+      subjectArea: null,
       title: 'Creative Problem Solver',
       description: 'Found innovative solutions to project challenges',
-      earnedAt: '2024-11-12T15:30:00Z',
-      competencyArea: 'Creativity',
-      rubricLevel: 'applying'
+      iconUrl: null,
+      awardedAt: new Date('2024-11-12T15:30:00Z'),
+      approvedBy: 1
     },
     {
       id: 3,
+      studentId: studentId,
       type: 'sticker',
+      competencyId: null,
+      componentSkillId: 2,
+      subjectArea: null,
       title: 'Effective Communicator',
       description: 'Presented ideas clearly and persuasively',
-      earnedAt: '2024-11-08T11:20:00Z',
-      competencyArea: 'Communication',
-      rubricLevel: 'proficient'
+      iconUrl: null,
+      awardedAt: new Date('2024-11-08T11:20:00Z'),
+      approvedBy: 1
     }
   ];
 
   useEffect(() => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setArtifacts(mockArtifacts);
-      setCredentials(mockCredentials);
-      setPortfolioUrl(`https://masterymap.edu/portfolio/${studentId}`);
-      setIsLoading(false);
-    }, 1000);
+    const fetchPortfolioData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch real portfolio artifacts
+        const artifactsResponse = await fetch(`/api/portfolio/artifacts?studentId=${studentId}`);
+        const credentialsResponse = await fetch(`/api/credentials/student?studentId=${studentId}`);
+        
+        if (artifactsResponse.ok && credentialsResponse.ok) {
+          const artifactsData = await artifactsResponse.json();
+          const credentialsData = await credentialsResponse.json();
+          
+          setArtifacts(artifactsData);
+          setCredentials(credentialsData);
+        } else {
+          // Fallback to mock data only if API calls fail
+          setArtifacts(mockArtifacts);
+          setCredentials(mockCredentials);
+        }
+        
+        setPortfolioUrl(`https://masterymap.edu/portfolio/${studentId}`);
+      } catch (error) {
+        console.error('Error fetching portfolio data:', error);
+        // Fallback to mock data on error
+        setArtifacts(mockArtifacts);
+        setCredentials(mockCredentials);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPortfolioData();
   }, [studentId]);
 
-  const getArtifactIcon = (type: string) => {
-    switch (type) {
+  const getArtifactIcon = (artifactType: string) => {
+    switch (artifactType) {
       case 'document':
         return <FileText className="h-5 w-5 text-blue-600" />;
       case 'image':
@@ -188,8 +196,9 @@ export default function DigitalPortfolio({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: Date | string) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -287,7 +296,7 @@ export default function DigitalPortfolio({
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-2">
-                      {getArtifactIcon(artifact.type)}
+                      {getArtifactIcon(artifact.artifactType)}
                       <span className="truncate">{artifact.title}</span>
                     </div>
                     {canEdit && (
@@ -311,22 +320,16 @@ export default function DigitalPortfolio({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {artifact.thumbnailUrl && (
-                    <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <span className="text-gray-400 text-sm">Preview</span>
-                    </div>
-                  )}
-                  
                   <p className="text-sm text-gray-600 line-clamp-2">{artifact.description}</p>
                   
-                  {artifact.projectTitle && (
+                  {artifact.artifactType && (
                     <Badge variant="outline" className="text-xs">
-                      {artifact.projectTitle}
+                      {artifact.artifactType}
                     </Badge>
                   )}
                   
                   <div className="flex flex-wrap gap-1">
-                    {artifact.tags.map((tag) => (
+                    {Array.isArray(artifact.tags) && artifact.tags.map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>
@@ -338,7 +341,7 @@ export default function DigitalPortfolio({
                       <Calendar className="h-3 w-3" />
                       <span>{formatDate(artifact.createdAt)}</span>
                     </span>
-                    {artifact.url && (
+                    {artifact.artifactUrl && (
                       <Button variant="ghost" size="sm" className="h-6 px-2">
                         <ExternalLink className="h-3 w-3" />
                       </Button>
@@ -363,20 +366,21 @@ export default function DigitalPortfolio({
                       
                       <div className="flex items-center justify-between mt-3">
                         <Badge className={`text-xs ${
-                          credential.rubricLevel === 'applying' ? 'bg-green-100 text-green-800' :
-                          credential.rubricLevel === 'proficient' ? 'bg-blue-100 text-blue-800' :
-                          credential.rubricLevel === 'developing' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
+                          credential.type === 'plaque' ? 'bg-green-100 text-green-800' :
+                          credential.type === 'badge' ? 'bg-blue-100 text-blue-800' :
+                          'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {credential.rubricLevel}
+                          {credential.type}
                         </Badge>
                         <span className="text-xs text-gray-500">
-                          {formatDate(credential.earnedAt)}
+                          {formatDate(credential.awardedAt)}
                         </span>
                       </div>
                       
                       <div className="text-xs text-gray-500 mt-2">
-                        {credential.competencyArea}
+                        {credential.componentSkillId ? `Skill ID: ${credential.componentSkillId}` : 
+                         credential.competencyId ? `Competency ID: ${credential.competencyId}` : 
+                         credential.subjectArea}
                       </div>
                     </div>
                   </div>
@@ -446,12 +450,19 @@ export default function DigitalPortfolio({
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-gray-700">{selectedArtifact.description}</p>
-              {selectedArtifact.reflectionText && (
-                <div>
-                  <h4 className="font-medium mb-2">Reflection</h4>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                    {selectedArtifact.reflectionText}
-                  </p>
+              <div className="flex flex-wrap gap-1">
+                {Array.isArray(selectedArtifact.tags) && selectedArtifact.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+              <div className="text-xs text-gray-500">
+                Type: {selectedArtifact.artifactType}
+              </div>
+              {selectedArtifact.artifactUrl && (
+                <div className="text-xs text-gray-500">
+                  URL: {selectedArtifact.artifactUrl}
                 </div>
               )}
             </div>

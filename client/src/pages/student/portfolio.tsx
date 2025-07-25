@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import QRCode from "qrcode";
 import Navigation from "@/components/navigation";
 import CredentialBadge from "@/components/credential-badge";
+import { CompetencyProgress } from "@/components/competency-progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,15 +58,15 @@ export default function StudentPortfolio() {
 
   // Fetch student credentials
   const { data: credentials = [], isLoading: credentialsLoading, error: credentialsError } = useQuery({
-    queryKey: ["/api/credentials/student"],
-    enabled: isAuthenticated && user?.role === 'student',
+    queryKey: ["/api/credentials/student", user?.id],
+    enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
     retry: false,
   });
 
   // Fetch portfolio artifacts
   const { data: artifacts = [], isLoading: artifactsLoading, error: artifactsError } = useQuery({
-    queryKey: ["/api/portfolio/artifacts"],
-    enabled: isAuthenticated && user?.role === 'student',
+    queryKey: ["/api/portfolio/artifacts", user?.id],
+    enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
     retry: false,
   });
 
@@ -117,59 +118,8 @@ export default function StudentPortfolio() {
     return null;
   }
 
-  // Mock portfolio artifacts with different types
-  const mockArtifacts = [
-    {
-      id: 1,
-      title: "Climate Change Research Report",
-      description: "Comprehensive analysis of climate change impacts on urban environments",
-      artifactType: "document",
-      projectTitle: "Sustainable Cities Project",
-      tags: ["research", "climate", "environment"],
-      isPublic: true,
-      isApproved: true,
-      createdAt: new Date('2024-12-01'),
-      artifactUrl: "/placeholder-document.pdf"
-    },
-    {
-      id: 2,
-      title: "Urban Planning Presentation",
-      description: "Visual presentation of sustainable city design concepts",
-      artifactType: "presentation",
-      projectTitle: "Sustainable Cities Project",
-      tags: ["presentation", "design", "urban planning"],
-      isPublic: true,
-      isApproved: true,
-      createdAt: new Date('2024-11-28'),
-      artifactUrl: "/placeholder-presentation.pptx"
-    },
-    {
-      id: 3,
-      title: "App Prototype Demo",
-      description: "Working prototype of community service mobile application",
-      artifactType: "video",
-      projectTitle: "Digital Innovation Lab",
-      tags: ["prototype", "mobile app", "video"],
-      isPublic: false,
-      isApproved: true,
-      createdAt: new Date('2024-11-25'),
-      artifactUrl: "/placeholder-video.mp4"
-    },
-    {
-      id: 4,
-      title: "Historical Timeline Interactive",
-      description: "Interactive digital timeline of local historical events",
-      artifactType: "interactive",
-      projectTitle: "History Through Stories",
-      tags: ["history", "interactive", "timeline"],
-      isPublic: true,
-      isApproved: false,
-      createdAt: new Date('2024-11-20'),
-      artifactUrl: "https://example.com/timeline"
-    }
-  ];
-
-  const allArtifacts = [...artifacts, ...mockArtifacts];
+  // Use real artifacts from API
+  const allArtifacts = artifacts;
 
   // Filter artifacts
   const filteredArtifacts = allArtifacts.filter(artifact => {
@@ -445,8 +395,14 @@ export default function StudentPortfolio() {
             {/* Credentials Tab */}
             <TabsContent value="credentials" className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-900">My Achievements</h3>
+              
+              {/* Competency Progress Section */}
+              <CompetencyProgress />
 
-              {credentialsLoading ? (
+              <div className="border-t border-gray-200 pt-6">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Earned Credentials</h4>
+
+                {credentialsLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
                     <div key={i} className="animate-pulse">
@@ -488,7 +444,8 @@ export default function StudentPortfolio() {
                     />
                   ))}
                 </div>
-              )}
+                )}
+              </div>
             </TabsContent>
           </Tabs>
 

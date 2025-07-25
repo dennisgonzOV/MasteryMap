@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface Assessment {
   id: number;
@@ -46,6 +47,7 @@ export default function AssessmentSubmissions() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
@@ -62,6 +64,40 @@ export default function AssessmentSubmissions() {
   const handleViewSubmission = (submissionId: number) => {
     // Navigate to individual submission view
     setLocation(`/teacher/assessments/${id}/submissions/${submissionId}`);
+  };
+
+  const handleExportResults = async () => {
+    try {
+      const response = await fetch(`/api/assessments/${id}/export-submissions`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${assessment.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-submissions-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export Complete",
+        description: "Assessment submissions have been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export assessment submissions. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (assessmentLoading || submissionsLoading) {
@@ -115,14 +151,14 @@ export default function AssessmentSubmissions() {
               <span>Back to Assessment</span>
             </Button>
           </div>
-          
+
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Submissions: {assessment.title}
               </h1>
               <p className="text-gray-600 mb-4">{assessment.description}</p>
-              
+
               {/* Quick Stats */}
               <div className="flex items-center space-x-6 text-sm">
                 <div className="flex items-center space-x-2">
@@ -145,12 +181,13 @@ export default function AssessmentSubmissions() {
                 </div>
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="flex items-center space-x-3">
               <Button
                 variant="outline"
                 className="flex items-center space-x-2"
+                onClick={handleExportResults}
               >
                 <Download className="h-4 w-4" />
                 <span>Export Results</span>
@@ -248,7 +285,7 @@ export default function AssessmentSubmissions() {
                           {submission.studentName.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
-                      
+
                       <div>
                         <h4 className="font-medium text-gray-900">{submission.studentName}</h4>
                         <p className="text-sm text-gray-500">{submission.studentEmail}</p>
@@ -264,7 +301,7 @@ export default function AssessmentSubmissions() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-4">
                       {/* Grade Status */}
                       <div className="text-right">
@@ -280,7 +317,7 @@ export default function AssessmentSubmissions() {
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Actions */}
                       <Button
                         size="sm"

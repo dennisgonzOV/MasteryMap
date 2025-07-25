@@ -9,6 +9,7 @@ import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
 import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
 import ProjectManagementModal from "@/components/modals/project-management-modal";
+import ProjectIdeasModal from "@/components/modals/project-ideas-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,8 @@ import {
   BookOpen,
   Clock,
   CheckCircle,
-  Archive
+  Archive,
+  Lightbulb
 } from "lucide-react";
 import {
   Select,
@@ -35,6 +37,8 @@ export default function TeacherProjects() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [showProjectIdeas, setShowProjectIdeas] = useState(false);
+  const [selectedProjectIdea, setSelectedProjectIdea] = useState<any>(null);
   const [showProjectManagement, setShowProjectManagement] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,10 +58,45 @@ export default function TeacherProjects() {
   }, [isAuthenticated, isLoading, setLocation]);
 
   // Fetch projects
-  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError, refetch } = useQuery({
     queryKey: ["/api/projects"],
     enabled: isAuthenticated && user?.role === 'teacher',
     retry: false,
+  });
+
+  // Fetch project statistics (student counts, progress, etc.)
+  const { data: projectStats = {} } = useQuery({
+    queryKey: ["/api/projects/stats", projects.map(p => p.id)],
+    enabled: isAuthenticated && projects.length > 0,
+    queryFn: async () => {
+      const statsData: Record<number, { studentCount: number; progress: number }> = {};
+      for (const project of projects) {
+        try {
+          // Fetch teams and members for this project
+          const teamsResponse = await fetch(`/api/projects/${project.id}/teams`);
+          if (teamsResponse.ok) {
+            const teams = await teamsResponse.json();
+            const studentCount = teams.reduce((total: number, team: any) => 
+              total + (team.members?.length || 0), 0
+            );
+
+            // Calculate progress based on milestones
+            const milestonesResponse = await fetch(`/api/projects/${project.id}/milestones`);
+            const milestones = milestonesResponse.ok ? await milestonesResponse.json() : [];
+            const completedMilestones = milestones.filter((m: any) => m.completed).length;
+            const progress = milestones.length > 0 ? (completedMilestones / milestones.length) * 100 : 0;
+
+            statsData[project.id] = { studentCount, progress };
+          } else {
+            statsData[project.id] = { studentCount: 0, progress: 0 };
+          }
+        } catch (error) {
+          console.error(`Error fetching stats for project ${project.id}:`, error);
+          statsData[project.id] = { studentCount: 0, progress: 0 };
+        }
+      }
+      return statsData;
+    },
   });
 
   // Handle unauthorized errors
@@ -112,10 +151,22 @@ export default function TeacherProjects() {
     return projects.filter(p => p.status === status).length;
   };
 
+  const handleCreateSuccess = () => {
+    setShowCreateProject(false);
+    setSelectedProjectIdea(null);
+    refetch();
+  };
+
+  const handleProjectIdeaSelected = (idea: any) => {
+    setSelectedProjectIdea(idea);
+    setShowProjectIdeas(false);
+    setShowCreateProject(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <Navigation />
-      
+
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -128,13 +179,23 @@ export default function TeacherProjects() {
                 Create, manage, and track your project-based learning initiatives.
               </p>
             </div>
-            <Button 
-              onClick={() => setShowCreateProject(true)}
-              className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Project
-            </Button>
+            <div className="flex items-center space-x-3">
+              <Button 
+                onClick={() => setShowProjectIdeas(true)}
+                variant="outline"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <Lightbulb className="h-4 w-4 mr-2" />
+                Get Ideas
+              </Button>
+              <Button 
+                onClick={() => setShowCreateProject(true)}
+                className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Project
+              </Button>
+            </div>
           </div>
 
           {/* Status Overview */}
@@ -261,30 +322,43 @@ export default function TeacherProjects() {
                 }
               </p>
               {(!searchQuery && statusFilter === "all") && (
-                <Button 
-                  onClick={() => setShowCreateProject(true)}
-                  className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Project
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    onClick={() => setShowProjectIdeas(true)}
+                    variant="outline"
+                    className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                  >
+                    <Lightbulb className="h-4 w-4 mr-2" />
+                    Get Project Ideas
+                  </Button>
+                  <Button 
+                    onClick={() => setShowCreateProject(true)}
+                    className="bg-blue-600 text-white hover:bg-blue-700 btn-primary"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Project
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProjects.map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  progress={Math.random() * 100} // This would come from actual progress calculation
-                  studentCount={Math.floor(Math.random() * 30) + 15} // This would come from actual assignments
-                  userRole="teacher"
-                  onViewProject={(id) => {
-                    setSelectedProjectId(id);
-                    setShowProjectManagement(true);
-                  }}
-                />
-              ))}
+              {filteredProjects.map((project) => {
+                const stats = projectStats[project.id] || { studentCount: 0, progress: 0 };
+                return (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    progress={stats.progress}
+                    studentCount={stats.studentCount}
+                    userRole="teacher"
+                    onViewProject={(id) => {
+                      setSelectedProjectId(id);
+                      setShowProjectManagement(true);
+                    }}
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -300,13 +374,20 @@ export default function TeacherProjects() {
       </main>
 
       {/* Project Creation Modal */}
-      <ProjectCreationModal
-        isOpen={showCreateProject}
-        onClose={() => setShowCreateProject(false)}
-        onSuccess={() => {
-          console.log('Project created successfully');
+      <ProjectIdeasModal
+        isOpen={showProjectIdeas}
+        onClose={() => setShowProjectIdeas(false)}
+        onSelectIdea={handleProjectIdeaSelected}
+      />
+
+      <ProjectCreationModal 
+        isOpen={showCreateProject} 
+        onClose={() => {
           setShowCreateProject(false);
-        }}
+          setSelectedProjectIdea(null);
+        }} 
+        onSuccess={handleCreateSuccess}
+        projectIdea={selectedProjectIdea}
       />
 
       {/* Project Management Modal */}

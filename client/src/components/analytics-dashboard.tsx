@@ -60,38 +60,40 @@ export default function AnalyticsDashboard({ timeRange, onTimeRangeChange }: Ana
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data for demonstration - replace with real API calls
-  const mockAnalyticsData: AnalyticsData = {
-    totalUsers: 1247,
-    activeUsers: 856,
-    totalProjects: 89,
-    activeProjects: 34,
-    totalAssessments: 267,
-    gradedAssessments: 198,
-    totalCredentials: 1834,
-    recentActivity: [
-      {
-        id: 1,
-        type: 'project_created',
-        description: 'New project "Digital Storytelling" created',
-        timestamp: '2 hours ago',
-        user: 'Ms. Johnson'
-      },
-      {
-        id: 2,
-        type: 'assessment_graded',
-        description: 'Assessment graded for "Web Development Basics"',
-        timestamp: '4 hours ago',
-        user: 'Mr. Chen'
-      },
-      {
-        id: 3,
-        type: 'credential_awarded',
-        description: 'Badge "Creative Problem Solver" awarded',
-        timestamp: '6 hours ago',
-        user: 'System'
+  // Load real analytics data from API
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/analytics/dashboard');
+        if (response.ok) {
+          const analyticsData = await response.json();
+          setData(analyticsData);
+        } else {
+          console.error('Failed to fetch analytics data');
+          setData(null);
+        }
+      } catch (error) {
+        console.error('Error fetching analytics data:', error);
+        setData(null);
+      } finally {
+        setIsLoading(false);
       }
-    ],
+    };
+
+    fetchAnalyticsData();
+  }, [timeRange]);
+
+  // Fallback data structure if needed
+  const fallbackData: AnalyticsData = {
+    totalUsers: 0,
+    activeUsers: 0,
+    totalProjects: 0,
+    activeProjects: 0,
+    totalAssessments: 0,
+    gradedAssessments: 0,
+    totalCredentials: 0,
+    recentActivity: [],
     userGrowth: [
       { month: 'Jan', teachers: 12, students: 145 },
       { month: 'Feb', teachers: 15, students: 167 },

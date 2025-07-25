@@ -35,14 +35,12 @@ interface GradingInterfaceProps {
     feedback: string;
     score: number;
   }>) => void;
-  onGenerateAIFeedback: (submissionId: number, questionId: string, answer: string) => Promise<string>;
 }
 
 export default function GradingInterface({ 
   submission, 
   questions, 
-  onGradeSubmission,
-  onGenerateAIFeedback 
+  onGradeSubmission
 }: GradingInterfaceProps) {
   const { toast } = useToast();
   const [grades, setGrades] = useState<Record<string, {
@@ -89,13 +87,27 @@ export default function GradingInterface({
     setIsGeneratingFeedback(prev => ({ ...prev, [questionId]: true }));
     
     try {
-      const feedback = await onGenerateAIFeedback(
-        submission.id, 
-        questionId, 
-        submission.answers[questionId]
-      );
+      const question = questions.find(q => q.id === questionId);
       
-      handleFeedbackChange(questionId, feedback);
+      const response = await fetch(`/api/submissions/${submission.id}/generate-question-feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questionId,
+          answer: submission.answers[questionId],
+          rubricCriteria: question?.rubricCriteria,
+          sampleAnswer: question?.sampleAnswer
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate AI feedback');
+      }
+
+      const data = await response.json();
+      handleFeedbackChange(questionId, data.feedback);
       
       toast({
         title: "AI Feedback Generated",

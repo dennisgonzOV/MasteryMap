@@ -59,4 +59,18 @@ export const api = {
     fetch(`/api/competencies/${competencyId}/outcomes`, { credentials: "include" }).then(res => res.json()),
   getLearnerOutcomes: () => 
     fetch("/api/learner-outcomes", { credentials: "include" }).then(res => res.json()),
+  
+  // Dashboard endpoints
+  getTeacherDashboardStats: () =>
+    fetch("/api/teacher/dashboard-stats", { credentials: "include" }).then(res => res.json()),
+  getTeacherProjects: () =>
+    fetch("/api/teacher/projects", { credentials: "include" }).then(res => res.json()),
+  getTeacherPendingTasks: () =>
+    fetch("/api/teacher/pending-tasks", { credentials: "include" }).then(res => res.json()),
+  getTeacherCurrentMilestones: () =>
+    fetch("/api/teacher/current-milestones", { credentials: "include" }).then(res => res.json()),
+  getStudentDeadlines: () =>
+    fetch("/api/deadlines/student", { credentials: "include" }).then(res => res.json()),
+  getSchoolStudentsProgress: () =>
+    fetch("/api/teacher/school-students-progress", { credentials: "include" }).then(res => res.json()),
 };

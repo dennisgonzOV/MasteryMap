@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import Navigation from "@/components/navigation";
+import { getCompetencyInfo } from "@/lib/competencyUtils";
 
 interface Question {
   id: string;
@@ -51,7 +52,7 @@ interface Submission {
   studentName: string;
   studentEmail: string;
   submittedAt: string;
-  answers: Record<string, string>;
+  responses: Record<string, string>;
   grade?: number;
   feedback?: string;
   isLate: boolean;
@@ -74,32 +75,23 @@ export default function SubmissionReview() {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   
-  const [grade, setGrade] = useState<number | "">("");
+  const [grade, setGrade] = useState<string>("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading } = useQuery({
-    queryKey: ["/api/assessments", assessmentId],
+    queryKey: [`/api/assessments/${assessmentId}`],
     enabled: !!assessmentId,
   });
 
   // Fetch submission data
   const { data: submission, isLoading: submissionLoading, error: submissionError } = useQuery({
-    queryKey: ["/api/submissions", submissionId],
+    queryKey: [`/api/submissions/${submissionId}`],
     enabled: !!submissionId,
   });
 
-  // Debug logging
-  console.log("SubmissionReview Debug:", {
-    assessmentId,
-    submissionId,
-    assessment,
-    submission,
-    submissionError,
-    assessmentLoading,
-    submissionLoading
-  });
+  
 
   // Fetch component skills for context
   const { data: componentSkills = [] } = useQuery({
@@ -110,41 +102,20 @@ export default function SubmissionReview() {
   // Set initial values when submission loads
   useEffect(() => {
     if (submission) {
-      setGrade(submission.grade || "");
+      setGrade(submission.grade !== undefined ? submission.grade.toString() : "");
       setFeedback(submission.feedback || "");
     }
   }, [submission]);
 
-  // Grade submission mutation
-  const gradeMutation = useMutation({
-    mutationFn: async (data: { grade: number; feedback: string }) => {
-      return apiRequest(`/api/submissions/${submissionId}/grade`, {
-        method: "POST",
-        body: data,
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Submission graded successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/submissions", submissionId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/assessments", assessmentId, "submissions"] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to grade submission",
-        variant: "destructive",
-      });
-    },
-  });
+  
 
   const handleSubmitGrade = async () => {
-    if (grade === "" || grade < 0 || grade > 100) {
+    const gradeValue = parseFloat(grade);
+    
+    if (grade === "" || isNaN(gradeValue) || gradeValue < 0 || gradeValue > 100) {
       toast({
         title: "Invalid Grade",
-        description: "Please enter a grade between 0 and 100",
+        description: "Please enter a valid grade between 0 and 100",
         variant: "destructive",
       });
       return;
@@ -152,23 +123,77 @@ export default function SubmissionReview() {
 
     setIsSubmitting(true);
     try {
-      await gradeMutation.mutateAsync({
-        grade: Number(grade),
-        feedback: feedback.trim(),
+      const response = await fetch(`/api/submissions/${submissionId}/grade`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          grade: gradeValue,
+          feedback: feedback.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to grade submission');
+      }
+
+      toast({
+        title: "Success",
+        description: "Submission graded successfully",
+      });
+      
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/submissions", submissionId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments", assessmentId, "submissions"] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to grade submission",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Generate AI feedback (placeholder for now)
+  // Generate AI feedback for overall submission
   const generateAIFeedback = async () => {
-    // This would integrate with the AI service
-    toast({
-      title: "AI Feedback",
-      description: "AI feedback generation is not yet implemented",
-      variant: "default",
-    });
+    setIsSubmitting(true);
+    try {
+      // Call the existing grading endpoint with generateAiFeedback flag
+      const response = await fetch(`/api/submissions/${submissionId}/grade`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          grade: parseFloat(grade) || 0,
+          feedback: feedback.trim(),
+          generateAiFeedback: true
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate AI feedback');
+      }
+
+      const data = await response.json();
+      setFeedback(data.feedback);
+      
+      toast({
+        title: "AI Feedback Generated",
+        description: "You can review and edit the feedback before final submission.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate AI feedback. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (assessmentLoading || submissionLoading) {
@@ -200,9 +225,11 @@ export default function SubmissionReview() {
     );
   }
 
-  const relevantSkills = componentSkills.filter(skill => 
+  
+
+  const relevantSkills = componentSkills?.filter(skill => 
     assessment.componentSkillIds?.includes(skill.id)
-  );
+  ) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -249,19 +276,26 @@ export default function SubmissionReview() {
                 <p className="text-gray-600 mb-4">{assessment.description}</p>
                 
                 {/* Component Skills */}
-                {relevantSkills.length > 0 && (
+                {getCompetencyInfo(assessment, componentSkills).length > 0 && (
                   <div>
                     <h4 className="font-medium text-gray-900 mb-3">Component Skills Being Assessed:</h4>
-                    <div className="space-y-2">
-                      {relevantSkills.map((skill) => (
-                        <div key={skill.id} className="text-sm">
-                          <span className="font-medium text-blue-600">
-                            {skill.competency.learnerOutcome.name}
-                          </span>
-                          <span className="text-gray-400 mx-2">→</span>
-                          <span className="text-gray-700">{skill.competency.name}</span>
-                          <span className="text-gray-400 mx-2">→</span>
-                          <span className="text-gray-900">{skill.name}</span>
+                    <div className="space-y-3">
+                      {getCompetencyInfo(assessment, componentSkills).map((competency: any, index: number) => (
+                        <div key={index} className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                          <div className="mb-2">
+                            <span className="font-medium text-blue-900 text-sm">
+                              {competency.learnerOutcomeName}
+                            </span>
+                            <span className="text-gray-400 mx-2">→</span>
+                            <span className="text-gray-700 text-sm">{competency.competencyName}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {competency.skills.map((skill: any) => (
+                              <span key={skill.id} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                {skill.name}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -299,7 +333,7 @@ export default function SubmissionReview() {
                         Student Answer:
                       </Label>
                       <p className="text-gray-900 whitespace-pre-wrap">
-                        {submission.answers[question.id] || "No answer provided"}
+                        {submission.responses[question.id] || "No answer provided"}
                       </p>
                     </div>
                     
@@ -375,7 +409,7 @@ export default function SubmissionReview() {
                     min="0"
                     max="100"
                     value={grade}
-                    onChange={(e) => setGrade(e.target.value === "" ? "" : Number(e.target.value))}
+                    onChange={(e) => setGrade(e.target.value)}
                     placeholder="Enter grade"
                     className="mt-1"
                   />
@@ -398,7 +432,7 @@ export default function SubmissionReview() {
                 <div className="flex flex-col space-y-2">
                   <Button
                     onClick={handleSubmitGrade}
-                    disabled={isSubmitting || grade === ""}
+                    disabled={isSubmitting || grade === "" || isNaN(parseFloat(grade))}
                     className="w-full"
                   >
                     {isSubmitting ? (

@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { getCompetencyInfo } from "@/lib/competencyUtils";
 
 interface Assessment {
   id: number;
@@ -93,41 +94,10 @@ export default function AssessmentDetails() {
     enabled: isAuthenticated && !!id,
   });
 
-  // Get competency information for the assessment
-  const getCompetencyInfo = (assessment: Assessment) => {
-    if (!assessment.componentSkillIds || !componentSkillsDetails) return [];
-    
-    const skillIds = Array.isArray(assessment.componentSkillIds) 
-      ? assessment.componentSkillIds 
-      : JSON.parse(assessment.componentSkillIds || '[]');
-    
-    const skills = componentSkillsDetails.filter((skill: ComponentSkill) => 
-      skillIds.includes(skill.id)
-    );
-    
-    // Group by competency
-    const competencyGroups = skills.reduce((acc: any, skill: ComponentSkill) => {
-      const key = skill.competencyId;
-      if (!acc[key]) {
-        acc[key] = {
-          competencyName: skill.competencyName,
-          competencyCategory: skill.competencyCategory,
-          learnerOutcomeName: skill.learnerOutcomeName,
-          learnerOutcomeType: skill.learnerOutcomeType,
-          skills: []
-        };
-      }
-      acc[key].skills.push(skill);
-      return acc;
-    }, {});
-    
-    return Object.values(competencyGroups);
-  };
+
 
   const handleShareAssessment = async () => {
-    if (!assessment) return;
-    
-    const shareUrl = `${window.location.origin}/assessment/${assessment.id}`;
+    const shareUrl = `${window.location.origin}/assessment/${id}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast({
@@ -138,6 +108,40 @@ export default function AssessmentDetails() {
       toast({
         title: "Failed to copy link",
         description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportResults = async () => {
+    try {
+      const response = await fetch(`/api/assessments/${id}/export-detailed-results`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${assessment.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-detailed-results-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export Complete",
+        description: "Detailed assessment results have been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export detailed results. Please try again.",
         variant: "destructive",
       });
     }
@@ -172,7 +176,7 @@ export default function AssessmentDetails() {
     );
   }
 
-  const competencyGroups = getCompetencyInfo(assessment);
+  const competencyGroups = getCompetencyInfo(assessment, componentSkillsDetails);
   const totalStudents = submissions.length;
   const completedSubmissions = submissions.filter(s => s.grade !== undefined).length;
   const lateSubmissions = submissions.filter(s => s.isLate).length;
@@ -197,20 +201,14 @@ export default function AssessmentDetails() {
               <span>Back to Assessments</span>
             </Button>
           </div>
-          
+
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
                 <h1 className="text-3xl font-bold text-gray-900">{assessment.title}</h1>
-                {assessment.aiGenerated && (
-                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                    <Lightbulb className="h-3 w-3 mr-1" />
-                    AI Generated
-                  </Badge>
-                )}
               </div>
               <p className="text-gray-600 text-lg mb-4">{assessment.description}</p>
-              
+
               {/* Quick Stats */}
               <div className="flex items-center space-x-6 text-sm">
                 <div className="flex items-center space-x-2">
@@ -235,7 +233,7 @@ export default function AssessmentDetails() {
                 </div>
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="flex items-center space-x-3">
               <Button
@@ -249,6 +247,7 @@ export default function AssessmentDetails() {
               <Button
                 variant="outline"
                 className="flex items-center space-x-2"
+                onClick={handleExportResults}
               >
                 <Download className="h-4 w-4" />
                 <span>Export</span>
@@ -295,7 +294,7 @@ export default function AssessmentDetails() {
                           <p className="text-sm text-gray-600 font-medium mb-3">
                             {competency.learnerOutcomeName}
                           </p>
-                          
+
                           {/* Specific Skills */}
                           <div className="space-y-2">
                             <h4 className="text-sm font-medium text-gray-700">Specific skills:</h4>
@@ -380,7 +379,7 @@ export default function AssessmentDetails() {
                     <span className="text-sm text-gray-600">Average Grade</span>
                     <span className="font-semibold text-blue-600">{averageGrade.toFixed(1)}%</span>
                   </div>
-                  
+
                   <div className="pt-2">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-600">Completion Rate</span>
@@ -441,7 +440,7 @@ export default function AssessmentDetails() {
                       </div>
                     </div>
                   ))}
-                  
+
                   {submissions.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />

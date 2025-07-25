@@ -23,6 +23,7 @@ import {
 import { useState } from "react";
 import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
 import ProjectManagementModal from "@/components/modals/project-management-modal";
+import StudentProgressView from "@/components/student-progress-view";
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
@@ -31,19 +32,35 @@ export default function TeacherDashboard() {
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showProjectManagement, setShowProjectManagement] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showStudentProgress, setShowStudentProgress] = useState(false);
 
-  // Redirect to home if not authenticated
+  const { isNetworkError, isAuthError, hasError } = useAuth();
+
+  // Handle network errors
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isNetworkError) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Connection Error",
+        description: "Unable to connect to the server. Please check your internet connection and try again.",
         variant: "destructive",
       });
+    }
+  }, [isNetworkError, toast]);
+
+  // Redirect to login if authentication error
+  useEffect(() => {
+    if (!isLoading && (isAuthError || (!isAuthenticated && !hasError))) {
+      if (isAuthError) {
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again.",
+          variant: "destructive",
+        });
+      }
       setLocation("/login");
       return;
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [isAuthenticated, isLoading, isAuthError, hasError, setLocation, toast]);
 
   // Fetch projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
@@ -242,7 +259,12 @@ export default function TeacherDashboard() {
                       Generate Assessment
                     </Button>
                   </Link>
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setShowStudentProgress(true)}
+                  >
+                    <TrendingUp className="h-4 w-4 mr-2" />
                     View Student Progress
                   </Button>
                 </CardContent>
@@ -360,6 +382,29 @@ export default function TeacherDashboard() {
             setSelectedProjectId(null);
           }}
         />
+      )}
+
+      {/* Student Progress Modal */}
+      {showStudentProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Student Progress Overview</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowStudentProgress(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="sr-only">Close</span>
+                ✕
+              </Button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <StudentProgressView />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

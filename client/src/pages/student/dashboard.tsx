@@ -28,20 +28,34 @@ import {
 
 export default function StudentDashboard() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, isNetworkError, isAuthError, hasError } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect to home if not authenticated
+  // Handle network errors
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isNetworkError) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Connection Error",
+        description: "Unable to connect to the server. Please check your internet connection and try again.",
         variant: "destructive",
       });
+    }
+  }, [isNetworkError, toast]);
+
+  // Redirect to login if authentication error
+  useEffect(() => {
+    if (!isLoading && (isAuthError || (!isAuthenticated && !hasError))) {
+      if (isAuthError) {
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again.",
+          variant: "destructive",
+        });
+      }
+      setLocation("/login");
       return;
     }
-  }, [isAuthenticated, isLoading, toast]);
+  }, [isAuthenticated, isLoading, isAuthError, hasError, setLocation, toast]);
 
   // Fetch student projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
@@ -90,61 +104,19 @@ export default function StudentDashboard() {
     return null;
   }
 
-  // Mock competency progress data
-  const competencyProgress = [
-    {
-      id: 1,
-      name: "Critical Thinking",
-      progress: 78,
-      level: "Proficient",
-      color: "blue",
-      icon: Brain,
-      lastUpdated: "2 days ago"
-    },
-    {
-      id: 2,
-      name: "Collaboration",
-      progress: 92,
-      level: "Applying",
-      color: "green",
-      icon: Users,
-      lastUpdated: "1 week ago"
-    },
-    {
-      id: 3,
-      name: "Communication",
-      progress: 65,
-      level: "Developing",
-      color: "yellow",
-      icon: Target,
-      lastUpdated: "3 days ago"
-    }
-  ];
+  // Use real competency progress data from API
+  const { data: competencyProgress = [] } = useQuery({
+    queryKey: ["/api/competency-progress/student", user?.id],
+    enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
+    retry: false,
+  });
 
-  // Mock upcoming deadlines
-  const upcomingDeadlines = [
-    {
-      id: 1,
-      title: "Climate Research Report",
-      project: "Sustainable Cities Project",
-      dueDate: "Tomorrow",
-      priority: "high"
-    },
-    {
-      id: 2,
-      title: "App Prototype Demo",
-      project: "Digital Innovation Lab",
-      dueDate: "In 3 days",
-      priority: "medium"
-    },
-    {
-      id: 3,
-      title: "History Presentation",
-      project: "History Through Stories",
-      dueDate: "Next week",
-      priority: "low"
-    }
-  ];
+  // Fetch upcoming deadlines
+  const { data: upcomingDeadlines = [] } = useQuery({
+    queryKey: ["/api/deadlines/student"],
+    enabled: isAuthenticated && user?.role === 'student',
+    retry: false,
+  });
 
   const recentCredentials = credentials.slice(0, 3);
   const activeProjects = projects.filter(p => p.status === 'active');
