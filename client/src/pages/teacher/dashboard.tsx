@@ -270,32 +270,7 @@ export default function TeacherDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Notifications */}
-              <Card className="apple-shadow border-0">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-gray-900">
-                    Notifications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3 p-2 bg-blue-50 rounded-lg">
-                      <AlertCircle className="h-4 w-4 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">New submissions</p>
-                        <p className="text-xs text-blue-700">3 students submitted work</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3 p-2 bg-green-50 rounded-lg">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium text-green-900">Milestone completed</p>
-                        <p className="text-xs text-green-700">Project deadline reached</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              
             </div>
           </div>
 
