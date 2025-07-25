@@ -582,12 +582,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all assessments (both standalone and milestone-linked)
-  app.get('/api/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
+  // Get all assessments (both milestone-linked and standalone)
+  app.get("/api/assessments", requireAuth, async (req, res) => {
     try {
       const assessments = await storage.getAllAssessments();
       res.json(assessments);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching all assessments:", error);
       res.status(500).json({ message: "Failed to fetch assessments" });
     }
