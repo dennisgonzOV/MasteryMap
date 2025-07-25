@@ -386,10 +386,41 @@ export class DatabaseStorage implements IStorage {
 
   // Assessment operations
   async createAssessment(data: InsertAssessment): Promise<Assessment> {
+    // Generate a unique share code
+    let shareCode: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    do {
+      shareCode = generateRandomCode();
+      attempts++;
+      
+      // Check if code already exists
+      const [existing] = await db
+        .select()
+        .from(assessments)
+        .where(eq(assessments.shareCode, shareCode))
+        .limit(1);
+      
+      if (!existing) {
+        break;
+      }
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Unable to generate unique share code');
+      }
+    } while (true);
+
+    // Calculate expiration date (7 days from now)
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     // Ensure questions with options have them properly serialized
     const processedData = {
       ...data,
-      questions: data.questions || []
+      questions: data.questions || [],
+      shareCode,
+      shareCodeExpiresAt: expiresAt
     };
 
     const [assessment] = await db.insert(assessments).values(processedData).returning();

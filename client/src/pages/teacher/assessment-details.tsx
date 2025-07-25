@@ -110,31 +110,18 @@ export default function AssessmentDetails() {
 
 
 
-  const handleShareAssessment = async () => {
+  const handleCopyShareCode = async () => {
+    if (!shareCode) return;
+    
     try {
-      const response = await fetch(`/api/assessments/${id}/generate-share-code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate share code');
-      }
-
-      const data = await response.json();
-      const generatedCode = data.shareCode;
-      setShareCode(generatedCode);
-
-      await navigator.clipboard.writeText(generatedCode);
+      await navigator.clipboard.writeText(shareCode);
       toast({
         title: "Share code copied!",
-        description: `Students can enter this code: ${generatedCode}`,
+        description: `Students can enter this code: ${shareCode}`,
       });
     } catch (err) {
       toast({
-        title: "Failed to generate share code",
+        title: "Failed to copy share code",
         description: "Please try again.",
         variant: "destructive",
       });
@@ -266,11 +253,12 @@ export default function AssessmentDetails() {
             <div className="flex items-center space-x-3">
               <Button
                 variant="outline"
-                onClick={handleShareAssessment}
+                onClick={handleCopyShareCode}
                 className="flex items-center space-x-2"
+                disabled={!shareCode}
               >
                 <Share2 className="h-4 w-4" />
-                <span>Share</span>
+                <span>Copy Code</span>
               </Button>
               <Button
                 variant="outline"

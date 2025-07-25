@@ -181,22 +181,8 @@ export default function TeacherAssessments() {
   const aiGeneratedCount = assessments.filter(a => a.aiGenerated).length;
 
   // Handler functions
-  const handleShareAssessment = async (assessmentId: number) => {
+  const handleCopyShareCode = async (shareCode: string) => {
     try {
-      const response = await fetch(`/api/assessments/${assessmentId}/generate-share-code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate share code');
-      }
-
-      const data = await response.json();
-      const shareCode = data.shareCode;
-
       await navigator.clipboard.writeText(shareCode);
       toast({
         title: "Share code copied!",
@@ -204,7 +190,7 @@ export default function TeacherAssessments() {
       });
     } catch (err) {
       toast({
-        title: "Failed to generate share code",
+        title: "Failed to copy share code",
         description: "Please try again.",
         variant: "destructive",
       });
@@ -526,6 +512,31 @@ export default function TeacherAssessments() {
                           </div>
                         )}
 
+                        {/* Share Code Display */}
+                        {assessment.shareCode && (
+                          <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-3 mb-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <Share className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-800">Student Access Code</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="bg-white px-3 py-1 rounded-md border-2 border-green-300">
+                                  <span className="font-mono font-bold text-green-800 text-lg">{assessment.shareCode}</span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-green-600 border-green-600 hover:bg-green-50 h-8 px-2"
+                                  onClick={() => handleCopyShareCode(assessment.shareCode!)}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Assessment Info Footer */}
                         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                           <div className="flex items-center justify-between">
@@ -560,11 +571,11 @@ export default function TeacherAssessments() {
                         <div className="flex items-center space-x-1">
                           <Button 
                             variant="outline"
-                            className="text-blue-600 border-blue-600 hover:bg-blue-50 text-xs px-2 py-1"
-                            onClick={() => handleShareAssessment(assessment.id)}
+                            className="text-purple-600 border-purple-600 hover:bg-purple-50 text-xs px-2 py-1"
+                            onClick={() => handleViewSubmissions(assessment.id)}
                           >
-                            <Share className="h-3 w-3 mr-1" />
-                            Share
+                            <Users className="h-3 w-3 mr-1" />
+                            Submissions
                           </Button>
                           <Button 
                             variant="outline"
