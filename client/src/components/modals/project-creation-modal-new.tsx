@@ -333,13 +333,13 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="h-full">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full p-1">
+        <ScrollArea className="flex-1 min-h-0">
+          <form onSubmit={handleSubmit} className="flex flex-col p-1">
             <div className="space-y-4 mb-6">
               <div>
                 <Label htmlFor="title">Project Title</Label>
@@ -404,7 +404,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                       <div className="text-muted-foreground">Loading competency framework...</div>
                     </div>
                   ) : (
-                    <ScrollArea className="h-80 border rounded-md p-4">
+                    <ScrollArea className="h-[400px] border rounded-md p-4">
                       <div className="space-y-2">
                         {hierarchyData?.map((outcome: LearnerOutcome) => (
                           <div key={outcome.id} className="border border-gray-200 rounded-lg">
@@ -519,7 +519,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                       <div className="text-muted-foreground">Loading B.E.S.T. standards...</div>
                     </div>
                   ) : (
-                    <ScrollArea className="h-72 border rounded-md p-4">
+                    <ScrollArea className="h-[350px] border rounded-md p-4">
                       <div className="space-y-3">
                         {(bestStandards as any[]).map((standard: any) => (
                           <div key={standard.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
