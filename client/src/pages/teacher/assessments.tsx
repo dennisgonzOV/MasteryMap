@@ -28,8 +28,7 @@ import {
   Copy,
   Trash2,
   MoreVertical,
-  Calendar,
-  Download // Added Download icon
+  Calendar
 } from "lucide-react";
 import {
   Select,
@@ -202,76 +201,9 @@ export default function TeacherAssessments() {
     setShowSubmissionsModal(true);
   };
 
-  // Function to trigger the download of assessment results in CSV format
-  const handleExportResults = async (assessmentId: number, assessmentTitle: string) => {
-    try {
-      // Replace this with actual API call to fetch results for the assessment
-      const response = await fetch(`/api/assessments/${assessmentId}/results`);
+  
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch assessment results: ${response.status}`);
-      }
-
-      const results = await response.json();
-
-      // Convert assessment results to CSV format
-      const csvData = convertToCSV(results);
-
-      // Create a Blob object from the CSV data
-      const blob = new Blob([csvData], { type: 'text/csv' });
-
-      // Create a temporary URL for the Blob object
-      const url = window.URL.createObjectURL(blob);
-
-      // Create a link element to trigger the download
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${assessmentTitle.replace(/[^a-zA-Z0-9]/g, '_')}_results.csv`); // Sanitize filename
-      document.body.appendChild(link);
-
-      // Trigger the download
-      link.click();
-
-      // Clean up by removing the temporary link and URL
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "Assessment results exported",
-        description: "The assessment results have been successfully exported in CSV format.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Export failed",
-        description: error.message || "Failed to export assessment results",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Function to convert assessment results to CSV format
-  const convertToCSV = (results: any[]) => {
-    if (!results || results.length === 0) {
-      return ''; // Return empty string if no data
-    }
-
-    const headers = Object.keys(results[0]); // Extract headers from the first result
-    const csvRows = [];
-
-    // Add headers to CSV
-    csvRows.push(headers.join(','));
-
-    // Add data rows to CSV
-    for (const result of results) {
-      const values = headers.map(header => {
-        const value = result[header];
-        return `"${value ? value.toString().replace(/"/g, '""') : ''}"`; // Escape double quotes
-      });
-      csvRows.push(values.join(','));
-    }
-
-    return csvRows.join('\n');
-  };
+  
 
   // Delete assessment mutation
   const deleteAssessmentMutation = useMutation({
@@ -577,14 +509,7 @@ export default function TeacherAssessments() {
                             <Users className="h-3 w-3 mr-1" />
                             Submissions
                           </Button>
-                          <Button 
-                            variant="outline"
-                            className="text-green-600 border-green-600 hover:bg-green-50 text-xs px-2 py-1"
-                            onClick={() => handleExportResults(assessment.id, assessment.title)}
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            Export
-                          </Button>
+                          
                           <Button 
                             size="sm"
                             variant="outline"
