@@ -199,7 +199,7 @@ export default function TeacherProjects() {
           </div>
 
           {/* Status Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <Card className="apple-shadow border-0">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -237,20 +237,6 @@ export default function TeacherProjects() {
                   </div>
                   <span className="text-lg font-bold text-gray-900">
                     {getStatusCount('completed')}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="apple-shadow border-0">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Archive className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-700">Archived</span>
-                  </div>
-                  <span className="text-lg font-bold text-gray-900">
-                    {getStatusCount('archived')}
                   </span>
                 </div>
               </CardContent>
