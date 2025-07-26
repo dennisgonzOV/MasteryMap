@@ -1976,33 +1976,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const studentsWithProgress = await Promise.all(
         students.map(async (student) => {
           try {
-            // Get student's project assignments using separate queries
-            const studentAssignments = await db.select()
+            // Get student's project assignments with project and teacher details
+            const studentAssignments = await db.select({
+              projectId: projectAssignments.projectId,
+              projectTitle: projects.title,
+              projectDescription: projects.description,
+              projectStatus: projects.status,
+              teacherFirstName: users.firstName,
+              teacherLastName: users.lastName
+            })
               .from(projectAssignments)
+              .innerJoin(projects, eq(projectAssignments.projectId, projects.id))
+              .innerJoin(users, eq(projects.teacherId, users.id))
               .where(eq(projectAssignments.studentId, student.id));
 
-            const processedAssignments = await Promise.all(
-              studentAssignments.map(async (assignment) => {
-                try {
-                  const project = await db.select().from(projects).where(eq(projects.id, assignment.projectId)).limit(1);
-                  if (!project.length) return null;
-
-                  const teacher = await db.select().from(users).where(eq(users.id, project[0].teacherId)).limit(1);
-                  const teacherName = teacher.length ? `${teacher[0].firstName} ${teacher[0].lastName}` : 'Unknown';
-
-                  return {
-                    projectId: project[0].id,
-                    projectTitle: project[0].title,
-                    projectDescription: project[0].description,
-                    projectStatus: project[0].status,
-                    teacherName
-                  };
-                } catch (assignmentError) {
-                  console.error(`Error processing assignment for student ${student.id}:`, assignmentError);
-                  return null;
-                }
-              })
-            );
+            const processedAssignments = studentAssignments.map(assignment => ({
+              projectId: assignment.projectId,
+              projectTitle: assignment.projectTitle,
+              projectDescription: assignment.projectDescription,
+              projectStatus: assignment.projectStatus,
+              teacherName: `${assignment.teacherFirstName} ${assignment.teacherLastName}`
+            }));
 
             // Get student's credentials
             const studentCredentials = await db.select()
@@ -2033,7 +2027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return {
               ...student,
               grade: student.grade || 'N/A', // Ensure grade is available
-              projects: processedAssignments.filter(p => p !== null),
+              projects: processedAssignments,
               credentials: studentCredentials.map(cred => ({
                 id: cred.id,
                 title: cred.title,
