@@ -260,42 +260,7 @@ export const portfolios = pgTable("portfolios", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Discussion Forums
-export const discussionThreads = pgTable("discussion_threads", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").references(() => projects.id),
-  authorId: integer("author_id").references(() => users.id),
-  title: varchar("title").notNull(),
-  description: text("description"),
-  category: varchar("category", { enum: ["general", "resources", "help", "milestone"] }).default("general"),
-  milestoneId: integer("milestone_id").references(() => milestones.id), // Optional milestone association
-  isPinned: boolean("is_pinned").default(false),
-  isLocked: boolean("is_locked").default(false),
-  viewCount: integer("view_count").default(0),
-  lastActivityAt: timestamp("last_activity_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
-export const discussionPosts = pgTable("discussion_posts", {
-  id: serial("id").primaryKey(),
-  threadId: integer("thread_id").references(() => discussionThreads.id),
-  authorId: integer("author_id").references(() => users.id),
-  content: text("content").notNull(),
-  attachments: jsonb("attachments"), // Array of file URLs
-  isAnswer: boolean("is_answer").default(false), // Mark helpful answers
-  likeCount: integer("like_count").default(0),
-  replyToId: integer("reply_to_id"), // For nested replies
-  isEdited: boolean("is_edited").default(false),
-  editedAt: timestamp("edited_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const discussionLikes = pgTable("discussion_likes", {
-  id: serial("id").primaryKey(),
-  postId: integer("post_id").references(() => discussionPosts.id),
-  userId: integer("user_id").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 // Relations
 
@@ -419,50 +384,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   credentials: many(credentials),
   portfolioArtifacts: many(portfolioArtifacts),
   authTokens: many(authTokens),
-  discussionThreads: many(discussionThreads),
-  discussionPosts: many(discussionPosts),
-  discussionLikes: many(discussionLikes),
 }));
 
-// Discussion Forums Relations
-export const discussionThreadsRelations = relations(discussionThreads, ({ one, many }) => ({
-  project: one(projects, {
-    fields: [discussionThreads.projectId],
-    references: [projects.id],
-  }),
-  milestone: one(milestones, {
-    fields: [discussionThreads.milestoneId],
-    references: [milestones.id],
-  }),
-  author: one(users, {
-    fields: [discussionThreads.authorId],
-    references: [users.id],
-  }),
-  posts: many(discussionPosts),
-}));
 
-export const discussionPostsRelations = relations(discussionPosts, ({ one, many }) => ({
-  thread: one(discussionThreads, {
-    fields: [discussionPosts.threadId],
-    references: [discussionThreads.id],
-  }),
-  author: one(users, {
-    fields: [discussionPosts.authorId],
-    references: [users.id],
-  }),
-  likes: many(discussionLikes),
-}));
-
-export const discussionLikesRelations = relations(discussionLikes, ({ one }) => ({
-  post: one(discussionPosts, {
-    fields: [discussionLikes.postId],
-    references: [discussionPosts.id],
-  }),
-  user: one(users, {
-    fields: [discussionLikes.userId],
-    references: [users.id],
-  }),
-}));
 
 
 // Legacy relations removed - using 3-level hierarchy instead
@@ -484,12 +408,7 @@ export type InsertPortfolioArtifact = typeof portfolioArtifacts.$inferInsert;
 export type PortfolioArtifact = typeof portfolioArtifacts.$inferSelect;
 export type InsertPortfolio = typeof portfolios.$inferInsert;
 export type Portfolio = typeof portfolios.$inferSelect;
-export type DiscussionThread = typeof discussionThreads.$inferSelect;
-export type InsertDiscussionThread = typeof discussionThreads.$inferInsert;
-export type DiscussionPost = typeof discussionPosts.$inferSelect;
-export type InsertDiscussionPost = typeof discussionPosts.$inferInsert;
-export type DiscussionLike = typeof discussionLikes.$inferSelect;
-export type InsertDiscussionLike = typeof discussionLikes.$inferInsert;
+
 // 3-Level Hierarchy Types
 export type LearnerOutcome = typeof learnerOutcomes.$inferSelect;
 export type InsertLearnerOutcome = typeof learnerOutcomes.$inferInsert;
@@ -563,25 +482,7 @@ export const insertPortfolioArtifactSchema = createInsertSchema(portfolioArtifac
   createdAt: true,
 });
 
-export const insertDiscussionThreadSchema = createInsertSchema(discussionThreads).omit({
-  id: true,
-  createdAt: true,
-  lastActivityAt: true,
-  viewCount: true,
-});
 
-export const insertDiscussionPostSchema = createInsertSchema(discussionPosts).omit({
-  id: true,
-  createdAt: true,
-  likeCount: true,
-  isEdited: true,
-  editedAt: true,
-});
-
-export const insertDiscussionLikeSchema = createInsertSchema(discussionLikes).omit({
-  id: true,
-  createdAt: true,
-});
 
 // Auth schemas
 export const registerSchema = createInsertSchema(users).omit({

@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import DiscussionForum from "@/components/discussion-forum";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -35,9 +34,9 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
       // Fetch assessments for this milestone
       const response = await fetch(`/api/milestones/${milestoneId}/assessments`);
       if (!response.ok) throw new Error('Failed to fetch milestone assessments');
-      
+
       const assessments = await response.json();
-      
+
       if (assessments.length > 0) {
         // Navigate to the first assessment for this milestone
         setLocation(`/student/assessments/${assessments[0].id}`);
@@ -128,7 +127,7 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <Navigation />
-      
+
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -245,12 +244,8 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                   <Target className="h-4 w-4" />
                   <span>Milestones</span>
                 </TabsTrigger>
-                <TabsTrigger value="discussions" className="flex items-center space-x-2">
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Discussions</span>
-                </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="milestones" className="mt-6">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -321,13 +316,6 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                     </div>
                   )}
                 </CardContent>
-              </TabsContent>
-              
-              <TabsContent value="discussions" className="mt-6">
-                <DiscussionForum 
-                  projectId={projectId} 
-                  milestones={milestones.map(m => ({ id: m.id, title: m.title }))}
-                />
               </TabsContent>
             </Tabs>
           </Card>

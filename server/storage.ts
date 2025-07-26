@@ -16,9 +16,6 @@ import {
   projectTeamMembers,
   grades,
   portfolios,
-  discussionThreads,
-  discussionPosts,
-  discussionLikes,
   bestStandards,
   selfEvaluations,
   type User,
@@ -36,15 +33,14 @@ import {
   type Competency,
   type ComponentSkill,
   type Grade,
-  type DiscussionThread,
-  type DiscussionPost,
-  type DiscussionLike,
   type BestStandard,
   type SelfEvaluation,
   type InsertSelfEvaluation,
   type ProjectAssignment,
-  type InsertDiscussionThread,
-  type InsertDiscussionPost,
+  type InsertProjectTeam,
+  type InsertProjectTeamMember,
+  type InsertSchool,
+  type InsertAuthToken,
   UpsertUser,
   InsertProject,
   InsertMilestone,
@@ -122,7 +118,7 @@ export interface IStorage {
   getAllAssessments(): Promise<Assessment[]>; // Get all assessments (both milestone-linked and standalone)
   updateAssessment(id: number, updates: Partial<InsertAssessment>): Promise<Assessment>;
   deleteAssessment(id: number): Promise<void>;
-  
+
   // Share code operations
   generateShareCode(assessmentId: number): Promise<string>;
   getAssessmentByShareCode(shareCode: string): Promise<Assessment | undefined>;
@@ -175,16 +171,6 @@ export interface IStorage {
     lastUpdated: string;
     progressDirection: 'improving' | 'declining' | 'stable';
   }>>;
-
-  // Discussion Forum operations
-  createDiscussionThread(data: InsertDiscussionThread): Promise<DiscussionThread>;
-  getDiscussionThreadsByProject(projectId: number): Promise<DiscussionThread[]>;
-  getDiscussionThread(threadId: number): Promise<DiscussionThread | null>;
-  createDiscussionPost(data: InsertDiscussionPost): Promise<DiscussionPost>;
-  getDiscussionPostsByThread(threadId: number): Promise<DiscussionPost[]>;
-  updateDiscussionThread(threadId: number, data: Partial<InsertDiscussionThread>): Promise<DiscussionThread | undefined>;
-  deleteDiscussionPost(postId: number): Promise<void>;
-  toggleDiscussionLike(postId: number, userId: number): Promise<boolean>;
 
   // Self-evaluation operations
   createSelfEvaluation(selfEvaluation: InsertSelfEvaluation): Promise<SelfEvaluation>;
@@ -392,18 +378,18 @@ export class DatabaseStorage implements IStorage {
     do {
       shareCode = generateRandomCode();
       attempts++;
-      
+
       // Check if code already exists
       const [existing] = await db
         .select()
         .from(assessments)
         .where(eq(assessments.shareCode, shareCode))
         .limit(1);
-      
+
       if (!existing) {
         break;
       }
-      
+
       if (attempts >= maxAttempts) {
         throw new Error('Unable to generate unique share code');
       }
@@ -479,18 +465,18 @@ export class DatabaseStorage implements IStorage {
     do {
       shareCode = generateRandomCode();
       attempts++;
-      
+
       // Check if code already exists
       const [existing] = await db
         .select()
         .from(assessments)
         .where(eq(assessments.shareCode, shareCode))
         .limit(1);
-      
+
       if (!existing) {
         break;
       }
-      
+
       if (attempts >= maxAttempts) {
         throw new Error('Unable to generate unique share code');
       }
@@ -511,7 +497,7 @@ export class DatabaseStorage implements IStorage {
       .from(assessments)
       .where(eq(assessments.shareCode, shareCode))
       .limit(1);
-    
+
     return assessment;
   }
 
@@ -953,8 +939,6 @@ export class DatabaseStorage implements IStorage {
   async addTeamMember(memberData: InsertProjectTeamMember): Promise<ProjectTeamMember> {
     const [member] = await db.insert(projectTeamMembers).values(memberData).returning();
     return member;
-  }
-
   async removeTeamMember(memberId: number): Promise<void> {
     await db.delete(projectTeamMembers).where(eq(projectTeamMembers.id, memberId));
   }
@@ -987,62 +971,6 @@ export class DatabaseStorage implements IStorage {
     await db.delete(projectTeamMembers).where(eq(projectTeamMembers.teamId, teamId));
     // Then delete the team
     await db.delete(projectTeams).where(eq(projectTeams.id, teamId));
-  }
-
-  // Discussion Forum Methods
-  async createDiscussionThread(data: InsertDiscussionThread): Promise<DiscussionThread> {
-    const result = await db.insert(discussionThreads).values(data).returning();
-    return result[0];
-  }
-
-  async getDiscussionThreadsByProject(projectId: number): Promise<DiscussionThread[]> {
-    return await db.select().from(discussionThreads)
-      .where(eq(discussionThreads.projectId, projectId))
-      .orderBy(desc(discussionThreads.isPinned), desc(discussionThreads.lastActivityAt));
-  }
-
-  async getDiscussionThread(threadId: number): Promise<DiscussionThread | null> {
-    const result = await db.select().from(discussionThreads)
-      .where(eq(discussionThreads.id, threadId));
-    return result[0] || null;
-  }
-
-  async createDiscussionPost(data: InsertDiscussionPost): Promise<DiscussionPost> {
-    const result = await db.insert(discussionPosts).values(data).returning();
-    return result[0];
-  }
-
-  async getDiscussionPostsByThread(threadId: number): Promise<DiscussionPost[]> {
-    return await db.select().from(discussionPosts)
-      .where(eq(discussionPosts.threadId, threadId))
-      .orderBy(asc(discussionPosts.createdAt));
-  }
-
-  async updateDiscussionThread(threadId: number, data: Partial<InsertDiscussionThread>): Promise<DiscussionThread | undefined> {
-    const result = await db.update(discussionThreads)
-      .set(data)
-      .where(eq(discussionThreads.id, threadId))
-      .returning();
-    return result[0];
-  }
-
-  async deleteDiscussionPost(postId: number): Promise<void> {
-    await db.delete(discussionPosts).where(eq(discussionPosts.id, postId));
-  }
-
-  async toggleDiscussionLike(postId: number, userId: number): Promise<boolean> {
-    const existingLike = await db.select()
-      .from(discussionLikes)
-      .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
-
-    if (existingLike.length > 0) {
-      await db.delete(discussionLikes)
-        .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
-      return false;
-    } else {
-      await db.insert(discussionLikes).values({ postId, userId });
-      return true;
-    }
   }
 
   // Self-evaluation operations

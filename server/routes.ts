@@ -10,9 +10,6 @@ import {
   insertSubmissionSchema,
   insertCredentialSchema,
   insertPortfolioArtifactSchema,
-  insertDiscussionThreadSchema,
-  insertDiscussionPostSchema,
-  insertDiscussionLikeSchema,
   insertSelfEvaluationSchema,
   type User
 } from "@shared/schema";
@@ -30,9 +27,6 @@ import {
   learnerOutcomes as learnerOutcomesTable,
   competencies as competenciesTable,
   projectAssignments,
-  discussionThreads,
-  discussionPosts,
-  discussionLikes,
   grades as gradesTable,
   selfEvaluations as selfEvaluationsTable,
   componentSkills as componentSkillsTable,
@@ -824,7 +818,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Share code routes for assessments
-  app.post('/api/assessments/:id/generate-share-code', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+  app.post('/api/assessments/:id/generate-share-code', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) =>
+{
     try {
       const assessmentId = parseInt(req.params.id);
       const assessment = await storage.getAssessment(assessmentId);
@@ -837,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For now, we'll allow any teacher to generate codes - you might want to add ownership checks later
 
       const shareCode = await storage.generateShareCode(assessmentId);
-      
+
       res.json({ 
         shareCode,
         message: "Share code generated successfully"
@@ -855,7 +850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/assessments/by-code/:code', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const shareCode = req.params.code.toUpperCase();
-      
+
       if (shareCode.length !== 5) {
         return res.status(400).json({ message: "Invalid share code format" });
       }
@@ -888,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const newShareCode = await storage.regenerateShareCode(assessmentId);
-      
+
       res.json({ 
         shareCode: newShareCode,
         message: "Share code regenerated successfully"
@@ -2133,232 +2128,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Discussion Forum Routes
-
-  // Get project discussion threads
-  app.get('/api/projects/:id/discussions', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      const { category, milestone } = req.query;
-
-      let whereCondition = eq(discussionThreads.projectId, projectId);
-
-      if (category && category !== 'all') {
-        whereCondition = and(whereCondition, eq(discussionThreads.category, category as string));
-      }
-
-      if (milestone) {
-        whereCondition = and(whereCondition, eq(discussionThreads.milestoneId, parseInt(milestone as string)));
-      }
-
-      const threads = await db.select({
-        id: discussionThreads.id,
-        title: discussionThreads.title,
-        description: discussionThreads.description,
-        category: discussionThreads.category,
-        milestoneId: discussionThreads.milestoneId,
-        isPinned: discussionThreads.isPinned,
-        isLocked: discussionThreads.isLocked,
-        viewCount: discussionThreads.viewCount,
-        lastActivityAt: discussionThreads.lastActivityAt,
-        createdAt: discussionThreads.createdAt,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-        authorRole: users.role,
-        // postCount will be calculated separately
-      })
-        .from(discussionThreads)
-        .leftJoin(users, eq(discussionThreads.authorId, usersTable.id))
-        .leftJoin(discussionPosts, eq(discussionThreads.id, discussionPosts.threadId))
-        .where(whereCondition)
-        .groupBy(discussionThreads.id, usersTable.firstName, usersTable.lastName, users.role)
-        .orderBy(desc(discussionThreads.isPinned), desc(discussionThreads.lastActivityAt));
-
-      res.json(threads);
-    } catch (error) {
-      console.error("Error fetching discussion threads:", error);
-      res.status(500).json({ message: "Failed to fetch discussion threads" });
-    }
-  });
-
-  // Create discussion thread
-  app.post('/api/projects/:id/discussions', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      const userId = req.user!.id;
-
-      const threadData = insertDiscussionThreadSchema.parse({
-        ...req.body,
-        projectId,
-        authorId: userId,
-      });
-
-      const thread = await db.insert(discussionThreads).values(threadData).returning();
-      res.json(thread[0]);
-    } catch (error) {
-      console.error("Error creating discussion thread:", error);
-      res.status(500).json({ message: "Failed to create discussion thread" });
-    }
-  });
-
-  // Get thread posts
-  app.get('/api/discussions/:id/posts', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const threadId = parseInt(req.params.id);
-
-      // Note: View count increment would need to be handled differently
-
-      const posts = await db.select({
-        id: discussionPosts.id,
-        content: discussionPosts.content,
-        attachments: discussionPosts.attachments,
-        isAnswer: discussionPosts.isAnswer,
-        likeCount: discussionPosts.likeCount,
-        replyToId: discussionPosts.replyToId,
-        isEdited: discussionPosts.isEdited,
-        editedAt: discussionPosts.editedAt,
-        createdAt: discussionPosts.createdAt,
-        authorId: discussionPosts.authorId,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-        authorRole: users.role,
-        // hasLiked will be calculated separately
-      })
-        .from(discussionPosts)
-        .leftJoin(users, eq(discussionPosts.authorId, usersTable.id))
-        .where(eq(discussionPosts.threadId, threadId))
-        .orderBy(asc(discussionPosts.createdAt));
-
-      res.json(posts);
-    } catch (error) {
-      console.error("Error fetching discussion posts:", error);
-      res.status(500).json({ message: "Failed to fetch discussion posts" });
-    }
-  });
-
-  // Create discussion post
-  app.post('/api/discussions/:id/posts', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const threadId = parseInt(req.params.id);
-      const userId = req.user!.id;
-
-      const postData = insertDiscussionPostSchema.parse({
-        ...req.body,
-        threadId,
-        authorId: userId,
-      });
-
-      const post = await db.insert(discussionPosts).values(postData).returning();
-
-      // Update thread's last activity
-      await db.update(discussionThreads)
-        .set({ lastActivityAt: new Date() })
-        .where(eq(discussionThreads.id, threadId));
-
-      res.json(post[0]);
-    } catch (error) {
-      console.error("Error creating discussion post:", error);
-      res.status(500).json({ message: "Failed to create discussion post" });
-    }});
-
-  // Like/unlike discussion post
-  app.post('/api/discussions/posts/:id/like', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const postId = parseInt(req.params.id);
-      const userId = req.user!.id;
-
-      // Check if already liked
-      const existingLike = await db.select()
-        .from(discussionLikes)
-        .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
-
-      if (existingLike.length > 0) {
-        // Unlike
-        await db.delete(discussionLikes)
-          .where(and(eq(discussionLikes.postId, postId), eq(discussionLikes.userId, userId)));
-
-        // Note: Like count decrement would need to be handled differently
-
-        res.json({ liked: false });
-      } else {
-        // Like
-        await db.insert(discussionLikes).values({ postId, userId });
-
-        // Note: Like count increment would need to be handled differently
-
-        res.json({ liked: true });
-      }
-    } catch (error) {
-      console.error("Error toggling post like:", error);
-      res.status(500).json({ message: "Failed to toggle post like" });
-    }
-  });
-
-  // Mark post as answer (teachers only)
-  app.put('/api/discussions/posts/:id/answer', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
-    try {
-      const postId = parseInt(req.params.id);
-      const { isAnswer } = req.body;
-
-      await db.update(discussionPosts)
-        .set({ isAnswer })
-        .where(eq(discussionPosts.id, postId));
-
-      res.json({ message: "Post answer status updated" });
-    } catch (error) {
-      console.error("Error updating post answer status:", error);
-      res.status(500).json({ message: "Failed to update post answer status" });
-    }
-  });
-
-  // Update thread (pin/unpin, lock/unlock) - teachers only
-  app.put('/api/discussions/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
-    try {
-      const threadId = parseInt(req.params.id);
-      const { isPinned, isLocked } = req.body;
-
-      const updateData: any = {};
-      if (isPinned !== undefined) updateData.isPinned = isPinned;
-      if (isLocked !== undefined) updateData.isLocked = isLocked;
-
-      await db.update(discussionThreads)
-        .set(updateData)
-        .where(eq(discussionThreads.id, threadId));
-
-      res.json({ message: "Thread updated successfully" });
-    } catch (error) {
-      console.error("Error updating discussion thread:", error);
-      res.status(500).json({ message: "Failed to update discussion thread" });
-    }
-  });
-
-  // Delete discussion post
-  app.delete('/api/discussions/posts/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const postId = parseInt(req.params.id);
-      const userId = req.user!.id;
-
-      const post = await db.select()
-        .from(discussionPosts)
-        .where(eq(discussionPosts.id, postId));
-
-      if (!post.length) {
-        return res.status(404).json({ message: "Post not found" });
-      }
-
-      // Check if user owns post or is teacher/admin
-      if (post[0].authorId !== userId && req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      await db.delete(discussionPosts).where(eq(discussionPosts.id, postId));
-      res.json({ message: "Post deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting discussion post:", error);
-      res.status(500).json({ message: "Failed to delete discussion post" });
-    }
-  });
-
   // School-wide component skills performance tracker
   app.get("/api/teacher/school-component-skills-progress", requireAuth, async (req, res) => {
     try {
@@ -2409,7 +2178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate performance statistics for each component skill
       const skillsProgress = componentSkills.map(skill => {
         const skillGrades = grades.filter(g => g.componentSkillId === skill.id);
-        
+
         if (skillGrades.length === 0) {
           return {
             id: skill.id,
@@ -2437,7 +2206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Calculate statistics
         const averageScore = skillGrades.reduce((sum, g) => sum + g.score, 0) / skillGrades.length;
         const studentsAssessed = new Set(skillGrades.map(g => g.studentId)).size;
-        
+
         // Count rubric level distribution
         const rubricDistribution = {
           emerging: skillGrades.filter(g => g.rubricLevel === 'emerging').length,
@@ -2518,7 +2287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all grades and filter in memory for safety
       const allGrades = await db.select().from(gradesTable);
-      
+
       // Filter grades for students in this school
       const grades = allGrades.filter(grade => studentIds.includes(grade.studentId));
 
