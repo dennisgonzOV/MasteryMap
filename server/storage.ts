@@ -48,10 +48,6 @@ import {
   InsertSubmission,
   InsertCredential,
   InsertPortfolioArtifact,
-  InsertAuthToken,
-  InsertSchool,
-  InsertProjectTeam,
-  InsertProjectTeamMember,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, like, or } from "drizzle-orm";
@@ -939,6 +935,8 @@ export class DatabaseStorage implements IStorage {
   async addTeamMember(memberData: InsertProjectTeamMember): Promise<ProjectTeamMember> {
     const [member] = await db.insert(projectTeamMembers).values(memberData).returning();
     return member;
+  }
+
   async removeTeamMember(memberId: number): Promise<void> {
     await db.delete(projectTeamMembers).where(eq(projectTeamMembers.id, memberId));
   }

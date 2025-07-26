@@ -291,8 +291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating project ideas:", error);
       console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
         body: req.body
       });
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
