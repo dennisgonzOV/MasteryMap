@@ -1998,6 +1998,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               teacherName: `${assignment.teacherFirstName} ${assignment.teacherLastName}`
             }));
 
+            console.log(`Student ${student.id} (${student.firstName} ${student.lastName}) has ${studentAssignments.length} project assignments:`, processedAssignments);
+
             // Get student's credentials
             const studentCredentials = await db.select()
               .from(credentials)
