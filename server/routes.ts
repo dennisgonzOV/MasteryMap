@@ -1968,8 +1968,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const studentAssignments = await db.select({
               projectId: projectAssignments.projectId,
               projectTitle: projectsTable.title,
-              projectDescription: projects.description,
-              projectStatus: projects.status,
+              projectDescription: projectsTable.description,
+              projectStatus: projectsTable.status,
               teacherFirstName: usersTable.firstName,
               teacherLastName: usersTable.lastName
             })
