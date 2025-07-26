@@ -184,42 +184,9 @@ export default function TeacherDashboard() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            {/* Quick Actions */}
-            <div className="space-y-6">
-              <Card className="apple-shadow border-0">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-gray-900">
-                    Quick Actions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button 
-                    onClick={() => setShowCreateProject(true)}
-                    className="w-full bg-blue-600 text-white hover:bg-blue-700 btn-primary"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create New Project
-                  </Button>
-                  <Link href="/teacher/assessments">
-                    <Button variant="outline" className="w-full">
-                      Generate Assessment
-                    </Button>
-                  </Link>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => setShowStudentProgress(true)}
-                  >
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    View Student Progress
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
+          <div className="grid grid-cols-1 gap-8 mb-8">
             {/* Student Progress Overview Card */}
-            <div className="lg:col-span-2">
+            <div>
               <Card className="apple-shadow border-0">
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
