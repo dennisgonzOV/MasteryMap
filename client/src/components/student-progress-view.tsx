@@ -100,18 +100,6 @@ export default function StudentProgressView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Student Progress Overview</h1>
-          <p className="text-gray-600">Track all students in your school</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Users className="h-5 w-5 text-gray-500" />
-          <span className="text-sm text-gray-600">{filteredStudents.length} students</span>
-        </div>
-      </div>
-
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />

@@ -196,7 +196,10 @@ export default function TeacherDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="h-96 overflow-hidden">
-                    <StudentProgressView />
+                    <div className="space-y-6">
+                      {/* Search and student list without header */}
+                      <StudentProgressView />
+                    </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <Button 
