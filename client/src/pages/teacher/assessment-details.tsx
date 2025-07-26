@@ -16,7 +16,6 @@ import {
   CheckCircle, 
   AlertCircle, 
   Share2, 
-  Download,
   Eye,
   GraduationCap,
   Lightbulb,
@@ -128,39 +127,7 @@ export default function AssessmentDetails() {
     }
   };
 
-  const handleExportResults = async () => {
-    try {
-      const response = await fetch(`/api/assessments/${id}/export-detailed-results`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${assessment.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-detailed-results-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: "Export Complete",
-        description: "Detailed assessment results have been downloaded successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Export Failed",
-        description: "Failed to export detailed results. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  
 
   if (assessmentLoading || submissionsLoading) {
     return (
@@ -264,14 +231,7 @@ export default function AssessmentDetails() {
                   </div>
                 </div>
               )}
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={handleExportResults}
-              >
-                <Download className="h-4 w-4" />
-                <span>Export</span>
-              </Button>
+              
               <Button
                 className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
                 onClick={() => setLocation(`/teacher/assessments/${id}/grade`)}

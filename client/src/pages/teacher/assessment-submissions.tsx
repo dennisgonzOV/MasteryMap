@@ -66,39 +66,7 @@ export default function AssessmentSubmissions() {
     setLocation(`/teacher/assessments/${id}/submissions/${submissionId}`);
   };
 
-  const handleExportResults = async () => {
-    try {
-      const response = await fetch(`/api/assessments/${id}/export-submissions`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${assessment.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-submissions-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: "Export Complete",
-        description: "Assessment submissions have been downloaded successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Export Failed",
-        description: "Failed to export assessment submissions. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  
 
   if (assessmentLoading || submissionsLoading) {
     return (
