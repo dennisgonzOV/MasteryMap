@@ -201,16 +201,6 @@ export default function TeacherDashboard() {
                       <StudentProgressView />
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => setShowStudentProgress(true)}
-                    >
-                      <TrendingUp className="h-4 w-4 mr-2" />
-                      View Full Progress Overview
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             </div>
