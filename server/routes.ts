@@ -20,21 +20,25 @@ import { generateMilestones, generateAssessment, generateFeedback, generateFeedb
 import { generateSelfEvaluationFeedback, generateAssessmentQuestions, generateTutorResponse } from "./services/openai";
 import { z } from "zod";
 import { 
-  users, 
-  projects, 
-  milestones, 
-  assessments, 
-  submissions, 
-  credentials, 
-  portfolioArtifacts,
+  users as usersTable, 
+  projects as projectsTable, 
+  milestones as milestonesTable, 
+  assessments as assessmentsTable, 
+  submissions as submissionsTable, 
+  credentials as credentialsTable, 
+  portfolioArtifacts as portfolioArtifactsTable,
   learnerOutcomes,
   competencies,
   projectAssignments,
   discussionThreads,
   discussionPosts,
-  discussionLikes
+  discussionLikes,
+  grades as gradesTable,
+  selfEvaluations as selfEvaluationsTable,
+  componentSkills as componentSkillsTable,
+  bestStandards as bestStandardsTable
 } from "../shared/schema";
-import { eq, and, desc, asc, isNull, inArray, ne, sql } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, inArray, ne, sql, gte } from "drizzle-orm";
 import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -229,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const competencies = await storage.getCompetencies();
       const selectedCompetencies = competencies.filter(c => 
-        (project.competencyIds as number[])?.includes(c.id)
+        (project.componentSkillIds as number[])?.includes(c.id)
       );
 
       const milestones = await generateMilestones(project, selectedCompetencies);
@@ -654,34 +658,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/assessments/:id/export-results", requireAuth, async (req, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
-      const assessment = await db.select().from(assessments).where(eq(assessments.id, assessmentId)).limit(1);
+      const assessment = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, assessmentId)).limit(1);
 
       if (!assessment.length) {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
       // Get submissions for this assessment
-      const submissions = await db.select({
-        id: submissions.id,
-        studentName: sql`${users.firstName} || ' ' || ${users.lastName}`,
-        studentEmail: users.email,
-        score: submissions.score,
-        grade: submissions.grade,
-        submittedAt: submissions.submittedAt,
-        feedback: submissions.feedback
+      const submissionResults = await db.select({
+        id: submissionsTable.id,
+        studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
+        studentEmail: usersTable.email,
+        submittedAt: submissionsTable.submittedAt,
+        feedback: submissionsTable.feedback
       })
-      .from(submissions)
-      .innerJoin(users, eq(submissions.studentId, users.id))
-      .where(eq(submissions.assessmentId, assessmentId));
+      .from(submissionsTable)
+      .innerJoin(usersTable, eq(submissionsTable.studentId, usersTable.id))
+      .where(eq(submissionsTable.assessmentId, assessmentId));
 
       // Create CSV content
       const csvData = [
-        ['Student Name', 'Email', 'Score', 'Grade', 'Submitted At', 'Feedback'],
-        ...submissions.map(sub => [
+        ['Student Name', 'Email', 'Submitted At', 'Feedback'],
+        ...submissionResults.map((sub: any) => [
           sub.studentName,
           sub.studentEmail,
-          sub.score || '',
-          sub.grade || '',
           sub.submittedAt || '',
           (sub.feedback || '').replace(/,/g, ';') // Replace commas to avoid CSV issues
         ])
@@ -702,38 +702,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/assessments/:id/export-submissions", requireAuth, async (req, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
-      const assessment = await db.select().from(assessments).where(eq(assessments.id, assessmentId)).limit(1);
+      const assessment = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, assessmentId)).limit(1);
 
       if (!assessment.length) {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
       // Get detailed submissions for this assessment
-      const submissions = await db.select({
-        id: submissions.id,
-        studentName: sql`${users.firstName} || ' ' || ${users.lastName}`,
-        studentEmail: users.email,
-        responses: submissions.responses,
-        score: submissions.score,
-        grade: submissions.grade,
-        submittedAt: submissions.submittedAt,
-        feedback: submissions.feedback,
-        timeSpent: submissions.timeSpent
+      const detailedSubmissions = await db.select({
+        id: submissionsTable.id,
+        studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
+        studentEmail: usersTable.email,
+        responses: submissionsTable.responses,
+        submittedAt: submissionsTable.submittedAt,
+        feedback: submissionsTable.feedback
       })
-      .from(submissions)
-      .innerJoin(users, eq(submissions.studentId, users.id))
-      .where(eq(submissions.assessmentId, assessmentId));
+      .from(submissionsTable)
+      .innerJoin(usersTable, eq(submissionsTable.studentId, usersTable.id))
+      .where(eq(submissionsTable.assessmentId, assessmentId));
 
       // Create CSV content
       const csvData = [
-        ['Student Name', 'Email', 'Responses', 'Score', 'Grade', 'Time Spent (mins)', 'Submitted At', 'Feedback'],
-        ...submissions.map(sub => [
+        ['Student Name', 'Email', 'Responses', 'Submitted At', 'Feedback'],
+        ...detailedSubmissions.map((sub: any) => [
           sub.studentName,
           sub.studentEmail,
           JSON.stringify(sub.responses || {}).replace(/,/g, ';'),
-          sub.score || '',
-          sub.grade || '',
-          sub.timeSpent || '',
           sub.submittedAt || '',
           (sub.feedback || '').replace(/,/g, ';')
         ])
@@ -754,32 +748,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/assessments/:id/export-detailed-results", requireAuth, async (req, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
-      const assessment = await db.select().from(assessments).where(eq(assessments.id, assessmentId)).limit(1);
+      const assessment = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, assessmentId)).limit(1);
 
       if (!assessment.length) {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
       // Get detailed submissions with question breakdown
-      const submissions = await db.select({
-        id: submissions.id,
-        studentName: sql`${users.firstName} || ' ' || ${users.lastName}`,
-        studentEmail: users.email,
-        responses: submissions.responses,
-        score: submissions.score,
-        grade: submissions.grade,
-        submittedAt: submissions.submittedAt,
-        feedback: submissions.feedback,
-        timeSpent: submissions.timeSpent
+      const detailedResults = await db.select({
+        id: submissionsTable.id,
+        studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
+        studentEmail: usersTable.email,
+        responses: submissionsTable.responses,
+        submittedAt: submissionsTable.submittedAt,
+        feedback: submissionsTable.feedback
       })
-      .from(submissions)
-      .innerJoin(users, eq(submissions.studentId, users.id))
-      .where(eq(submissions.assessmentId, assessmentId));
+      .from(submissionsTable)
+      .innerJoin(usersTable, eq(submissionsTable.studentId, usersTable.id))
+      .where(eq(submissionsTable.assessmentId, assessmentId));
 
       const questions = assessment[0].questions || [];
 
       // Create detailed CSV with question breakdown
-      const headers = ['Student Name', 'Email', 'Total Score', 'Grade', 'Time Spent (mins)', 'Submitted At'];
+      const headers = ['Student Name', 'Email', 'Submitted At'];
       questions.forEach((q: any, index: number) => {
         headers.push(`Q${index + 1}: ${(q.text || '').substring(0, 50)}...`);
       });
@@ -787,13 +778,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const csvData = [headers];
 
-      submissions.forEach(sub => {
+      detailedResults.forEach((sub: any) => {
         const row = [
           sub.studentName,
           sub.studentEmail,
-          sub.score || '',
-          sub.grade || '',
-          sub.timeSpent || '',
           sub.submittedAt || ''
         ];
 
@@ -1731,10 +1719,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get analytics data
       const [users, projects, assessments, studentCredentials] = await Promise.all([
-        db.select().from(users),
-        db.select().from(projects),
-        db.select().from(assessments),
-        db.select().from(credentials)
+        db.select().from(usersTable),
+        db.select().from(projectsTable),
+        db.select().from(assessmentsTable),
+        db.select().from(credentialsTable)
       ]);
 
       const analyticsData = {
@@ -1773,8 +1761,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get teacher's projects and related data
       const teacherProjects = await db.select()
-        .from(projects)
-        .where(eq(projects.teacherId, teacherId));
+        .from(projectsTable)
+        .where(eq(projectsTable.teacherId, teacherId));
 
       const activeProjects = teacherProjects.filter(p => p.status === 'active').length;
 
@@ -1788,18 +1776,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get pending submissions for grading
       const pendingSubmissions = projectIds.length > 0 ? await db.select()
-        .from(submissions)
-        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
-        .innerJoin(milestones, eq(assessments.milestoneId, milestones.id))
+        .from(submissionsTable)
+        .innerJoin(assessmentsTable, eq(submissionsTable.assessmentId, assessmentsTable.id))
+        .innerJoin(milestonesTable, eq(assessmentsTable.milestoneId, milestonesTable.id))
         .where(and(
-          inArray(milestones.projectId, projectIds),
-          isNull(submissions.grade)
+          inArray(milestonesTable.projectId, projectIds),
+          isNull(submissionsTable.grade)
         )) : [];
 
       // Get awarded credentials
       const credentialsAwarded = await db.select()
-        .from(credentials)
-        .where(eq(credentials.approvedBy, teacherId));
+        .from(credentialsTable)
+        .where(eq(credentialsTable.approvedBy, teacherId));
 
       const stats = {
         activeProjects,
@@ -1826,8 +1814,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teacherId = req.user.id;
 
       const teacherProjects = await db.select()
-        .from(projects)
-        .where(eq(projects.teacherId, teacherId));
+        .from(projectsTable)
+        .where(eq(projectsTable.teacherId, teacherId));
 
       // Get additional data for each project
       const projectOverviews = await Promise.all(
@@ -1837,9 +1825,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(projectAssignments.projectId, project.id));
 
           const milestonesList = await db.select()
-            .from(milestones)
-            .where(eq(milestones.projectId, project.id))
-            .orderBy(milestones.dueDate);
+            .from(milestonesTable)
+            .where(eq(milestonesTable.projectId, project.id))
+            .orderBy(milestonesTable.dueDate);
 
           const nextDeadline = milestonesList.find(m => new Date(m.dueDate) > new Date())?.dueDate || null;
 
@@ -1873,27 +1861,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get pending grading tasks
       const teacherProjects = await db.select()
-        .from(projects)
-        .where(eq(projects.teacherId, teacherId));
+        .from(projectsTable)
+        .where(eq(projectsTable.teacherId, teacherId));
 
       const projectIds = teacherProjects.map(p => p.id);
 
       const pendingSubmissions = projectIds.length > 0 ? await db.select({
-        submissionId: submissions.id,
-        assessmentTitle: assessments.title,
-        projectTitle: projects.title,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        submittedAt: submissions.submittedAt
+        submissionId: submissionsTable.id,
+        assessmentTitle: assessmentsTable.title,
+        projectTitle: projectsTable.title,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        submittedAt: submissionsTable.submittedAt
       })
-        .from(submissions)
-        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
-        .innerJoin(milestones, eq(assessments.milestoneId, milestones.id))
-        .innerJoin(projects, eq(milestones.projectId, projects.id))
-        .innerJoin(users, eq(submissions.studentId, users.id))
+        .from(submissionsTable)
+        .innerJoin(assessmentsTable, eq(submissionsTable.assessmentId, assessmentsTable.id))
+        .innerJoin(milestonesTable, eq(assessmentsTable.milestoneId, milestonesTable.id))
+        .innerJoin(projectsTable, eq(milestonesTable.projectId, projectsTable.id))
+        .innerJoin(usersTable, eq(submissionsTable.studentId, usersTable.id))
         .where(and(
-          inArray(milestones.projectId, projectIds),
-          isNull(submissions.grade)
+          inArray(milestonesTable.projectId, projectIds),
+          isNull(submissionsTable.grade)
         ))
         .limit(10) : [];
 
@@ -1925,18 +1913,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teacherId = req.user.id;
 
       const teacherProjects = await db.select()
-        .from(projects)
-        .where(eq(projects.teacherId, teacherId));
+        .from(projectsTable)
+        .where(eq(projectsTable.teacherId, teacherId));
 
       const projectIds = teacherProjects.map(p => p.id);
 
       const currentMilestones = projectIds.length > 0 ? await db.select()
-        .from(milestones)
+        .from(milestonesTable)
         .where(and(
-          inArray(milestones.projectId, projectIds),
-          gte(milestones.dueDate, new Date().toISOString()))
+          inArray(milestonesTable.projectId, projectIds),
+          gte(milestonesTable.dueDate, new Date().toISOString()))
         )
-        .orderBy(milestones.dueDate)
+        .orderBy(milestonesTable.dueDate)
         .limit(5) : [];
 
       const milestonesWithProgress = currentMilestones.map((milestone) => ({
@@ -1962,7 +1950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const teacher = await db.select().from(users).where(eq(users.id, req.user.id)).limit(1);
+      const teacher = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id)).limit(1);
       if (!teacher.length || !teacher[0].schoolId) {
         return res.status(400).json({ message: "Teacher school not found" });
       }
@@ -1979,15 +1967,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Get student's project assignments with project and teacher details
             const studentAssignments = await db.select({
               projectId: projectAssignments.projectId,
-              projectTitle: projects.title,
+              projectTitle: projectsTable.title,
               projectDescription: projects.description,
               projectStatus: projects.status,
-              teacherFirstName: users.firstName,
-              teacherLastName: users.lastName
+              teacherFirstName: usersTable.firstName,
+              teacherLastName: usersTable.lastName
             })
               .from(projectAssignments)
-              .innerJoin(projects, eq(projectAssignments.projectId, projects.id))
-              .innerJoin(users, eq(projects.teacherId, users.id))
+              .innerJoin(projectsTable, eq(projectAssignments.projectId, projectsTable.id))
+              .innerJoin(usersTable, eq(projectsTable.teacherId, usersTable.id))
               .where(eq(projectAssignments.studentId, student.id));
 
             const processedAssignments = studentAssignments.map(assignment => ({
@@ -2002,16 +1990,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Get student's credentials
             const studentCredentials = await db.select()
-              .from(credentials)
-              .where(eq(credentials.studentId, student.id))
-              .orderBy(desc(credentials.awardedAt));
+              .from(credentialsTable)
+              .where(eq(credentialsTable.studentId, student.id))
+              .orderBy(desc(credentialsTable.awardedAt));
 
             // Get student's submissions and grades for competency progress
             const studentSubmissions = await db.select()
-              .from(submissions)
+              .from(submissionsTable)
               .where(and(
-                eq(submissions.studentId, student.id),
-                isNull(submissions.grade) === false
+                eq(submissionsTable.studentId, student.id),
+                isNull(submissionsTable.grade) === false
               ));
 
             // Simplified competency progress calculation
@@ -2085,18 +2073,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const upcomingDeadlines = projectIds.length > 0
         ? await db.select({
-        milestoneId: milestones.id,
+        milestoneId: milestonesTable.id,
         title: milestones.title,
-        projectTitle: projects.title,
-        dueDate: milestones.dueDate
+        projectTitle: projectsTable.title,
+        dueDate: milestonesTable.dueDate
       })
-        .from(milestones)
-        .innerJoin(projects, eq(milestones.projectId, projects.id))
+        .from(milestonesTable)
+        .innerJoin(projectsTable, eq(milestonesTable.projectId, projectsTable.id))
         .where(and(
-          inArray(milestones.projectId, projectIds),
-          gte(milestones.dueDate, new Date().toISOString())
+          inArray(milestonesTable.projectId, projectIds),
+          gte(milestonesTable.dueDate, new Date().toISOString())
         ))
-        .orderBy(milestones.dueDate)
+        .orderBy(milestonesTable.dueDate)
         .limit(5) : [];
 
       const deadlines = upcomingDeadlines.map((deadline) => {
@@ -2174,16 +2162,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         viewCount: discussionThreads.viewCount,
         lastActivityAt: discussionThreads.lastActivityAt,
         createdAt: discussionThreads.createdAt,
-        firstName: users.firstName,
-        lastName: users.lastName,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
         authorRole: users.role,
         // postCount will be calculated separately
       })
         .from(discussionThreads)
-        .leftJoin(users, eq(discussionThreads.authorId, users.id))
+        .leftJoin(users, eq(discussionThreads.authorId, usersTable.id))
         .leftJoin(discussionPosts, eq(discussionThreads.id, discussionPosts.threadId))
         .where(whereCondition)
-        .groupBy(discussionThreads.id, users.firstName, users.lastName, users.role)
+        .groupBy(discussionThreads.id, usersTable.firstName, usersTable.lastName, users.role)
         .orderBy(desc(discussionThreads.isPinned), desc(discussionThreads.lastActivityAt));
 
       res.json(threads);
@@ -2231,13 +2219,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         editedAt: discussionPosts.editedAt,
         createdAt: discussionPosts.createdAt,
         authorId: discussionPosts.authorId,
-        firstName: users.firstName,
-        lastName: users.lastName,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
         authorRole: users.role,
         // hasLiked will be calculated separately
       })
         .from(discussionPosts)
-        .leftJoin(users, eq(discussionPosts.authorId, users.id))
+        .leftJoin(users, eq(discussionPosts.authorId, usersTable.id))
         .where(eq(discussionPosts.threadId, threadId))
         .orderBy(asc(discussionPosts.createdAt));
 

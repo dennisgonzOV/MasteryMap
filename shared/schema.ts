@@ -97,7 +97,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   teacherId: integer("teacher_id").references(() => users.id),
   schoolId: integer("school_id").references(() => schools.id), // Add school association
-  competencyIds: jsonb("competency_ids"), // Array of competency IDs (legacy)
+
   componentSkillIds: jsonb("component_skill_ids").$type<number[]>().default([]), // Array of component skill IDs
   bestStandardIds: jsonb("best_standard_ids").$type<number[]>().default([]), // Array of B.E.S.T. standard IDs
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),

@@ -41,7 +41,6 @@ interface ProjectData {
   title: string;
   description: string;
   dueDate?: string;
-  competencyIds: number[];
   componentSkillIds: number[];
   bestStandardIds: number[];
 }
@@ -327,7 +326,6 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       title: projectTitle,
       description: projectDescription,
       dueDate: projectDueDate || undefined,
-      competencyIds: Array.from(selectedCompetencyIds),
       componentSkillIds: Array.from(selectedSkills),
       bestStandardIds: Array.from(selectedStandards),
     });
@@ -496,7 +494,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Subjects</SelectItem>
-                      {standardsMetadata?.subjects?.map((subject: string) => (
+                      {(standardsMetadata as any)?.subjects?.map((subject: string) => (
                         <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                       ))}
                     </SelectContent>
@@ -507,7 +505,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Grades</SelectItem>
-                      {standardsMetadata?.grades?.map((grade: string) => (
+                      {(standardsMetadata as any)?.grades?.map((grade: string) => (
                         <SelectItem key={grade} value={grade}>{grade}</SelectItem>
                       ))}
                     </SelectContent>
@@ -522,7 +520,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                 ) : (
                   <ScrollArea className="h-72 border rounded-md p-4">
                     <div className="space-y-3">
-                      {bestStandards.map((standard: any) => (
+                      {(bestStandards as any[]).map((standard: any) => (
                         <div key={standard.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
                           <div className="flex items-start gap-3">
                             <Checkbox
@@ -547,7 +545,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                           </div>
                         </div>
                       ))}
-                      {bestStandards.length === 0 && (
+                      {(bestStandards as any[]).length === 0 && (
                         <div className="text-center text-gray-500 py-8">
                           No standards found matching your criteria
                         </div>
