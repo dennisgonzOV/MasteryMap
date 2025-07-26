@@ -2359,6 +2359,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // School-wide component skills performance tracker
+  app.get("/api/teacher/school-component-skills-progress", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacher = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id)).limit(1);
+      if (!teacher.length || !teacher[0].schoolId) {
+        return res.status(400).json({ message: "Teacher school not found" });
+      }
+
+      const schoolId = teacher[0].schoolId;
+
+      // Get all students in the school
+      const schoolStudents = await storage.getStudentsBySchool(schoolId);
+      const studentIds = schoolStudents.map(s => s.id);
+
+      if (studentIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Get all component skills with competency and learner outcome info
+      const componentSkills = await db.select({
+        id: componentSkillsTable.id,
+        name: componentSkillsTable.name,
+        competencyId: componentSkillsTable.competencyId,
+        competencyName: competenciesTable.name,
+        learnerOutcomeId: competenciesTable.learnerOutcomeId,
+        learnerOutcomeName: learnerOutcomesTable.name
+      })
+        .from(componentSkillsTable)
+        .innerJoin(competenciesTable, eq(componentSkillsTable.competencyId, competenciesTable.id))
+        .innerJoin(learnerOutcomesTable, eq(competenciesTable.learnerOutcomeId, learnerOutcomesTable.id));
+
+      // Get all grades for students in this school
+      const grades = await db.select({
+        studentId: gradesTable.studentId,
+        componentSkillId: gradesTable.componentSkillId,
+        score: gradesTable.score,
+        rubricLevel: gradesTable.rubricLevel,
+        gradedAt: gradesTable.gradedAt
+      })
+        .from(gradesTable)
+        .where(inArray(gradesTable.studentId, studentIds));
+
+      // Calculate performance statistics for each component skill
+      const skillsProgress = componentSkills.map(skill => {
+        const skillGrades = grades.filter(g => g.componentSkillId === skill.id);
+        
+        if (skillGrades.length === 0) {
+          return {
+            id: skill.id,
+            name: skill.name,
+            competencyId: skill.competencyId,
+            competencyName: skill.competencyName,
+            learnerOutcomeName: skill.learnerOutcomeName,
+            averageScore: 0,
+            studentsAssessed: 0,
+            totalStudents: studentIds.length,
+            passRate: 0,
+            strugglingStudents: 0,
+            excellingStudents: 0,
+            rubricDistribution: {
+              emerging: 0,
+              developing: 0,
+              proficient: 0,
+              applying: 0
+            },
+            trend: 'stable' as const,
+            lastAssessmentDate: null
+          };
+        }
+
+        // Calculate statistics
+        const averageScore = skillGrades.reduce((sum, g) => sum + g.score, 0) / skillGrades.length;
+        const studentsAssessed = new Set(skillGrades.map(g => g.studentId)).size;
+        
+        // Count rubric level distribution
+        const rubricDistribution = {
+          emerging: skillGrades.filter(g => g.rubricLevel === 'emerging').length,
+          developing: skillGrades.filter(g => g.rubricLevel === 'developing').length,
+          proficient: skillGrades.filter(g => g.rubricLevel === 'proficient').length,
+          applying: skillGrades.filter(g => g.rubricLevel === 'applying').length
+        };
+
+        const passRate = ((rubricDistribution.proficient + rubricDistribution.applying) / skillGrades.length) * 100;
+        const strugglingStudents = rubricDistribution.emerging;
+        const excellingStudents = rubricDistribution.applying;
+
+        // Simple trend calculation (would need historical data for real trend)
+        const trend = averageScore >= 3.0 ? 'improving' : averageScore <= 2.0 ? 'declining' : 'stable';
+
+        // Find most recent assessment
+        const lastAssessmentDate = skillGrades.reduce((latest, grade) => {
+          const gradeDate = new Date(grade.gradedAt || '');
+          return gradeDate > latest ? gradeDate : latest;
+        }, new Date(0));
+
+        return {
+          id: skill.id,
+          name: skill.name,
+          competencyId: skill.competencyId,
+          competencyName: skill.competencyName,
+          learnerOutcomeName: skill.learnerOutcomeName,
+          averageScore,
+          studentsAssessed,
+          totalStudents: studentIds.length,
+          passRate,
+          strugglingStudents,
+          excellingStudents,
+          rubricDistribution,
+          trend,
+          lastAssessmentDate: lastAssessmentDate.getTime() > 0 ? lastAssessmentDate.toISOString() : null
+        };
+      });
+
+      // Filter out skills with no assessments and sort by most struggling
+      const assessedSkills = skillsProgress.filter(skill => skill.studentsAssessed > 0);
+
+      res.json(assessedSkills);
+    } catch (error) {
+      console.error('School component skills progress error:', error);
+      res.status(500).json({ message: "Failed to fetch school component skills progress" });
+    }
+  });
+
+  // School-wide skills statistics
+  app.get("/api/teacher/school-skills-stats", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacher = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id)).limit(1);
+      if (!teacher.length || !teacher[0].schoolId) {
+        return res.status(400).json({ message: "Teacher school not found" });
+      }
+
+      const schoolId = teacher[0].schoolId;
+
+      // Get all students in the school
+      const schoolStudents = await storage.getStudentsBySchool(schoolId);
+      const studentIds = schoolStudents.map(s => s.id);
+
+      if (studentIds.length === 0) {
+        return res.json({
+          totalSkillsAssessed: 0,
+          averageSchoolScore: 0,
+          skillsNeedingAttention: 0,
+          excellentPerformance: 0,
+          studentsAssessed: 0,
+          totalStudents: 0
+        });
+      }
+
+      // Get all grades for students in this school
+      const grades = await db.select()
+        .from(gradesTable)
+        .where(inArray(gradesTable.studentId, studentIds));
+
+      if (grades.length === 0) {
+        return res.json({
+          totalSkillsAssessed: 0,
+          averageSchoolScore: 0,
+          skillsNeedingAttention: 0,
+          excellentPerformance: 0,
+          studentsAssessed: 0,
+          totalStudents: studentIds.length
+        });
+      }
+
+      // Calculate aggregate statistics
+      const skillsAssessed = new Set(grades.map(g => g.componentSkillId));
+      const studentsAssessed = new Set(grades.map(g => g.studentId));
+      const averageSchoolScore = grades.reduce((sum, g) => sum + g.score, 0) / grades.length;
+
+      // Group by component skill to find struggling and excelling skills
+      const skillStats = new Map();
+      grades.forEach(grade => {
+        const skillId = grade.componentSkillId;
+        if (!skillStats.has(skillId)) {
+          skillStats.set(skillId, []);
+        }
+        skillStats.get(skillId).push(grade);
+      });
+
+      let skillsNeedingAttention = 0;
+      let excellentPerformance = 0;
+
+      skillStats.forEach(skillGrades => {
+        const avgScore = skillGrades.reduce((sum: number, g: any) => sum + g.score, 0) / skillGrades.length;
+        const strugglingCount = skillGrades.filter((g: any) => g.rubricLevel === 'emerging').length;
+        const strugglingPercentage = (strugglingCount / skillGrades.length) * 100;
+
+        if (strugglingPercentage > 30 || avgScore < 2.0) {
+          skillsNeedingAttention++;
+        }
+        if (avgScore >= 3.5) {
+          excellentPerformance++;
+        }
+      });
+
+      res.json({
+        totalSkillsAssessed: skillsAssessed.size,
+        averageSchoolScore,
+        skillsNeedingAttention,
+        excellentPerformance,
+        studentsAssessed: studentsAssessed.size,
+        totalStudents: studentIds.length
+      });
+    } catch (error) {
+      console.error('School skills stats error:', error);
+      res.status(500).json({ message: "Failed to fetch school skills statistics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

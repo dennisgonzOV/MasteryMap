@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import SchoolSkillsTracker from './school-skills-tracker';
 import { 
   Search, 
   Users, 
@@ -17,7 +18,8 @@ import {
   GraduationCap,
   Star,
   Trophy,
-  Medal
+  Medal,
+  BarChart3
 } from 'lucide-react';
 
 interface StudentProgress {
@@ -57,6 +59,7 @@ interface StudentProgress {
 export default function StudentProgressView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<StudentProgress | null>(null);
+  const [activeTab, setActiveTab] = useState('students');
 
   const { data: studentsProgress = [], isLoading } = useQuery({
     queryKey: ["/api/teacher/school-students-progress"],
@@ -100,16 +103,30 @@ export default function StudentProgressView() {
 
   return (
     <div className="space-y-6">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Search students by name or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {/* Main Navigation Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="students" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Individual Students</span>
+          </TabsTrigger>
+          <TabsTrigger value="skills" className="flex items-center space-x-2">
+            <BarChart3 className="h-4 w-4" />
+            <span>School Skills Tracker</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="students" className="mt-6">
+          {/* Search */}
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search students by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Students List */}
@@ -314,6 +331,12 @@ export default function StudentProgressView() {
           )}
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="skills" className="mt-6">
+          <SchoolSkillsTracker />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
