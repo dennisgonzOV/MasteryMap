@@ -56,64 +56,18 @@ export default function SchoolSkillsTracker() {
   const [sortBy, setSortBy] = useState<'performance' | 'struggling' | 'assessed'>('struggling');
   const [viewMode, setViewMode] = useState<'overview' | 'details'>('overview');
 
-  const { data: apiSkillsData = [], isLoading } = useQuery<ComponentSkillProgress[]>({
+  const { data: apiSkillsData = [], isLoading, error } = useQuery<ComponentSkillProgress[]>({
     queryKey: ["/api/teacher/school-component-skills-progress"],
     retry: false,
   });
 
-  // Use mock data if API fails to ensure component renders properly
-  const mockSkillsData: ComponentSkillProgress[] = [
-    {
-      id: 1,
-      name: "Problem identification and analysis",
-      competencyId: 1,
-      competencyName: "Critical Thinking",
-      learnerOutcomeName: "Think Critically",
-      averageScore: 67,
-      studentsAssessed: 8,
-      totalStudents: 12,
-      passRate: 62,
-      strugglingStudents: 3,
-      excellingStudents: 2,
-      rubricDistribution: { emerging: 25, developing: 38, proficient: 25, applying: 12 },
-      trend: 'declining',
-      lastAssessmentDate: '2025-01-20'
-    },
-    {
-      id: 2,
-      name: "Collaborative problem-solving",
-      competencyId: 2,
-      competencyName: "Collaboration",
-      learnerOutcomeName: "Collaborate Effectively",
-      averageScore: 78,
-      studentsAssessed: 10,
-      totalStudents: 12,
-      passRate: 80,
-      strugglingStudents: 1,
-      excellingStudents: 4,
-      rubricDistribution: { emerging: 10, developing: 30, proficient: 40, applying: 20 },
-      trend: 'improving',
-      lastAssessmentDate: '2025-01-22'
-    },
-    {
-      id: 3,
-      name: "Written communication",
-      competencyId: 3,
-      competencyName: "Communication",
-      learnerOutcomeName: "Communicate Clearly",
-      averageScore: 72,
-      studentsAssessed: 9,
-      totalStudents: 12,
-      passRate: 67,
-      strugglingStudents: 2,
-      excellingStudents: 2,
-      rubricDistribution: { emerging: 22, developing: 33, proficient: 33, applying: 11 },
-      trend: 'stable',
-      lastAssessmentDate: '2025-01-21'
-    }
-  ];
+  const { data: statsData } = useQuery<SchoolSkillsStats>({
+    queryKey: ["/api/teacher/school-skills-stats"],
+    retry: false,
+  });
 
-  const skillsData = apiSkillsData.length > 0 ? apiSkillsData : mockSkillsData;
+  // Use actual API data only - no mock data fallback
+  const skillsData = apiSkillsData;
 
   const { data: learnerOutcomes = [] } = useQuery({
     queryKey: ["/api/learner-outcomes-hierarchy/complete"],
@@ -133,16 +87,8 @@ export default function SchoolSkillsTracker() {
   });
 
   // Mock school stats if API fails
-  const mockSchoolStats: SchoolSkillsStats = {
-    totalSkillsAssessed: 3,
-    averageSchoolScore: 72,
-    skillsNeedingAttention: 1,
-    excellentPerformance: 1,
-    studentsAssessed: 9,
-    totalStudents: 12
-  };
 
-  const schoolStats = apiSchoolStats.totalSkillsAssessed > 0 ? apiSchoolStats : mockSchoolStats;
+  const schoolStats = apiSchoolStats
 
   // Filter and sort skills data
   const filteredSkills = skillsData.filter(skill => 
@@ -205,6 +151,14 @@ export default function SchoolSkillsTracker() {
           </div>
           <div className="h-96 bg-gray-200 rounded"></div>
         </div>
+      </div>
+    );
+  }
+
+   if (error) {
+    return (
+      <div className="text-red-500">
+        Error loading data. Please try again later.
       </div>
     );
   }

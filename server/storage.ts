@@ -826,20 +826,35 @@ export class DatabaseStorage implements IStorage {
 
   // Get component skills with full details
   async getComponentSkillsWithDetails(): Promise<any[]> {
-    return await db
-      .select({
-        id: componentSkills.id,
-        name: componentSkills.name,
-        competencyId: componentSkills.competencyId,
-        competencyName: competencies.name,
-        competencyCategory: competencies.category,
-        learnerOutcomeId: competencies.learnerOutcomeId,
-        learnerOutcomeName: learnerOutcomes.name,
-      })
-      .from(componentSkills)
-      .innerJoin(competencies, eq(componentSkills.competencyId, competencies.id))
-      .innerJoin(learnerOutcomes, eq(competencies.learnerOutcomeId, learnerOutcomes.id))
-      .orderBy(componentSkills.id);
+    try {
+      const results = await db
+        .select({
+          id: componentSkills.id,
+          name: componentSkills.name,
+          competencyId: componentSkills.competencyId,
+          competencyName: competencies.name,
+          competencyCategory: competencies.category,
+          learnerOutcomeId: competencies.learnerOutcomeId,
+          learnerOutcomeName: learnerOutcomes.name,
+        })
+        .from(componentSkills)
+        .leftJoin(competencies, eq(componentSkills.competencyId, competencies.id))
+        .leftJoin(learnerOutcomes, eq(competencies.learnerOutcomeId, learnerOutcomes.id))
+        .orderBy(componentSkills.id);
+
+      // Filter out any results with null component skill data and add fallbacks for missing joins
+      return results
+        .filter(result => result.id && result.name)
+        .map(result => ({
+          ...result,
+          competencyName: result.competencyName || 'Unknown Competency',
+          learnerOutcomeName: result.learnerOutcomeName || 'Unknown Learner Outcome',
+          competencyId: result.competencyId || 0
+        }));
+    } catch (error) {
+      console.error("Error in getComponentSkillsWithDetails:", error);
+      return [];
+    }
   }
 
   async getComponentSkillsByIds(skillIds: number[]) {
