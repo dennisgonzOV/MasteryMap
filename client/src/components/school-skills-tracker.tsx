@@ -155,11 +155,42 @@ export default function SchoolSkillsTracker() {
     );
   }
 
-   if (error) {
+  if (error) {
     return (
-      <div className="text-red-500">
-        Error loading data. Please try again later.
-      </div>
+      <Card className="p-6">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to Load Component Skills Data</h3>
+          <p className="text-gray-600 mb-4">
+            There was an error loading the component skills progress data. This might be due to:
+          </p>
+          <ul className="text-sm text-gray-500 mb-6 space-y-1">
+            <li>• No component skills have been assessed yet</li>
+            <li>• Database connectivity issues</li>
+            <li>• Missing component skill data in the system</li>
+          </ul>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!skillsData || skillsData.length === 0) {
+    return (
+      <Card className="p-6">
+        <div className="text-center">
+          <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Component Skills Assessed Yet</h3>
+          <p className="text-gray-600 mb-4">
+            Once students complete assessments with component skill evaluations, their progress will appear here.
+          </p>
+          <p className="text-sm text-gray-500">
+            Create projects with assessments that include XQ component skills to start tracking progress.
+          </p>
+        </div>
+      </Card>
     );
   }
 

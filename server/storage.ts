@@ -827,64 +827,46 @@ export class DatabaseStorage implements IStorage {
   // Get component skills with full details
   async getComponentSkillsWithDetails(): Promise<any[]> {
     try {
-      // First get component skills
-      const skills = await db.select().from(componentSkills).orderBy(componentSkills.id);
+      // Get all data separately to avoid join issues
+      const skills = await db.select({
+        id: componentSkills.id,
+        name: componentSkills.name,
+        competencyId: componentSkills.competencyId
+      }).from(componentSkills).orderBy(componentSkills.id);
       
-      // Then enrich each skill with competency and learner outcome data
-      const enrichedSkills = await Promise.all(
-        skills.map(async (skill) => {
-          let competencyName = 'Unknown Competency';
-          let competencyCategory = null;
-          let learnerOutcomeId = null;
-          let learnerOutcomeName = 'Unknown Learner Outcome';
+      const allCompetencies = await db.select({
+        id: competencies.id,
+        name: competencies.name,
+        category: competencies.category,
+        learnerOutcomeId: competencies.learnerOutcomeId
+      }).from(competencies);
+      
+      const allLearnerOutcomes = await db.select({
+        id: learnerOutcomes.id,
+        name: learnerOutcomes.name
+      }).from(learnerOutcomes);
 
-          // Get competency data if competencyId exists
-          if (skill.competencyId) {
-            try {
-              const competency = await db.select()
-                .from(competencies)
-                .where(eq(competencies.id, skill.competencyId))
-                .limit(1);
-              
-              if (competency.length > 0) {
-                competencyName = competency[0].name || 'Unknown Competency';
-                competencyCategory = competency[0].category;
-                learnerOutcomeId = competency[0].learnerOutcomeId;
+      // Create lookup maps for efficient data matching
+      const competencyMap = new Map(allCompetencies.map(c => [c.id, c]));
+      const outcomeMap = new Map(allLearnerOutcomes.map(o => [o.id, o]));
 
-                // Get learner outcome data if learnerOutcomeId exists
-                if (learnerOutcomeId) {
-                  try {
-                    const learnerOutcome = await db.select()
-                      .from(learnerOutcomes)
-                      .where(eq(learnerOutcomes.id, learnerOutcomeId))
-                      .limit(1);
-                    
-                    if (learnerOutcome.length > 0) {
-                      learnerOutcomeName = learnerOutcome[0].name || 'Unknown Learner Outcome';
-                    }
-                  } catch (outcomeError) {
-                    console.error(`Error fetching learner outcome ${learnerOutcomeId}:`, outcomeError);
-                  }
-                }
-              }
-            } catch (competencyError) {
-              console.error(`Error fetching competency ${skill.competencyId}:`, competencyError);
-            }
-          }
+      // Enrich skills with competency and learner outcome data
+      const enrichedSkills = skills.map((skill) => {
+        const competency = skill.competencyId ? competencyMap.get(skill.competencyId) : null;
+        const learnerOutcome = competency?.learnerOutcomeId ? outcomeMap.get(competency.learnerOutcomeId) : null;
 
-          return {
-            id: skill.id,
-            name: skill.name,
-            competencyId: skill.competencyId || 0,
-            competencyName,
-            competencyCategory,
-            learnerOutcomeId,
-            learnerOutcomeName
-          };
-        })
-      );
+        return {
+          id: skill.id,
+          name: skill.name || 'Unknown Skill',
+          competencyId: skill.competencyId || 0,
+          competencyName: competency?.name || 'Unknown Competency',
+          competencyCategory: competency?.category || null,
+          learnerOutcomeId: competency?.learnerOutcomeId || null,
+          learnerOutcomeName: learnerOutcome?.name || 'Unknown Learner Outcome'
+        };
+      });
 
-      return enrichedSkills.filter(skill => skill.id && skill.name);
+      return enrichedSkills.filter(skill => skill.id && skill.name !== 'Unknown Skill');
     } catch (error) {
       console.error("Error in getComponentSkillsWithDetails:", error);
       return [];

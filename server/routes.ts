@@ -2152,6 +2152,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use storage method to get component skills with details safely
       const componentSkills = await storage.getComponentSkillsWithDetails();
+      
+      if (componentSkills.length === 0) {
+        console.log("No component skills found");
+        return res.json([]);
+      }
 
       // Get all grades and filter in memory for safety
       const allGrades = await db.select({
