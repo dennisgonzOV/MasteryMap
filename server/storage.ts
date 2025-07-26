@@ -828,23 +828,15 @@ export class DatabaseStorage implements IStorage {
   async getComponentSkillsWithDetails(): Promise<any[]> {
     try {
       // Get all data separately to avoid join issues
-      const skills = await db.select({
-        id: componentSkills.id,
-        name: componentSkills.name,
-        competencyId: componentSkills.competencyId
-      }).from(componentSkills).orderBy(componentSkills.id);
+      const skills = await db.select().from(componentSkills).orderBy(componentSkills.id);
       
-      const allCompetencies = await db.select({
-        id: competencies.id,
-        name: competencies.name,
-        category: competencies.category,
-        learnerOutcomeId: competencies.learnerOutcomeId
-      }).from(competencies);
-      
-      const allLearnerOutcomes = await db.select({
-        id: learnerOutcomes.id,
-        name: learnerOutcomes.name
-      }).from(learnerOutcomes);
+      if (!skills || skills.length === 0) {
+        console.log("No component skills found in database");
+        return [];
+      }
+
+      const allCompetencies = await db.select().from(competencies);
+      const allLearnerOutcomes = await db.select().from(learnerOutcomes);
 
       // Create lookup maps for efficient data matching
       const competencyMap = new Map(allCompetencies.map(c => [c.id, c]));
@@ -866,6 +858,7 @@ export class DatabaseStorage implements IStorage {
         };
       });
 
+      console.log(`Successfully enriched ${enrichedSkills.length} component skills`);
       return enrichedSkills.filter(skill => skill.id && skill.name !== 'Unknown Skill');
     } catch (error) {
       console.error("Error in getComponentSkillsWithDetails:", error);

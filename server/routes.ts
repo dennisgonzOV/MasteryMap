@@ -2153,8 +2153,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use storage method to get component skills with details safely
       const componentSkills = await storage.getComponentSkillsWithDetails();
       
-      if (componentSkills.length === 0) {
-        console.log("No component skills found");
+      if (!componentSkills || componentSkills.length === 0) {
+        console.log("No component skills found in database");
         return res.json([]);
       }
 
