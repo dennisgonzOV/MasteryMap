@@ -341,15 +341,15 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
         <form onSubmit={handleSubmit} className="space-y-6 pb-6">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="title">Project Title</Label></div>
-                <Input
-                  id="title"
-                  value={projectTitle}
-                  onChange={(e) => setProjectTitle(e.target.value)}
-                  placeholder="Enter project title"
-                  required
-                />
-              </div>
+              <Label htmlFor="title">Project Title</Label>
+              <Input
+                id="title"
+                value={projectTitle}
+                onChange={(e) => setProjectTitle(e.target.value)}
+                placeholder="Enter project title"
+                required
+              />
+            </div>
 
               <div>
                 <Label htmlFor="description">Description</Label>

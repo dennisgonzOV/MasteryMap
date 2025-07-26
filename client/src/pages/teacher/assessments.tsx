@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
+import type { Assessment, Project, User } from "@shared/schema";
 import Navigation from "@/components/navigation";
 import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
 import ViewSubmissionsModal from "@/components/modals/view-submissions-modal";
@@ -71,32 +72,32 @@ export default function TeacherAssessments() {
   }, [isAuthenticated, isLoading, toast]);
 
   // Fetch projects for filter
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
-    enabled: isAuthenticated && user?.role === 'teacher',
+    enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
 
   // Fetch all assessments (including milestone-linked ones)
-  const { data: assessments = [], refetch: refetchAssessments } = useQuery({
+  const { data: assessments = [], refetch: refetchAssessments } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments"],
-    enabled: isAuthenticated && user?.role === 'teacher',
+    enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
 
   // Fetch milestones for filtered project
   const selectedProjectId = projectFilter !== "all" ? parseInt(projectFilter) : null;
-  const { data: milestones = [] } = useQuery({
+  const { data: milestones = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "milestones"],
     queryFn: () => selectedProjectId ? api.getMilestones(selectedProjectId) : Promise.resolve([]),
-    enabled: isAuthenticated && user?.role === 'teacher' && !!selectedProjectId,
+    enabled: isAuthenticated && (user as User)?.role === 'teacher' && !!selectedProjectId,
     retry: false,
   });
 
   // Fetch component skills with competency details
-  const { data: componentSkillsDetails = [] } = useQuery({
+  const { data: componentSkillsDetails = [] } = useQuery<any[]>({
     queryKey: ["/api/component-skills/details"],
-    enabled: isAuthenticated && user?.role === 'teacher',
+    enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
 
@@ -111,7 +112,7 @@ export default function TeacherAssessments() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'teacher') {
+  if (!isAuthenticated || (user as User)?.role !== 'teacher') {
     return null;
   }
 
@@ -426,7 +427,7 @@ export default function TeacherAssessments() {
                         <div className="flex items-center justify-center mb-1">
                           <FileText className="h-4 w-4 text-blue-500" />
                         </div>
-                        <p className="text-sm font-semibold text-gray-900">{assessment.questions?.length || 0}</p>
+                        <p className="text-sm font-semibold text-gray-900">{(assessment as any).questions?.length || 0}</p>
                         <p className="text-xs text-gray-600">Questions</p>
                       </div>
                       <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
@@ -453,14 +454,14 @@ export default function TeacherAssessments() {
                           <span className="text-sm font-medium text-gray-700">Skills Assessment</span>
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {getCompetencyInfo(assessment).slice(0, 2).map((competency: any, index: number) => (
+                          {getCompetencyInfo(assessment)?.slice(0, 2).map((competency: any, index: number) => (
                             <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                               {competency.competencyName}
                             </Badge>
                           ))}
-                          {getCompetencyInfo(assessment).length > 2 && (
+                          {getCompetencyInfo(assessment) && getCompetencyInfo(assessment)!.length > 2 && (
                             <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs">
-                              +{getCompetencyInfo(assessment).length - 2} more
+                              +{getCompetencyInfo(assessment)!.length - 2} more
                             </Badge>
                           )}
                         </div>

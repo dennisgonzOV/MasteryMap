@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import ProgressTracker from '@/components/progress-tracker';
 import ProjectManagementModal from '@/components/modals/project-management-modal';
 import StudentProgressView from '@/components/student-progress-view';
 import { useAuth } from '@/hooks/useAuth';
+import type { User, Project } from '@shared/schema';
 import { 
   BookOpen, 
   Users, 
@@ -53,7 +55,7 @@ interface PendingTask {
 }
 
 export default function EnhancedTeacherDashboard() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showProjectManagement, setShowProjectManagement] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -66,30 +68,30 @@ export default function EnhancedTeacherDashboard() {
     pendingGrades: 0,
     credentialsAwarded: 0,
     upcomingDeadlines: 0
-  } } = useQuery({
+  } } = useQuery<TeacherDashboardStats>({
     queryKey: ["/api/teacher/dashboard-stats"],
-    enabled: isAuthenticated && user?.role === 'teacher',
+    enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
 
   // Fetch teacher's projects
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<ProjectOverview[]>({
     queryKey: ["/api/teacher/projects"],
-    enabled: isAuthenticated && user?.role === 'teacher',
+    enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
 
   // Fetch pending tasks
-  const { data: pendingTasks = [] } = useQuery({
+  const { data: pendingTasks = [] } = useQuery<PendingTask[]>({
     queryKey: ["/api/teacher/pending-tasks"],
-    enabled: isAuthenticated && user?.role === 'teacher',
+    enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
 
   // Fetch current project milestones
-  const { data: milestones = [] } = useQuery({
+  const { data: milestones = [] } = useQuery<any[]>({
     queryKey: ["/api/teacher/current-milestones"],
-    enabled: isAuthenticated && user?.role === 'teacher',
+    enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
 
@@ -138,7 +140,7 @@ export default function EnhancedTeacherDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {user?.firstName || 'Teacher'}
+              Welcome back, {(user as User)?.firstName || 'Teacher'}
             </h1>
             <p className="text-gray-600 mt-1">
               Here's what's happening with your classes today
