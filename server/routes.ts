@@ -2150,18 +2150,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Get all component skills with competency and learner outcome info
-      const componentSkills = await db.select({
-        id: componentSkillsTable.id,
-        name: componentSkillsTable.name,
-        competencyId: componentSkillsTable.competencyId,
-        competencyName: competenciesTable.name,
-        learnerOutcomeId: competenciesTable.learnerOutcomeId,
-        learnerOutcomeName: learnerOutcomesTable.name
-      })
-        .from(componentSkillsTable)
-        .leftJoin(competenciesTable, eq(componentSkillsTable.competencyId, competenciesTable.id))
-        .leftJoin(learnerOutcomesTable, eq(competenciesTable.learnerOutcomeId, learnerOutcomesTable.id));
+      // Use storage method to get component skills with details safely
+      const componentSkills = await storage.getComponentSkillsWithDetails();
 
       // Get all grades and filter in memory for safety
       const allGrades = await db.select({
@@ -2183,9 +2173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return {
             id: skill.id,
             name: skill.name,
-            competencyId: skill.competencyId,
-            competencyName: skill.competencyName,
-            learnerOutcomeName: skill.learnerOutcomeName,
+            competencyId: skill.competencyId || 0,
+            competencyName: skill.competencyName || 'Unknown Competency',
+            learnerOutcomeName: skill.learnerOutcomeName || 'Unknown Learner Outcome',
             averageScore: 0,
             studentsAssessed: 0,
             totalStudents: studentIds.length,
@@ -2204,7 +2194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Calculate statistics
-        const averageScore = skillGrades.reduce((sum, g) => sum + g.score, 0) / skillGrades.length;
+        const averageScore = skillGrades.reduce((sum, g) => sum + (g.score || 0), 0) / skillGrades.length;
         const studentsAssessed = new Set(skillGrades.map(g => g.studentId)).size;
 
         // Count rubric level distribution
@@ -2215,7 +2205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           applying: skillGrades.filter(g => g.rubricLevel === 'applying').length
         };
 
-        const passRate = ((rubricDistribution.proficient + rubricDistribution.applying) / skillGrades.length) * 100;
+        const passRate = skillGrades.length > 0 ? ((rubricDistribution.proficient + rubricDistribution.applying) / skillGrades.length) * 100 : 0;
         const strugglingStudents = rubricDistribution.emerging;
         const excellingStudents = rubricDistribution.applying;
 
@@ -2231,9 +2221,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           id: skill.id,
           name: skill.name,
-          competencyId: skill.competencyId,
-          competencyName: skill.competencyName,
-          learnerOutcomeName: skill.learnerOutcomeName,
+          competencyId: skill.competencyId || 0,
+          competencyName: skill.competencyName || 'Unknown Competency',
+          learnerOutcomeName: skill.learnerOutcomeName || 'Unknown Learner Outcome',
           averageScore,
           studentsAssessed,
           totalStudents: studentIds.length,
