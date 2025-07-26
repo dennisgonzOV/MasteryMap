@@ -11,7 +11,6 @@ import {
   AlertCircle, 
   Clock, 
   Eye,
-  Download,
   FileText,
   Calendar
 } from "lucide-react";
@@ -152,14 +151,7 @@ export default function AssessmentSubmissions() {
 
             {/* Action Buttons */}
             <div className="flex items-center space-x-3">
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={handleExportResults}
-              >
-                <Download className="h-4 w-4" />
-                <span>Export Results</span>
-              </Button>
+              
             </div>
           </div>
         </div>
