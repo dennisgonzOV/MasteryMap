@@ -2159,13 +2159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all grades and filter in memory for safety
-      const allGrades = await db.select({
-        studentId: gradesTable.studentId,
-        componentSkillId: gradesTable.componentSkillId,
-        score: gradesTable.score,
-        rubricLevel: gradesTable.rubricLevel,
-        gradedAt: gradesTable.gradedAt
-      }).from(gradesTable);
+      const allGrades = await db.select().from(gradesTable);
 
       // Filter grades for students in this school
       const grades = allGrades.filter(grade => studentIds.includes(grade.studentId));

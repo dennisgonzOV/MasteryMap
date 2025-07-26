@@ -676,23 +676,36 @@ export class DatabaseStorage implements IStorage {
   }>> {
     try {
       // Get all grades for the student with related component skills and competencies
-      const studentGrades = await db
-        .select({
-          gradeId: grades.id,
-          score: grades.score,
-          gradedAt: grades.gradedAt,
-          componentSkillId: grades.componentSkillId,
-          componentSkillName: componentSkills.name,
-          competencyId: competencies.id,
-          competencyName: competencies.name,
-          submissionId: grades.submissionId,
-        })
-        .from(grades)
-        .innerJoin(submissions, eq(grades.submissionId, submissions.id))
-        .innerJoin(componentSkills, eq(grades.componentSkillId, componentSkills.id))
-        .innerJoin(competencies, eq(componentSkills.competencyId, competencies.id))
-        .where(eq(submissions.studentId, studentId))
-        .orderBy(desc(grades.gradedAt));
+      // Use separate queries to avoid Drizzle ORM field selection issues
+      const allGrades = await db.select().from(grades);
+      const allSubmissions = await db.select().from(submissions).where(eq(submissions.studentId, studentId));
+      const allComponentSkills = await db.select().from(componentSkills);
+      const allCompetencies = await db.select().from(competencies);
+
+      // Filter grades for this student's submissions
+      const submissionIds = allSubmissions.map(s => s.id);
+      const studentGradesRaw = allGrades.filter(g => submissionIds.includes(g.submissionId));
+
+      // Create lookup maps
+      const skillMap = new Map(allComponentSkills.map(s => [s.id, s]));
+      const competencyMap = new Map(allCompetencies.map(c => [c.id, c]));
+
+      // Enrich grades with related data
+      const studentGrades = studentGradesRaw.map(grade => {
+        const skill = skillMap.get(grade.componentSkillId || 0);
+        const competency = skill?.competencyId ? competencyMap.get(skill.competencyId) : null;
+
+        return {
+          gradeId: grade.id,
+          score: grade.score,
+          gradedAt: grade.gradedAt,
+          componentSkillId: grade.componentSkillId,
+          componentSkillName: skill?.name || 'Unknown Skill',
+          competencyId: competency?.id || 0,
+          competencyName: competency?.name || 'Unknown Competency',
+          submissionId: grade.submissionId,
+        };
+      }).sort((a, b) => new Date(b.gradedAt || 0).getTime() - new Date(a.gradedAt || 0).getTime());
 
       // Group by competency and component skill
       const progressMap = new Map<string, {
