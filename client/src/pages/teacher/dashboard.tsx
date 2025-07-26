@@ -216,8 +216,33 @@ export default function TeacherDashboard() {
                   </Button>
                 </CardContent>
               </Card>
+            </div>
 
-              
+            {/* Student Progress Overview Card */}
+            <div className="lg:col-span-2">
+              <Card className="apple-shadow border-0">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Users className="h-5 w-5 mr-2" />
+                    Student Progress Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-96 overflow-hidden">
+                    <StudentProgressView />
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setShowStudentProgress(true)}
+                    >
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      View Full Progress Overview
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
 
