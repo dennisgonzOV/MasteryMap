@@ -1983,19 +1983,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const processedAssignments = await Promise.all(
               studentAssignments.map(async (assignment) => {
-                const project = await db.select().from(projects).where(eq(projects.id, assignment.projectId)).limit(1);
-                if (!project.length) return null;
+                try {
+                  const project = await db.select().from(projects).where(eq(projects.id, assignment.projectId)).limit(1);
+                  if (!project.length) return null;
 
-                const teacher = await db.select().from(users).where(eq(users.id, project[0].teacherId)).limit(1);
-                const teacherName = teacher.length ? teacher[0].firstName + " " + teacher[0].lastName : 'Unknown';
+                  const teacher = await db.select().from(users).where(eq(users.id, project[0].teacherId)).limit(1);
+                  const teacherName = teacher.length ? `${teacher[0].firstName} ${teacher[0].lastName}` : 'Unknown';
 
-                return {
-                  projectId: project[0].id,
-                  projectTitle: project[0].title,
-                  projectDescription: project[0].description,
-                  projectStatus: project[0].status,
-                  teacherName
-                };
+                  return {
+                    projectId: project[0].id,
+                    projectTitle: project[0].title,
+                    projectDescription: project[0].description,
+                    projectStatus: project[0].status,
+                    teacherName
+                  };
+                } catch (assignmentError) {
+                  console.error(`Error processing assignment for student ${student.id}:`, assignmentError);
+                  return null;
+                }
               })
             );
 
@@ -2010,7 +2015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .from(submissions)
               .where(and(
                 eq(submissions.studentId, student.id),
-                ne(submissions.grade, null)
+                isNull(submissions.grade) === false
               ));
 
             // Simplified competency progress calculation
@@ -2019,7 +2024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 competencyId: 1, // Simplified for now
                 competencyName: 'General Progress',
                 componentSkillId: submission.assessmentId,
-                componentSkillName: "Assessment " + submission.assessmentId,
+                componentSkillName: `Assessment ${submission.assessmentId}`,
                 averageScore: submission.grade || 0,
                 submissionCount: 1
               };
@@ -2027,8 +2032,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             return {
               ...student,
+              grade: student.grade || 'N/A', // Ensure grade is available
               projects: processedAssignments.filter(p => p !== null),
-              credentials: studentCredentials,
+              credentials: studentCredentials.map(cred => ({
+                id: cred.id,
+                title: cred.title,
+                description: cred.description,
+                type: cred.type,
+                awardedAt: cred.awardedAt
+              })),
               competencyProgress: competencyAverages,
               totalCredentials: studentCredentials.length,
               stickers: studentCredentials.filter(c => c.type === 'sticker').length,
@@ -2036,9 +2048,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               plaques: studentCredentials.filter(c => c.type === 'plaque').length
             };
           } catch (studentError) {
-            console.error("Error processing student " + student.id + ":", studentError);
+            console.error(`Error processing student ${student.id}:`, studentError);
             return {
               ...student,
+              grade: student.grade || 'N/A',
               projects: [],
               credentials: [],
               competencyProgress: [],
