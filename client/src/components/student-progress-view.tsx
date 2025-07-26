@@ -239,12 +239,14 @@ export default function StudentProgressView() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedStudent.projects.map((project) => (
+                      {selectedStudent.projects
+                        .filter((project) => project.projectStatus === 'active')
+                        .map((project) => (
                         <div key={project.projectId} className="p-4 border border-gray-200 rounded-lg">
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-medium">{project.projectTitle}</h4>
                             <Badge 
-                              variant={project.projectStatus === 'active' ? 'default' : 'secondary'}
+                              variant="default"
                               className="text-xs"
                             >
                               {project.projectStatus}
@@ -257,8 +259,8 @@ export default function StudentProgressView() {
                           </div>
                         </div>
                       ))}
-                      {selectedStudent.projects.length === 0 && (
-                        <p className="text-gray-500 text-center py-4">No projects assigned</p>
+                      {selectedStudent.projects.filter((project) => project.projectStatus === 'active').length === 0 && (
+                        <p className="text-gray-500 text-center py-4">No active projects assigned</p>
                       )}
                     </div>
                   </CardContent>
