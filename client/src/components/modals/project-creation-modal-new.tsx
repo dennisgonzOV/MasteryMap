@@ -333,16 +333,15 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
-          <form onSubmit={handleSubmit} className="flex flex-col p-1">
-            <div className="space-y-4 mb-6">
-              <div>
-                <Label htmlFor="title">Project Title</Label>
+        <form onSubmit={handleSubmit} className="space-y-6 pb-6">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Project Title</Label></div>
                 <Input
                   id="title"
                   value={projectTitle}
@@ -386,26 +385,26 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
               </div>
             </div>
 
-            <div className="flex-1 min-h-0">
-              <Label className="text-base font-semibold">Select Learning Standards</Label>
-              <p className="text-sm text-muted-foreground mb-3">
-                Choose the component skills and/or B.E.S.T. standards for this project
-              </p>
+            <div>
+            <Label className="text-base font-semibold">Select Learning Standards</Label>
+            <p className="text-sm text-muted-foreground mb-3">
+              Choose the component skills and/or B.E.S.T. standards for this project
+            </p>
+            
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="skills">Component Skills</TabsTrigger>
+                <TabsTrigger value="standards">B.E.S.T. Standards</TabsTrigger>
+              </TabsList>
               
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="skills">Component Skills</TabsTrigger>
-                  <TabsTrigger value="standards">B.E.S.T. Standards</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="skills" className="flex-1 space-y-2">
+              <TabsContent value="skills" className="space-y-2">
                   {isLoading ? (
-                    <div className="flex items-center justify-center h-48">
-                      <div className="text-muted-foreground">Loading competency framework...</div>
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[400px] border rounded-md p-4">
-                      <div className="space-y-2">
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-muted-foreground">Loading competency framework...</div>
+                  </div>
+                ) : (
+                  <div className="max-h-[400px] overflow-y-auto border rounded-md p-4">
+                    <div className="space-y-2">
                         {hierarchyData?.map((outcome: LearnerOutcome) => (
                           <div key={outcome.id} className="border border-gray-200 rounded-lg">
                             {/* Learner Outcome Header */}
@@ -472,12 +471,12 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                             )}
                           </div>
                         ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </TabsContent>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
 
-                <TabsContent value="standards" className="flex-1 space-y-3">
+              <TabsContent value="standards" className="space-y-3">
                   {/* B.E.S.T. Standards Filters */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="relative">
@@ -515,12 +514,12 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
                   {/* B.E.S.T. Standards List */}
                   {isLoadingStandards ? (
-                    <div className="flex items-center justify-center h-48">
-                      <div className="text-muted-foreground">Loading B.E.S.T. standards...</div>
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[350px] border rounded-md p-4">
-                      <div className="space-y-3">
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-muted-foreground">Loading B.E.S.T. standards...</div>
+                  </div>
+                ) : (
+                  <div className="max-h-[350px] overflow-y-auto border rounded-md p-4">
+                    <div className="space-y-3">
                         {(bestStandards as any[]).map((standard: any) => (
                           <div key={standard.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
                             <div className="flex items-start gap-3">
@@ -546,42 +545,41 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                             </div>
                           </div>
                         ))}
-                        {(bestStandards as any[]).length === 0 && (
-                          <div className="text-center text-gray-500 py-8">
-                            No standards found matching your criteria
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </TabsContent>
-              </Tabs>
-
-              {/* Selection Summary */}
-              {(selectedSkills.size > 0 || selectedStandards.size > 0) && (
-                <div className="mt-3 p-3 bg-green-50 rounded-md">
-                  <div className="text-sm text-green-800 space-y-1">
-                    {selectedSkills.size > 0 && (
-                      <p><strong>{selectedSkills.size}</strong> component skills selected</p>
-                    )}
-                    {selectedStandards.size > 0 && (
-                      <p><strong>{selectedStandards.size}</strong> B.E.S.T. standards selected</p>
-                    )}
+                      {(bestStandards as any[]).length === 0 && (
+                        <div className="text-center text-gray-500 py-8">
+                          No standards found matching your criteria
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </TabsContent>
+            </Tabs>
 
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createProjectMutation.isPending}>
-                {createProjectMutation.isPending ? "Creating..." : "Create Project"}
-              </Button>
-            </div>
-          </form>
-        </ScrollArea>
+            {/* Selection Summary */}
+            {(selectedSkills.size > 0 || selectedStandards.size > 0) && (
+              <div className="mt-3 p-3 bg-green-50 rounded-md">
+                <div className="text-sm text-green-800 space-y-1">
+                  {selectedSkills.size > 0 && (
+                    <p><strong>{selectedSkills.size}</strong> component skills selected</p>
+                  )}
+                  {selectedStandards.size > 0 && (
+                    <p><strong>{selectedStandards.size}</strong> B.E.S.T. standards selected</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createProjectMutation.isPending}>
+              {createProjectMutation.isPending ? "Creating..." : "Create Project"}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
