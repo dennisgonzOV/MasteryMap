@@ -2394,29 +2394,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(competenciesTable, eq(componentSkillsTable.competencyId, competenciesTable.id))
         .leftJoin(learnerOutcomesTable, eq(competenciesTable.learnerOutcomeId, learnerOutcomesTable.id));
 
-      // Get all grades for students in this school
-      let grades;
-      if (studentIds.length === 1) {
-        grades = await db.select({
-          studentId: gradesTable.studentId,
-          componentSkillId: gradesTable.componentSkillId,
-          score: gradesTable.score,
-          rubricLevel: gradesTable.rubricLevel,
-          gradedAt: gradesTable.gradedAt
-        })
-          .from(gradesTable)
-          .where(eq(gradesTable.studentId, studentIds[0]));
-      } else {
-        grades = await db.select({
-          studentId: gradesTable.studentId,
-          componentSkillId: gradesTable.componentSkillId,
-          score: gradesTable.score,
-          rubricLevel: gradesTable.rubricLevel,
-          gradedAt: gradesTable.gradedAt
-        })
-          .from(gradesTable)
-          .where(sql`${gradesTable.studentId} = ANY(${studentIds})`);
-      }
+      // Get all grades and filter in memory for safety
+      const allGrades = await db.select({
+        studentId: gradesTable.studentId,
+        componentSkillId: gradesTable.componentSkillId,
+        score: gradesTable.score,
+        rubricLevel: gradesTable.rubricLevel,
+        gradedAt: gradesTable.gradedAt
+      }).from(gradesTable);
+
+      // Filter grades for students in this school
+      const grades = allGrades.filter(grade => studentIds.includes(grade.studentId));
 
       // Calculate performance statistics for each component skill
       const skillsProgress = componentSkills.map(skill => {
@@ -2528,17 +2516,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get all grades for students in this school
-      let grades;
-      if (studentIds.length === 1) {
-        grades = await db.select()
-          .from(gradesTable)
-          .where(eq(gradesTable.studentId, studentIds[0]));
-      } else {
-        grades = await db.select()
-          .from(gradesTable)
-          .where(sql`${gradesTable.studentId} = ANY(${studentIds})`);
-      }
+      // Get all grades and filter in memory for safety
+      const allGrades = await db.select().from(gradesTable);
+      
+      // Filter grades for students in this school
+      const grades = allGrades.filter(grade => studentIds.includes(grade.studentId));
 
       if (grades.length === 0) {
         return res.json({
