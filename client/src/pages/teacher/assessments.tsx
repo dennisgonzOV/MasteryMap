@@ -146,7 +146,7 @@ export default function TeacherAssessments() {
   };
 
   // Filter assessments
-  const filteredAssessments = assessments.filter(assessment => {
+  const filteredAssessments = assessments.filter((assessment: any) => {
     const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          assessment.description.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -383,180 +383,171 @@ export default function TeacherAssessments() {
               )}
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               {filteredAssessments.map((assessment) => (
-                <Card key={assessment.id} className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                <Card key={assessment.id} className="bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group">
+                  <CardContent className="p-6">
+                    {/* Header Section */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 truncate">
                             {assessment.title}
                           </h3>
-                          {assessment.milestoneId && (
-                            <Badge variant="outline" className="flex items-center space-x-1 bg-green-50 text-green-700 border-green-200">
-                              <Calendar className="h-3 w-3" />
-                              <span>Milestone-Linked</span>
-                            </Badge>
-                          )}
-                          {!assessment.milestoneId && (
-                            <Badge variant="outline" className="flex items-center space-x-1 bg-blue-50 text-blue-700 border-blue-200">
-                              <Target className="h-3 w-3" />
-                              <span>Standalone</span>
+                          {assessment.aiGenerated && (
+                            <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs px-2 py-0.5">
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              AI
                             </Badge>
                           )}
                         </div>
-                        <p className="text-gray-600 mb-3 text-sm leading-relaxed">{assessment.description}</p>
-
-                        {/* Competencies and Component Skills Display */}
-                        {getCompetencyInfo(assessment) && (
-                          <div className="mb-4">
-                            <h4 className="text-xs font-medium text-gray-700 mb-2 flex items-center">
-                              <Target className="h-3 w-3 mr-1 text-blue-600" />
-                              Competencies Being Tested
-                            </h4>
-                            <div className="space-y-2">
-                              {getCompetencyInfo(assessment).map((competency: any, index: number) => (
-                                <div key={index} className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1">
-                                      <h5 className="font-medium text-blue-900 text-sm mb-1">
-                                        {competency.competencyName}
-                                      </h5>
-                                      <p className="text-xs text-blue-700">
-                                        {competency.learnerOutcomeName}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="mt-2">
-                                    <p className="text-xs font-medium text-blue-800 mb-1">Component Skills:</p>
-                                    <div className="flex flex-wrap gap-1">
-                                      {competency.skills.map((skill: any) => (
-                                        <Badge key={skill.id} className="text-xs bg-blue-600 text-white hover:bg-blue-700">
-                                          {skill.name}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Share Code Display */}
-                        {assessment.shareCode && (
-                          <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-3 mb-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2">
-                                <Share className="h-4 w-4 text-green-600" />
-                                <span className="text-sm font-medium text-green-800">Student Access Code</span>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <div className="bg-white px-3 py-1 rounded-md border-2 border-green-300">
-                                  <span className="font-mono font-bold text-green-800 text-lg">{assessment.shareCode}</span>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-green-600 border-green-600 hover:bg-green-50 h-8 px-2"
-                                  onClick={() => handleCopyShareCode(assessment.shareCode!)}
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Assessment Info Footer */}
-                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4 text-xs text-gray-600">
-                              <div className="flex items-center space-x-1">
-                                <Clock className="h-3 w-3 text-orange-500" />
-                                <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy') : 'No due date'}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <FileText className="h-3 w-3 text-blue-500" />
-                                <span>{assessment.questions?.length || 0} questions</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <Users className="h-3 w-3 text-green-500" />
-                                <span>24 submissions</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge variant="destructive" className="bg-red-100 text-red-800 text-xs">
-                                6 pending
-                              </Badge>
-                              <span className="text-xs text-gray-500">
-                                Created {assessment.createdAt ? format(new Date(assessment.createdAt), 'MMM d, yyyy') : 'recently'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                        <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">{assessment.description}</p>
                       </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex flex-col items-end space-y-1 ml-4">
-                        <div className="flex items-center space-x-1">
-                          <Button 
-                            variant="outline"
-                            className="text-purple-600 border-purple-600 hover:bg-purple-50 text-xs px-2 py-1"
-                            onClick={() => handleViewSubmissions(assessment.id)}
-                          >
-                            <Users className="h-3 w-3 mr-1" />
-                            Submissions
-                          </Button>
-                          
-                          <Button 
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600 border-green-600 hover:bg-green-50 text-xs px-2 py-1"
-                            onClick={() => setLocation(`/teacher/assessments/${assessment.id}`)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Details
-                          </Button>
-                          <Button 
-                            size="sm"
-                            className="bg-blue-600 text-white hover:bg-blue-700 text-xs px-2 py-1"
-                            onClick={() => setLocation(`/teacher/assessments/${assessment.id}/submissions`)}
-                          >
-                            Grade
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className="text-xs px-2 py-1">
-                                <MoreVertical className="h-3 w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
-                                className="text-red-600 focus:text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Assessment
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                      
+                      {/* Type Badge */}
+                      <div className="ml-3 flex-shrink-0">
+                        {assessment.milestoneId ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Milestone
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                            <Target className="h-3 w-3 mr-1" />
+                            Standalone
+                          </Badge>
+                        )}
                       </div>
                     </div>
 
+                    {/* Key Metrics Row */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
+                        <div className="flex items-center justify-center mb-1">
+                          <FileText className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900">{assessment.questions?.length || 0}</p>
+                        <p className="text-xs text-gray-600">Questions</p>
+                      </div>
+                      <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
+                        <div className="flex items-center justify-center mb-1">
+                          <Users className="h-4 w-4 text-green-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900">24</p>
+                        <p className="text-xs text-gray-600">Submissions</p>
+                      </div>
+                      <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
+                        <div className="flex items-center justify-center mb-1">
+                          <Clock className="h-4 w-4 text-orange-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900">6</p>
+                        <p className="text-xs text-gray-600">Pending</p>
+                      </div>
+                    </div>
+
+                    {/* Competencies Preview */}
+                    {getCompetencyInfo(assessment) && (
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Target className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-gray-700">Skills Assessment</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {getCompetencyInfo(assessment).slice(0, 2).map((competency: any, index: number) => (
+                            <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                              {competency.competencyName}
+                            </Badge>
+                          ))}
+                          {getCompetencyInfo(assessment).length > 2 && (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs">
+                              +{getCompetencyInfo(assessment).length - 2} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Share Code - Compact Version */}
+                    {assessment.shareCode && (
+                      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <Share className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-800">Code:</span>
+                          <span className="font-mono font-bold text-green-800">{assessment.shareCode}</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-green-600 hover:bg-green-100 h-8 w-8 p-0"
+                          onClick={() => handleCopyShareCode(assessment.shareCode!)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Progress Bar */}
-                    <div className="mt-4">
+                    <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">Grading Progress</span>
-                        <span className="text-sm font-medium text-gray-900">67%</span>
+                        <span className="text-sm font-medium text-gray-700">Grading Progress</span>
+                        <span className="text-sm font-semibold text-gray-900">67%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="bg-green-500 h-2 rounded-full"
+                          className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: '67%' }}
                         />
+                      </div>
+                    </div>
+
+                    {/* Footer with Due Date and Actions */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                        <Clock className="h-3 w-3" />
+                        <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d') : 'No due date'}</span>
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          size="sm"
+                          variant="ghost"
+                          className="text-gray-600 hover:text-blue-600 hover:bg-blue-50 h-8 px-2"
+                          onClick={() => setLocation(`/teacher/assessments/${assessment.id}`)}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          size="sm"
+                          variant="ghost"
+                          className="text-gray-600 hover:text-purple-600 hover:bg-purple-50 h-8 px-2"
+                          onClick={() => handleViewSubmissions(assessment.id)}
+                        >
+                          <Users className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          size="sm"
+                          className="bg-blue-600 text-white hover:bg-blue-700 h-8 px-3 text-xs"
+                          onClick={() => setLocation(`/teacher/assessments/${assessment.id}/submissions`)}
+                        >
+                          Grade
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 h-8 w-8 p-0">
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Assessment
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </CardContent>
