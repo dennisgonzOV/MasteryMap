@@ -24,6 +24,7 @@ import { useState } from "react";
 import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
 import ProjectManagementModal from "@/components/modals/project-management-modal";
 import StudentProgressView from "@/components/student-progress-view";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
@@ -195,11 +196,13 @@ export default function TeacherDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-96 overflow-hidden">
-                    <div className="space-y-6">
-                      {/* Search and student list without header */}
-                      <StudentProgressView />
-                    </div>
+                  <div className="h-[600px]">
+                    <ScrollArea className="h-full w-full">
+                      <div className="space-y-6 pr-4">
+                        {/* Search and student list without header */}
+                        <StudentProgressView />
+                      </div>
+                    </ScrollArea>
                   </div>
                 </CardContent>
               </Card>
