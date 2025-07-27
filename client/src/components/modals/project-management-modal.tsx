@@ -76,7 +76,8 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
   const [editingMilestone, setEditingMilestone] = useState<number | null>(null);
   const [projectForm, setProjectForm] = useState({
     title: '',
-    description: ''
+    description: '',
+    dueDate: ''
   });
   const [milestoneForm, setMilestoneForm] = useState({
     title: '',
@@ -301,14 +302,40 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     if (project) {
       setProjectForm({
         title: project.title,
-        description: project.description
+        description: project.description,
+        dueDate: project.dueDate ? format(new Date(project.dueDate), 'yyyy-MM-dd') : ''
       });
       setEditingProject(true);
     }
   };
 
   const handleSaveProject = () => {
-    updateProjectMutation.mutate(projectForm);
+    // Validate that project due date is after all milestone due dates
+    if (projectForm.dueDate && milestones.length > 0) {
+      const projectDue = new Date(projectForm.dueDate);
+      const latestMilestone = milestones
+        .filter(m => m.dueDate)
+        .reduce((latest, milestone) => {
+          const milestoneDate = new Date(milestone.dueDate);
+          return milestoneDate > latest ? milestoneDate : latest;
+        }, new Date(0));
+
+      if (latestMilestone.getTime() > 0 && projectDue <= latestMilestone) {
+        toast({
+          title: "Invalid due date",
+          description: "Project due date must be after all milestone due dates",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    const updateData = {
+      ...projectForm,
+      dueDate: projectForm.dueDate ? new Date(projectForm.dueDate) : undefined
+    };
+    
+    updateProjectMutation.mutate(updateData);
   };
 
   const handleEditMilestone = (milestone: Milestone) => {
@@ -321,6 +348,21 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
   };
 
   const handleSaveMilestone = (milestoneId: number) => {
+    // Validate that milestone due date is before project due date
+    if (milestoneForm.dueDate && project?.dueDate) {
+      const milestoneDate = new Date(milestoneForm.dueDate);
+      const projectDate = new Date(project.dueDate);
+      
+      if (milestoneDate >= projectDate) {
+        toast({
+          title: "Invalid due date",
+          description: "Milestone due date must be before the project due date",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     updateMilestoneMutation.mutate({
       milestoneId,
       updates: {
@@ -467,6 +509,16 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                           rows={3}
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="projectDueDate">Project Due Date</Label>
+                        <Input
+                          id="projectDueDate"
+                          type="date"
+                          value={projectForm.dueDate}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setProjectForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                        />
+                      </div>
                       <div className="flex items-center space-x-2">
                         <Button onClick={handleSaveProject} disabled={updateProjectMutation.isPending}>
                           Save Changes
@@ -487,8 +539,11 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                         </Badge>
                       </div>
                       <p className="text-gray-600 mb-4">{project.description}</p>
-                      <div className="flex items-center text-sm text-gray-500">
-                        Created: {format(new Date(project.createdAt), 'MMM d, yyyy')}
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span>Created: {format(new Date(project.createdAt), 'MMM d, yyyy')}</span>
+                        {project.dueDate && (
+                          <span>Due: {format(new Date(project.dueDate), 'MMM d, yyyy')}</span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -647,6 +702,8 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                                         id={`milestoneDueDate-${milestone.id}`}
                                         type="date"
                                         value={milestoneForm.dueDate}
+                                        min={new Date().toISOString().split('T')[0]}
+                                        max={project?.dueDate ? format(new Date(project.dueDate), 'yyyy-MM-dd') : undefined}
                                         onChange={(e) => setMilestoneForm(prev => ({ ...prev, dueDate: e.target.value }))}
                                       />
                                     </div>
