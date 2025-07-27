@@ -2229,24 +2229,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get grades for students in this school by joining through submissions
       let grades = [];
       try {
-        // Build OR conditions for each student ID to avoid inArray issues
-        const studentConditions = studentIds.map(id => eq(submissionsTable.student_id, id));
+        if (studentIds.length === 0) {
+          console.log('No students found for school');
+          grades = [];
+        } else {
+          // Build OR conditions for each student ID to avoid inArray issues
+          const studentConditions = studentIds.map(id => eq(submissionsTable.student_id, id));
+          console.log('Building query for student IDs:', studentIds);
 
-        const gradesWithStudents = await db.select({
-          id: gradesTable.id,
-          submission_id: gradesTable.submission_id,
-          component_skill_id: gradesTable.component_skill_id,
-          score: gradesTable.score,
-          rubric_level: gradesTable.rubric_level,
-          feedback: gradesTable.feedback,
-          graded_at: gradesTable.graded_at,
-          student_id: submissionsTable.student_id
-        })
-        .from(gradesTable)
-        .innerJoin(submissionsTable, eq(gradesTable.submission_id, submissionsTable.id))
-        .where(or(...studentConditions));
+          const gradesWithStudents = await db.select({
+            id: gradesTable.id,
+            submission_id: gradesTable.submission_id,
+            component_skill_id: gradesTable.component_skill_id,
+            score: gradesTable.score,
+            rubric_level: gradesTable.rubric_level,
+            feedback: gradesTable.feedback,
+            graded_at: gradesTable.graded_at,
+            student_id: submissionsTable.student_id
+          })
+          .from(gradesTable)
+          .innerJoin(submissionsTable, eq(gradesTable.submission_id, submissionsTable.id))
+          .where(or(...studentConditions));
 
-        grades = gradesWithStudents;
+          grades = gradesWithStudents;
+        }
         console.log('Total grades found for school students:', grades.length);
         console.log('Sample grades:', grades.slice(0, 3));
       } catch (error) {
