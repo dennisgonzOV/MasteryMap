@@ -42,7 +42,7 @@ export default function EnterCode() {
     if (code.length !== 5) {
       toast({
         title: "Invalid code format",
-        description: "Assessment codes must be exactly 5 letters.",
+        description: "Assessment codes must be exactly 5 characters (letters and numbers).",
         variant: "destructive",
       });
       return;
@@ -98,7 +98,7 @@ export default function EnterCode() {
   };
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
+    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (value.length <= 5) {
       setCode(value);
     }
@@ -114,7 +114,7 @@ export default function EnterCode() {
             </div>
             <CardTitle className="text-2xl text-gray-900">Enter Assessment Code</CardTitle>
             <CardDescription className="text-gray-600">
-              Enter the 5-letter code provided by your teacher to access the assessment.
+              Enter the 5-character code provided by your teacher to access the assessment.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -128,13 +128,13 @@ export default function EnterCode() {
                   type="text"
                   value={code}
                   onChange={handleCodeChange}
-                  placeholder="ABCDE"
+                  placeholder="ABC12"
                   className="text-center text-2xl font-mono tracking-widest uppercase h-14"
                   maxLength={5}
                   autoFocus
                 />
                 <p className="text-xs text-gray-500 text-center">
-                  Enter exactly 5 letters (A-Z only)
+                  Enter exactly 5 characters (A-Z and 0-9 only)
                 </p>
               </div>
 
