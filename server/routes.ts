@@ -2152,17 +2152,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use storage method to get component skills with details safely
       const componentSkills = await storage.getComponentSkillsWithDetails();
-      
+
       if (!componentSkills || componentSkills.length === 0) {
         console.log("No component skills found in database");
         return res.json([]);
       }
 
-      // Get all grades and filter in memory for safety
-      const allGrades = await db.select().from(gradesTable);
-
-      // Filter grades for students in this school
-      const grades = allGrades.filter(grade => studentIds.includes(grade.studentId));
+      // Get grades for students in this school directly
+      const grades = studentIds.length > 0 ? await db.select()
+        .from(gradesTable)
+        .where(inArray(gradesTable.studentId, studentIds)) : [];
 
       // Calculate performance statistics for each component skill
       const skillsProgress = componentSkills.map(skill => {
