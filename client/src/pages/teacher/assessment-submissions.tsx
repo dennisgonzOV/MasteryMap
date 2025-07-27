@@ -127,11 +127,20 @@ export default function AssessmentSubmissions() {
 
   // State for UI interactions
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(new Set());
+  
+  // Initialize gradingData from sessionStorage if available, otherwise empty object
   const [gradingData, setGradingData] = useState<Record<number, Record<number, {
     rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
     feedback: string;
     score: number;
-  }>>>({});
+  }>>>(() => {
+    try {
+      const saved = sessionStorage.getItem(`gradingData_${id}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [bulkGradingProgress, setBulkGradingProgress] = useState(0);
   const [isBulkGrading, setIsBulkGrading] = useState(false);
 
@@ -165,24 +174,39 @@ export default function AssessmentSubmissions() {
   const initializeGradingData = React.useCallback(() => {
     if (!submissions.length || !relevantSkills.length || isGradingDataInitialized) return;
     
-    const initialData: typeof gradingData = {};
+    // Get any existing manual input from sessionStorage
+    let savedData: typeof gradingData = {};
+    try {
+      const saved = sessionStorage.getItem(`gradingData_${id}`);
+      savedData = saved ? JSON.parse(saved) : {};
+    } catch {
+      savedData = {};
+    }
     
+    const initialData: typeof gradingData = { ...savedData };
+    
+    // Merge with existing grades from database, but don't overwrite manual input
     submissions.forEach(submission => {
       if (submission.grades && submission.grades.length > 0) {
-        initialData[submission.id] = {};
+        if (!initialData[submission.id]) {
+          initialData[submission.id] = {};
+        }
         submission.grades.forEach(grade => {
-          initialData[submission.id][grade.componentSkillId] = {
-            rubricLevel: grade.rubricLevel,
-            feedback: grade.feedback,
-            score: parseInt(grade.score) || 1
-          };
+          // Only set from database if no manual input exists for this skill
+          if (!initialData[submission.id][grade.componentSkillId]) {
+            initialData[submission.id][grade.componentSkillId] = {
+              rubricLevel: grade.rubricLevel,
+              feedback: grade.feedback,
+              score: parseInt(grade.score) || 1
+            };
+          }
         });
       }
     });
     
     setGradingData(initialData);
     setIsGradingDataInitialized(true);
-  }, [submissions, relevantSkills, isGradingDataInitialized]);
+  }, [submissions, relevantSkills, isGradingDataInitialized, id]);
 
   // Initialize grading data when submissions and skills are loaded (only once)
   React.useEffect(() => {
@@ -305,13 +329,22 @@ export default function AssessmentSubmissions() {
     feedback: string;
     score: number;
   }) => {
-    setGradingData(prev => ({
-      ...prev,
-      [submissionId]: {
-        ...prev[submissionId],
-        [skillId]: data
+    setGradingData(prev => {
+      const newData = {
+        ...prev,
+        [submissionId]: {
+          ...prev[submissionId],
+          [skillId]: data
+        }
+      };
+      // Save to sessionStorage for persistence across navigation
+      try {
+        sessionStorage.setItem(`gradingData_${id}`, JSON.stringify(newData));
+      } catch (error) {
+        console.warn('Failed to save grading data to sessionStorage:', error);
       }
-    }));
+      return newData;
+    });
   };
 
   const handleManualGrade = (submissionId: number) => {
@@ -325,6 +358,26 @@ export default function AssessmentSubmissions() {
 
     gradeMutation.mutate({ submissionId, grades });
   };
+
+  // Clear sessionStorage for this submission when grades are successfully saved
+  React.useEffect(() => {
+    if (gradeMutation.isSuccess) {
+      try {
+        const saved = sessionStorage.getItem(`gradingData_${id}`);
+        if (saved) {
+          const savedData = JSON.parse(saved);
+          // Find the submission that was just graded and remove it from sessionStorage
+          const lastMutationSubmissionId = gradeMutation.variables?.submissionId;
+          if (lastMutationSubmissionId && savedData[lastMutationSubmissionId]) {
+            delete savedData[lastMutationSubmissionId];
+            sessionStorage.setItem(`gradingData_${id}`, JSON.stringify(savedData));
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to update sessionStorage after successful save:', error);
+      }
+    }
+  }, [gradeMutation.isSuccess, gradeMutation.variables, id]);
 
   const getRubricLevelBadge = (level: string) => {
     const levelConfig = rubricLevels.find(r => r.value === level);
@@ -824,7 +877,17 @@ export default function AssessmentSubmissions() {
                           <div className="flex justify-end space-x-3">
                             <Button
                               variant="outline"
-                              onClick={() => setGradingData(prev => ({ ...prev, [submission.id]: {} }))}
+                              onClick={() => {
+                                setGradingData(prev => {
+                                  const newData = { ...prev, [submission.id]: {} };
+                                  try {
+                                    sessionStorage.setItem(`gradingData_${id}`, JSON.stringify(newData));
+                                  } catch (error) {
+                                    console.warn('Failed to update sessionStorage:', error);
+                                  }
+                                  return newData;
+                                });
+                              }}
                               className="flex items-center space-x-2"
                             >
                               <RotateCcw className="h-4 w-4" />
