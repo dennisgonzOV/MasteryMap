@@ -310,32 +310,46 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
   };
 
   const handleSaveProject = () => {
-    // Validate that project due date is after all milestone due dates
-    if (projectForm.dueDate && milestones.length > 0) {
-      const projectDue = new Date(projectForm.dueDate);
-      const latestMilestone = milestones
-        .filter(m => m.dueDate)
-        .reduce((latest, milestone) => {
-          const milestoneDate = new Date(milestone.dueDate);
-          return milestoneDate > latest ? milestoneDate : latest;
-        }, new Date(0));
-
-      if (latestMilestone.getTime() > 0 && projectDue <= latestMilestone) {
+    // Validate that project due date is not in the past
+    if (projectForm.dueDate) {
+      const projectDate = new Date(projectForm.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (projectDate < today) {
         toast({
           title: "Invalid due date",
-          description: "Project due date must be after all milestone due dates",
+          description: "Project due date cannot be in the past",
           variant: "destructive",
         });
         return;
       }
+
+      // Validate that project due date is after all milestone due dates
+      if (milestones.length > 0) {
+        const latestMilestone = milestones
+          .filter(m => m.dueDate)
+          .reduce((latest, milestone) => {
+            const milestoneDate = new Date(milestone.dueDate);
+            return milestoneDate > latest ? milestoneDate : latest;
+          }, new Date(0));
+
+        if (latestMilestone.getTime() > 0 && projectDate <= latestMilestone) {
+          toast({
+            title: "Invalid due date",
+            description: "Project due date must be after all milestone due dates",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     }
 
-    const updateData = {
-      ...projectForm,
-      dueDate: projectForm.dueDate ? new Date(projectForm.dueDate) : undefined
-    };
-    
-    updateProjectMutation.mutate(updateData);
+    updateProjectMutation.mutate({
+      title: projectForm.title,
+      description: projectForm.description,
+      dueDate: projectForm.dueDate || null
+    });
   };
 
   const handleEditMilestone = (milestone: Milestone) => {
@@ -348,26 +362,42 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
   };
 
   const handleSaveMilestone = (milestoneId: number) => {
-    // Validate that milestone due date is before project due date
-    if (milestoneForm.dueDate && project?.dueDate) {
+    // Validate that milestone due date is not in the past
+    if (milestoneForm.dueDate) {
       const milestoneDate = new Date(milestoneForm.dueDate);
-      const projectDate = new Date(project.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      if (milestoneDate >= projectDate) {
+      if (milestoneDate < today) {
         toast({
           title: "Invalid due date",
-          description: "Milestone due date must be before the project due date",
+          description: "Milestone due date cannot be in the past",
           variant: "destructive",
         });
         return;
+      }
+
+      // Validate that milestone due date is before project due date
+      if (project?.dueDate) {
+        const projectDate = new Date(project.dueDate);
+        
+        if (milestoneDate >= projectDate) {
+          toast({
+            title: "Invalid due date",
+            description: "Milestone due date must be before the project due date",
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
     updateMilestoneMutation.mutate({
       milestoneId,
       updates: {
-        ...milestoneForm,
-        dueDate: milestoneForm.dueDate ? new Date(milestoneForm.dueDate) : undefined
+        title: milestoneForm.title,
+        description: milestoneForm.description,
+        dueDate: milestoneForm.dueDate ? milestoneForm.dueDate : null
       }
     });
   };
