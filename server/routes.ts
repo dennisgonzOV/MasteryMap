@@ -30,7 +30,8 @@ import {
   grades as gradesTable,
   selfEvaluations as selfEvaluationsTable,
   componentSkills as componentSkillsTable,
-  bestStandards as bestStandardsTable
+  bestStandards as bestStandardsTable,
+  projectTeamMembers
 } from "../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "./db";
@@ -1647,22 +1648,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/project-team-members', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
     try {
-      const member = await storage.addTeamMember(req.body);
-      res.json(member);
+      const member = await storage.addTeamMember(req.body);      res.json(member);
     } catch (error) {
       console.error("Error adding team member:", error);
       res.status(500).json({ message: "Failed to add team member" });
     }
   });
 
-  app.get('/api/project-teams/:id/members', requireAuth, async (req: AuthenticatedRequest, res) => {
+  // Get team members
+  app.get('/api/project-teams/:teamId/members', requireAuth, async (req, res) => {
+    const teamId = parseInt(req.params.teamId);
+
     try {
-      const teamId = parseInt(req.params.id);
-      const members = await storage.getTeamMembers(teamId);
+      const members = await db.select({
+        id: projectTeamMembers.id,
+        teamId: projectTeamMembers.teamId,
+        studentId: projectTeamMembers.studentId,
+        role: projectTeamMembers.role,
+        joinedAt: projectTeamMembers.joinedAt,
+        studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
+        student: {
+          id: usersTable.id,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          email: usersTable.email
+        }
+      })
+        .from(projectTeamMembers)
+        .innerJoin(usersTable, eq(projectTeamMembers.studentId, usersTable.id))
+        .where(eq(projectTeamMembers.teamId, teamId));
+
       res.json(members);
     } catch (error) {
-      console.error("Error fetching team members:", error);
-      res.status(500).json({ message: "Failed to fetch team members" });
+      console.error('Error fetching team members:', error);
+      res.status(500).json({ message: 'Failed to fetch team members' });
     }
   });
 
@@ -1713,10 +1732,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const adminId = req.user.id;
-      
+
       // Get admin's school ID
       const admin = await db.select().from(usersTable).where(eq(usersTable.id, adminId)).limit(1);
-      
+
       if (!admin.length || !admin[0].schoolId) {
         return res.status(400).json({ message: "Admin school not found" });
       }
@@ -2121,8 +2140,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .innerJoin(projectsTable, eq(milestonesTable.projectId, projectsTable.id))
         .where(and(
           inArray(milestonesTable.projectId, projectIds),
-          gte(milestonesTable.dueDate, new Date())
-        ))
+          gte(milestonesTable.dueDate, new Date()))
+        )
         .orderBy(milestonesTable.dueDate)
         .limit(5) : [];
 
@@ -2212,7 +2231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Build OR conditions for each student ID to avoid inArray issues
         const studentConditions = studentIds.map(id => eq(submissionsTable.student_id, id));
-        
+
         const gradesWithStudents = await db.select({
           id: gradesTable.id,
           submission_id: gradesTable.submission_id,
@@ -2226,7 +2245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(gradesTable)
         .innerJoin(submissionsTable, eq(gradesTable.submission_id, submissionsTable.id))
         .where(or(...studentConditions));
-        
+
         grades = gradesWithStudents;
         console.log('Total grades found for school students:', grades.length);
         console.log('Sample grades:', grades.slice(0, 3));
