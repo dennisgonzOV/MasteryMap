@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +18,7 @@ import {
   Trophy,
   Medal
 } from 'lucide-react';
+import { CompetencyProgress } from "@/components/competency-progress";
 
 interface StudentProgress {
   id: number;
@@ -276,28 +276,11 @@ export default function StudentProgressView() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedStudent.competencyProgress.map((competency) => (
-                        <div key={`${competency.competencyId}-${competency.componentSkillId}`} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium text-sm">{competency.competencyName}</h4>
-                              <p className="text-xs text-gray-600">{competency.componentSkillName}</p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge className={`text-xs ${getGradeColor(competency.averageScore)}`}>
-                                {competency.averageScore}%
-                              </Badge>
-                              <span className="text-xs text-gray-500">
-                                ({competency.submissionCount} submissions)
-                              </span>
-                            </div>
-                          </div>
-                          <Progress value={competency.averageScore} className="h-2" />
-                        </div>
-                      ))}
-                      {selectedStudent.competencyProgress.length === 0 && (
-                        <p className="text-gray-500 text-center py-4">No competency data available</p>
-                      )}
+                      {selectedStudent ? (
+                          <CompetencyProgress studentId={selectedStudent.id} />
+                        ) : (
+                          <p className="text-gray-500 text-center py-4">Select a student to view competency data.</p>
+                        )}
                     </div>
                   </CardContent>
                 </Card>
