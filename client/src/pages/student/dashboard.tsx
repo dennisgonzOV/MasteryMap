@@ -288,54 +288,7 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* My Projects */}
-          <Card className="apple-shadow border-0">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
-                  <span>My Projects</span>
-                </CardTitle>
-                <Link href="/student/projects">
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                    View All
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {projectsLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="bg-gray-200 rounded-xl h-48"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : activeProjects.length === 0 ? (
-                <div className="text-center py-12">
-                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No active projects</h3>
-                  <p className="text-gray-600">
-                    Your teacher will assign projects for you to work on.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {activeProjects.slice(0, 4).map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      progress={Math.random() * 100} // This would come from actual progress calculation
-                      userRole="student"
-                      onViewProject={(id) => console.log('View project', id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          
 
           {/* Quick Actions */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
