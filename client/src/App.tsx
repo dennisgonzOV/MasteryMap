@@ -24,6 +24,7 @@ import StudentPortfolio from "@/pages/student/portfolio";
 import TakeAssessment from "@/pages/student/take-assessment";
 import EnterCode from "@/pages/student/enter-code";
 import AdminDashboard from "@/pages/admin/dashboard";
+import AdminPasswordReset from '@/pages/admin/password-reset';
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -74,7 +75,10 @@ function Router() {
             </>
           )}
           {user?.role === 'admin' && (
-            <Route path="/admin/dashboard" component={AdminDashboard} />
+            <>
+              <Route path="/admin/dashboard" component={AdminDashboard} />
+              <Route path="/admin/password-reset" component={AdminPasswordReset} />
+            </>
           )}
         </>
       )}

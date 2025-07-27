@@ -55,6 +55,7 @@ export default function Navigation() {
       return [
         ...baseItems,
         { name: 'Users', href: '/admin/users', icon: Users },
+        { name: 'Password Reset', href: '/admin/password-reset', icon: Settings },
         { name: 'Settings', href: '/admin/settings', icon: Settings },
       ];
     }
