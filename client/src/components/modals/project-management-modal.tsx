@@ -650,6 +650,15 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                                         onChange={(e) => setMilestoneForm(prev => ({ ...prev, dueDate: e.target.value }))}
                                       />
                                     </div>
+                                    <div>
+                                      <Label htmlFor={`milestoneDueDate-${milestone.id}`}>Due Date</Label>
+                                      <Input
+                                        id={`milestoneDueDate-${milestone.id}`}
+                                        type="date"
+                                        value={milestoneForm.dueDate}
+                                        onChange={(e) => setMilestoneForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                                      />
+                                    </div>
                                     <div className="flex items-center space-x-2">
                                       <Button size="sm" onClick={() => handleSaveMilestone(milestone.id)}>
                                         Save
