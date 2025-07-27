@@ -516,7 +516,7 @@ export default function AssessmentSubmissions() {
 
                         {/* Action Buttons */}
                         <div className="flex items-center space-x-2">
-                          {!submission.grades?.length && (
+                          {(!submission.grades || submission.grades.length === 0) && (
                             <Button
                               size="sm"
                               onClick={() => aiGradeMutation.mutate(submission.id)}
@@ -624,7 +624,7 @@ export default function AssessmentSubmissions() {
                       )}
 
                       {/* Manual Grading Interface */}
-                      {!submission.grades?.length && relevantSkills.length > 0 && (
+                      {(!submission.grades || submission.grades.length === 0) && relevantSkills.length > 0 && (
                         <div className="space-y-4">
                           <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                             <GraduationCap className="h-5 w-5" />
