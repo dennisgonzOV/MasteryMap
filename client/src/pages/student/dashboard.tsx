@@ -290,36 +290,7 @@ export default function StudentDashboard() {
 
           
 
-          {/* Quick Actions */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Link href="/student/projects">
-              <Card className="apple-shadow border-0 card-hover cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <BookOpen className="h-8 w-8 text-blue-600 mx-auto mb-3" />
-                  <h3 className="font-semibold text-gray-900 mb-2">View Projects</h3>
-                  <p className="text-sm text-gray-600">See all your assigned projects and milestones</p>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link href="/student/portfolio">
-              <Card className="apple-shadow border-0 card-hover cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <Award className="h-8 w-8 text-purple-600 mx-auto mb-3" />
-                  <h3 className="font-semibold text-gray-900 mb-2">My Portfolio</h3>
-                  <p className="text-sm text-gray-600">Showcase your work and achievements</p>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Card className="apple-shadow border-0 card-hover cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <Trophy className="h-8 w-8 text-yellow-600 mx-auto mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-2">Credentials</h3>
-                <p className="text-sm text-gray-600">Track your badges, stickers, and plaques</p>
-              </CardContent>
-            </Card>
-          </div>
+          
         </div>
       </main>
     </div>
