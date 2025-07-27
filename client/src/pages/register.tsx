@@ -188,7 +188,10 @@ export default function Register() {
                       <SelectContent>
                         <SelectItem value="student">Student</SelectItem>
                         <SelectItem value="teacher">Teacher</SelectItem>
-                        <SelectItem value="admin">Administrator</SelectItem>
+                        {/* Administrator role disabled for account creation - future functionality to be added */}
+                        <SelectItem value="admin" disabled className="text-gray-400">
+                          Administrator (Coming Soon)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
