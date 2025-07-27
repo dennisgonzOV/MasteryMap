@@ -2077,7 +2077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .innerJoin(projectsTable, eq(milestonesTable.projectId, projectsTable.id))
         .where(and(
           inArray(milestonesTable.projectId, projectIds),
-          gte(milestonesTable.dueDate, new Date().toISOString())
+          gte(milestonesTable.dueDate, new Date())
         ))
         .orderBy(milestonesTable.dueDate)
         .limit(5) : [];
