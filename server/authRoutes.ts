@@ -152,6 +152,43 @@ export function setupAuthRoutes(app: Express) {
     }
   });
 
+  // Admin password reset route
+  app.post('/api/auth/admin-reset-password', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { userId, newPassword } = req.body;
+      
+      if (!userId || !newPassword) {
+        return res.status(400).json({ message: 'User ID and new password are required' });
+      }
+
+      // Get the target user
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Ensure admin can only reset passwords for users in their school (if applicable)
+      if (req.user.schoolId && targetUser.schoolId !== req.user.schoolId) {
+        return res.status(403).json({ message: 'Can only reset passwords for users in your school' });
+      }
+
+      // Hash the new password
+      const hashedPassword = await AuthService.hashPassword(newPassword);
+      
+      // Update the user's password
+      await storage.updateUserPassword(userId, hashedPassword);
+
+      res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      console.error('Admin password reset error:', error);
+      res.status(500).json({ message: 'Password reset failed' });
+    }
+  });
+
   // Get current user route
   app.get('/api/auth/user', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {

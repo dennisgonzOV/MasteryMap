@@ -209,6 +209,13 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async updateUserPassword(id: number, hashedPassword: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, id));
+  }
+
   // Auth token operations
   async createAuthToken(tokenData: InsertAuthToken): Promise<AuthToken> {
     const [token] = await db.insert(authTokens).values(tokenData).returning();
@@ -842,7 +849,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get all data separately to avoid join issues
       const skills = await db.select().from(componentSkills).orderBy(componentSkills.id);
-      
+
       if (!skills || skills.length === 0) {
         console.log("No component skills found in database");
         return [];
