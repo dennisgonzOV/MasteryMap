@@ -97,10 +97,10 @@ export default function AssessmentSubmissions() {
   }
 
   const totalSubmissions = submissions.length;
-  const gradedSubmissions = submissions.filter(s => s.grade !== undefined).length;
+  const gradedSubmissions = submissions.filter(s => s.grade !== undefined && s.grade !== null).length;
   const lateSubmissions = submissions.filter(s => s.isLate).length;
   const averageGrade = submissions.length > 0 
-    ? submissions.filter(s => s.grade !== undefined).reduce((sum, s) => sum + (s.grade || 0), 0) / gradedSubmissions || 0
+    ? submissions.filter(s => s.grade !== undefined && s.grade !== null).reduce((sum, s) => sum + (parseFloat(s.grade.toString()) || 0), 0) / gradedSubmissions || 0
     : 0;
 
   return (
@@ -265,7 +265,7 @@ export default function AssessmentSubmissions() {
                     <div className="flex items-center space-x-4">
                       {/* Grade Status */}
                       <div className="text-right">
-                        {submission.grade !== undefined ? (
+                        {(submission.grade !== undefined && submission.grade !== null) ? (
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="h-4 w-4 text-green-500" />
                             <span className="font-medium text-green-600">{submission.grade}%</span>

@@ -253,7 +253,7 @@ export default function SubmissionReview() {
             <Badge variant={submission.isLate ? "destructive" : "default"}>
               {submission.isLate ? "Late Submission" : "On Time"}
             </Badge>
-            {submission.grade !== undefined && (
+            {(submission.grade !== undefined && submission.grade !== null) && (
               <Badge variant="secondary">
                 Graded: {submission.grade}%
               </Badge>
@@ -458,7 +458,7 @@ export default function SubmissionReview() {
                   </Button>
                 </div>
 
-                {submission.grade !== undefined && (
+                {(submission.grade !== undefined && submission.grade !== null) && (
                   <div className="mt-4 p-3 bg-green-50 rounded-lg">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
