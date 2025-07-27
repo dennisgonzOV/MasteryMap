@@ -52,7 +52,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          {user?.role === 'teacher' && (
+          {(user as any)?.role === 'teacher' && (
             <>
               <Route path="/teacher/dashboard" component={TeacherDashboard} />
               <Route path="/teacher/projects" component={TeacherProjects} />
@@ -63,7 +63,7 @@ function Router() {
               <Route path="/teacher/assessments/:id" component={AssessmentDetails} />
             </>
           )}
-          {user?.role === 'student' && (
+          {(user as any)?.role === 'student' && (
             <>
               <Route path="/student/dashboard" component={StudentDashboard} />
               <Route path="/student/projects" component={StudentProjects} />
@@ -74,7 +74,7 @@ function Router() {
               <Route path="/student/portfolio" component={StudentPortfolio} />
             </>
           )}
-          {user?.role === 'admin' && (
+          {(user as any)?.role === 'admin' && (
             <>
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/password-reset" component={AdminPasswordReset} />
