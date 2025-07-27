@@ -154,9 +154,14 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">
-                              {member.student?.firstName} {member.student?.lastName}
+                              {member.student?.firstName && member.student?.lastName 
+                                ? `${member.student.firstName} ${member.student.lastName}`
+                                : member.student?.email || `Student ID: ${member.studentId}`
+                              }
                             </p>
-                            <p className="text-sm text-gray-500">{member.student?.email}</p>
+                            <p className="text-sm text-gray-500">
+                              {member.student?.email || 'No email available'}
+                            </p>
                           </div>
                         </div>
                         <Button
