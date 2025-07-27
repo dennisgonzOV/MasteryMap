@@ -2163,18 +2163,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Student IDs:', studentIds);
       console.log('Valid student IDs count:', studentIds.filter(id => id != null && typeof id === 'number').length);
 
-      // Get all grades from database and filter in memory to avoid SQL issues
+      // Get grades for students in this school by joining through submissions
       let grades = [];
       try {
-        const allGrades = await db.select().from(gradesTable);
-        console.log('Total grades in database:', allGrades.length);
+        const gradesWithStudents = await db.select({
+          id: gradesTable.id,
+          submission_id: gradesTable.submission_id,
+          component_skill_id: gradesTable.component_skill_id,
+          score: gradesTable.score,
+          rubric_level: gradesTable.rubric_level,
+          feedback: gradesTable.feedback,
+          graded_at: gradesTable.graded_at,
+          student_id: submissionsTable.student_id
+        })
+        .from(gradesTable)
+        .innerJoin(submissionsTable, eq(gradesTable.submission_id, submissionsTable.id))
+        .where(inArray(submissionsTable.student_id, studentIds));
         
-        // Filter grades for students in this school
-        grades = allGrades.filter(grade => 
-          grade.student_id != null && 
-          studentIds.includes(grade.student_id)
-        );
-        console.log('Filtered grades for school:', grades.length);
+        grades = gradesWithStudents;
+        console.log('Total grades found for school students:', grades.length);
       } catch (error) {
         console.error('Error fetching grades:', error);
         grades = [];
