@@ -258,33 +258,6 @@ export default function StudentDashboard() {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Upcoming Deadlines */}
-              <Card className="apple-shadow border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Clock className="h-5 w-5 text-orange-600" />
-                    <span>Upcoming Deadlines</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {upcomingDeadlines.map((deadline) => (
-                      <div key={deadline.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                        <div className={`w-2 h-2 rounded-full ${
-                          deadline.priority === 'high' ? 'bg-red-500' :
-                          deadline.priority === 'medium' ? 'bg-orange-500' : 'bg-green-500'
-                        }`}></div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{deadline.title}</p>
-                          <p className="text-xs text-gray-600">{deadline.project}</p>
-                          <p className="text-xs text-gray-500">{deadline.dueDate}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
 
