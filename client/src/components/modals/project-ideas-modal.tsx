@@ -338,7 +338,6 @@ export default function ProjectIdeasModal({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="6-8">Middle School (6-8)</SelectItem>
                               <SelectItem value="9-10">High School (9-10)</SelectItem>
                               <SelectItem value="11-12">High School (11-12)</SelectItem>
                               <SelectItem value="mixed">Mixed Grade Levels</SelectItem>
