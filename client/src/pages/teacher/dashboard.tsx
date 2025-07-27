@@ -18,12 +18,14 @@ import {
   Plus,
   TrendingUp,
   Clock,
-  AlertCircle
+  AlertCircle,
+  BarChart3
 } from "lucide-react";
 import { useState } from "react";
 import ProjectCreationModal from "@/components/modals/project-creation-modal-new";
 import ProjectManagementModal from "@/components/modals/project-management-modal";
 import StudentProgressView from "@/components/student-progress-view";
+import SchoolSkillsTracker from "@/components/school-skills-tracker";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function TeacherDashboard() {
@@ -201,6 +203,27 @@ export default function TeacherDashboard() {
                       <div className="space-y-6 pr-4">
                         {/* Search and student list without header */}
                         <StudentProgressView />
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* School Skills Tracker Card */}
+            <div>
+              <Card className="apple-shadow border-0">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
+                    <BarChart3 className="h-5 w-5 mr-2" />
+                    School Skills Tracker
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[700px]">
+                    <ScrollArea className="h-full w-full">
+                      <div className="space-y-6 pr-4">
+                        <SchoolSkillsTracker />
                       </div>
                     </ScrollArea>
                   </div>
