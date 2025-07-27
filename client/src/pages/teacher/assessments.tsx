@@ -393,10 +393,15 @@ export default function TeacherAssessments() {
                       {/* Type Badge */}
                       <div className="ml-3 flex-shrink-0">
                         {assessment.milestoneId ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            Milestone
-                          </Badge>
+                          (() => {
+                            const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
+                            return (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {milestone ? milestone.title : 'Milestone'}
+                              </Badge>
+                            );
+                          })()
                         ) : (
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                             <Target className="h-3 w-3 mr-1" />
