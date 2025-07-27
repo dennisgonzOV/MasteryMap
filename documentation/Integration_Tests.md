@@ -1,402 +1,628 @@
-# MasteryMap Integration Tests
+# MasteryMap - High-Level Integration Tests
 
-## Overview
-
-This document outlines high-level integration tests that simulate real user interactions across the MasteryMap educational platform. These tests validate end-to-end functionality rather than individual components, ensuring the complete user experience works as expected.
-
-## Test Environment Setup
-
-- **Database**: PostgreSQL with sample data (students, teachers, projects, assessments)
-- **Authentication**: JWT-based authentication system
-- **Roles**: Admin, Teacher, Student accounts
-- **Sample Data**: Pre-populated projects, milestones, assessments, and submissions
-
-## User Flows & Integration Tests
-
-### 1. Teacher Registration & Authentication Flow
-
-**Test Scenario**: New teacher creates account and accesses dashboard
-
-**Steps**:
-1. Navigate to `/register`
-2. Fill out registration form with teacher role
-3. Select school from dropdown
-4. Submit registration
-5. Verify redirect to login page
-6. Login with new credentials
-7. Verify redirect to teacher dashboard
-8. Verify user data appears in navigation
-
-**Expected Results**:
-- User successfully registers and is stored in database
-- Authentication tokens are properly set
-- Teacher dashboard loads with correct user context
-- Navigation shows teacher name and role
-
-**API Endpoints Tested**:
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/user`
-
-### 2. Project Creation & Student Assignment Flow
-
-**Test Scenario**: Teacher creates project with competencies and assigns students
-
-**Steps**:
-1. Login as teacher
-2. Navigate to Projects page
-3. Click "Create New Project"
-4. Fill project details (title, description, due date)
-5. Select component skills from 3-level hierarchy tree
-6. Enable "Generate milestones and assessments"
-7. Submit project creation
-8. Verify project appears in projects list
-9. Click "Manage Project" on new project
-10. Navigate to team management section
-11. Select students from available list
-12. Create project team
-13. Verify students are assigned to project
-
-**Expected Results**:
-- Project created with selected component skills
-- AI generates appropriate milestones and assessments
-- Students successfully assigned to project
-- Project team created and visible
-- Students can see project in their dashboard
-
-**API Endpoints Tested**:
-- `GET /api/learner-outcomes-hierarchy/complete`
-- `POST /api/projects`
-- `GET /api/projects/:id`
-- `GET /api/schools/:id/students`
-- `POST /api/project-teams`
-- `POST /api/project-team-members`
-
-### 3. Assessment Creation & Sharing Flow
-
-**Test Scenario**: Teacher creates standalone assessment and shares with students
-
-**Steps**:
-1. Login as teacher
-2. Navigate to Assessments page
-3. Click "Create Assessment"
-4. Fill assessment details (title, due date)
-5. Select component skills to assess
-6. Add multiple choice questions manually
-7. Click "Generate with AI" for additional questions
-8. Review and edit AI-generated questions
-9. Submit assessment creation
-10. Verify assessment appears in list with share code
-11. Copy share code from assessment card
-12. Logout and login as student
-13. Navigate to "Enter Assessment Code" page
-14. Enter the 5-letter share code
-15. Verify assessment loads correctly
-
-**Expected Results**:
-- Assessment created with mixed manual/AI questions
-- 5-letter share code automatically generated
-- Share code correctly links to assessment
-- Students can access assessment via code
-- Assessment displays properly with all questions
-
-**API Endpoints Tested**:
-- `POST /api/assessments`
-- `GET /api/assessments`
-- `GET /api/assessments/by-code/:code`
-- `GET /api/component-skills/details`
-
-### 4. Student Assessment Completion Flow
-
-**Test Scenario**: Student completes assessment and submits responses
-
-**Steps**:
-1. Login as student
-2. Enter assessment code to access assessment
-3. Read assessment instructions
-4. Answer multiple choice questions
-5. Provide written responses for open-ended questions
-6. Review answers before submission
-7. Submit assessment
-8. Verify submission confirmation
-9. Check that assessment appears as completed in student dashboard
-10. Logout and login as teacher
-11. Navigate to assessment submissions page
-12. Verify student submission appears in list
-
-**Expected Results**:
-- Student can successfully complete all question types
-- Responses are properly saved and submitted
-- Submission timestamp is recorded
-- Teacher can view submitted responses
-- Assessment marked as completed for student
-
-**API Endpoints Tested**:
-- `GET /api/assessments/:id`
-- `POST /api/submissions`
-- `GET /api/submissions`
-- `GET /api/assessments/:id/submissions`
-
-### 5. Grading & Feedback Flow
-
-**Test Scenario**: Teacher grades student submission with AI assistance
-
-**Steps**:
-1. Login as teacher
-2. Navigate to assessment submissions
-3. Click on student submission to review
-4. Review student responses for each question
-5. Enable "Generate AI Feedback" option
-6. Click "Grade Submission"
-7. Verify AI generates feedback and suggested grades
-8. Adjust grades and feedback as needed
-9. Submit final grade
-10. Logout and login as student
-11. Navigate to completed assessments
-12. View graded assessment with feedback
-13. Verify grade and feedback are displayed correctly
-
-**Expected Results**:
-- AI generates relevant feedback based on responses
-- Teacher can override AI suggestions
-- Final grades and feedback saved to database
-- Student receives comprehensive feedback
-- Grades appear in student progress tracking
-
-**API Endpoints Tested**:
-- `GET /api/submissions/:id`
-- `POST /api/submissions/:id/grade`
-- `GET /api/grades`
-
-### 6. Digital Portfolio & QR Code Sharing Flow
-
-**Test Scenario**: Student views portfolio and shares via QR code
-
-**Steps**:
-1. Login as student
-2. Navigate to Digital Portfolio page
-3. Verify completed assessments appear as artifacts
-4. Check that earned credentials are displayed
-5. View automatically generated QR code
-6. Use QR code scanner to access public portfolio URL
-7. Verify public portfolio displays correctly
-8. Check that personal information is appropriately filtered
-9. Verify portfolio includes recent work and achievements
-
-**Expected Results**:
-- Portfolio automatically includes assessment artifacts
-- QR code generates valid public URL
-- Public portfolio is accessible without authentication
-- Portfolio displays student achievements appropriately
-- Recent submissions and credentials are visible
-
-**API Endpoints Tested**:
-- `GET /api/students/:id/portfolio`
-- `GET /api/credentials/student/:id`
-- `GET /api/portfolio/:id/public`
-
-### 7. School Analytics & Progress Tracking Flow
-
-**Test Scenario**: Admin views school-wide analytics and student progress
-
-**Steps**:
-1. Login as admin user
-2. Navigate to Analytics Dashboard
-3. Review school-wide statistics
-4. Check competency progress charts
-5. View student performance metrics
-6. Navigate to School Skills Tracker
-7. Review component skills progress across all students
-8. Filter progress by specific competencies
-9. Export analytics data
-10. Verify data accuracy against known submissions
-
-**Expected Results**:
-- Analytics display accurate school-wide metrics
-- Competency progress reflects actual student performance
-- Skills tracker shows detailed component skill mastery
-- Data export functions correctly
-- All metrics align with underlying database records
-
-**API Endpoints Tested**:
-- `GET /api/admin/analytics`
-- `GET /api/teacher/school-component-skills-progress`
-- `GET /api/teacher/school-students-progress`
-- `GET /api/teacher/school-skills-stats`
-
-### 8. Milestone & Project Progression Flow
-
-**Test Scenario**: Student progresses through project milestones
-
-**Steps**:
-1. Login as student
-2. Navigate to assigned projects
-3. Click on project to view details
-4. Review project milestones and timeline
-5. Click on first milestone
-6. Complete required assessments for milestone
-7. Submit milestone deliverables
-8. Navigate back to project overview
-9. Verify milestone marked as completed
-10. Proceed to next milestone
-11. Check progress tracker updates correctly
-
-**Expected Results**:
-- Project milestones display in correct chronological order
-- Assessment completion updates milestone status
-- Progress tracker accurately reflects completion
-- Students can navigate between milestones seamlessly
-- Project completion percentage updates correctly
-
-**API Endpoints Tested**:
-- `GET /api/projects/:id`
-- `GET /api/milestones/:id`
-- `GET /api/projects/:id/milestones`
-- `POST /api/milestone-submissions`
-
-### 9. Credential Award & Notification Flow
-
-**Test Scenario**: System awards credentials based on competency mastery
-
-**Steps**:
-1. Login as teacher
-2. Review student performance across multiple assessments
-3. Navigate to credential management
-4. Award badge for demonstrated competency mastery
-5. Add notes and approval timestamp
-6. Logout and login as student
-7. Check notification system for new credential alert
-8. Navigate to digital portfolio
-9. Verify new credential appears with details
-10. Check that credential contributes to competency progress
-
-**Expected Results**:
-- Credential awarding system functions properly
-- Students receive notifications of new credentials
-- Credentials appear in portfolio with correct metadata
-- Competency progress reflects credential achievements
-- Credential hierarchy (stickers → badges → plaques) is maintained
-
-**API Endpoints Tested**:
-- `POST /api/credentials`
-- `GET /api/credentials/student/:id`
-- `GET /api/notifications`
-- `PUT /api/credentials/:id/approve`
-
-### 10. Team Collaboration & Management Flow
-
-**Test Scenario**: Teacher manages project teams and collaboration
-
-**Steps**:
-1. Login as teacher
-2. Navigate to project management
-3. Create new project team
-4. Add multiple students to team
-5. Assign team-based milestone
-6. Login as team member students
-7. Collaborate on shared assessment
-8. Submit individual responses for team project
-9. Login as teacher
-10. Review all team member submissions
-11. Provide team-based feedback
-12. Award team credentials
-
-**Expected Results**:
-- Team creation and management functions correctly
-- All team members receive milestone assignments
-- Individual contributions are tracked within team context
-- Teacher can review and grade team submissions efficiently
-- Team-based credentials are awarded appropriately
-
-**API Endpoints Tested**:
-- `POST /api/project-teams`
-- `GET /api/project-teams/:id/members`
-- `POST /api/project-team-members`
-- `DELETE /api/project-team-members/:id`
-
-## Cross-Browser & Device Testing
-
-### Browser Compatibility
-- **Chrome**: Full functionality verification
-- **Firefox**: Authentication and core workflows
-- **Safari**: Mobile responsiveness and touch interactions
-- **Edge**: API compatibility and performance
-
-### Mobile Responsiveness
-- **Tablet**: Assessment completion and portfolio viewing
-- **Mobile**: QR code scanning and basic navigation
-- **Touch**: Interactive elements and form submission
-
-## Performance & Load Testing
-
-### Response Time Benchmarks
-- **Page Load**: < 3 seconds for dashboard pages
-- **API Response**: < 1 second for data retrieval
-- **AI Generation**: < 10 seconds for assessment/milestone creation
-- **Database Queries**: < 500ms for complex joins
-
-### Concurrent User Testing
-- **10 Concurrent Students**: Assessment completion
-- **5 Concurrent Teachers**: Grading and feedback
-- **Database Load**: Multiple simultaneous operations
-
-## Security & Authentication Testing
-
-### Authentication Security
-- **JWT Token Expiration**: Proper session management
-- **Role-Based Access**: Unauthorized access prevention
-- **Password Security**: Hashing and validation
-- **Session Persistence**: Cross-browser tab handling
-
-### Data Privacy
-- **Student Data Protection**: FERPA compliance verification
-- **Portfolio Privacy**: Public vs private content filtering
-- **Assessment Security**: Share code expiration and validation
-
-## Automated Test Implementation
-
-### Test Automation Tools
-- **End-to-End**: Playwright or Cypress integration
-- **API Testing**: Automated endpoint validation
-- **Database Verification**: Data consistency checks
-- **Performance Monitoring**: Response time tracking
-
-### Continuous Integration
-- **Pre-deployment**: Full integration test suite
-- **Post-deployment**: Health check verification
-- **Rollback Testing**: Data integrity during rollbacks
-- **Environment Consistency**: Dev/staging/production parity
-
-## Known Issues & Workarounds
-
-### Current Limitations
-- AI response times may vary based on OpenAI API load
-- Large file uploads not yet implemented for portfolio artifacts
-- Real-time notifications require page refresh
-- Export functionality limited to basic CSV format
-
-### Monitoring & Alerts
-- Database connection health monitoring
-- API endpoint availability checks
-- User session timeout handling
-- Error rate threshold alerts
-
-## Test Data Management
-
-### Sample Data Requirements
-- **Users**: 20+ students, 5+ teachers, 2+ admins across multiple schools
-- **Projects**: 10+ projects with varying complexity and timelines
-- **Assessments**: 50+ assessments with different question types and component skills
-- **Submissions**: 200+ student submissions with various completion states
-- **Credentials**: Sample badges, stickers, and plaques for progress verification
-
-### Data Refresh Procedures
-- Weekly test data reset for consistent testing
-- Production data backup before major releases
-- Development environment synchronization
-- User acceptance testing data preparation
+This document provides comprehensive end-to-end integration tests that simulate real user interactions through the MasteryMap educational platform. These tests validate complete user workflows and feature integrations rather than individual components.
 
 ---
 
+## Test Environment Setup
+
+### Prerequisites
+- **Database**: PostgreSQL with Neon Database connection
+- **Test Users**: Create accounts for each role
+  - Admin: `admin@psi.edu` / `Test123!`
+  - Teacher: `teacher@psi.edu` / `Test123!`
+  - Student: `student@psi.edu` / `Test123!`
+  - Additional Students: `student2@psi.edu`, `student3@psi.edu` (for team testing)
+- **School**: PSI High School (default school in system)
+- **Environment Variables**: 
+  - `OPENAI_API_KEY` configured for AI features
+  - `DATABASE_URL` connected to test database
+
+### Browser Requirements
+- Modern browsers: Chrome, Firefox, Safari, Edge
+- JavaScript enabled
+- Cookies enabled for session management
+
+---
+
+## 1. Authentication & Registration Workflows
+
+### Test 1.1: New Teacher Registration
+**Scenario**: A new teacher joins the school and creates an account
+
+**User Actions**:
+1. Open browser to application homepage
+2. Click "Get Started" or navigate to `/register`
+3. Fill registration form:
+   - Name: "Sarah Johnson"
+   - Email: "sjohnson@psi.edu"
+   - Password: "SecurePass123!"
+   - Role: Select "Teacher"
+   - School: Select "PSI High School"
+4. Click "Register" button
+5. After successful registration, enter credentials on login page
+6. Click "Login" button
+
+**Expected Results**:
+- ✅ Registration form validates email format and password strength
+- ✅ User redirected to login page with success message
+- ✅ Login successful with new credentials
+- ✅ Teacher dashboard displays with welcome message
+- ✅ Navigation shows "Teacher Dashboard" and user name
+- ✅ User associated with PSI High School in database
+
+### Test 1.2: Student Registration and First Login
+**Scenario**: A new student registers and accesses their dashboard
+
+**User Actions**:
+1. Navigate to `/register`
+2. Complete registration as student role
+3. Login with new credentials
+4. Explore student dashboard
+
+**Expected Results**:
+- ✅ Student dashboard shows "Join Assessment" card prominently
+- ✅ Empty project list with message "No projects assigned yet"
+- ✅ Portfolio section accessible but empty
+- ✅ Student role restrictions enforced (no create project button)
+
+---
+
+## 2. Project Management Workflows
+
+### Test 2.1: Create Project with AI-Generated Milestones
+**Scenario**: Teacher creates a comprehensive project with XQ competencies
+
+**User Actions**:
+1. Login as teacher
+2. Click "Projects" in navigation
+3. Click "Create New Project" button
+4. Fill project details:
+   - Title: "Climate Change Solutions Research"
+   - Description: "Students will research and propose innovative solutions to combat climate change"
+   - Start Date: Today
+   - Due Date: 30 days from today
+5. Expand "Critical Thinking" competency
+6. Check these component skills:
+   - "Evaluate Sources and Evidence"
+   - "Draw Conclusions"
+7. Expand "Communication" competency
+8. Check "Present Complex Information"
+9. Enable "Generate milestones and assessments with AI"
+10. Click "Create Project"
+11. Wait for AI generation (loading spinner)
+12. Review generated milestones
+13. Click "Confirm and Create"
+
+**Expected Results**:
+- ✅ Component skills selection tree displays all 80 XQ skills
+- ✅ AI generates 3-5 milestones with appropriate dates
+- ✅ Each milestone has descriptive title and requirements
+- ✅ Milestone dates fall between project start and due dates
+- ✅ Project appears in teacher's project list
+- ✅ Project status shows as "Active"
+
+### Test 2.2: Create and Manage Project Teams
+**Scenario**: Teacher creates teams and assigns students to project
+
+**User Actions**:
+1. From project list, click on "Climate Change Solutions Research"
+2. Click "Manage Project" button
+3. In team management section, click "Create Team"
+4. Enter team name: "Green Innovators"
+5. From available students list, select:
+   - student@psi.edu
+   - student2@psi.edu
+6. Click "Add to Team"
+7. Click "Create Team"
+8. Create second team "Eco Warriors" with student3@psi.edu
+9. Click "Edit Team" on "Green Innovators"
+10. Remove student2@psi.edu
+11. Add student3@psi.edu
+12. Save changes
+
+**Expected Results**:
+- ✅ Student roster shows only students from PSI High School
+- ✅ Teams created successfully with selected members
+- ✅ Team member counts update correctly
+- ✅ All team members receive project assignment notifications
+- ✅ Students can see project in their dashboards
+- ✅ Milestones automatically assigned to all team members
+
+---
+
+## 3. Assessment Creation and Sharing
+
+### Test 3.1: Create Standalone Assessment with AI Questions
+**Scenario**: Teacher creates an assessment with 5-letter share code
+
+**User Actions**:
+1. Navigate to "Assessments" page
+2. Click "Create Assessment"
+3. Fill assessment details:
+   - Title: "Climate Science Quiz"
+   - Description: "Test your understanding of climate science basics"
+   - Due Date: 7 days from today
+4. Select component skills:
+   - "Evaluate Sources and Evidence"
+   - "Draw Conclusions"
+5. Manually add question:
+   - Type: "Open-ended"
+   - Question: "Explain the greenhouse effect in your own words"
+   - Points: 10
+6. Click "Generate Questions with AI"
+7. Review 3-4 generated questions
+8. Edit one AI question for clarity
+9. Click "Create Assessment"
+10. Note the 5-letter code displayed (e.g., "KLMNO")
+
+**Expected Results**:
+- ✅ AI generates relevant questions based on selected skills
+- ✅ Questions include mix of types (multiple choice, short answer)
+- ✅ 5-letter code displays prominently in green box
+- ✅ Code format is exactly 5 uppercase letters
+- ✅ Assessment appears in list with share code visible
+- ✅ "Copy Code" button works correctly
+
+### Test 3.2: Student Joins Assessment via Code
+**Scenario**: Student uses 5-letter code to access assessment
+
+**User Actions**:
+1. Login as student
+2. On dashboard, click "Join Assessment" card
+3. Enter code "KLMNO" (from Test 3.1)
+4. Click "Join"
+5. Start assessment
+
+**Expected Results**:
+- ✅ Code entry page has clear instructions
+- ✅ Invalid code shows error "Assessment not found"
+- ✅ Valid code immediately opens assessment
+- ✅ Assessment title and description display
+- ✅ Question navigation shows total questions
+- ✅ Timer starts if assessment has time limit
+
+---
+
+## 4. Assessment Taking Workflow
+
+### Test 4.1: Complete Multi-Question Assessment
+**Scenario**: Student completes assessment with various question types
+
+**User Actions**:
+1. Continue from Test 3.2 (assessment open)
+2. Read first question (open-ended)
+3. Type detailed answer about greenhouse effect
+4. Click "Next Question"
+5. Answer multiple choice question
+6. Click "Previous" to review first answer
+7. Make minor edit to answer
+8. Click "Next" twice to reach third question
+9. Complete all questions
+10. On final question, click "Review Answers"
+11. Review summary page
+12. Click "Submit Assessment"
+13. Confirm submission in modal
+
+**Expected Results**:
+- ✅ Progress bar updates with each question (25%, 50%, 75%, 100%)
+- ✅ Previous/Next navigation works correctly
+- ✅ Answers persist when navigating between questions
+- ✅ Review page shows all questions with answers
+- ✅ Submit confirmation prevents accidental submission
+- ✅ Success message displays after submission
+- ✅ Cannot re-access assessment after submission
+
+---
+
+## 5. Grading and Feedback Workflow
+
+### Test 5.1: Grade Submissions with AI Feedback
+**Scenario**: Teacher grades student work using XQ rubrics and AI assistance
+
+**User Actions**:
+1. Login as teacher
+2. Navigate to "Assessments"
+3. Click on "Climate Science Quiz"
+4. Click "View Submissions" (shows count)
+5. Click on first student submission
+6. For open-ended question:
+   - Read student answer
+   - Click rubric level "Proficient"
+   - Click "Generate AI Feedback"
+   - Review generated feedback
+   - Edit to add personal comment
+7. For multiple choice: verify auto-graded
+8. Add overall feedback comment
+9. Click "Save & Next"
+10. Grade remaining submissions
+11. Return to submissions list
+
+**Expected Results**:
+- ✅ Submission list shows all students who completed
+- ✅ Grading interface displays question and student answer
+- ✅ XQ rubric levels clearly labeled (Emerging → Developing → Proficient → Applying)
+- ✅ AI feedback is specific to student's answer
+- ✅ Points automatically calculated based on rubric
+- ✅ Save & Next efficiently moves through submissions
+- ✅ Submissions list shows graded status
+
+### Test 5.2: Student Views Grades and Feedback
+**Scenario**: Student reviews their graded assessment
+
+**User Actions**:
+1. Login as student
+2. Navigate to "My Assessments"
+3. Find "Climate Science Quiz" marked as "Graded"
+4. Click "View Results"
+5. Review each question's feedback
+6. Check total score and rubric levels
+
+**Expected Results**:
+- ✅ Overall score displays prominently
+- ✅ Each question shows points earned
+- ✅ Rubric level visible for each question
+- ✅ Teacher feedback displays clearly
+- ✅ Correct/incorrect indicators on multiple choice
+- ✅ Can view but not edit answers
+
+---
+
+## 6. Project Progress and Milestone Tracking
+
+### Test 6.1: Student Views Project Timeline
+**Scenario**: Student tracks project progress and milestones
+
+**User Actions**:
+1. Login as student (assigned to project)
+2. Click "Projects" in navigation
+3. Click on "Climate Change Solutions Research"
+4. View project overview with timeline
+5. Click on first milestone
+6. Check milestone requirements
+7. Click "View Assessments" for milestone
+8. Return to project page
+9. Check team members list
+
+**Expected Results**:
+- ✅ Project page shows visual timeline
+- ✅ Milestones display with due dates
+- ✅ Progress indicators show completion status
+- ✅ Current milestone highlighted
+- ✅ Team members listed with avatars
+- ✅ Milestone details show required assessments
+- ✅ Completed milestones show checkmarks
+
+---
+
+## 7. Digital Portfolio Management
+
+### Test 7.1: Portfolio Generation and QR Sharing
+**Scenario**: Student's portfolio updates automatically and shares publicly
+
+**User Actions**:
+1. Login as student with completed assessments
+2. Navigate to "Portfolio"
+3. View artifacts section
+4. Check credentials earned
+5. Observe QR code displayed
+6. Click "Copy Portfolio Link"
+7. Open link in incognito/private browser
+8. Scan QR code with mobile device
+
+**Expected Results**:
+- ✅ Portfolio shows all completed assessments as artifacts
+- ✅ Graded assessments appear with scores
+- ✅ Earned credentials (badges/stickers) display
+- ✅ QR code generates automatically
+- ✅ Public link works without authentication
+- ✅ Mobile QR scan opens portfolio
+- ✅ Public view is read-only
+- ✅ Layout responsive on mobile
+
+---
+
+## 8. Credential and Achievement System
+
+### Test 8.1: Earn Credentials Through Performance
+**Scenario**: Student earns credentials based on assessment performance
+
+**User Actions**:
+1. Complete assessment with high scores (Proficient/Applying)
+2. Teacher grades with high rubric levels
+3. Student checks notifications
+4. Navigate to portfolio
+5. View new credential
+6. Click credential for details
+
+**Expected Results**:
+- ✅ Notification appears for credential earned
+- ✅ Credential shows in portfolio
+- ✅ Credential type matches performance (Sticker/Badge/Plaque)
+- ✅ Credential linked to specific competency
+- ✅ Award date recorded
+- ✅ Credential appears in public portfolio
+
+---
+
+## 9. Analytics and Reporting
+
+### Test 9.1: Teacher Analytics Dashboard
+**Scenario**: Teacher reviews class progress and performance
+
+**User Actions**:
+1. Login as teacher
+2. Navigate to "Analytics"
+3. View class overview metrics
+4. Click "Component Skills Progress"
+5. Filter by specific competency
+6. View individual student progress
+7. Click "Export Data"
+8. Download CSV report
+
+**Expected Results**:
+- ✅ Dashboard shows key metrics (students, projects, assessments)
+- ✅ Progress charts display correctly
+- ✅ Skill mastery levels show distribution
+- ✅ Individual student data accessible
+- ✅ Filters work correctly
+- ✅ CSV export includes all visible data
+- ✅ Charts are interactive and responsive
+
+### Test 9.2: Admin System-Wide Analytics
+**Scenario**: Admin reviews school-wide performance metrics
+
+**User Actions**:
+1. Login as admin
+2. Access admin dashboard
+3. View system statistics
+4. Check user growth trends
+5. Review assessment completion rates
+6. Export comprehensive report
+
+**Expected Results**:
+- ✅ Total users by role displayed
+- ✅ Active projects count accurate
+- ✅ Assessment metrics calculate correctly
+- ✅ Trend graphs show historical data
+- ✅ School-level filtering works
+- ✅ Export includes all analytics data
+
+---
+
+## 10. Error Handling and Edge Cases
+
+### Test 10.1: Invalid Assessment Code
+**Scenario**: Student enters wrong or expired code
+
+**User Actions**:
+1. As student, click "Join Assessment"
+2. Enter invalid code "ZZZZZ"
+3. Try expired code (if available)
+4. Enter code with lowercase "abcde"
+
+**Expected Results**:
+- ✅ Clear error: "Invalid assessment code"
+- ✅ Error for expired: "This assessment code has expired"
+- ✅ System accepts uppercase or lowercase
+- ✅ Can retry without page refresh
+- ✅ No system errors or crashes
+
+### Test 10.2: Concurrent Access Handling
+**Scenario**: Multiple users access same resources
+
+**User Actions**:
+1. Teacher1 opens project for editing
+2. Teacher2 tries to edit same project
+3. Multiple students submit assessment simultaneously
+4. Teacher grades while student checks results
+
+**Expected Results**:
+- ✅ Last save wins without data corruption
+- ✅ All submissions recorded correctly
+- ✅ No lost data or system errors
+- ✅ Real-time updates where applicable
+
+---
+
+## 11. Mobile Responsiveness
+
+### Test 11.1: Mobile Student Experience
+**Scenario**: Student completes assessment on mobile device
+
+**User Actions**:
+1. Open application on mobile browser
+2. Login as student
+3. Enter assessment code
+4. Complete assessment on mobile
+5. View portfolio on mobile
+
+**Expected Results**:
+- ✅ Login form adapts to mobile screen
+- ✅ Navigation becomes mobile menu
+- ✅ Assessment questions readable
+- ✅ Answer inputs work on mobile
+- ✅ Submit button easily accessible
+- ✅ Portfolio QR code sized appropriately
+
+---
+
+## 12. Performance Benchmarks
+
+### Test 12.1: Load Time Validation
+**Scenario**: Verify acceptable performance across features
+
+**Measurements**:
+- Initial page load: < 3 seconds
+- Login authentication: < 2 seconds
+- Dashboard rendering: < 2 seconds
+- AI milestone generation: < 5 seconds
+- Assessment loading: < 2 seconds
+- Analytics calculation: < 3 seconds
+- Portfolio generation: < 2 seconds
+
+### Test 12.2: Stress Testing
+**Scenario**: System handles multiple concurrent users
+
+**Setup**:
+- 50 concurrent student logins
+- 20 simultaneous assessment submissions
+- 10 teachers grading simultaneously
+- 5 AI generation requests
+
+**Expected Results**:
+- ✅ All operations complete successfully
+- ✅ No timeout errors
+- ✅ Response times remain acceptable
+- ✅ Database connections stable
+
+---
+
+## 13. Cross-Browser Compatibility
+
+### Test 13.1: Browser Feature Matrix
+**Browsers to Test**:
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+
+**Features to Verify**:
+- ✅ Authentication flow
+- ✅ Component skill selection tree
+- ✅ Assessment taking interface
+- ✅ Grading rubric interface
+- ✅ QR code generation
+- ✅ File uploads (if applicable)
+- ✅ Analytics charts
+- ✅ Mobile responsive design
+
+---
+
+## 14. Accessibility Compliance
+
+### Test 14.1: Keyboard Navigation
+**Scenario**: Navigate application without mouse
+
+**User Actions**:
+1. Use Tab key to navigate
+2. Use Enter to activate buttons
+3. Use Space for checkboxes
+4. Use Arrow keys in dropdowns
+5. Use Escape to close modals
+
+**Expected Results**:
+- ✅ All interactive elements reachable
+- ✅ Focus indicators visible
+- ✅ Logical tab order
+- ✅ Skip links available
+- ✅ Modal focus trapped correctly
+
+### Test 14.2: Screen Reader Testing
+**Scenario**: Use with screen reader software
+
+**Tools**: NVDA, JAWS, or VoiceOver
+
+**Expected Results**:
+- ✅ All content announced properly
+- ✅ Form labels read correctly
+- ✅ Error messages announced
+- ✅ Navigation landmarks present
+- ✅ Dynamic content updates announced
+
+---
+
+## Test Execution Log
+
+| Test ID | Test Name | Priority | Last Executed | Status | Issues Found | Notes |
+|---------|-----------|----------|---------------|---------|--------------|-------|
+| 1.1 | Teacher Registration | High | - | ⏳ | - | - |
+| 1.2 | Student Registration | High | - | ⏳ | - | - |
+| 2.1 | Project Creation | High | - | ⏳ | - | - |
+| 2.2 | Team Management | High | - | ⏳ | - | - |
+| 3.1 | Assessment Creation | High | - | ⏳ | - | - |
+| 3.2 | Join via Code | High | - | ⏳ | - | - |
+| 4.1 | Take Assessment | High | - | ⏳ | - | - |
+| 5.1 | Grade with AI | High | - | ⏳ | - | - |
+| 5.2 | View Grades | High | - | ⏳ | - | - |
+| 6.1 | Project Timeline | Medium | - | ⏳ | - | - |
+| 7.1 | Portfolio & QR | High | - | ⏳ | - | - |
+| 8.1 | Earn Credentials | Medium | - | ⏳ | - | - |
+| 9.1 | Teacher Analytics | Medium | - | ⏳ | - | - |
+| 9.2 | Admin Analytics | Medium | - | ⏳ | - | - |
+| 10.1 | Error Handling | High | - | ⏳ | - | - |
+| 10.2 | Concurrent Access | High | - | ⏳ | - | - |
+| 11.1 | Mobile Experience | High | - | ⏳ | - | - |
+| 12.1 | Performance | Medium | - | ⏳ | - | - |
+| 13.1 | Cross-Browser | Medium | - | ⏳ | - | - |
+| 14.1 | Accessibility | High | - | ⏳ | - | - |
+
+**Status Legend**:
+- ⏳ Pending
+- ✅ Passed
+- ❌ Failed
+- ⚠️ Passed with Issues
+- 🔄 In Progress
+
+---
+
+## Automation Recommendations
+
+### Tools for Future Automation:
+1. **Cypress** - Modern E2E testing with great debugging
+2. **Playwright** - Cross-browser automation by Microsoft
+3. **Selenium Grid** - For parallel cross-browser testing
+4. **Jest + Testing Library** - For React component integration
+5. **k6** or **JMeter** - For performance testing
+6. **axe-core** - For automated accessibility testing
+
+### Priority Automation Targets:
+1. Authentication flows (high reuse)
+2. Assessment code entry (critical feature)
+3. Basic CRUD operations
+4. Smoke tests for each role
+
+---
+
+## Issue Reporting Template
+
+When issues are found during testing:
+
+```
+Issue ID: [TEST-ID]-[NUMBER]
+Test Case: [Test name and ID]
+Severity: Critical/High/Medium/Low
+Environment: [Browser, OS, User Role]
+
+Steps to Reproduce:
+1. [Detailed steps]
+2. [Include test data used]
+
+Expected Result:
+[What should happen]
+
+Actual Result:
+[What actually happened]
+
+Screenshots/Logs:
+[Attach if applicable]
+
+Additional Notes:
+[Any relevant context]
+```
+
+---
+
+*Document Version: 2.0*
 *Last Updated: July 27, 2025*
-*Document Version: 1.0*
+*Next Review: Monthly or after major releases*
+
+## Notes for Testers
+
+- Always test with realistic data volumes
+- Test both happy paths and edge cases
+- Verify error messages are user-friendly
+- Check for console errors during testing
+- Test with slow network conditions
+- Validate accessibility with each new feature
+- Document any workarounds discovered
