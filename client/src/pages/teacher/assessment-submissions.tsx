@@ -174,36 +174,51 @@ export default function AssessmentSubmissions() {
   const initializeGradingData = React.useCallback(() => {
     if (!submissions.length || !relevantSkills.length || isGradingDataInitialized) return;
     
+    console.log("Initializing grading data for assessment", id);
+    
     // Get any existing manual input from sessionStorage
     let savedData: typeof gradingData = {};
     try {
       const saved = sessionStorage.getItem(`gradingData_${id}`);
-      savedData = saved ? JSON.parse(saved) : {};
-    } catch {
+      if (saved) {
+        savedData = JSON.parse(saved);
+        console.log("Found saved grading data in sessionStorage:", savedData);
+      }
+    } catch (error) {
+      console.warn("Failed to parse saved grading data:", error);
       savedData = {};
     }
     
-    const initialData: typeof gradingData = { ...savedData };
+    const initialData: typeof gradingData = {};
     
-    // Merge with existing grades from database, but don't overwrite manual input
+    // Initialize data for each submission
     submissions.forEach(submission => {
+      initialData[submission.id] = {};
+      
+      // First, populate with existing grades from database
       if (submission.grades && submission.grades.length > 0) {
-        if (!initialData[submission.id]) {
-          initialData[submission.id] = {};
-        }
         submission.grades.forEach(grade => {
-          // Only set from database if no manual input exists for this skill
-          if (!initialData[submission.id][grade.componentSkillId]) {
-            initialData[submission.id][grade.componentSkillId] = {
-              rubricLevel: grade.rubricLevel,
-              feedback: grade.feedback,
-              score: parseInt(grade.score) || 1
-            };
+          initialData[submission.id][grade.componentSkillId] = {
+            rubricLevel: grade.rubricLevel,
+            feedback: grade.feedback,
+            score: parseInt(grade.score.toString()) || 1
+          };
+        });
+      }
+      
+      // Then, override with any saved manual input
+      if (savedData[submission.id]) {
+        Object.keys(savedData[submission.id]).forEach(skillId => {
+          const skillIdNum = parseInt(skillId);
+          if (savedData[submission.id][skillIdNum]) {
+            initialData[submission.id][skillIdNum] = savedData[submission.id][skillIdNum];
+            console.log(`Restored manual input for submission ${submission.id}, skill ${skillId}:`, savedData[submission.id][skillIdNum]);
           }
         });
       }
     });
     
+    console.log("Final initialized grading data:", initialData);
     setGradingData(initialData);
     setIsGradingDataInitialized(true);
   }, [submissions, relevantSkills, isGradingDataInitialized, id]);
@@ -329,6 +344,8 @@ export default function AssessmentSubmissions() {
     feedback: string;
     score: number;
   }) => {
+    console.log(`Updating grading data for submission ${submissionId}, skill ${skillId}:`, data);
+    
     setGradingData(prev => {
       const newData = {
         ...prev,
@@ -337,12 +354,16 @@ export default function AssessmentSubmissions() {
           [skillId]: data
         }
       };
+      
       // Save to sessionStorage for persistence across navigation
       try {
-        sessionStorage.setItem(`gradingData_${id}`, JSON.stringify(newData));
+        const storageKey = `gradingData_${id}`;
+        sessionStorage.setItem(storageKey, JSON.stringify(newData));
+        console.log(`Saved grading data to sessionStorage with key: ${storageKey}`);
       } catch (error) {
-        console.warn('Failed to save grading data to sessionStorage:', error);
+        console.error('Failed to save grading data to sessionStorage:', error);
       }
+      
       return newData;
     });
   };
@@ -361,20 +382,23 @@ export default function AssessmentSubmissions() {
 
   // Clear sessionStorage for this submission when grades are successfully saved
   React.useEffect(() => {
-    if (gradeMutation.isSuccess) {
+    if (gradeMutation.isSuccess && gradeMutation.variables?.submissionId) {
+      const submissionId = gradeMutation.variables.submissionId;
+      console.log(`Grade mutation successful for submission ${submissionId}, cleaning up sessionStorage`);
+      
       try {
-        const saved = sessionStorage.getItem(`gradingData_${id}`);
+        const storageKey = `gradingData_${id}`;
+        const saved = sessionStorage.getItem(storageKey);
         if (saved) {
           const savedData = JSON.parse(saved);
-          // Find the submission that was just graded and remove it from sessionStorage
-          const lastMutationSubmissionId = gradeMutation.variables?.submissionId;
-          if (lastMutationSubmissionId && savedData[lastMutationSubmissionId]) {
-            delete savedData[lastMutationSubmissionId];
-            sessionStorage.setItem(`gradingData_${id}`, JSON.stringify(savedData));
+          if (savedData[submissionId]) {
+            delete savedData[submissionId];
+            sessionStorage.setItem(storageKey, JSON.stringify(savedData));
+            console.log(`Cleaned up sessionStorage for submission ${submissionId}`);
           }
         }
       } catch (error) {
-        console.warn('Failed to update sessionStorage after successful save:', error);
+        console.error('Failed to update sessionStorage after successful save:', error);
       }
     }
   }, [gradeMutation.isSuccess, gradeMutation.variables, id]);
