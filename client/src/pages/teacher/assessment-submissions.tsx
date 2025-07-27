@@ -158,9 +158,12 @@ export default function AssessmentSubmissions() {
     assessment?.componentSkillIds?.includes(skill.id)
   );
 
-  // Initialize gradingData with existing grades when submissions load
+  // Track if grading data has been initialized to prevent resetting user input
+  const [isGradingDataInitialized, setIsGradingDataInitialized] = React.useState(false);
+
+  // Initialize gradingData with existing grades when submissions load (only once)
   const initializeGradingData = React.useCallback(() => {
-    if (!submissions.length || !relevantSkills.length) return;
+    if (!submissions.length || !relevantSkills.length || isGradingDataInitialized) return;
     
     const initialData: typeof gradingData = {};
     
@@ -178,9 +181,10 @@ export default function AssessmentSubmissions() {
     });
     
     setGradingData(initialData);
-  }, [submissions, relevantSkills]);
+    setIsGradingDataInitialized(true);
+  }, [submissions, relevantSkills, isGradingDataInitialized]);
 
-  // Initialize grading data when submissions and skills are loaded
+  // Initialize grading data when submissions and skills are loaded (only once)
   React.useEffect(() => {
     initializeGradingData();
   }, [initializeGradingData]);
