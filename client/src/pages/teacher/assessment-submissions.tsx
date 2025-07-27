@@ -627,6 +627,43 @@ export default function AssessmentSubmissions() {
                         </div>
                       )}
 
+                      {/* AI-Generated Component Skill Grades Display */}
+                      {submission.grades && submission.grades.length > 0 && submission.aiGeneratedFeedback && (
+                        <div className="space-y-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                            <Brain className="h-5 w-5 text-blue-600" />
+                            <span>AI Component Skill Assessment</span>
+                          </h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {submission.grades?.map((grade) => {
+                              const skill = relevantSkills.find(s => s.id === grade.componentSkillId);
+                              
+                              return (
+                                <Card key={grade.id} className="bg-blue-50 border-blue-200">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h6 className="font-medium text-gray-900">{skill?.name}</h6>
+                                      {getRubricLevelBadge(grade.rubricLevel)}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <div className="text-lg font-semibold text-blue-800">
+                                        Score: {grade.score}/4
+                                      </div>
+                                      {grade.feedback && (
+                                        <div className="bg-white p-3 rounded border border-blue-200">
+                                          <p className="text-sm text-gray-700">{grade.feedback}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Current Grades Display */}
                       {submission.grades && submission.grades.length > 0 && (
                         <div className="space-y-4">
@@ -664,73 +701,93 @@ export default function AssessmentSubmissions() {
                         </div>
                       )}
 
-                      {/* Manual Grading Interface */}
-                      {(!submission.grades || submission.grades.length === 0) && !submission.grade && relevantSkills.length > 0 && (
+                      {/* Manual Grading Interface - Show for all submissions to allow editing AI results */}
+                      {relevantSkills.length > 0 && (
                         <div className="space-y-4">
                           <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                             <GraduationCap className="h-5 w-5" />
-                            <span>Manual Grading</span>
+                            <span>
+                              {submission.grades && submission.grades.length > 0 
+                                ? (submission.aiGeneratedFeedback ? 'Review & Edit AI Grading' : 'Edit Manual Grading')
+                                : 'Manual Grading'
+                              }
+                            </span>
                           </h4>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {relevantSkills.map((skill) => (
-                              <Card key={skill.id} className="bg-white">
-                                <CardContent className="p-4 space-y-4">
-                                  <h6 className="font-medium text-gray-900">{skill.name}</h6>
-                                  
-                                  <div className="space-y-3">
-                                    <div>
-                                      <Label className="text-sm font-medium">Rubric Level</Label>
-                                      <Select
-                                        value={gradingData[submission.id]?.[skill.id]?.rubricLevel || ''}
-                                        onValueChange={(value: 'emerging' | 'developing' | 'proficient' | 'applying') => {
-                                          const level = rubricLevels.find(r => r.value === value);
-                                          updateGradingData(submission.id, skill.id, {
-                                            rubricLevel: value,
-                                            score: level?.score || 1,
-                                            feedback: gradingData[submission.id]?.[skill.id]?.feedback || ''
-                                          });
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-full">
-                                          <SelectValue placeholder="Select level" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {rubricLevels.map((level) => (
-                                            <SelectItem key={level.value} value={level.value}>
-                                              <div className="flex items-center space-x-2">
-                                                <Badge className={level.color}>
-                                                  {level.label}
-                                                </Badge>
-                                                <span className="text-sm">{level.description}</span>
-                                              </div>
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                            {relevantSkills.map((skill) => {
+                              // Get existing grade for this skill if available
+                              const existingGrade = submission.grades?.find(g => g.componentSkillId === skill.id);
+                              
+                              return (
+                                <Card key={skill.id} className="bg-white">
+                                  <CardContent className="p-4 space-y-4">
+                                    <h6 className="font-medium text-gray-900">{skill.name}</h6>
                                     
-                                    <div>
-                                      <Label className="text-sm font-medium">Feedback</Label>
-                                      <Textarea
-                                        placeholder="Provide specific feedback for this skill..."
-                                        value={gradingData[submission.id]?.[skill.id]?.feedback || ''}
-                                        onChange={(e) => {
-                                          const current = gradingData[submission.id]?.[skill.id];
-                                          updateGradingData(submission.id, skill.id, {
-                                            rubricLevel: current?.rubricLevel || 'emerging',
-                                            score: current?.score || 1,
-                                            feedback: e.target.value
-                                          });
-                                        }}
-                                        className="resize-none"
-                                        rows={3}
-                                      />
+                                    <div className="space-y-3">
+                                      <div>
+                                        <Label className="text-sm font-medium">Rubric Level</Label>
+                                        <Select
+                                          value={
+                                            gradingData[submission.id]?.[skill.id]?.rubricLevel || 
+                                            existingGrade?.rubricLevel || 
+                                            ''
+                                          }
+                                          onValueChange={(value: 'emerging' | 'developing' | 'proficient' | 'applying') => {
+                                            const level = rubricLevels.find(r => r.value === value);
+                                            updateGradingData(submission.id, skill.id, {
+                                              rubricLevel: value,
+                                              score: level?.score || 1,
+                                              feedback: gradingData[submission.id]?.[skill.id]?.feedback || existingGrade?.feedback || ''
+                                            });
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select level" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {rubricLevels.map((level) => (
+                                              <SelectItem key={level.value} value={level.value}>
+                                                <div className="flex items-center space-x-2">
+                                                  <Badge className={level.color}>
+                                                    {level.label}
+                                                  </Badge>
+                                                  <span className="text-sm">{level.description}</span>
+                                                </div>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      
+                                      <div>
+                                        <Label className="text-sm font-medium">Feedback</Label>
+                                        <Textarea
+                                          placeholder="Provide specific feedback for this skill..."
+                                          value={
+                                            gradingData[submission.id]?.[skill.id]?.feedback || 
+                                            existingGrade?.feedback || 
+                                            ''
+                                          }
+                                          onChange={(e) => {
+                                            const current = gradingData[submission.id]?.[skill.id];
+                                            const currentLevel = current?.rubricLevel || existingGrade?.rubricLevel || 'emerging';
+                                            const currentScore = current?.score || existingGrade?.score || 1;
+                                            updateGradingData(submission.id, skill.id, {
+                                              rubricLevel: currentLevel,
+                                              score: parseInt(currentScore.toString()) || 1,
+                                              feedback: e.target.value
+                                            });
+                                          }}
+                                          className="resize-none"
+                                          rows={3}
+                                        />
+                                      </div>
                                     </div>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
                           </div>
                           
                           <div className="flex justify-end space-x-3">
@@ -745,7 +802,7 @@ export default function AssessmentSubmissions() {
                             
                             <Button
                               onClick={() => handleManualGrade(submission.id)}
-                              disabled={gradeMutation.isPending || !gradingData[submission.id] || Object.keys(gradingData[submission.id] || {}).length === 0}
+                              disabled={gradeMutation.isPending}
                               className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
                             >
                               <Save className="h-4 w-4" />
