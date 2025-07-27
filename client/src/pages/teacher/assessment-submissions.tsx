@@ -211,7 +211,9 @@ export default function AssessmentSubmissions() {
       setIsBulkGrading(true);
       setBulkGradingProgress(0);
       
-      const ungradedSubmissions = submissions.filter(sub => !sub.grades?.length);
+      const ungradedSubmissions = submissions.filter(sub => 
+        !sub.grades?.length && (sub.grade === undefined || sub.grade === null)
+      );
       const total = ungradedSubmissions.length;
       
       for (let i = 0; i < ungradedSubmissions.length; i++) {
@@ -291,7 +293,9 @@ export default function AssessmentSubmissions() {
 
   const getSubmissionStats = () => {
     const total = submissions.length;
-    const graded = submissions.filter(sub => sub.grades?.length).length;
+    const graded = submissions.filter(sub => 
+      sub.grades?.length || (sub.grade !== undefined && sub.grade !== null)
+    ).length;
     const ungraded = total - graded;
     const aiGraded = submissions.filter(sub => sub.aiGeneratedFeedback).length;
     
@@ -490,7 +494,12 @@ export default function AssessmentSubmissions() {
                       <div className="flex items-center space-x-4">
                         {/* Grade Status */}
                         <div className="text-right">
-                          {averageScore !== null ? (
+                          {submission.grade !== undefined && submission.grade !== null ? (
+                            <div className="flex items-center space-x-2">
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                              <span className="text-lg font-semibold text-green-600">{submission.grade}%</span>
+                            </div>
+                          ) : averageScore !== null ? (
                             <div className="flex items-center space-x-2">
                               <CheckCircle className="h-5 w-5 text-green-500" />
                               <span className="text-lg font-semibold text-green-600">{averageScore}%</span>
@@ -500,12 +509,12 @@ export default function AssessmentSubmissions() {
                               <AlertCircle className="h-5 w-5 text-orange-500" />
                               <span className="text-orange-600 font-medium">Ungraded</span>
                             </div>
-                          )}
+                          )}</div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex items-center space-x-2">
-                          {!submission.grades?.length && (
+                          {!submission.grades?.length && (submission.grade === undefined || submission.grade === null) && (
                             <Button
                               size="sm"
                               onClick={() => aiGradeMutation.mutate(submission.id)}
@@ -613,7 +622,7 @@ export default function AssessmentSubmissions() {
                       )}
 
                       {/* Manual Grading Interface */}
-                      {!submission.grades?.length && relevantSkills.length > 0 && (
+                      {!submission.grades?.length && (submission.grade === undefined || submission.grade === null) && relevantSkills.length > 0 && (
                         <div className="space-y-4">
                           <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                             <GraduationCap className="h-5 w-5" />
