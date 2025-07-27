@@ -201,9 +201,9 @@ export default function TeacherAssessments() {
     setShowSubmissionsModal(true);
   };
 
-  
 
-  
+
+
 
   // Delete assessment mutation
   const deleteAssessmentMutation = useMutation({
@@ -389,13 +389,14 @@ export default function TeacherAssessments() {
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">{assessment.description}</p>
                       </div>
-                      
+
                       {/* Type Badge */}
                       <div className="ml-3 flex-shrink-0">
                         {assessment.milestoneId ? (
                           (() => {
                             const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
-                            const milestoneNumber = milestone ? milestone.order : '?';
+                            const milestoneNumber = milestone?.order || '?';
+
                             return (
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                                 <Calendar className="h-3 w-3 mr-1" />
@@ -498,7 +499,7 @@ export default function TeacherAssessments() {
                         <Clock className="h-3 w-3" />
                         <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d') : 'No due date'}</span>
                       </div>
-                      
+
                       {/* Action Buttons */}
                       <div className="flex items-center gap-1">
                         <Button 
