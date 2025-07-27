@@ -177,7 +177,6 @@ export default function TeacherAssessments() {
   });
 
   const totalAssessments = assessments.length;
-  const pendingGrading = 13; // Mock data for now - would come from submissions API
   const aiGeneratedCount = assessments.filter(a => a.aiGenerated).length;
 
   // Handler functions
@@ -266,7 +265,7 @@ export default function TeacherAssessments() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               <Card className="bg-white border-0 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center">
@@ -276,20 +275,6 @@ export default function TeacherAssessments() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500">Total Assessments</p>
                       <p className="text-2xl font-bold text-gray-900">{totalAssessments}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white border-0 shadow-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="p-3 bg-orange-100 rounded-lg">
-                      <Clock className="h-6 w-6 text-orange-600" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Pending Grading</p>
-                      <p className="text-2xl font-bold text-gray-900">{pendingGrading}</p>
                     </div>
                   </div>
                 </CardContent>
