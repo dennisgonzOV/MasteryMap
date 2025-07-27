@@ -2234,21 +2234,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           grades = [];
         } else {
           // Build OR conditions for each student ID to avoid inArray issues
-          const studentConditions = studentIds.map(id => eq(submissionsTable.student_id, id));
+          const studentConditions = studentIds.map(id => eq(submissionsTable.studentId, id));
           console.log('Building query for student IDs:', studentIds);
 
           const gradesWithStudents = await db.select({
             id: gradesTable.id,
-            submission_id: gradesTable.submission_id,
-            component_skill_id: gradesTable.component_skill_id,
+            submissionId: gradesTable.submissionId,
+            componentSkillId: gradesTable.componentSkillId,
             score: gradesTable.score,
-            rubric_level: gradesTable.rubric_level,
+            rubricLevel: gradesTable.rubricLevel,
             feedback: gradesTable.feedback,
-            graded_at: gradesTable.graded_at,
-            student_id: submissionsTable.student_id
+            gradedAt: gradesTable.gradedAt,
+            studentId: submissionsTable.studentId
           })
           .from(gradesTable)
-          .innerJoin(submissionsTable, eq(gradesTable.submission_id, submissionsTable.id))
+          .innerJoin(submissionsTable, eq(gradesTable.submissionId, submissionsTable.id))
           .where(or(...studentConditions));
 
           grades = gradesWithStudents;
@@ -2262,7 +2262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate performance statistics for each component skill
       const skillsProgress = componentSkills.map(skill => {
-        const skillGrades = grades.filter(g => g.component_skill_id === skill.id);
+        const skillGrades = grades.filter(g => g.componentSkillId === skill.id);
 
         if (skillGrades.length === 0) {
           return {
@@ -2290,14 +2290,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Calculate statistics
         const averageScore = skillGrades.reduce((sum, g) => sum + (g.score || 0), 0) / skillGrades.length;
-        const studentsAssessed = new Set(skillGrades.map(g => g.student_id)).size;
+        const studentsAssessed = new Set(skillGrades.map(g => g.studentId)).size;
 
         // Count rubric level distribution
         const rubricDistribution = {
-          emerging: skillGrades.filter(g => g.rubric_level === 'emerging').length,
-          developing: skillGrades.filter(g => g.rubric_level === 'developing').length,
-          proficient: skillGrades.filter(g => g.rubric_level === 'proficient').length,
-          applying: skillGrades.filter(g => g.rubric_level === 'applying').length
+          emerging: skillGrades.filter(g => g.rubricLevel === 'emerging').length,
+          developing: skillGrades.filter(g => g.rubricLevel === 'developing').length,
+          proficient: skillGrades.filter(g => g.rubricLevel === 'proficient').length,
+          applying: skillGrades.filter(g => g.rubricLevel === 'applying').length
         };
 
         const passRate = skillGrades.length > 0 ? ((rubricDistribution.proficient + rubricDistribution.applying) / skillGrades.length) * 100 : 0;
@@ -2309,7 +2309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Find most recent assessment
         const lastAssessmentDate = skillGrades.reduce((latest, grade) => {
-          const gradeDate = new Date(grade.graded_at || '');
+          const gradeDate = new Date(grade.gradedAt || '');
           return gradeDate > latest ? gradeDate : latest;
         }, new Date(0));
 
@@ -2388,14 +2388,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate aggregate statistics
-      const skillsAssessed = new Set(grades.map(g => g.component_skill_id));
-      const studentsAssessed = new Set(grades.map(g => g.student_id));
+      const skillsAssessed = new Set(grades.map(g => g.componentSkillId));
+      const studentsAssessed = new Set(grades.map(g => g.studentId));
       const averageSchoolScore = grades.reduce((sum, g) => sum + g.score, 0) / grades.length;
 
       // Group by component skill to find struggling and excelling skills
       const skillStats = new Map();
       grades.forEach(grade => {
-        const skillId = grade.component_skill_id;
+        const skillId = grade.componentSkillId;
         if (!skillStats.has(skillId)) {
           skillStats.set(skillId, []);
         }
@@ -2407,7 +2407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       skillStats.forEach(skillGrades => {
         const avgScore = skillGrades.reduce((sum: number, g: any) => sum + g.score, 0) / skillGrades.length;
-        const strugglingCount = skillGrades.filter((g: any) => g.rubric_level === 'emerging').length;
+        const strugglingCount = skillGrades.filter((g: any) => g.rubricLevel === 'emerging').length;
         const strugglingPercentage = (strugglingCount / skillGrades.length) * 100;
 
         if (strugglingPercentage > 30 || avgScore < 2.0) {
