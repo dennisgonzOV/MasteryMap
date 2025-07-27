@@ -24,9 +24,9 @@ export default function AdminPasswordReset() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userType, setUserType] = useState<'students' | 'teachers'>('students');
 
-  // Fetch users for selection
+  // Fetch users from admin's school for selection
   const { data: users, isLoading } = useQuery({
-    queryKey: ['/api/admin/users'],
+    queryKey: ['/api/admin/school-users'],
     staleTime: 5 * 60 * 1000,
   });
 

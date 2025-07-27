@@ -1705,6 +1705,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get users from admin's school for password reset
+  app.get("/api/admin/school-users", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const adminId = req.user.id;
+      
+      // Get admin's school ID
+      const admin = await db.select().from(usersTable).where(eq(usersTable.id, adminId)).limit(1);
+      
+      if (!admin.length || !admin[0].schoolId) {
+        return res.status(400).json({ message: "Admin school not found" });
+      }
+
+      const schoolId = admin[0].schoolId;
+
+      // Get all users from the same school (excluding the admin themselves)
+      const schoolUsers = await db.select({
+        id: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        role: usersTable.role,
+        grade: usersTable.grade,
+        schoolId: usersTable.schoolId
+      })
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.schoolId, schoolId),
+        ne(usersTable.id, adminId)
+      ));
+
+      res.json(schoolUsers);
+    } catch (error) {
+      console.error('Error fetching school users:', error);
+      res.status(500).json({ message: "Failed to fetch school users" });
+    }
+  });
+
   // Analytics endpoint for admin dashboard
   app.get("/api/analytics/dashboard", requireAuth, async (req, res) => {
     try {
