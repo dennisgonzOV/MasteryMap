@@ -235,19 +235,21 @@ export default function StudentProgressView() {
               <TabsContent value="projects" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Active Projects</CardTitle>
+                    <CardTitle className="text-lg">Assigned Projects</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedStudent.projects
-                        .filter((project) => project.projectStatus === 'active')
-                        .map((project) => (
+                      {selectedStudent.projects.map((project) => (
                         <div key={project.projectId} className="p-4 border border-gray-200 rounded-lg">
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-medium">{project.projectTitle}</h4>
                             <Badge 
                               variant="default"
-                              className="text-xs"
+                              className={`text-xs ${
+                                project.projectStatus === 'active' ? 'bg-green-100 text-green-800' :
+                                project.projectStatus === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}
                             >
                               {project.projectStatus}
                             </Badge>
@@ -259,8 +261,8 @@ export default function StudentProgressView() {
                           </div>
                         </div>
                       ))}
-                      {selectedStudent.projects.filter((project) => project.projectStatus === 'active').length === 0 && (
-                        <p className="text-gray-500 text-center py-4">No active projects assigned</p>
+                      {selectedStudent.projects.length === 0 && (
+                        <p className="text-gray-500 text-center py-4">No projects assigned</p>
                       )}
                     </div>
                   </CardContent>
