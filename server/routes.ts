@@ -2161,11 +2161,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get grades for students in this school directly
       const grades = studentIds.length > 0 ? await db.select()
         .from(gradesTable)
-        .where(inArray(gradesTable.studentId, studentIds)) : [];
+        .where(inArray(gradesTable.student_id, studentIds)) : [];
 
       // Calculate performance statistics for each component skill
       const skillsProgress = componentSkills.map(skill => {
-        const skillGrades = grades.filter(g => g.componentSkillId === skill.id);
+        const skillGrades = grades.filter(g => g.component_skill_id === skill.id);
 
         if (skillGrades.length === 0) {
           return {
@@ -2193,14 +2193,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Calculate statistics
         const averageScore = skillGrades.reduce((sum, g) => sum + (g.score || 0), 0) / skillGrades.length;
-        const studentsAssessed = new Set(skillGrades.map(g => g.studentId)).size;
+        const studentsAssessed = new Set(skillGrades.map(g => g.student_id)).size;
 
         // Count rubric level distribution
         const rubricDistribution = {
-          emerging: skillGrades.filter(g => g.rubricLevel === 'emerging').length,
-          developing: skillGrades.filter(g => g.rubricLevel === 'developing').length,
-          proficient: skillGrades.filter(g => g.rubricLevel === 'proficient').length,
-          applying: skillGrades.filter(g => g.rubricLevel === 'applying').length
+          emerging: skillGrades.filter(g => g.rubric_level === 'emerging').length,
+          developing: skillGrades.filter(g => g.rubric_level === 'developing').length,
+          proficient: skillGrades.filter(g => g.rubric_level === 'proficient').length,
+          applying: skillGrades.filter(g => g.rubric_level === 'applying').length
         };
 
         const passRate = skillGrades.length > 0 ? ((rubricDistribution.proficient + rubricDistribution.applying) / skillGrades.length) * 100 : 0;
@@ -2212,7 +2212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Find most recent assessment
         const lastAssessmentDate = skillGrades.reduce((latest, grade) => {
-          const gradeDate = new Date(grade.gradedAt || '');
+          const gradeDate = new Date(grade.graded_at || '');
           return gradeDate > latest ? gradeDate : latest;
         }, new Date(0));
 
@@ -2277,7 +2277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allGrades = await db.select().from(gradesTable);
 
       // Filter grades for students in this school
-      const grades = allGrades.filter(grade => studentIds.includes(grade.studentId));
+      const grades = allGrades.filter(grade => studentIds.includes(grade.student_id));
 
       if (grades.length === 0) {
         return res.json({
@@ -2291,14 +2291,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate aggregate statistics
-      const skillsAssessed = new Set(grades.map(g => g.componentSkillId));
-      const studentsAssessed = new Set(grades.map(g => g.studentId));
+      const skillsAssessed = new Set(grades.map(g => g.component_skill_id));
+      const studentsAssessed = new Set(grades.map(g => g.student_id));
       const averageSchoolScore = grades.reduce((sum, g) => sum + g.score, 0) / grades.length;
 
       // Group by component skill to find struggling and excelling skills
       const skillStats = new Map();
       grades.forEach(grade => {
-        const skillId = grade.componentSkillId;
+        const skillId = grade.component_skill_id;
         if (!skillStats.has(skillId)) {
           skillStats.set(skillId, []);
         }
@@ -2310,7 +2310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       skillStats.forEach(skillGrades => {
         const avgScore = skillGrades.reduce((sum: number, g: any) => sum + g.score, 0) / skillGrades.length;
-        const strugglingCount = skillGrades.filter((g: any) => g.rubricLevel === 'emerging').length;
+        const strugglingCount = skillGrades.filter((g: any) => g.rubric_level === 'emerging').length;
         const strugglingPercentage = (strugglingCount / skillGrades.length) * 100;
 
         if (strugglingPercentage > 30 || avgScore < 2.0) {
