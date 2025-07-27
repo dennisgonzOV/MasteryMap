@@ -260,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate project ideas
-  app.post('/api/projects/generate-ideas', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/projects/generate-ideas', async (req: any, res) => {
     try {
       const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
 
