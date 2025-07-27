@@ -242,32 +242,7 @@ export default function AssessmentDetails() {
             </div>
           </div>
 
-          {/* Share Code Display */}
-          {shareCode && (
-            <div className="mt-6">
-              <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-green-600 p-2 rounded-full">
-                        <Share2 className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-green-800">Assessment Code Generated</h3>
-                        <p className="text-sm text-green-700">Share this code with your students</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-800 font-mono bg-white px-4 py-2 rounded-lg border-2 border-green-300">
-                        {shareCode}
-                      </div>
-                      <p className="text-xs text-green-600 mt-1">Code copied to clipboard</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
