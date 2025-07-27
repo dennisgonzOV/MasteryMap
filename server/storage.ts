@@ -331,55 +331,55 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProject(id: number): Promise<void> {
     // Delete in the correct order to avoid foreign key constraint violations
-    
+
     // First, get all milestones for this project
     const projectMilestones = await db.select().from(milestones).where(eq(milestones.projectId, id));
     const milestoneIds = projectMilestones.map(m => m.id);
-    
+
     if (milestoneIds.length > 0) {
       // Delete submissions for assessments linked to these milestones
       const assessmentsForMilestones = await db.select().from(assessments).where(inArray(assessments.milestoneId, milestoneIds));
       const assessmentIds = assessmentsForMilestones.map(a => a.id);
-      
+
       if (assessmentIds.length > 0) {
         // Delete submissions for these assessments
         const submissionsForAssessments = await db.select().from(submissions).where(inArray(submissions.assessmentId, assessmentIds));
         const submissionIds = submissionsForAssessments.map(s => s.id);
-        
+
         if (submissionIds.length > 0) {
           // Delete grades for these submissions
           await db.delete(grades).where(inArray(grades.submissionId, submissionIds));
-          
+
           // Delete portfolio artifacts for these submissions
           await db.delete(portfolioArtifacts).where(inArray(portfolioArtifacts.submissionId, submissionIds));
         }
-        
+
         // Delete submissions
         await db.delete(submissions).where(inArray(submissions.assessmentId, assessmentIds));
-        
+
         // Delete self-evaluations for these assessments
         await db.delete(selfEvaluations).where(inArray(selfEvaluations.assessmentId, assessmentIds));
-        
+
         // Delete assessments
         await db.delete(assessments).where(inArray(assessments.milestoneId, milestoneIds));
       }
-      
+
       // Delete milestones
       await db.delete(milestones).where(eq(milestones.projectId, id));
     }
-    
+
     // Delete project team members first
     const teams = await db.select().from(projectTeams).where(eq(projectTeams.projectId, id));
     const teamIds = teams.map(t => t.id);
-    
+
     if (teamIds.length > 0) {
       await db.delete(projectTeamMembers).where(inArray(projectTeamMembers.teamId, teamIds));
       await db.delete(projectTeams).where(eq(projectTeams.projectId, id));
     }
-    
+
     // Delete project assignments
     await db.delete(projectAssignments).where(eq(projectAssignments.projectId, id));
-    
+
     // Finally, delete the project
     await db.delete(projects).where(eq(projects.id, id));
   }
@@ -410,9 +410,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMilestone(id: number, updates: Partial<InsertMilestone>): Promise<Milestone> {
+    // Handle date conversion if dueDate is provided as a string
+    const processedUpdates = { ...updates };
+    if (processedUpdates.dueDate && typeof processedUpdates.dueDate === 'string') {
+      processedUpdates.dueDate = new Date(processedUpdates.dueDate);
+    }
+
     const [updatedMilestone] = await db
       .update(milestones)
-      .set(updates)
+      .set(processedUpdates)
       .where(eq(milestones.id, id))
       .returning();
     return updatedMilestone;
@@ -901,7 +907,7 @@ export class DatabaseStorage implements IStorage {
       // Get all data separately to avoid join issues
       const skills = await db.select().from(componentSkills).orderBy(componentSkills.id);
 
-      if (!skills || skills.length === 0) {
+      if (!skills || skills.length === 0){
         console.log("No component skills found in database");
         return [];
       }
