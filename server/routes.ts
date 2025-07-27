@@ -32,7 +32,7 @@ import {
   componentSkills as componentSkillsTable,
   bestStandards as bestStandardsTable
 } from "../shared/schema";
-import { eq, and, desc, asc, isNull, inArray, ne, sql, gte } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -2210,16 +2210,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get grades for students in this school by joining through submissions
       let grades = [];
       try {
-        // Use raw SQL to avoid Drizzle inArray issues
-        const query = `
-          SELECT g.*, s.student_id as student_id
-          FROM grades g 
-          JOIN submissions s ON g.submission_id = s.id 
-          WHERE s.student_id = ANY($1)
-        `;
-        const result = await db.execute(sql.raw(query, [studentIds]));
-        grades = result.rows;
+        // Build OR conditions for each student ID to avoid inArray issues
+        const studentConditions = studentIds.map(id => eq(submissionsTable.student_id, id));
         
+        const gradesWithStudents = await db.select({
+          id: gradesTable.id,
+          submission_id: gradesTable.submission_id,
+          component_skill_id: gradesTable.component_skill_id,
+          score: gradesTable.score,
+          rubric_level: gradesTable.rubric_level,
+          feedback: gradesTable.feedback,
+          graded_at: gradesTable.graded_at,
+          student_id: submissionsTable.student_id
+        })
+        .from(gradesTable)
+        .innerJoin(submissionsTable, eq(gradesTable.submission_id, submissionsTable.id))
+        .where(or(...studentConditions));
+        
+        grades = gradesWithStudents;
         console.log('Total grades found for school students:', grades.length);
         console.log('Sample grades:', grades.slice(0, 3));
       } catch (error) {
