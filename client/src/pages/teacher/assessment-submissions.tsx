@@ -135,33 +135,6 @@ export default function AssessmentSubmissions() {
   const [bulkGradingProgress, setBulkGradingProgress] = useState(0);
   const [isBulkGrading, setIsBulkGrading] = useState(false);
 
-  // Initialize gradingData with existing grades when submissions load
-  const initializeGradingData = () => {
-    if (!submissions.length || !relevantSkills.length) return;
-    
-    const initialData: typeof gradingData = {};
-    
-    submissions.forEach(submission => {
-      if (submission.grades && submission.grades.length > 0) {
-        initialData[submission.id] = {};
-        submission.grades.forEach(grade => {
-          initialData[submission.id][grade.componentSkillId] = {
-            rubricLevel: grade.rubricLevel,
-            feedback: grade.feedback,
-            score: parseInt(grade.score) || 1
-          };
-        });
-      }
-    });
-    
-    setGradingData(initialData);
-  };
-
-  // Initialize grading data when submissions and skills are loaded
-  React.useEffect(() => {
-    initializeGradingData();
-  }, [submissions, relevantSkills]);
-
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
     queryKey: [`/api/assessments/${id}`],
@@ -184,6 +157,33 @@ export default function AssessmentSubmissions() {
   const relevantSkills = componentSkills.filter(skill => 
     assessment?.componentSkillIds?.includes(skill.id)
   );
+
+  // Initialize gradingData with existing grades when submissions load
+  const initializeGradingData = React.useCallback(() => {
+    if (!submissions.length || !relevantSkills.length) return;
+    
+    const initialData: typeof gradingData = {};
+    
+    submissions.forEach(submission => {
+      if (submission.grades && submission.grades.length > 0) {
+        initialData[submission.id] = {};
+        submission.grades.forEach(grade => {
+          initialData[submission.id][grade.componentSkillId] = {
+            rubricLevel: grade.rubricLevel,
+            feedback: grade.feedback,
+            score: parseInt(grade.score) || 1
+          };
+        });
+      }
+    });
+    
+    setGradingData(initialData);
+  }, [submissions, relevantSkills]);
+
+  // Initialize grading data when submissions and skills are loaded
+  React.useEffect(() => {
+    initializeGradingData();
+  }, [initializeGradingData]);
 
   // Individual grading mutation
   const gradeMutation = useMutation({
