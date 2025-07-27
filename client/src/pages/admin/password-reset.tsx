@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/navigation';
-import { Shield, Key } from 'lucide-react';
+import { Shield, Key, Search } from 'lucide-react';
 
 interface PasswordResetForm {
   userId: string;
@@ -20,12 +20,19 @@ interface PasswordResetForm {
 
 export default function AdminPasswordReset() {
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch users for selection
   const { data: users, isLoading } = useQuery({
     queryKey: ['/api/admin/users'],
     staleTime: 5 * 60 * 1000,
   });
+
+  // Filter users based on search term
+  const filteredUsers = users?.filter((user: any) =>
+    `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
 
   const form = useForm<PasswordResetForm>({
     defaultValues: {
@@ -90,6 +97,20 @@ export default function AdminPasswordReset() {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {/* Search Input */}
+                  <div className="space-y-2">
+                    <FormLabel>Search Users</FormLabel>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search by name or email..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="userId"
@@ -103,11 +124,17 @@ export default function AdminPasswordReset() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {users?.map((user: any) => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
-                                {user.firstName} {user.lastName} ({user.email})
-                              </SelectItem>
-                            ))}
+                            {filteredUsers.length === 0 ? (
+                              <div className="text-center py-4 text-gray-500">
+                                {searchTerm ? 'No users match your search' : 'No users found'}
+                              </div>
+                            ) : (
+                              filteredUsers.map((user: any) => (
+                                <SelectItem key={user.id} value={user.id.toString()}>
+                                  {user.firstName} {user.lastName} ({user.email})
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
