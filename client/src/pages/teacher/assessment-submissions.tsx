@@ -82,6 +82,7 @@ interface Submission {
     answer: string;
   }>;
   grades?: Grade[];
+  grade?: number; // AI-generated overall grade
   feedback?: string;
   isLate: boolean;
   aiGeneratedFeedback?: boolean;
@@ -226,7 +227,7 @@ export default function AssessmentSubmissions() {
       setBulkGradingProgress(0);
       
       const ungradedSubmissions = submissions.filter(sub => 
-        !sub.grades?.length
+        !sub.grades?.length && !sub.grade
       );
       const total = ungradedSubmissions.length;
       
@@ -308,7 +309,7 @@ export default function AssessmentSubmissions() {
   const getSubmissionStats = () => {
     const total = submissions.length;
     const graded = submissions.filter(sub => 
-      sub.grades?.length
+      sub.grades?.length || (sub.grade !== undefined && sub.grade !== null)
     ).length;
     const ungraded = total - graded;
     const aiGraded = submissions.filter(sub => sub.aiGeneratedFeedback).length;
@@ -321,6 +322,12 @@ export default function AssessmentSubmissions() {
   };
 
   const getAverageScore = (submission: Submission) => {
+    // Check for AI-generated grade first (stored in submission.grade)
+    if (submission.grade !== undefined && submission.grade !== null) {
+      return submission.grade;
+    }
+    
+    // Fallback to manual grades if available
     if (!submission.grades?.length) return null;
     const totalScore = submission.grades.reduce((sum, grade) => sum + parseFloat(grade.score), 0);
     return Math.round((totalScore / submission.grades.length) * 25); // Convert to percentage (4 levels * 25%)
@@ -508,14 +515,7 @@ export default function AssessmentSubmissions() {
                       <div className="flex items-center space-x-4">
                         {/* Grade Status */}
                         <div className="text-right">
-                          {submission.grades?.length ? (
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-5 w-5 text-green-500" />
-                              <span className="text-lg font-semibold text-green-600">
-                                {Math.round(submission.grades.reduce((sum, g) => sum + (parseFloat(g.score) || 0), 0) / submission.grades.length * 25)}%
-                              </span>
-                            </div>
-                          ) : averageScore !== null ? (
+                          {averageScore !== null ? (
                             <div className="flex items-center space-x-2">
                               <CheckCircle className="h-5 w-5 text-green-500" />
                               <span className="text-lg font-semibold text-green-600">{averageScore}%</span>
@@ -530,7 +530,7 @@ export default function AssessmentSubmissions() {
 
                         {/* Action Buttons */}
                         <div className="flex items-center space-x-2">
-                          {(!submission.grades || submission.grades.length === 0) && (
+                          {(!submission.grades || submission.grades.length === 0) && !submission.grade && (
                             <Button
                               size="sm"
                               onClick={() => aiGradeMutation.mutate(submission.id)}
@@ -600,12 +600,39 @@ export default function AssessmentSubmissions() {
                         })}
                       </div>
 
+                      {/* AI-Generated Feedback Display */}
+                      {submission.grade !== undefined && submission.aiGeneratedFeedback && (
+                        <div className="space-y-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                            <Brain className="h-5 w-5 text-blue-600" />
+                            <span>AI Assessment Results</span>
+                          </h4>
+                          
+                          <Card className="bg-blue-50 border-blue-200">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <h6 className="font-medium text-gray-900">Overall Grade</h6>
+                                <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-lg px-3 py-1">
+                                  {submission.grade}%
+                                </Badge>
+                              </div>
+                              {submission.feedback && (
+                                <div className="bg-white p-4 rounded border border-blue-200">
+                                  <h6 className="font-medium text-gray-900 mb-2">AI Feedback</h6>
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.feedback}</p>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+
                       {/* Current Grades Display */}
                       {submission.grades && submission.grades.length > 0 && (
                         <div className="space-y-4">
                           <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                             <Star className="h-5 w-5" />
-                            <span>Current Grades</span>
+                            <span>Manual Grades</span>
                           </h4>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -638,7 +665,7 @@ export default function AssessmentSubmissions() {
                       )}
 
                       {/* Manual Grading Interface */}
-                      {(!submission.grades || submission.grades.length === 0) && relevantSkills.length > 0 && (
+                      {(!submission.grades || submission.grades.length === 0) && !submission.grade && relevantSkills.length > 0 && (
                         <div className="space-y-4">
                           <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                             <GraduationCap className="h-5 w-5" />
