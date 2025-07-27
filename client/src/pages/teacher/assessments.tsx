@@ -395,7 +395,7 @@ export default function TeacherAssessments() {
                         {assessment.milestoneId ? (
                           (() => {
                             const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
-                            const milestoneNumber = milestone ? milestone.title.match(/(\d+)/)?.[0] || '?' : '?';
+                            const milestoneNumber = milestone ? milestone.order : '?';
                             return (
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                                 <Calendar className="h-3 w-3 mr-1" />
