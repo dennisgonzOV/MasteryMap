@@ -148,19 +148,27 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     mutationFn: async () => {
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
-      if (!response.ok) throw new Error('Failed to delete project');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete project' }));
+        throw new Error(errorData.message || 'Failed to delete project');
+      }
       return response.json();
     },
     onSuccess: () => {
       toast({ title: "Project deleted successfully" });
+      setConfirmationModal(prev => ({ ...prev, isOpen: false }));
       onClose();
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     },
     onError: (error: any) => {
+      setConfirmationModal(prev => ({ ...prev, isOpen: false }));
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     },
@@ -329,9 +337,9 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
       description: `Are you sure you want to delete "${project?.title}"? This will also delete all milestones. This action cannot be undone.`,
       onConfirm: () => {
         deleteProjectMutation.mutate();
-        setConfirmationModal(prev => ({ ...prev, isOpen: false }));
       },
       variant: 'destructive',
+      isLoading: deleteProjectMutation.isPending,
     });
   };
 
@@ -733,7 +741,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
           title={confirmationModal.title}
           description={confirmationModal.description}
           variant={confirmationModal.variant}
-          isLoading={confirmationModal.isLoading}
+          isLoading={deleteProjectMutation.isPending || confirmationModal.isLoading}
           confirmText={confirmationModal.variant === 'destructive' ? 'Delete' : 'Confirm'}
         />
       </DialogContent>
