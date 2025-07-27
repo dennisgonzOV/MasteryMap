@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -134,6 +134,33 @@ export default function AssessmentSubmissions() {
   }>>>({});
   const [bulkGradingProgress, setBulkGradingProgress] = useState(0);
   const [isBulkGrading, setIsBulkGrading] = useState(false);
+
+  // Initialize gradingData with existing grades when submissions load
+  const initializeGradingData = () => {
+    if (!submissions.length || !relevantSkills.length) return;
+    
+    const initialData: typeof gradingData = {};
+    
+    submissions.forEach(submission => {
+      if (submission.grades && submission.grades.length > 0) {
+        initialData[submission.id] = {};
+        submission.grades.forEach(grade => {
+          initialData[submission.id][grade.componentSkillId] = {
+            rubricLevel: grade.rubricLevel,
+            feedback: grade.feedback,
+            score: parseInt(grade.score) || 1
+          };
+        });
+      }
+    });
+    
+    setGradingData(initialData);
+  };
+
+  // Initialize grading data when submissions and skills are loaded
+  React.useEffect(() => {
+    initializeGradingData();
+  }, [submissions, relevantSkills]);
 
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
