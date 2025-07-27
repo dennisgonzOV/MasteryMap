@@ -47,6 +47,17 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
     },
   });
 
+  // Fetch student submissions to check completion status
+  const { data: studentSubmissions = [] } = useQuery({
+    queryKey: ["/api/submissions/student"],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const response = await fetch(`/api/submissions/student`);
+      if (!response.ok) throw new Error('Failed to fetch submissions');
+      return response.json();
+    },
+  });
+
   // Fetch project details if milestone has a project
   const { data: project } = useQuery({
     queryKey: ["/api/projects", milestone?.projectId],
@@ -92,6 +103,13 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
 
   const isOverdue = milestone.dueDate && new Date(milestone.dueDate) < new Date();
   const isCompleted = milestone.status === 'completed';
+  
+  // Check if student has submitted any assessments for this milestone
+  const hasSubmissions = studentSubmissions.some(submission => {
+    return submission.assessment?.milestoneId === milestone.id;
+  });
+  
+  const displayStatus = hasSubmissions ? 'submitted' : (isCompleted ? 'completed' : 'not_started');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -122,12 +140,15 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                 <div className="flex items-center space-x-3 mt-2">
                   <Badge 
                     className={
-                      isCompleted ? 'bg-green-100 text-green-800' :
+                      displayStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                      displayStatus === 'submitted' ? 'bg-blue-100 text-blue-800' :
                       isOverdue ? 'bg-red-100 text-red-800' :
-                      'bg-blue-100 text-blue-800'
+                      'bg-gray-100 text-gray-800'
                     }
                   >
-                    {isCompleted ? 'Completed' : isOverdue ? 'Overdue' : 'In Progress'}
+                    {displayStatus === 'completed' ? 'Completed' : 
+                     displayStatus === 'submitted' ? 'Submitted' :
+                     isOverdue ? 'Overdue' : 'In Progress'}
                   </Badge>
                   {milestone.dueDate && (
                     <div className="flex items-center space-x-1 text-sm text-gray-600">
@@ -166,7 +187,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
           </Card>
 
           {/* Status Alert */}
-          {isOverdue && !isCompleted && (
+          {isOverdue && displayStatus !== 'completed' && displayStatus !== 'submitted' && (
             <Card className="apple-shadow border-0 border-l-4 border-l-red-500 mb-8">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-2">
@@ -180,7 +201,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
             </Card>
           )}
 
-          {isCompleted && (
+          {displayStatus === 'completed' && (
             <Card className="apple-shadow border-0 border-l-4 border-l-green-500 mb-8">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-2">
@@ -188,6 +209,20 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                   <div>
                     <p className="font-medium text-green-900">Milestone completed!</p>
                     <p className="text-sm text-green-700">Great job completing this milestone. You can review your submissions below.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {displayStatus === 'submitted' && (
+            <Card className="apple-shadow border-0 border-l-4 border-l-blue-500 mb-8">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-blue-900">Assessment submitted!</p>
+                    <p className="text-sm text-blue-700">Your submission has been received and is awaiting grading. You can review your responses below.</p>
                   </div>
                 </div>
               </CardContent>
@@ -236,13 +271,19 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                                 Due {format(new Date(assessment.dueDate), 'MMM d')}
                               </span>
                             )}
-                            <Button
-                              size="sm"
-                              onClick={() => setLocation(`/student/assessments/${assessment.id}`)}
-                              className="bg-blue-600 hover:bg-blue-700"
-                            >
-                              Start Assessment
-                            </Button>
+                            {(() => {
+                              const hasSubmission = studentSubmissions.some(sub => sub.assessmentId === assessment.id);
+                              return (
+                                <Button
+                                  size="sm"
+                                  variant={hasSubmission ? 'outline' : 'default'}
+                                  onClick={() => setLocation(`/student/assessments/${assessment.id}`)}
+                                  className={hasSubmission ? 'text-blue-600 border-blue-600' : 'bg-blue-600 hover:bg-blue-700'}
+                                >
+                                  {hasSubmission ? 'View Submission' : 'Start Assessment'}
+                                </Button>
+                              );
+                            })()}
                           </div>
                         </div>
                         <p className="text-sm text-gray-600">{assessment.description}</p>

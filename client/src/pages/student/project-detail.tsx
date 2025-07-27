@@ -81,15 +81,43 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
     },
   });
 
-  const completedMilestones = milestones.filter(m => m.status === 'completed').length;
+  // Fetch student submissions to check completion status
+  const { data: studentSubmissions = [] } = useQuery({
+    queryKey: ["/api/submissions/student"],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const response = await fetch(`/api/submissions/student`);
+      if (!response.ok) throw new Error('Failed to fetch submissions');
+      return response.json();
+    },
+  });
+
+  // Enhanced milestone status calculation with submission tracking
+  const milestonesWithStatus = milestones.map(milestone => {
+    // Check if student has submitted any assessments for this milestone
+    const hasSubmissions = studentSubmissions.some(submission => {
+      // Find assessments that belong to this milestone
+      return submission.assessment?.milestoneId === milestone.id;
+    });
+    
+    return {
+      ...milestone,
+      hasSubmissions,
+      displayStatus: hasSubmissions ? 'submitted' : milestone.status || 'not_started'
+    };
+  });
+
+  const completedMilestones = milestonesWithStatus.filter(m => 
+    m.displayStatus === 'completed' || m.displayStatus === 'submitted'
+  ).length;
   const progressPercentage = milestones.length > 0 ? (completedMilestones / milestones.length) * 100 : 0;
 
-  const overdueMilestones = milestones.filter(m => 
-    m.dueDate && new Date(m.dueDate) < new Date() && m.status !== 'completed'
+  const overdueMilestones = milestonesWithStatus.filter(m => 
+    m.dueDate && new Date(m.dueDate) < new Date() && m.displayStatus !== 'completed' && m.displayStatus !== 'submitted'
   );
 
-  const upcomingMilestones = milestones.filter(m => 
-    m.dueDate && new Date(m.dueDate) >= new Date() && m.status !== 'completed'
+  const upcomingMilestones = milestonesWithStatus.filter(m => 
+    m.dueDate && new Date(m.dueDate) >= new Date() && m.displayStatus !== 'completed' && m.displayStatus !== 'submitted'
   );
 
   if (isLoading || projectLoading) {
@@ -266,14 +294,16 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {milestones.map((milestone, index) => (
+                      {milestonesWithStatus.map((milestone, index) => (
                         <div 
                           key={milestone.id}
                           className="flex items-start space-x-4 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex-shrink-0 mt-1">
-                            {milestone.status === 'completed' ? (
+                            {milestone.displayStatus === 'completed' ? (
                               <CheckCircle className="h-5 w-5 text-green-600" />
+                            ) : milestone.displayStatus === 'submitted' ? (
+                              <CheckCircle className="h-5 w-5 text-blue-600" />
                             ) : milestone.dueDate && new Date(milestone.dueDate) < new Date() ? (
                               <AlertCircle className="h-5 w-5 text-red-600" />
                             ) : (
@@ -282,11 +312,19 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-medium text-gray-900">{milestone.title}</h3>
+                              <div className="flex items-center space-x-2">
+                                <h3 className="font-medium text-gray-900">{milestone.title}</h3>
+                                {milestone.displayStatus === 'submitted' && (
+                                  <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                    Submitted
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="flex items-center space-x-2">
                                 {milestone.dueDate && (
                                   <span className={`text-xs px-2 py-1 rounded-full ${
-                                    milestone.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    milestone.displayStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                                    milestone.displayStatus === 'submitted' ? 'bg-blue-100 text-blue-800' :
                                     new Date(milestone.dueDate) < new Date() ? 'bg-red-100 text-red-800' :
                                     'bg-blue-100 text-blue-800'
                                   }`}>
@@ -295,17 +333,18 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                                 )}
                                 <Button
                                   size="sm"
-                                  variant={milestone.status === 'completed' ? 'outline' : 'default'}
+                                  variant={milestone.displayStatus === 'completed' || milestone.displayStatus === 'submitted' ? 'outline' : 'default'}
                                   onClick={() => {
-                                    if (milestone.status === 'completed') {
+                                    if (milestone.displayStatus === 'completed' || milestone.displayStatus === 'submitted') {
                                       setLocation(`/student/milestones/${milestone.id}`);
                                     } else {
                                       handleMilestoneComplete(milestone.id);
                                     }
                                   }}
-                                  className={milestone.status === 'completed' ? 'text-green-600' : ''}
+                                  className={milestone.displayStatus === 'completed' ? 'text-green-600' : milestone.displayStatus === 'submitted' ? 'text-blue-600' : ''}
                                 >
-                                  {milestone.status === 'completed' ? 'View Details' : 'Complete'}
+                                  {milestone.displayStatus === 'completed' ? 'View Details' : 
+                                   milestone.displayStatus === 'submitted' ? 'View Submission' : 'Complete'}
                                 </Button>
                               </div>
                             </div>
