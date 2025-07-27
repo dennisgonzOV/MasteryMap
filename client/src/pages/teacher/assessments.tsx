@@ -85,12 +85,28 @@ export default function TeacherAssessments() {
     retry: false,
   });
 
-  // Fetch milestones for filtered project
+  // Fetch milestones for filtered project or all projects
   const selectedProjectId = projectFilter !== "all" ? parseInt(projectFilter) : null;
   const { data: milestones = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "milestones"],
-    queryFn: () => selectedProjectId ? api.getMilestones(selectedProjectId) : Promise.resolve([]),
-    enabled: isAuthenticated && (user as User)?.role === 'teacher' && !!selectedProjectId,
+    queryFn: async () => {
+      if (selectedProjectId) {
+        return api.getMilestones(selectedProjectId);
+      } else {
+        // Fetch milestones for all projects when showing all assessments
+        const allMilestones = [];
+        for (const project of projects) {
+          try {
+            const projectMilestones = await api.getMilestones(project.id);
+            allMilestones.push(...projectMilestones);
+          } catch (error) {
+            console.warn(`Failed to fetch milestones for project ${project.id}:`, error);
+          }
+        }
+        return allMilestones;
+      }
+    },
+    enabled: isAuthenticated && (user as User)?.role === 'teacher' && (!!selectedProjectId || projects.length > 0),
     retry: false,
   });
 
