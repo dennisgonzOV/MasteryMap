@@ -156,7 +156,7 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
                             <p className="font-medium text-gray-900">
                               {member.student?.firstName && member.student?.lastName 
                                 ? `${member.student.firstName} ${member.student.lastName}`
-                                : member.student?.email || `Student ID: ${member.studentId}`
+                                : member.studentName || member.student?.email || 'Unknown Student'
                               }
                             </p>
                             <p className="text-sm text-gray-500">
