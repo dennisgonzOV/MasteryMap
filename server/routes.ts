@@ -2069,7 +2069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const upcomingDeadlines = projectIds.length > 0
         ? await db.select({
         milestoneId: milestonesTable.id,
-        title: milestones.title,
+        title: milestonesTable.title,
         projectTitle: projectsTable.title,
         dueDate: milestonesTable.dueDate
       })
@@ -2158,10 +2158,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Get grades for students in this school directly
-      const grades = studentIds.length > 0 ? await db.select()
-        .from(gradesTable)
-        .where(inArray(gradesTable.student_id, studentIds)) : [];
+      // Debug logging
+      console.log('School ID:', schoolId);
+      console.log('Student IDs:', studentIds);
+      console.log('Valid student IDs count:', studentIds.filter(id => id != null && typeof id === 'number').length);
+
+      // Get all grades from database and filter in memory to avoid SQL issues
+      let grades = [];
+      try {
+        const allGrades = await db.select().from(gradesTable);
+        console.log('Total grades in database:', allGrades.length);
+        
+        // Filter grades for students in this school
+        grades = allGrades.filter(grade => 
+          grade.student_id != null && 
+          studentIds.includes(grade.student_id)
+        );
+        console.log('Filtered grades for school:', grades.length);
+      } catch (error) {
+        console.error('Error fetching grades:', error);
+        grades = [];
+      }
 
       // Calculate performance statistics for each component skill
       const skillsProgress = componentSkills.map(skill => {
