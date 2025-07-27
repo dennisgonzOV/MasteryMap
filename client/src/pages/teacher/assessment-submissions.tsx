@@ -185,9 +185,13 @@ export default function AssessmentSubmissions() {
     },
   });
 
+  // State to track which submissions are being AI graded
+  const [aiGradingSubmissions, setAiGradingSubmissions] = useState<Set<number>>(new Set());
+
   // AI grading mutation for individual submission
   const aiGradeMutation = useMutation({
     mutationFn: async (submissionId: number) => {
+      setAiGradingSubmissions(prev => new Set(prev).add(submissionId));
       const response = await fetch(`/api/submissions/${submissionId}/grade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -196,12 +200,22 @@ export default function AssessmentSubmissions() {
       if (!response.ok) throw new Error('Failed to AI grade submission');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, submissionId) => {
       toast({ title: "Success", description: "AI grading completed" });
+      setAiGradingSubmissions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(submissionId);
+        return newSet;
+      });
       refetchSubmissions();
     },
-    onError: () => {
+    onError: (_, submissionId) => {
       toast({ title: "Error", description: "AI grading failed", variant: "destructive" });
+      setAiGradingSubmissions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(submissionId);
+        return newSet;
+      });
     },
   });
 
@@ -520,11 +534,11 @@ export default function AssessmentSubmissions() {
                             <Button
                               size="sm"
                               onClick={() => aiGradeMutation.mutate(submission.id)}
-                              disabled={aiGradeMutation.isPending}
+                              disabled={aiGradingSubmissions.has(submission.id) || isBulkGrading}
                               className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
                             >
                               <Brain className="h-4 w-4" />
-                              <span>{aiGradeMutation.isPending ? 'Grading...' : 'AI Grade'}</span>
+                              <span>{aiGradingSubmissions.has(submission.id) ? 'Grading...' : 'AI Grade'}</span>
                             </Button>
                           )}
                           
