@@ -2166,21 +2166,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get grades for students in this school by joining through submissions
       let grades = [];
       try {
-        const gradesWithStudents = await db.select({
-          id: gradesTable.id,
-          submission_id: gradesTable.submission_id,
-          component_skill_id: gradesTable.component_skill_id,
-          score: gradesTable.score,
-          rubric_level: gradesTable.rubric_level,
-          feedback: gradesTable.feedback,
-          graded_at: gradesTable.graded_at,
-          student_id: submissionsTable.student_id
-        })
-        .from(gradesTable)
-        .innerJoin(submissionsTable, eq(gradesTable.submission_id, submissionsTable.id))
-        .where(inArray(submissionsTable.student_id, studentIds));
+        // First get all grades and submissions, then filter in memory to avoid complex join issues
+        const allGrades = await db.select().from(gradesTable);
+        const allSubmissions = await db.select().from(submissionsTable)
+          .where(inArray(submissionsTable.student_id, studentIds));
         
-        grades = gradesWithStudents;
+        // Create lookup map for submissions by ID
+        const submissionMap = new Map();
+        allSubmissions.forEach(sub => {
+          submissionMap.set(sub.id, sub.student_id);
+        });
+        
+        // Filter grades that belong to school students
+        grades = allGrades.filter(grade => {
+          const studentId = submissionMap.get(grade.submission_id);
+          return studentId && studentIds.includes(studentId);
+        }).map(grade => ({
+          ...grade,
+          student_id: submissionMap.get(grade.submission_id)
+        }));
+        
         console.log('Total grades found for school students:', grades.length);
       } catch (error) {
         console.error('Error fetching grades:', error);
