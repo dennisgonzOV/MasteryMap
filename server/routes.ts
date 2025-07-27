@@ -1724,22 +1724,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schoolId = admin[0].schoolId;
 
       // Get all users from the same school (excluding the admin themselves)
-      const schoolUsers = await db.select({
-        id: usersTable.id,
-        email: usersTable.email,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-        role: usersTable.role,
-        grade: usersTable.grade,
-        schoolId: usersTable.schoolId
-      })
+      const schoolUsers = await db.select()
       .from(usersTable)
       .where(and(
         eq(usersTable.schoolId, schoolId),
         ne(usersTable.id, adminId)
       ));
 
-      res.json(schoolUsers);
+      // Format the response to include only the fields we need
+      const formattedUsers = schoolUsers.map(user => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        grade: user.grade || null,
+        schoolId: user.schoolId
+      }));
+
+      res.json(formattedUsers);
     } catch (error) {
       console.error('Error fetching school users:', error);
       res.status(500).json({ message: "Failed to fetch school users" });
