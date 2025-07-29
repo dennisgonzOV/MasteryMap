@@ -1064,7 +1064,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               if (validSkills.length > 0) {
                 console.log("Generating component skill grades for " + validSkills.length + " skills");
-                
+
                 // Generate AI-based component skill grades
                 const aiSkillGrades = await generateComponentSkillGrades(
                   submission,
@@ -1209,7 +1209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           componentSkill: componentSkill.name,
           timestamp: new Date().toISOString()
         });
-        
+
         // TODO: Implement notification system to alert teachers/administrators
         // This could include email alerts, dashboard notifications, etc.
       }

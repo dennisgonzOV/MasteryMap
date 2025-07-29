@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { notifyTeacherOfSafetyIncident } from "./notifications";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -231,6 +232,19 @@ Respond with JSON in this format:
         explanation: safetyResult.explanation
       });
 
+      // Notify teachers of this critical safety incident
+      const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+      if (studentId) {
+        await notifyTeacherOfSafetyIncident({
+          studentId: studentId,
+          componentSkillId: componentSkill.id,
+          incidentType: 'homicidal_ideation',
+          message: latestMessage,
+          timestamp: new Date(),
+          conversationHistory: conversationHistory
+        });
+      }
+
       return {
         response: "I'm concerned about what you've shared and want you to know that mental health is very important. This has been flagged and someone will reach out to you to provide support. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
         shouldTerminate: true,
@@ -307,6 +321,19 @@ Respond with JSON in this format:
 
       // If this is the second instance (count >= 2), terminate conversation
       if (inappropriateCount >= 2) {
+        // Notify teachers of repeated inappropriate language
+        const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+        if (studentId) {
+          await notifyTeacherOfSafetyIncident({
+            studentId: studentId,
+            componentSkillId: componentSkill.id,
+            incidentType: 'inappropriate_language_repeated',
+            message: latestMessage,
+            timestamp: new Date(),
+            conversationHistory: conversationHistory
+          });
+        }
+
         return {
           response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
           shouldTerminate: true,
@@ -398,6 +425,18 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
     if (hasHomicidalContent) {
       console.log("SAFETY ALERT (Fallback): Potential homicidal content detected:", latestMessage);
 
+      // Notify teachers of this critical safety incident (fallback detection)
+      const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+      if (studentId) {
+        await notifyTeacherOfSafetyIncident({
+          studentId: studentId,
+          incidentType: 'homicidal_ideation_fallback',
+          message: latestMessage,
+          timestamp: new Date(),
+          conversationHistory: conversationHistory
+        });
+      }
+
       return {
         response: "I'm concerned about what you've shared and want you to know that mental health is very important. This has been flagged and someone will reach out to you to provide support. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
         shouldTerminate: true,
@@ -431,6 +470,18 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
       });
 
       if (inappropriateCount >= 2) {
+        // Notify teachers of repeated inappropriate language (fallback detection)
+        const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+        if (studentId) {
+          await notifyTeacherOfSafetyIncident({
+            studentId: studentId,
+            incidentType: 'inappropriate_language_repeated_fallback',
+            message: latestMessage,
+            timestamp: new Date(),
+            conversationHistory: conversationHistory
+          });
+        }
+
         return {
           response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
           shouldTerminate: true,
