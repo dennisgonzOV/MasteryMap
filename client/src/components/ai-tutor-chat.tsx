@@ -202,27 +202,36 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         </CardContent>
       </Card>
 
-      {/* Rubric Reference */}
+      {/* Combined Component Skill Display and Level Selection */}
       <Card className="bg-blue-50 border-blue-200">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-blue-900 flex items-center">
             <Brain className="mr-2 h-4 w-4" />
-            Component Skill: {componentSkill.name}
+            {currentStep === 1 ? 'Step 1: Select Your Current Level - ' : 'Component Skill: '}
+            {componentSkill.name}
           </CardTitle>
+          {currentStep === 1 && (
+            <p className="text-xs text-blue-700 mt-1">
+              Click on the level that best describes your current competency with this skill.
+            </p>
+          )}
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-2 gap-2 text-xs">
             {(['emerging', 'developing', 'proficient', 'applying'] as const).map((level) => (
               <div 
-                key={level} 
-                className={`p-2 rounded border ${
+                key={level}
+                onClick={currentStep === 1 ? () => handleLevelSelection(level) : undefined}
+                className={`p-3 rounded border transition-all duration-200 ${
                   selfEvaluation.selfAssessedLevel === level 
-                    ? 'bg-blue-100 border-blue-400' 
+                    ? 'bg-blue-200 border-blue-500 shadow-md' 
+                    : currentStep === 1
+                    ? 'bg-white border-blue-200 hover:bg-blue-50 hover:border-blue-300 cursor-pointer'
                     : 'bg-white border-blue-200'
-                }`}
+                } ${currentStep === 1 ? 'transform hover:scale-[1.02]' : ''}`}
               >
-                <div className="font-medium capitalize mb-1">{level}</div>
-                <div className="text-blue-700">
+                <div className="font-medium capitalize mb-1 text-sm">{level}</div>
+                <div className="text-blue-700 leading-relaxed">
                   {componentSkill[level] || {
                     emerging: 'Beginning to understand and use this skill with significant support',
                     developing: 'Building confidence and competency with this skill',
@@ -230,44 +239,21 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                     applying: 'Uses this skill in complex situations and helps others develop it'
                   }[level]}
                 </div>
+                {selfEvaluation.selfAssessedLevel === level && (
+                  <div className="mt-2 flex items-center text-blue-600">
+                    <span className="text-xs font-medium">✓ Selected</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
+          {currentStep === 1 && (
+            <p className="text-xs text-blue-600 mt-3 text-center font-medium">
+              💡 Click on any level above to make your selection
+            </p>
+          )}
         </CardContent>
       </Card>
-
-      {/* Step 1: Level Selection */}
-      {currentStep === 1 && (
-        <Card className="bg-green-50 border-green-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-green-900 flex items-center">
-              <span className="mr-2">📋</span>
-              Step 1: Select Your Current Level
-            </CardTitle>
-            <p className="text-xs text-green-700 mt-1">
-              Choose the level that best describes your current competency with this skill.
-            </p>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-2 gap-2">
-              {(['emerging', 'developing', 'proficient', 'applying'] as const).map((level) => (
-                <Button
-                  key={level}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleLevelSelection(level)}
-                  className="justify-center text-center h-auto p-4 hover:bg-green-100 transition-colors"
-                >
-                  <div className="capitalize font-medium text-lg">{level}</div>
-                </Button>
-              ))}
-            </div>
-            <p className="text-xs text-green-700 mt-3 text-center">
-              Refer to the detailed descriptions above to help you choose the most appropriate level.
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Current Self-Assessment Status */}
       {selfEvaluation.selfAssessedLevel && currentStep === 2 && (
