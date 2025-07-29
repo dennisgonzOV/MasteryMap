@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ProgressBar from "@/components/progress-bar";
-import { TrendingUp, TrendingDown, Minus, Clock, AlertTriangle } from "lucide-react";
+import { TrendingUp, Clock } from "lucide-react";
 import { format } from "date-fns";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import React from 'react';
 
 interface CompetencyProgressData {
   competencyId: number;
@@ -47,7 +47,6 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
     return acc;
   }, {} as Record<string, CompetencyProgressData[]>);
 
-  // Check for declining competencies and notify if callback provided
   const decliningCompetencies = competencyProgress.filter(
     comp => comp.progressDirection === 'declining'
   );
@@ -103,9 +102,9 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
       case 'improving':
         return <TrendingUp className="h-4 w-4 text-green-600" />;
       case 'declining':
-        return <TrendingDown className="h-4 w-4 text-red-600" />;
+        return <TrendingUp className="h-4 w-4 text-red-600" />;
       default:
-        return <Minus className="h-4 w-4 text-gray-500" />;
+        return <TrendingUp className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -117,28 +116,10 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
     return 'blue';
   };
 
-  const getDirectionBadgeColor = (direction: string) => {
-    switch (direction) {
-      case 'improving':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'declining':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
-    }
-  };
 
   return (
     <div className="space-y-6">
-      {decliningCompetencies.length > 0 && onProgressDecline && (
-        <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800 dark:text-orange-200">
-            {decliningCompetencies.length} competenc{decliningCompetencies.length === 1 ? 'y shows' : 'ies show'} declining progress. 
-            Teachers working with these competencies have been notified.
-          </AlertDescription>
-        </Alert>
-      )}
+
 
       <Card className="apple-shadow border-0">
         <CardHeader>
@@ -153,7 +134,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg border-b border-gray-200 dark:border-gray-700 pb-2">
                 {competencyName}
               </h3>
-              
+
               <div className="space-y-4">
                 {skills.map((skill) => (
                   <div 
@@ -170,18 +151,13 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                           {skill.componentSkillName}
                         </h4>
                         <div className="flex items-center space-x-2 mt-1">
-                          <Badge className={getDirectionBadgeColor(skill.progressDirection)}>
-                            <span className="flex items-center space-x-1">
-                              {getProgressIcon(skill.progressDirection)}
-                              <span className="capitalize">{skill.progressDirection}</span>
-                            </span>
-                          </Badge>
+
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="text-right">
                         <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                           {skill.averageScore}%
@@ -191,14 +167,14 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                         </div>
                       </div>
                     </div>
-                    
+
                     <ProgressBar 
                       value={skill.averageScore} 
                       color={getProgressColor(skill.averageScore, skill.progressDirection)}
                       size="sm"
                       className="mb-2"
                     />
-                    
+
                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span>
                         Updated: {format(new Date(skill.lastUpdated), 'MMM d, yyyy')}
