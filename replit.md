@@ -18,7 +18,7 @@ MasteryMap is a comprehensive AI-powered Project-Based Learning (PBL) management
 - **Runtime**: Node.js with Express.js
 - **Language**: TypeScript with ES modules
 - **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Replit Auth with OpenID Connect
+- **Authentication**: Custom JWT-based authentication system
 - **Session Management**: PostgreSQL-based sessions with connect-pg-simple
 - **AI Integration**: OpenAI GPT-4 for content generation
 
@@ -27,6 +27,29 @@ MasteryMap is a comprehensive AI-powered Project-Based Learning (PBL) management
 - **Connection**: Neon Database serverless connection
 - **Schema**: Centralized schema definition in `shared/schema.ts`
 - **Migrations**: Drizzle Kit for schema management
+
+## Architecture Assessment (July 29, 2025)
+
+### Current State Analysis
+The application has grown to 26,000+ lines of TypeScript code with robust features but faces modularity challenges:
+
+**Critical Files Requiring Modularization:**
+- `server/routes.ts`: 2,558 lines (all API endpoints)
+- `server/storage.ts`: 1,152 lines (all database operations)  
+- `server/openai.ts`: 896 lines (AI service logic)
+- Several React components: 800+ lines each
+
+### Modularity Recommendations
+**Priority: High** - Backend domain modularization for easier Replit updates:
+1. **Domain-Driven Structure**: Split monolithic files by business domains (auth, projects, assessments, credentials, portfolio)
+2. **Service Layer Pattern**: Separate controllers, services, and repositories
+3. **Schema Modularization**: Split large schema file by domain
+
+**Benefits for Replit:**
+- Smaller, focused files (200-300 lines vs 2,500+ lines)
+- Isolated changes reduce update conflicts
+- Faster hot module replacement and navigation
+- Parallel development capability
 
 ## Key Components
 
