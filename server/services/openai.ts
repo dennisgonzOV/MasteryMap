@@ -277,49 +277,30 @@ Respond with JSON in this format:
 
     const languageResult = JSON.parse(languageResponse.choices[0].message.content || "{}");
 
-    // Count inappropriate language instances using LLM analysis for each message
-    if (languageResult.hasInappropriateLanguage === true && languageResult.confidence >= 0.7) {
+    // Count inappropriate language instances in conversation history
+    if (languageResult.hasInappropriateLanguage === true) {
+      // Use simple keyword check for consistent counting across all messages
+      const inappropriateWords = [
+        'damn', 'hell', 'crap', 'shit', 'fuck', 'bitch', 'ass', 'asshole',
+        'bastard', 'piss', 'dick', 'cock', 'pussy', 'whore', 'slut', 'faggot',
+        'butt face', 'penis', 'balls', 'retard', 'gay', 'homo'
+      ];
+      
       let inappropriateCount = 0;
-
-      // Analyze each previous student message with the LLM for accurate counting
+      
       for (const msg of studentMessages) {
-        try {
-          const messageCheckResponse = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-              {
-                role: "system",
-                content: "You are a precise content moderation AI. Analyze if this message contains inappropriate language for a school setting. Respond only with JSON.",
-              },
-              {
-                role: "user",
-                content: `Analyze this message for inappropriate content: "${msg.content}"\n\nRespond with JSON: {"hasInappropriate": boolean, "confidence": number}`
-              },
-            ],
-            response_format: { type: "json_object" },
-            max_tokens: 100,
-            temperature: 0.1,
-          });
-
-          const msgResult = JSON.parse(messageCheckResponse.choices[0].message.content || "{}");
-          if (msgResult.hasInappropriate === true && msgResult.confidence >= 0.7) {
-            inappropriateCount++;
-          }
-        } catch (error) {
-          // Fallback to simple check only if LLM fails
-          console.warn("LLM message analysis failed, using fallback for:", msg.content);
-          const fallbackWords = ['fuck', 'shit', 'bitch', 'damn', 'ass', 'dick', 'cock', 'pussy'];
-          if (fallbackWords.some(word => msg.content.toLowerCase().includes(word))) {
-            inappropriateCount++;
-          }
+        const hasInappropriate = inappropriateWords.some(word => 
+          msg.content.toLowerCase().includes(word.toLowerCase())
+        );
+        
+        if (hasInappropriate) {
+          inappropriateCount++;
         }
       }
 
       console.log("LANGUAGE ALERT: Inappropriate language detected:", {
         message: latestMessage,
         severity: languageResult.severity,
-        confidence: languageResult.confidence,
-        specificIssues: languageResult.specificIssues,
         count: inappropriateCount,
         explanation: languageResult.explanation
       });
@@ -425,22 +406,34 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
       };
     }
 
-    // Minimal fallback for critical inappropriate language only if LLM completely failed
-    const criticalKeywords = ['fuck', 'shit', 'bitch', 'damn'];
-    const hasInappropriateLanguage = criticalKeywords.some((keyword) =>
+    // Fallback inappropriate language check using keyword detection
+    const inappropriateKeywords = [
+      "damn", "hell", "crap", "shit", "fuck", "bitch", "ass", "asshole",
+      "bastard", "piss", "dick", "cock", "pussy", "whore", "slut"
+    ];
+
+    const hasInappropriateLanguage = inappropriateKeywords.some((keyword) =>
       content.includes(keyword)
     );
 
     if (hasInappropriateLanguage) {
-      console.log("LANGUAGE ALERT (Fallback): Critical inappropriate language detected:", {
-        message: latestMessage,
-        note: "LLM analysis failed, using minimal keyword fallback"
-      });
+      // Count inappropriate language instances in conversation history
+      let inappropriateCount = 0;
+      
+      for (const msg of studentMessages) {
+        const hasInappropriate = inappropriateKeywords.some(word => 
+          msg.content.toLowerCase().includes(word.toLowerCase())
+        );
+        
+        if (hasInappropriate) {
+          inappropriateCount++;
+        }
+      }
 
-      // Count only this instance since LLM analysis failed
-      const inappropriateCount = studentMessages.filter(msg => 
-        criticalKeywords.some(word => msg.content.toLowerCase().includes(word))
-      ).length;
+      console.log("LANGUAGE ALERT (Fallback): Inappropriate language detected:", {
+        message: latestMessage,
+        count: inappropriateCount
+      });
 
       if (inappropriateCount >= 2) {
         return {
