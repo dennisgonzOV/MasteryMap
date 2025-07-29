@@ -145,9 +145,6 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       if (data.shouldTerminate && data.safetyFlag) {
         console.log("Conversation terminated due to safety concerns:", data.safetyFlag);
         
-        // Set termination state
-        setIsTerminated(true);
-        
         // Add appropriate system message based on safety flag
         let systemMessage = "This conversation has ended. Please complete your self-evaluation or speak with your teacher if you need assistance.";
         
@@ -164,13 +161,15 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
           timestamp: new Date()
         };
         
+        // Set termination state and add system message
+        setIsTerminated(true);
+        setCurrentMessage('');
+        setIsLoading(false);
+        
         setTimeout(() => {
           setMessages(prev => [...prev, terminationMessage]);
         }, 2000);
         
-        // Disable further messaging
-        setCurrentMessage('');
-        setIsLoading(false);
         return;
       }
 
