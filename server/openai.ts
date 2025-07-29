@@ -623,6 +623,99 @@ Provide feedback that is:
   }
 }
 
+// New function to generate component skill-based AI grading
+export async function generateComponentSkillGrades(
+  submission: Submission,
+  assessment: any,
+  componentSkills: ComponentSkill[]
+): Promise<Array<{
+  componentSkillId: number;
+  rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
+  feedback: string;
+  score: number;
+}>> {
+  try {
+    // Map rubric levels to scores for consistency
+    const rubricLevelScores = {
+      'emerging': 1,
+      'developing': 2,
+      'proficient': 3,
+      'applying': 4
+    };
+
+    const skillGrades = await Promise.all(
+      componentSkills.map(async (skill) => {
+        const prompt = `
+You are an expert educator assessing a student's demonstration of a specific component skill based on their assessment responses.
+
+COMPONENT SKILL: ${skill.name}
+COMPONENT SKILL RUBRIC LEVELS:
+- Emerging: ${(skill.rubricLevels as any)?.emerging || 'Beginning to understand and demonstrate this skill with significant support'}
+- Developing: ${(skill.rubricLevels as any)?.developing || 'Building confidence and competency with this skill'}  
+- Proficient: ${(skill.rubricLevels as any)?.proficient || 'Demonstrates solid understanding and effective use of this skill'}
+- Applying: ${(skill.rubricLevels as any)?.applying || 'Uses this skill in complex situations and demonstrates mastery'}
+
+STUDENT RESPONSES: ${JSON.stringify(submission.responses)}
+
+ASSESSMENT QUESTIONS: ${JSON.stringify(assessment.questions)}
+
+Your task is to:
+1. Analyze the student's responses to determine how well they demonstrate this specific component skill
+2. Assign a rubric level (emerging, developing, proficient, or applying) based on the evidence in their responses
+3. Provide specific feedback about their demonstration of this skill
+
+Consider:
+- What evidence in their responses shows understanding/application of this component skill?
+- How well do their responses align with the rubric level descriptions?
+- What specific aspects of this skill are they demonstrating or lacking?
+
+Respond with JSON in this exact format:
+{
+  "rubricLevel": "proficient",
+  "feedback": "Specific feedback about how the student demonstrated this component skill, what they did well, and how they can improve in this area"
+}
+`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert educator specializing in competency-based assessment. Analyze student work to determine rubric levels for specific component skills."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.3, // Lower temperature for more consistent grading
+        });
+
+        const result = JSON.parse(response.choices[0].message.content || "{}");
+        
+        // Validate rubric level
+        const validLevels = ['emerging', 'developing', 'proficient', 'applying'];
+        const rubricLevel = validLevels.includes(result.rubricLevel) 
+          ? result.rubricLevel as 'emerging' | 'developing' | 'proficient' | 'applying'
+          : 'developing'; // Default fallback
+
+        return {
+          componentSkillId: skill.id,
+          rubricLevel,
+          feedback: result.feedback || `Assessment of ${skill.name} completed.`,
+          score: rubricLevelScores[rubricLevel]
+        };
+      })
+    );
+
+    return skillGrades;
+  } catch (error) {
+    console.error("Error generating component skill grades:", error);
+    throw new Error("Failed to generate component skill grades");
+  }
+}
+
 export async function generateFeedbackForQuestion(
   questionId: string,
   studentAnswer: string,

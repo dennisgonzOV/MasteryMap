@@ -13,7 +13,7 @@ import {
   insertSelfEvaluationSchema,
   type User
 } from "@shared/schema";
-import { generateMilestones, generateAssessment, generateFeedback, generateFeedbackForQuestion, generateMilestonesFromComponentSkills, generateAssessmentFromComponentSkills, generateProjectIdeas, generateQuestionGrade } from "./openai";
+import { generateMilestones, generateAssessment, generateFeedback, generateFeedbackForQuestion, generateMilestonesFromComponentSkills, generateAssessmentFromComponentSkills, generateProjectIdeas, generateQuestionGrade, generateComponentSkillGrades } from "./openai";
 import { generateSelfEvaluationFeedback, generateAssessmentQuestions, generateTutorResponse } from "./services/openai";
 import { z } from "zod";
 import { 
@@ -1051,89 +1051,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Generating AI feedback for submission " + submissionId);
 
         try {
-          // Generate comprehensive AI feedback
+          // If no component skill grades were provided, generate them using AI
+          if (!gradeData || gradeData.length === 0) {
+            // Get component skills for this assessment
+            const componentSkillIds = (assessment.componentSkillIds as number[]) || [];
+            if (componentSkillIds.length > 0) {
+              // Fetch component skills with their rubric levels
+              const componentSkills = await Promise.all(
+                componentSkillIds.map(id => storage.getComponentSkill(id))
+              );
+              const validSkills = componentSkills.filter(skill => skill !== undefined);
+
+              if (validSkills.length > 0) {
+                console.log("Generating component skill grades for " + validSkills.length + " skills");
+                
+                // Generate AI-based component skill grades
+                const aiSkillGrades = await generateComponentSkillGrades(
+                  submission,
+                  assessment,
+                  validSkills as any[]
+                );
+
+                console.log("Successfully generated AI component skill grades:", aiSkillGrades.map(g => 
+                  `${g.componentSkillId}: ${g.rubricLevel} (${g.score})`
+                ).join(', '));
+
+                // Save the AI-generated component skill grades
+                savedGrades = await Promise.all(
+                  aiSkillGrades.map(gradeItem => 
+                    storage.createGrade({
+                      submissionId,
+                      componentSkillId: gradeItem.componentSkillId,
+                      rubricLevel: gradeItem.rubricLevel,
+                      score: gradeItem.score,
+                      feedback: gradeItem.feedback,
+                      gradedBy: userId,
+                    })
+                  )
+                );
+              }
+            }
+          }
+
+          // Generate comprehensive AI feedback based on the component skill grades
           finalFeedback = await generateFeedback(submission, savedGrades);
           console.log("Generated AI feedback: " + (finalFeedback?.substring(0, 100) || "") + "...");
 
-          // If no manual grade provided or grade is 0 (placeholder), calculate AI-based grade
-          if (finalGrade === undefined || finalGrade === 0) {
-            if ((assessment.questions as any) && submission.responses) {
-              try {
-                // Use AI to grade each question individually
-                const questionGrades = await Promise.all(
-                  (assessment.questions as any[]).map(async (question: any) => {
-                    let answer = '';
-
-                    if (Array.isArray(submission.responses)) {
-                      const response = submission.responses.find((r: any) => r.questionId === question.id);
-                      answer = response?.answer || '';
-                    } else if (typeof submission.responses === 'object') {
-                      answer = (submission.responses as any)[question.id] || '';
-                    }
-
-                    if (!answer || answer.trim().length === 0) {
-                      return { score: 0, rationale: 'No answer provided' };
-                    }
-
-                    // Generate AI-based grade for this specific question
-                    const questionGrade = await generateQuestionGrade(
-                      question.text || '',
-                      answer,
-                      question.rubricCriteria || '',
-                      question.sampleAnswer || ''
-                    );
-
-                    console.log("Question " + question.id + ": " + questionGrade.score + "% - " + questionGrade.rationale);
-                    return questionGrade;
-                  })
-                );
-
-                const validGrades = questionGrades.filter((grade: any) => grade.score >= 0);
-                if (validGrades.length > 0) {
-                  const averageScore = validGrades.reduce((sum: any, grade: any) => sum + grade.score, 0) / validGrades.length;
-                  finalGrade = Math.round(averageScore);
-                  console.log("Final AI-calculated grade: " + finalGrade + "% (average of " + validGrades.length + " questions)");
-                } else {
-                  console.log("No valid AI grades generated, using fallback score");
-                  finalGrade = 25; // Conservative fallback for submissions with content but failed AI analysis
-                }
-              } catch (aiGradingError) {
-                console.error("AI grading failed:", aiGradingError);
-                // Fallback to basic content analysis if AI grading fails
-                const totalQuestions = (assessment.questions as any[]).length;
-                let contentScore = 0;
-
-                for (const question of (assessment.questions as any[])) {
-                  let answer = '';
-                  if (Array.isArray(submission.responses)) {
-                    const response = submission.responses.find((r: any) => r.questionId === question.id);
-                    answer = response?.answer || '';
-                  } else if (typeof submission.responses === 'object') {
-                    answer = submission.responses[question.id] || '';
-                  }
-
-                  if (answer && answer.trim().length > 0) {
-                    const wordCount = answer.split(' ').filter(word => word.trim().length > 0).length;
-                    // More conservative scoring for fallback
-                    if (wordCount >= 50) contentScore += 70;
-                    else if (wordCount >= 25) contentScore += 60;
-                    else if (wordCount >= 10) contentScore += 50;
-                    else contentScore += 30;
-                  }
-                }
-
-                finalGrade = totalQuestions > 0 ? Math.round(contentScore / totalQuestions) : 25;
-              }
-            } else {
-              finalGrade = 10; // Minimal score for incomplete submissions
-            }
-          }
         } catch (aiError) {
           console.error("Error generating AI feedback:", aiError);
           finalFeedback = "AI feedback generation failed. Please provide manual feedback.";
-          if (finalGrade === undefined || finalGrade === 0) {
-            finalGrade = 50; // Default fallback grade
-          }
         }
       }
 

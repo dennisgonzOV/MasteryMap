@@ -142,6 +142,7 @@ export interface IStorage {
   getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
   getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
   getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]>;
+  getComponentSkill(id: number): Promise<ComponentSkill | undefined>;
   getComponentSkillsWithDetails(): Promise<any[]>;
   getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
 
@@ -897,6 +898,14 @@ export class DatabaseStorage implements IStorage {
       .from(componentSkills)
       .where(eq(componentSkills.competencyId, competencyId))
       .orderBy(componentSkills.name);
+  }
+
+  async getComponentSkill(id: number): Promise<ComponentSkill | undefined> {
+    const [skill] = await db
+      .select()
+      .from(componentSkills)
+      .where(eq(componentSkills.id, id));
+    return skill;
   }
 
 
