@@ -85,13 +85,42 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
       contextInfo
     });
 
-    // In a production system, you would:
-    // 1. Send email notifications to teachers
-    // 2. Create in-app notifications
-    // 3. Store incident records in database
-    // 4. Possibly alert school administrators
+    // Store the safety incident in the database
+    await db.insert(safetyIncidents).values({
+      studentId: incident.studentId,
+      teacherId: incident.teacherId,
+      assessmentId: incident.assessmentId,
+      componentSkillId: incident.componentSkillId,
+      incidentType: incident.incidentType,
+      message: incident.message,
+      conversationHistory: incident.conversationHistory,
+      severity: incident.incidentType.includes('homicidal') ? 'critical' : 'high',
+      resolved: false
+    });
 
-    // For now, we'll create a comprehensive log entry that can be monitored
+    // Create in-app notifications for all teachers in the school
+    const notificationPromises = schoolTeachers.map(teacher => 
+      db.insert(notifications).values({
+        userId: teacher.id,
+        type: 'safety_incident',
+        title: incident.incidentType.includes('homicidal') 
+          ? 'URGENT: Safety Incident Reported'
+          : 'Safety Incident: Inappropriate Language',
+        message: `Student ${studentInfo.firstName} ${studentInfo.lastName} triggered a safety alert during AI chat interaction.${contextInfo}`,
+        metadata: {
+          studentId: incident.studentId,
+          studentName: `${studentInfo.firstName} ${studentInfo.lastName}`,
+          incidentType: incident.incidentType,
+          severity: incident.incidentType.includes('homicidal') ? 'critical' : 'high'
+        },
+        priority: incident.incidentType.includes('homicidal') ? 'high' : 'medium',
+        read: false
+      })
+    );
+
+    await Promise.all(notificationPromises);
+
+    // Create a comprehensive log entry that can be monitored
     const incidentReport = {
       type: 'SAFETY_INCIDENT',
       severity: incident.incidentType.includes('homicidal') ? 'CRITICAL' : 'HIGH',
