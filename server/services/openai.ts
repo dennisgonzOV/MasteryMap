@@ -407,12 +407,7 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
     }
 
     // Fallback inappropriate language check using keyword detection
-    const inappropriateKeywords = [
-      "damn", "hell", "crap", "shit", "fuck", "bitch", "ass", "asshole",
-      "bastard", "piss", "dick", "cock", "pussy", "whore", "slut"
-    ];
-
-    const hasInappropriateLanguage = inappropriateKeywords.some((keyword) =>
+    const hasInappropriateLanguage = inappropriateWords.some((keyword) =>
       content.includes(keyword)
     );
 
@@ -421,7 +416,7 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
       let inappropriateCount = 0;
       
       for (const msg of studentMessages) {
-        const hasInappropriate = inappropriateKeywords.some(word => 
+        const hasInappropriate = inappropriateWords.some(word => 
           msg.content.toLowerCase().includes(word.toLowerCase())
         );
         
