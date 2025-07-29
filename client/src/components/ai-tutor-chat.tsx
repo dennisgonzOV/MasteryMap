@@ -48,6 +48,7 @@ export default function AITutorChat({
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -59,26 +60,43 @@ export default function AITutorChat({
   }, [messages]);
 
   useEffect(() => {
-    if (!hasGreeted) {
+    // Move to step 2 and initialize AI chat when level is selected
+    if (selfEvaluation.selfAssessedLevel && currentStep === 1) {
+      setCurrentStep(2);
+    }
+  }, [selfEvaluation.selfAssessedLevel, currentStep]);
+
+  useEffect(() => {
+    if (currentStep === 2 && !hasGreeted && selfEvaluation.selfAssessedLevel) {
       const greeting = {
         id: `msg_${Date.now()}`,
         role: 'tutor' as const,
-        content: `Hello! I'm your AI tutor, and I'm here to help you understand and self-evaluate your competency in "${componentSkill.name}".
+        content: `Hello! I'm your AI tutor, and I'm here to help you explore your understanding of "${componentSkill.name}".
 
-Let's start by exploring what this component skill means to you. Here are the rubric levels:
+I see you've selected the "${selfEvaluation.selfAssessedLevel}" level. That's a great starting point! Let me help you reflect on this choice and develop your self-evaluation.
 
-📈 **Emerging**: ${componentSkill.emerging || 'Beginning to understand and use this skill with significant support'}
-🔍 **Developing**: ${componentSkill.developing || 'Building confidence and competency with this skill'} 
-⭐ **Proficient**: ${componentSkill.proficient || 'Demonstrates solid understanding and effective use of this skill'}
-🎯 **Applying**: ${componentSkill.applying || 'Uses this skill in complex situations and helps others develop it'}
-
-To begin, can you tell me: What does "${componentSkill.name}" mean to you in your own words? Have you had any experiences where you've used this skill?`,
+${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         timestamp: new Date()
       };
       setMessages([greeting]);
       setHasGreeted(true);
     }
-  }, [componentSkill, hasGreeted]);
+  }, [componentSkill, hasGreeted, currentStep, selfEvaluation.selfAssessedLevel]);
+
+  const getLevelSpecificGreeting = (level: string) => {
+    switch (level) {
+      case 'emerging':
+        return `At the Emerging level, you're beginning to understand this skill. Can you tell me about a specific situation where you've tried to use "${componentSkill.name}"? What challenges did you face, and what support would help you grow?`;
+      case 'developing':
+        return `At the Developing level, you're building confidence with this skill. Can you share an example of when you successfully demonstrated "${componentSkill.name}"? What made that experience successful?`;
+      case 'proficient':
+        return `At the Proficient level, you have a solid grasp of this skill. I'd love to hear about a specific example where you demonstrated "${componentSkill.name}" effectively. What made you successful?`;
+      case 'applying':
+        return `At the Applying level, you're using this skill in sophisticated ways. Please share a detailed example of how you've applied "${componentSkill.name}" in a complex situation. How have you helped others with this skill?`;
+      default:
+        return `Let's explore your understanding of this skill together. Can you tell me what "${componentSkill.name}" means to you?`;
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || isLoading) return;
@@ -149,48 +167,41 @@ To begin, can you tell me: What does "${componentSkill.name}" mean to you in you
 
   const handleLevelSelection = (level: 'emerging' | 'developing' | 'proficient' | 'applying') => {
     onEvaluationUpdate({ selfAssessedLevel: level });
-
-    const levelMessage: ChatMessage = {
-      id: `msg_${Date.now()}_level`,
-      role: 'student',
-      content: `I believe I am at the "${level}" level for this component skill.`,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, levelMessage]);
-
-    // Send automatic tutor response based on level selection
-    setTimeout(() => {
-      let tutorResponse = '';
-      switch (level) {
-        case 'emerging':
-          tutorResponse = `Great! You've identified yourself at the Emerging level. This means you're beginning to understand this skill. Can you tell me about a specific situation where you've tried to use "${componentSkill.name}"? What challenges did you face, and what would help you move toward the Developing level?`;
-          break;
-        case 'developing':
-          tutorResponse = `Excellent! At the Developing level, you're building confidence with this skill. Can you share an example of when you successfully demonstrated "${componentSkill.name}"? What made that experience successful, and what areas do you feel you could strengthen to reach Proficient?`;
-          break;
-        case 'proficient':
-          tutorResponse = `Wonderful! Proficient level shows you have a solid grasp of this skill. I'd love to hear about a specific example where you demonstrated "${componentSkill.name}" effectively. What made you successful? How might you apply this skill in new or more complex situations to reach the Applying level?`;
-          break;
-        case 'applying':
-          tutorResponse = `Impressive! At the Applying level, you're using this skill in sophisticated ways. Please share a detailed example of how you've applied "${componentSkill.name}" in a complex or novel situation. How have you helped others develop this skill, or how have you innovated with it?`;
-          break;
-      }
-
-      const autoTutorMessage: ChatMessage = {
-        id: `msg_${Date.now()}_auto_tutor`,
-        role: 'tutor',
-        content: tutorResponse,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, autoTutorMessage]);
-    }, 1000);
+    // Step 2 will be automatically triggered by the useEffect above
   };
 
   const isReadyToComplete = selfEvaluation.selfAssessedLevel && selfEvaluation.justification && messages.length >= 4;
 
   return (
     <div className="space-y-4">
+      {/* Step Progress Indicator */}
+      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                currentStep >= 1 ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-500'
+              }`}>
+                1
+              </div>
+              <div className="text-sm font-medium">Select Your Level</div>
+              <div className={`w-8 h-1 ${currentStep >= 2 ? 'bg-purple-600' : 'bg-gray-200'}`}></div>
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                currentStep >= 2 ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-500'
+              }`}>
+                2
+              </div>
+              <div className="text-sm font-medium">Chat with AI Tutor</div>
+            </div>
+            {selfEvaluation.selfAssessedLevel && (
+              <Badge variant="secondary" className="ml-4">
+                Step {currentStep} of 2
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Rubric Reference */}
       <Card className="bg-blue-50 border-blue-200">
         <CardHeader className="pb-3">
@@ -225,13 +236,17 @@ To begin, can you tell me: What does "${componentSkill.name}" mean to you in you
         </CardContent>
       </Card>
 
-      {/* Level Selection */}
-      {!selfEvaluation.selfAssessedLevel && (
+      {/* Step 1: Level Selection */}
+      {currentStep === 1 && (
         <Card className="bg-green-50 border-green-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-green-900">
-              Select Your Current Level
+            <CardTitle className="text-sm text-green-900 flex items-center">
+              <span className="mr-2">📋</span>
+              Step 1: Select Your Current Level
             </CardTitle>
+            <p className="text-xs text-green-700 mt-1">
+              Choose the level that best describes your current competency with this skill.
+            </p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 gap-2">
@@ -241,9 +256,19 @@ To begin, can you tell me: What does "${componentSkill.name}" mean to you in you
                   variant="outline"
                   size="sm"
                   onClick={() => handleLevelSelection(level)}
-                  className="justify-start text-left h-auto p-2"
+                  className="justify-start text-left h-auto p-3 hover:bg-green-100"
                 >
-                  <span className="capitalize font-medium">{level}</span>
+                  <div>
+                    <div className="capitalize font-medium text-base">{level}</div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {componentSkill[level] || {
+                        emerging: 'Beginning to understand with support',
+                        developing: 'Building confidence and competency',
+                        proficient: 'Solid understanding and effective use',
+                        applying: 'Complex use and helping others'
+                      }[level]}
+                    </div>
+                  </div>
                 </Button>
               ))}
             </div>
@@ -252,7 +277,7 @@ To begin, can you tell me: What does "${componentSkill.name}" mean to you in you
       )}
 
       {/* Current Self-Assessment Status */}
-      {selfEvaluation.selfAssessedLevel && (
+      {selfEvaluation.selfAssessedLevel && currentStep === 2 && (
         <div className="flex items-center gap-2">
           <Badge variant="secondary">
             Selected Level: {selfEvaluation.selfAssessedLevel}
@@ -260,96 +285,106 @@ To begin, can you tell me: What does "${componentSkill.name}" mean to you in you
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onEvaluationUpdate({ selfAssessedLevel: '' })}
+            onClick={() => {
+              onEvaluationUpdate({ selfAssessedLevel: '' });
+              setCurrentStep(1);
+              setMessages([]);
+              setHasGreeted(false);
+            }}
           >
             Change Level
           </Button>
         </div>
       )}
 
-      {/* Chat Interface */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center">
-            <MessageCircle className="mr-2 h-4 w-4" />
-            Chat with Your AI Tutor
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="h-96 p-4">
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.role === 'student' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex max-w-[80%] ${message.role === 'student' ? 'flex-row-reverse' : 'flex-row'} gap-2`}>
-                    <Avatar className="w-8 h-8">
-                      {message.role === 'tutor' ? (
-                        <Brain className="h-4 w-4" />
-                      ) : (
-                        <User className="h-4 w-4" />
-                      )}
-                    </Avatar>
-                    <div
-                      className={`rounded-lg p-3 ${
-                        message.role === 'student'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}
-                    >
-                      <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                      <div className={`text-xs mt-1 ${
-                        message.role === 'student' ? 'text-blue-100' : 'text-gray-500'
-                      }`}>
-                        {message.timestamp.toLocaleTimeString()}
+      {/* Step 2: Chat Interface */}
+      {currentStep === 2 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center">
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Step 2: Chat with Your AI Tutor
+            </CardTitle>
+            <p className="text-xs text-gray-600 mt-1">
+              Explore your understanding and develop your self-evaluation through conversation.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-96 p-4">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === 'student' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`flex max-w-[80%] ${message.role === 'student' ? 'flex-row-reverse' : 'flex-row'} gap-2`}>
+                      <Avatar className="w-8 h-8">
+                        {message.role === 'tutor' ? (
+                          <Brain className="h-4 w-4" />
+                        ) : (
+                          <User className="h-4 w-4" />
+                        )}
+                      </Avatar>
+                      <div
+                        className={`rounded-lg p-3 ${
+                          message.role === 'student'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-900'
+                        }`}
+                      >
+                        <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                        <div className={`text-xs mt-1 ${
+                          message.role === 'student' ? 'text-blue-100' : 'text-gray-500'
+                        }`}>
+                          {message.timestamp.toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="flex gap-2">
-                    <Avatar className="w-8 h-8">
-                      <Brain className="h-4 w-4" />
-                    </Avatar>
-                    <div className="bg-gray-100 rounded-lg p-3">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="flex gap-2">
+                      <Avatar className="w-8 h-8">
+                        <Brain className="h-4 w-4" />
+                      </Avatar>
+                      <div className="bg-gray-100 rounded-lg p-3">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
 
-          {/* Message Input */}
-          <div className="p-4 border-t">
-            <div className="flex gap-2">
-              <Textarea
-                value={currentMessage}
-                onChange={(e) => setCurrentMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask questions, share experiences, or discuss your understanding..."
-                className="min-h-[60px] resize-none"
-                disabled={isLoading}
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!currentMessage.trim() || isLoading}
-                size="sm"
-                className="px-3"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+            {/* Message Input */}
+            <div className="p-4 border-t">
+              <div className="flex gap-2">
+                <Textarea
+                  value={currentMessage}
+                  onChange={(e) => setCurrentMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask questions, share experiences, or discuss your understanding..."
+                  className="min-h-[60px] resize-none"
+                  disabled={isLoading}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!currentMessage.trim() || isLoading}
+                  size="sm"
+                  className="px-3"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Justification Summary */}
-      {selfEvaluation.selfAssessedLevel && (
+      {selfEvaluation.selfAssessedLevel && currentStep === 2 && (
         <Card className="bg-yellow-50 border-yellow-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm text-yellow-900">
