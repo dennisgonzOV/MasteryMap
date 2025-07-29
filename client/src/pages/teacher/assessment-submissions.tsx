@@ -181,26 +181,13 @@ export default function AssessmentSubmissions() {
       grades: s.grades 
     })));
     
-    // Get any existing manual input from sessionStorage
-    let savedData: typeof gradingData = {};
-    try {
-      const saved = sessionStorage.getItem(`gradingData_${id}`);
-      if (saved) {
-        savedData = JSON.parse(saved);
-        console.log("Found saved grading data in sessionStorage:", savedData);
-      }
-    } catch (error) {
-      console.warn("Failed to parse saved grading data:", error);
-      savedData = {};
-    }
-    
     const initialData: typeof gradingData = {};
     
     // Initialize data for each submission
     submissions.forEach(submission => {
       initialData[submission.id] = {};
       
-      // First, populate with existing grades from database
+      // Always prioritize existing grades from database
       if (submission.grades && submission.grades.length > 0) {
         console.log(`Loading grades for submission ${submission.id}:`, submission.grades);
         submission.grades.forEach(grade => {
@@ -219,21 +206,25 @@ export default function AssessmentSubmissions() {
         });
       } else {
         console.log(`No grades found for submission ${submission.id}`);
-      }
-      
-      // Then, override with any saved manual input (only if not saved to database yet)
-      if (savedData[submission.id]) {
-        Object.keys(savedData[submission.id]).forEach(skillId => {
-          const skillIdNum = parseInt(skillId);
-          if (savedData[submission.id][skillIdNum]) {
-            // Only use sessionStorage data if there's no database grade for this skill
-            const hasDbGrade = submission.grades?.some(g => g.componentSkillId === skillIdNum);
-            if (!hasDbGrade) {
-              initialData[submission.id][skillIdNum] = savedData[submission.id][skillIdNum];
-              console.log(`Restored manual input for submission ${submission.id}, skill ${skillId}:`, savedData[submission.id][skillIdNum]);
+        
+        // Only then check sessionStorage for unsaved manual input
+        try {
+          const saved = sessionStorage.getItem(`gradingData_${id}`);
+          if (saved) {
+            const savedData = JSON.parse(saved);
+            if (savedData[submission.id]) {
+              Object.keys(savedData[submission.id]).forEach(skillId => {
+                const skillIdNum = parseInt(skillId);
+                if (savedData[submission.id][skillIdNum]) {
+                  initialData[submission.id][skillIdNum] = savedData[submission.id][skillIdNum];
+                  console.log(`Restored unsaved manual input for submission ${submission.id}, skill ${skillId}:`, savedData[submission.id][skillIdNum]);
+                }
+              });
             }
           }
-        });
+        } catch (error) {
+          console.warn("Failed to parse saved grading data:", error);
+        }
       }
     });
     
