@@ -277,28 +277,55 @@ Respond with JSON in this format:
 
     const languageResult = JSON.parse(languageResponse.choices[0].message.content || "{}");
 
-    // Count inappropriate language instances in conversation history
-    if (languageResult.hasInappropriateLanguage === true) {
-      const inappropriateCount = studentMessages.filter(msg => {
-        // This is a simplified check - in production you might want to store flags per message
-        const simpleInappropriateWords = [
-          'damn', 'hell', 'crap', 'shit', 'fuck', 'bitch', 'ass', 'asshole',
-          'bastard', 'piss', 'dick', 'cock', 'pussy', 'whore', 'slut'
-        ];
-        return simpleInappropriateWords.some(word => 
-          msg.content.toLowerCase().includes(word.toLowerCase())
-        );
-      }).length;
+    // Count inappropriate language instances using LLM analysis for each message
+    if (languageResult.hasInappropriateLanguage === true && languageResult.confidence >= 0.7) {
+      let inappropriateCount = 0;
+
+      // Analyze each previous student message with the LLM for accurate counting
+      for (const msg of studentMessages) {
+        try {
+          const messageCheckResponse = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: "You are a precise content moderation AI. Analyze if this message contains inappropriate language for a school setting. Respond only with JSON.",
+              },
+              {
+                role: "user",
+                content: `Analyze this message for inappropriate content: "${msg.content}"\n\nRespond with JSON: {"hasInappropriate": boolean, "confidence": number}`
+              },
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 100,
+            temperature: 0.1,
+          });
+
+          const msgResult = JSON.parse(messageCheckResponse.choices[0].message.content || "{}");
+          if (msgResult.hasInappropriate === true && msgResult.confidence >= 0.7) {
+            inappropriateCount++;
+          }
+        } catch (error) {
+          // Fallback to simple check only if LLM fails
+          console.warn("LLM message analysis failed, using fallback for:", msg.content);
+          const fallbackWords = ['fuck', 'shit', 'bitch', 'damn', 'ass', 'dick', 'cock', 'pussy'];
+          if (fallbackWords.some(word => msg.content.toLowerCase().includes(word))) {
+            inappropriateCount++;
+          }
+        }
+      }
 
       console.log("LANGUAGE ALERT: Inappropriate language detected:", {
         message: latestMessage,
         severity: languageResult.severity,
+        confidence: languageResult.confidence,
+        specificIssues: languageResult.specificIssues,
         count: inappropriateCount,
         explanation: languageResult.explanation
       });
 
-      // If this is the second instance (count = 2), terminate conversation
-      if (inappropriateCount === 2) {
+      // If this is the second instance (count >= 2), terminate conversation
+      if (inappropriateCount >= 2) {
         return {
           response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
           shouldTerminate: true,
@@ -363,14 +390,14 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
     };
   } catch (error) {
     console.error("OpenAI API error for tutor response:", error);
-    
+
     // Fallback safety checks using keyword detection
     const studentMessages = conversationHistory.filter(
       (msg) => msg.role === "student",
     );
     const latestMessage =
       studentMessages[studentMessages.length - 1]?.content || "";
-    
+
     const homicidalKeywords = [
       "kill someone", "murder", "kill them", "kill him", "kill her", 
       "hurt someone", "harm others", "want to kill", "going to kill",
@@ -389,7 +416,7 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
 
     if (hasHomicidalContent) {
       console.log("SAFETY ALERT (Fallback): Potential homicidal content detected:", latestMessage);
-      
+
       return {
         response: "I'm concerned about what you've shared and want you to know that mental health is very important. This conversation has been flagged and someone will reach out to you soon to provide support. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
         shouldTerminate: true,
@@ -398,25 +425,24 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
       };
     }
 
-    // Fallback inappropriate language check
-    const hasInappropriateLanguage = inappropriateKeywords.some((keyword) =>
+    // Minimal fallback for critical inappropriate language only if LLM completely failed
+    const criticalKeywords = ['fuck', 'shit', 'bitch', 'damn'];
+    const hasInappropriateLanguage = criticalKeywords.some((keyword) =>
       content.includes(keyword)
     );
 
     if (hasInappropriateLanguage) {
-      // Count inappropriate language instances in conversation history
-      const inappropriateCount = studentMessages.filter(msg => 
-        inappropriateKeywords.some(word => 
-          msg.content.toLowerCase().includes(word)
-        )
-      ).length;
-
-      console.log("LANGUAGE ALERT (Fallback): Inappropriate language detected:", {
+      console.log("LANGUAGE ALERT (Fallback): Critical inappropriate language detected:", {
         message: latestMessage,
-        count: inappropriateCount
+        note: "LLM analysis failed, using minimal keyword fallback"
       });
 
-      if (inappropriateCount === 2) {
+      // Count only this instance since LLM analysis failed
+      const inappropriateCount = studentMessages.filter(msg => 
+        criticalKeywords.some(word => msg.content.toLowerCase().includes(word))
+      ).length;
+
+      if (inappropriateCount >= 2) {
         return {
           response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
           shouldTerminate: true,
