@@ -7,6 +7,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
+import NotificationSystem from "@/components/notification-system";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -119,12 +120,17 @@ export default function TeacherDashboard() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {user.firstName}!
-            </h1>
-            <p className="text-gray-600">
-              Manage your projects, track student progress, and create engaging learning experiences.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  Welcome back, {user.firstName}!
+                </h1>
+                <p className="text-gray-600">
+                  Manage your projects, track student progress, and create engaging learning experiences.
+                </p>
+              </div>
+              <NotificationSystem userId={user.id} userRole="teacher" />
+            </div>
           </div>
 
           

@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bell, X, CheckCircle, Clock, AlertTriangle, FileText, Users, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Notification {
   id: number;
@@ -28,61 +30,35 @@ interface NotificationSystemProps {
 
 export default function NotificationSystem({ userId, userRole }: NotificationSystemProps) {
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock notifications for demonstration - using proper timestamp format
-  const mockNotifications: Notification[] = [
-    {
-      id: 1,
-      type: 'assignment',
-      title: 'New Project Assignment',
-      message: 'You have been assigned to "Digital Portfolio Creation" project',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-      read: false,
-      actionUrl: '/projects/1',
-      metadata: { projectId: 1 }
-    },
-    {
-      id: 2,
-      type: 'deadline',
-      title: 'Assessment Due Soon',
-      message: 'Skills Assessment is due in 2 days',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      read: false,
-      actionUrl: '/assessments/5',
-      metadata: { assessmentId: 5 }
-    },
-    {
-      id: 3,
-      type: 'feedback',
-      title: 'New Feedback Available',
-      message: 'Your teacher has provided feedback on your latest submission',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      read: true,
-      actionUrl: '/submissions/12',
-      metadata: { submissionId: 12 }
-    },
-    {
-      id: 4,
-      type: 'credential',
-      title: 'Badge Earned!',
-      message: 'Congratulations! You earned the "Digital Literacy" badge',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-      read: false,
-      actionUrl: '/portfolio/credentials'
-    }
-  ];
+  // Fetch notifications from API
+  const { data: apiNotifications = [], isLoading: notificationsLoading } = useQuery({
+    queryKey: ["/api/notifications"],
+    enabled: isAuthenticated,
+    retry: false,
+  });
 
   useEffect(() => {
-    // Simulate loading notifications
-    setIsLoading(true);
-    setTimeout(() => {
-      setNotifications(mockNotifications);
-      setIsLoading(false);
-    }, 1000);
-  }, [userId]);
+    if (apiNotifications && !notificationsLoading) {
+      // Transform API notifications to match component interface
+      const transformedNotifications = apiNotifications.map((notif: any) => ({
+        id: notif.id,
+        type: notif.type === 'safety_alert' ? 'system' : notif.type,
+        title: notif.title,
+        message: notif.message,
+        timestamp: notif.createdAt,
+        read: notif.read,
+        actionUrl: notif.type === 'safety_alert' ? '/teacher/safety-incidents' : undefined,
+        metadata: notif.metadata
+      }));
+      setNotifications(transformedNotifications);
+    }
+    setIsLoading(notificationsLoading);
+  }, [apiNotifications, notificationsLoading]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -117,20 +93,47 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
     }
   };
 
-  const markAsRead = (notificationId: number) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
+  const markAsRead = async (notificationId: number) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === notificationId ? { ...notif, read: true } : notif
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
-    toast({
-      title: "All notifications marked as read",
-      description: "Your notification list has been cleared.",
-    });
+  const markAllAsRead = async () => {
+    try {
+      await fetch('/api/notifications/mark-all-read', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+      toast({
+        title: "All notifications marked as read",
+        description: "Your notification list has been cleared.",
+      });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark notifications as read.",
+        variant: "destructive",
+      });
+    }
   };
 
   const deleteNotification = (notificationId: number) => {

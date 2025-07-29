@@ -1535,6 +1535,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notification routes
+  app.get('/api/notifications', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      const userNotifications = await db.select()
+        .from(notifications)
+        .where(eq(notifications.userId, userId))
+        .orderBy(desc(notifications.createdAt))
+        .limit(50);
+
+      res.json(userNotifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.put('/api/notifications/:id/read', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      const notification = await db.select()
+        .from(notifications)
+        .where(and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, userId)
+        ))
+        .limit(1);
+
+      if (!notification.length) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      await db.update(notifications)
+        .set({ 
+          read: true, 
+          readAt: new Date() 
+        })
+        .where(eq(notifications.id, notificationId));
+
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.put('/api/notifications/mark-all-read', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      await db.update(notifications)
+        .set({ 
+          read: true, 
+          readAt: new Date() 
+        })
+        .where(and(
+          eq(notifications.userId, userId),
+          eq(notifications.read, false)
+        ));
+
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  // Safety incident routes
+  app.get('/api/safety-incidents', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      let incidents;
+      if (req.user?.role === 'admin') {
+        // Admins can see all incidents
+        incidents = await db.select({
+          id: safetyIncidents.id,
+          studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
+          incidentType: safetyIncidents.incidentType,
+          message: safetyIncidents.message,
+          severity: safetyIncidents.severity,
+          resolved: safetyIncidents.resolved,
+          createdAt: safetyIncidents.createdAt
+        })
+        .from(safetyIncidents)
+        .innerJoin(usersTable, eq(safetyIncidents.studentId, usersTable.id))
+        .orderBy(desc(safetyIncidents.createdAt));
+      } else {
+        // Teachers can see incidents from their school
+        const teacher = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+        if (!teacher.length || !teacher[0].schoolId) {
+          return res.status(400).json({ message: "Teacher school not found" });
+        }
+
+        incidents = await db.select({
+          id: safetyIncidents.id,
+          studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
+          incidentType: safetyIncidents.incidentType,
+          message: safetyIncidents.message,
+          severity: safetyIncidents.severity,
+          resolved: safetyIncidents.resolved,
+          createdAt: safetyIncidents.createdAt
+        })
+        .from(safetyIncidents)
+        .innerJoin(usersTable, eq(safetyIncidents.studentId, usersTable.id))
+        .where(eq(usersTable.schoolId, teacher[0].schoolId!))
+        .orderBy(desc(safetyIncidents.createdAt));
+      }
+
+      res.json(incidents);
+    } catch (error) {
+      console.error("Error fetching safety incidents:", error);
+      res.status(500).json({ message: "Failed to fetch safety incidents" });
+    }
+  });
+
+  app.put('/api/safety-incidents/:id/resolve', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const incidentId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      await db.update(safetyIncidents)
+        .set({ 
+          resolved: true, 
+          resolvedAt: new Date(),
+          resolvedBy: userId
+        })
+        .where(eq(safetyIncidents.id, incidentId));
+
+      res.json({ message: "Safety incident marked as resolved" });
+    } catch (error) {
+      console.error("Error resolving safety incident:", error);
+      res.status(500).json({ message: "Failed to resolve safety incident" });
+    }
+  });
+
   // 3-Level Hierarchy Routes
   // Get all learner outcomes
   app.get('/api/learner-outcomes-hierarchy', async (_req, res) => {

@@ -1,7 +1,12 @@
-
 import { db } from "../db";
-import { users as usersTable, assessments as assessmentsTable, componentSkills as componentSkillsTable } from "../../shared/schema";
 import { eq } from "drizzle-orm";
+import { 
+  users as usersTable, 
+  assessments as assessmentsTable,
+  componentSkills as componentSkillsTable,
+  safetyIncidents,
+  notifications
+} from "../../shared/schema";
 
 interface SafetyIncident {
   studentId: number;
@@ -53,7 +58,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
         .from(assessmentsTable)
         .where(eq(assessmentsTable.id, incident.assessmentId))
         .limit(1);
-      
+
       if (assessment.length) {
         contextInfo += `\nAssessment: ${assessment[0].title}`;
       }
@@ -64,7 +69,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
         .from(componentSkillsTable)
         .where(eq(componentSkillsTable.id, incident.componentSkillId))
         .limit(1);
-      
+
       if (componentSkill.length) {
         contextInfo += `\nComponent Skill: ${componentSkill[0].name}`;
       }
@@ -85,7 +90,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
     // 2. Create in-app notifications
     // 3. Store incident records in database
     // 4. Possibly alert school administrators
-    
+
     // For now, we'll create a comprehensive log entry that can be monitored
     const incidentReport = {
       type: 'SAFETY_INCIDENT',

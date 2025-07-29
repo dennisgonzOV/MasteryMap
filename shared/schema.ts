@@ -10,10 +10,12 @@ import {
   boolean,
   decimal,
   uuid,
+  json,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { InferSelectModel } from 'drizzle-orm';
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -129,11 +131,46 @@ export const projectTeams = pgTable("project_teams", {
 // Project Team Members
 export const projectTeamMembers = pgTable("project_team_members", {
   id: serial("id").primaryKey(),
-  teamId: integer("team_id").references(() => projectTeams.id),
-  studentId: integer("student_id").references(() => users.id),
-  role: varchar("role").default("member"), // member, leader, etc.
+  teamId: integer("team_id").references(() => projectTeams.id, { onDelete: "cascade" }).notNull(),
+  studentId: integer("student_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  role: varchar("role", { length: 50 }).default("member"),
   joinedAt: timestamp("joined_at").defaultNow(),
 });
+
+export type ProjectTeamMember = InferSelectModel<typeof projectTeamMembers>;
+
+export const safetyIncidents = pgTable("safety_incidents", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  teacherId: integer("teacher_id").references(() => users.id, { onDelete: "cascade" }),
+  assessmentId: integer("assessment_id").references(() => assessments.id, { onDelete: "cascade" }),
+  componentSkillId: integer("component_skill_id").references(() => componentSkills.id, { onDelete: "cascade" }),
+  incidentType: varchar("incident_type", { length: 100 }).notNull(),
+  message: text("message").notNull(),
+  conversationHistory: jsonb("conversation_history"),
+  severity: varchar("severity", { length: 20 }).default("medium"),
+  resolved: boolean("resolved").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: integer("resolved_by").references(() => users.id),
+});
+
+export type SafetyIncident = InferSelectModel<typeof safetyIncidents>;
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  metadata: jsonb("metadata"),
+  read: boolean("read").default(false),
+  priority: varchar("priority", { length: 20 }).default("medium"),
+  createdAt: timestamp("created_at").defaultNow(),
+  readAt: timestamp("read_at"),
+});
+
+export type Notification = InferSelectModel<typeof notifications>;
 
 // Student-Project Assignments (Legacy - keeping for backward compatibility)
 export const projectAssignments = pgTable("project_assignments", {
@@ -426,8 +463,6 @@ export type School = typeof schools.$inferSelect;
 export type InsertSchool = typeof schools.$inferInsert;
 export type ProjectTeam = typeof projectTeams.$inferSelect;
 export type InsertProjectTeam = typeof projectTeams.$inferInsert;
-export type ProjectTeamMember = typeof projectTeamMembers.$inferSelect;
-export type InsertProjectTeamMember = typeof projectTeamMembers.$inferInsert;
 export type BestStandard = typeof bestStandards.$inferSelect;
 export type InsertBestStandard = typeof bestStandards.$inferInsert;
 export type SelfEvaluation = typeof selfEvaluations.$inferSelect;
