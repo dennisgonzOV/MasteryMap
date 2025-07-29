@@ -256,22 +256,15 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                   variant="outline"
                   size="sm"
                   onClick={() => handleLevelSelection(level)}
-                  className="justify-start text-left h-auto p-3 hover:bg-green-100"
+                  className="justify-center text-center h-auto p-4 hover:bg-green-100 transition-colors"
                 >
-                  <div>
-                    <div className="capitalize font-medium text-base">{level}</div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {componentSkill[level] || {
-                        emerging: 'Beginning to understand with support',
-                        developing: 'Building confidence and competency',
-                        proficient: 'Solid understanding and effective use',
-                        applying: 'Complex use and helping others'
-                      }[level]}
-                    </div>
-                  </div>
+                  <div className="capitalize font-medium text-lg">{level}</div>
                 </Button>
               ))}
             </div>
+            <p className="text-xs text-green-700 mt-3 text-center">
+              Refer to the detailed descriptions above to help you choose the most appropriate level.
+            </p>
           </CardContent>
         </Card>
       )}
