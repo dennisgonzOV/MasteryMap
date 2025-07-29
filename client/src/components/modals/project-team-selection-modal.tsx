@@ -212,7 +212,7 @@ export default function ProjectTeamSelectionModal({
                 Loading students...
               </div>
             ) : (
-              <ScrollArea className="h-64 border rounded-lg">
+              <ScrollArea className="h-80 border rounded-lg">
                 <div className="p-4 space-y-3">
                   {filteredStudents.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
