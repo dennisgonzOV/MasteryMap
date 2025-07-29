@@ -31,7 +31,9 @@ import {
   selfEvaluations as selfEvaluationsTable,
   componentSkills as componentSkillsTable,
   bestStandards as bestStandardsTable,
-  projectTeamMembers
+  projectTeamMembers,
+  notifications as notificationsTable,
+  safetyIncidents as safetyIncidentsTable
 } from "../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "./db";
@@ -1539,11 +1541,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/notifications', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-      
+
       const userNotifications = await db.select()
-        .from(notifications)
-        .where(eq(notifications.userId, userId))
-        .orderBy(desc(notifications.createdAt))
+        .from(notificationsTable)
+        .where(eq(notificationsTable.userId, userId))
+        .orderBy(desc(notificationsTable.createdAt))
         .limit(50);
 
       res.json(userNotifications);
@@ -1559,10 +1561,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
 
       const notification = await db.select()
-        .from(notifications)
+        .from(notificationsTable)
         .where(and(
-          eq(notifications.id, notificationId),
-          eq(notifications.userId, userId)
+          eq(notificationsTable.id, notificationId),
+          eq(notificationsTable.userId, userId)
         ))
         .limit(1);
 
@@ -1570,12 +1572,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Notification not found" });
       }
 
-      await db.update(notifications)
+      await db.update(notificationsTable)
         .set({ 
           read: true, 
           readAt: new Date() 
         })
-        .where(eq(notifications.id, notificationId));
+        .where(eq(notificationsTable.id, notificationId));
 
       res.json({ message: "Notification marked as read" });
     } catch (error) {
@@ -1588,14 +1590,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
 
-      await db.update(notifications)
+      await db.update(notificationsTable)
         .set({ 
           read: true, 
           readAt: new Date() 
         })
         .where(and(
-          eq(notifications.userId, userId),
-          eq(notifications.read, false)
+          eq(notificationsTable.userId, userId),
+          eq(notificationsTable.read, false)
         ));
 
       res.json({ message: "All notifications marked as read" });
@@ -1614,17 +1616,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.role === 'admin') {
         // Admins can see all incidents
         incidents = await db.select({
-          id: safetyIncidents.id,
+          id: safetyIncidentsTable.id,
           studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
-          incidentType: safetyIncidents.incidentType,
-          message: safetyIncidents.message,
-          severity: safetyIncidents.severity,
-          resolved: safetyIncidents.resolved,
-          createdAt: safetyIncidents.createdAt
+          incidentType: safetyIncidentsTable.incidentType,
+          message: safetyIncidentsTable.message,
+          severity: safetyIncidentsTable.severity,
+          resolved: safetyIncidentsTable.resolved,
+          createdAt: safetyIncidentsTable.createdAt
         })
-        .from(safetyIncidents)
-        .innerJoin(usersTable, eq(safetyIncidents.studentId, usersTable.id))
-        .orderBy(desc(safetyIncidents.createdAt));
+        .from(safetyIncidentsTable)
+        .innerJoin(usersTable, eq(safetyIncidentsTable.studentId, usersTable.id))
+        .orderBy(desc(safetyIncidentsTable.createdAt));
       } else {
         // Teachers can see incidents from their school
         const teacher = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -1633,18 +1635,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         incidents = await db.select({
-          id: safetyIncidents.id,
+          id: safetyIncidentsTable.id,
           studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
-          incidentType: safetyIncidents.incidentType,
-          message: safetyIncidents.message,
-          severity: safetyIncidents.severity,
-          resolved: safetyIncidents.resolved,
-          createdAt: safetyIncidents.createdAt
+          incidentType: safetyIncidentsTable.incidentType,
+          message: safetyIncidentsTable.message,
+          severity: safetyIncidentsTable.severity,
+          resolved: safetyIncidentsTable.resolved,
+          createdAt: safetyIncidentsTable.createdAt
         })
-        .from(safetyIncidents)
-        .innerJoin(usersTable, eq(safetyIncidents.studentId, usersTable.id))
+        .from(safetyIncidentsTable)
+        .innerJoin(usersTable, eq(safetyIncidentsTable.studentId, usersTable.id))
         .where(eq(usersTable.schoolId, teacher[0].schoolId!))
-        .orderBy(desc(safetyIncidents.createdAt));
+        .orderBy(desc(safetyIncidentsTable.createdAt));
       }
 
       res.json(incidents);
@@ -1659,13 +1661,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const incidentId = parseInt(req.params.id);
       const userId = req.user!.id;
 
-      await db.update(safetyIncidents)
+      await db.update(safetyIncidentsTable)
         .set({ 
           resolved: true, 
           resolvedAt: new Date(),
           resolvedBy: userId
         })
-        .where(eq(safetyIncidents.id, incidentId));
+        .where(eq(safetyIncidentsTable.id, incidentId));
 
       res.json({ message: "Safety incident marked as resolved" });
     } catch (error) {

@@ -4,8 +4,8 @@ import {
   users as usersTable, 
   assessments as assessmentsTable,
   componentSkills as componentSkillsTable,
-  safetyIncidents,
-  notifications
+  safetyIncidents as safetyIncidentsTable,
+  notifications as notificationsTable
 } from "../../shared/schema";
 
 interface SafetyIncident {
@@ -86,7 +86,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
     });
 
     // Store the safety incident in the database
-    await db.insert(safetyIncidents).values({
+    await db.insert(safetyIncidentsTable).values({
       studentId: incident.studentId,
       teacherId: incident.teacherId,
       assessmentId: incident.assessmentId,
@@ -100,7 +100,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
 
     // Create in-app notifications for all teachers in the school
     const notificationPromises = schoolTeachers.map(teacher => 
-      db.insert(notifications).values({
+      db.insert(notificationsTable).values({
         userId: teacher.id,
         type: 'safety_incident',
         title: incident.incidentType.includes('homicidal') 
