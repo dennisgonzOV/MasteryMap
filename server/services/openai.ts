@@ -297,8 +297,8 @@ Respond with JSON in this format:
         explanation: languageResult.explanation
       });
 
-      // If this is the second instance, terminate conversation
-      if (inappropriateCount >= 2) {
+      // If this is the second instance (count = 2), terminate conversation
+      if (inappropriateCount === 2) {
         return {
           response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
           shouldTerminate: true,
@@ -416,7 +416,7 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
         count: inappropriateCount
       });
 
-      if (inappropriateCount >= 2) {
+      if (inappropriateCount === 2) {
         return {
           response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
           shouldTerminate: true,
