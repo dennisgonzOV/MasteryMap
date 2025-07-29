@@ -232,7 +232,7 @@ Respond with JSON in this format:
       });
 
       return {
-        response: "I'm concerned about what you've shared and want you to know that mental health is very important. This conversation has been flagged and someone will reach out to you soon to provide support. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
+        response: "I'm concerned about what you've shared and want you to know that mental health is very important. This has been flagged and someone will reach out to you to provide support. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
         shouldTerminate: true,
         safetyFlag: "homicidal_ideation",
         suggestedEvaluation: undefined,
@@ -399,7 +399,7 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
       console.log("SAFETY ALERT (Fallback): Potential homicidal content detected:", latestMessage);
 
       return {
-        response: "I'm concerned about what you've shared and want you to know that mental health is very important. This conversation has been flagged and someone will reach out to you soon to provide support. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
+        response: "I'm concerned about what you've shared and want you to know that mental health is very important. This has been flagged and someone will reach out to you to provide support. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
         shouldTerminate: true,
         safetyFlag: "homicidal_ideation_fallback",
         suggestedEvaluation: undefined,
