@@ -1201,11 +1201,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentEvaluation
       );
 
+      // Log safety flags for monitoring
+      if (tutorResponse.safetyFlag) {
+        console.log("SAFETY FLAG RAISED:", {
+          userId,
+          flag: tutorResponse.safetyFlag,
+          componentSkill: componentSkill.name,
+          timestamp: new Date().toISOString()
+        });
+        
+        // TODO: Implement notification system to alert teachers/administrators
+        // This could include email alerts, dashboard notifications, etc.
+      }
+
       console.log("AI Tutor Response generated successfully");
 
       res.json({
         response: tutorResponse.response,
-        suggestedEvaluation: tutorResponse.suggestedEvaluation
+        suggestedEvaluation: tutorResponse.suggestedEvaluation,
+        shouldTerminate: tutorResponse.shouldTerminate || false,
+        safetyFlag: tutorResponse.safetyFlag
       });
     } catch (error) {
       console.error("Error generating tutor response:", error);

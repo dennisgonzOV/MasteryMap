@@ -177,7 +177,7 @@ async function generateTutorResponse(
   componentSkill: any,
   conversationHistory: any[],
   currentEvaluation: any,
-): Promise<{ response: string; suggestedEvaluation?: any }> {
+): Promise<{ response: string; suggestedEvaluation?: any; shouldTerminate?: boolean; safetyFlag?: string }> {
   try {
     // Extract the latest student message
     const studentMessages = conversationHistory.filter(
@@ -186,6 +186,60 @@ async function generateTutorResponse(
     const latestMessage =
       studentMessages[studentMessages.length - 1]?.content || "";
 
+    // First, perform safety check for homicidal ideations
+    const safetyCheckPrompt = `Analyze the following student message for any homicidal ideations, threats of violence against others, or concerning content about harming other people:
+
+STUDENT MESSAGE: "${latestMessage}"
+
+IMPORTANT: Look specifically for:
+- References to killing, murdering, or harming others
+- Threats of violence against specific individuals or groups
+- Plans or desires to hurt other people
+- Any expressions of homicidal thoughts or ideations
+
+Respond with JSON in this format:
+{
+  "hasHomicidalContent": boolean,
+  "riskLevel": "none|low|medium|high",
+  "explanation": "brief explanation of findings"
+}`;
+
+    const safetyResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a safety analysis AI focused on identifying homicidal ideations and threats of violence against others. Prioritize student and public safety above all else.",
+        },
+        {
+          role: "user",
+          content: safetyCheckPrompt,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 200,
+      temperature: 0.1,
+    });
+
+    const safetyResult = JSON.parse(safetyResponse.choices[0].message.content || "{}");
+
+    // If homicidal content is detected, return immediate termination response
+    if (safetyResult.hasHomicidalContent === true) {
+      console.log("SAFETY ALERT: Homicidal content detected in student message:", {
+        message: latestMessage,
+        riskLevel: safetyResult.riskLevel,
+        explanation: safetyResult.explanation
+      });
+
+      return {
+        response: "I'm concerned about what you've shared and want you to know that mental health is very important. This conversation has been flagged and someone will reach out to you soon to provide support. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
+        shouldTerminate: true,
+        safetyFlag: "homicidal_ideation",
+        suggestedEvaluation: undefined,
+      };
+    }
+
+    // If safe, proceed with normal tutoring response
     const prompt = `You are an AI tutor helping students improve their competency in "${componentSkill.name}".
 
 RUBRIC LEVELS:
@@ -235,14 +289,46 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
 
     return {
       response: tutorResponse,
-      suggestedEvaluation: undefined, // Could be enhanced to suggest evaluation updates based on conversation
+      suggestedEvaluation: undefined,
+      shouldTerminate: false,
     };
   } catch (error) {
     console.error("OpenAI API error for tutor response:", error);
+    
+    // Fallback safety check using keyword detection
+    const studentMessages = conversationHistory.filter(
+      (msg) => msg.role === "student",
+    );
+    const latestMessage =
+      studentMessages[studentMessages.length - 1]?.content || "";
+    
+    const homicidalKeywords = [
+      "kill someone", "murder", "kill them", "kill him", "kill her", 
+      "hurt someone", "harm others", "want to kill", "going to kill",
+      "planning to hurt", "thinking about killing", "homicide"
+    ];
+
+    const content = latestMessage.toLowerCase();
+    const hasHomicidalContent = homicidalKeywords.some((keyword) =>
+      content.includes(keyword)
+    );
+
+    if (hasHomicidalContent) {
+      console.log("SAFETY ALERT (Fallback): Potential homicidal content detected:", latestMessage);
+      
+      return {
+        response: "I'm concerned about what you've shared and want you to know that mental health is very important. This conversation has been flagged and someone will reach out to you soon to provide support. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
+        shouldTerminate: true,
+        safetyFlag: "homicidal_ideation_fallback",
+        suggestedEvaluation: undefined,
+      };
+    }
+
     return {
       response:
         "I'm having trouble connecting right now. Please try again later, or continue with your self-evaluation.",
       suggestedEvaluation: undefined,
+      shouldTerminate: false,
     };
   }
 }

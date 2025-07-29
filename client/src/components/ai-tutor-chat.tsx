@@ -49,6 +49,7 @@ export default function AITutorChat({
   const [isLoading, setIsLoading] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [isTerminated, setIsTerminated] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -139,6 +140,31 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       };
 
       setMessages(prev => [...prev, tutorMessage]);
+
+      // Handle safety flags and conversation termination
+      if (data.shouldTerminate && data.safetyFlag) {
+        console.log("Conversation terminated due to safety concerns:", data.safetyFlag);
+        
+        // Set termination state
+        setIsTerminated(true);
+        
+        // Add a system message indicating conversation has ended
+        const terminationMessage: ChatMessage = {
+          id: `msg_${Date.now()}_system`,
+          role: 'tutor',
+          content: "This conversation has ended. Please complete your self-evaluation or speak with your teacher if you need assistance.",
+          timestamp: new Date()
+        };
+        
+        setTimeout(() => {
+          setMessages(prev => [...prev, terminationMessage]);
+        }, 2000);
+        
+        // Disable further messaging
+        setCurrentMessage('');
+        setIsLoading(false);
+        return;
+      }
 
       // Update self-evaluation if the AI suggests changes
       if (data.suggestedEvaluation) {
@@ -344,13 +370,13 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                   value={currentMessage}
                   onChange={(e) => setCurrentMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask questions, share experiences, or discuss your understanding..."
+                  placeholder={isTerminated ? "Conversation has ended for safety reasons" : "Ask questions, share experiences, or discuss your understanding..."}
                   className="min-h-[60px] resize-none"
-                  disabled={isLoading}
+                  disabled={isLoading || isTerminated}
                 />
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!currentMessage.trim() || isLoading}
+                  disabled={!currentMessage.trim() || isLoading || isTerminated}
                   size="sm"
                   className="px-3"
                 >
