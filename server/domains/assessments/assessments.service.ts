@@ -1,13 +1,14 @@
-// Assessments Service - data access layer for assessments domain
-import { storage } from '../../storage';
+// Assessments Service - business logic layer for assessments domain
+import { AssessmentsRepository } from './assessments.repository';
 
 export class AssessmentsService {
+  private assessmentsRepo = new AssessmentsRepository();
   
   async getAssessmentsByTeacher(teacherId: number) {
-    return await storage.getAssessmentsByTeacher(teacherId);
+    return await this.assessmentsRepo.getAssessmentsByTeacher(teacherId);
   }
 
   async getAssessmentsForStudent(studentId: number) {
-    return await storage.getAssessmentsForStudent(studentId);
+    return await this.assessmentsRepo.getAssessmentsForStudent(studentId);
   }
 }
