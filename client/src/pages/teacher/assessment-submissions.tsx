@@ -175,6 +175,11 @@ export default function AssessmentSubmissions() {
     if (!submissions.length || !relevantSkills.length || isGradingDataInitialized) return;
     
     console.log("Initializing grading data for assessment", id);
+    console.log("Submissions with grades:", submissions.map(s => ({ 
+      id: s.id, 
+      gradesCount: s.grades?.length || 0,
+      grades: s.grades 
+    })));
     
     // Get any existing manual input from sessionStorage
     let savedData: typeof gradingData = {};
@@ -197,22 +202,36 @@ export default function AssessmentSubmissions() {
       
       // First, populate with existing grades from database
       if (submission.grades && submission.grades.length > 0) {
+        console.log(`Loading grades for submission ${submission.id}:`, submission.grades);
         submission.grades.forEach(grade => {
+          // Handle both string and number score values
+          const score = typeof grade.score === 'string' ? parseInt(grade.score) : grade.score;
           initialData[submission.id][grade.componentSkillId] = {
             rubricLevel: grade.rubricLevel,
             feedback: grade.feedback,
-            score: parseInt(grade.score.toString()) || 1
+            score: score || 1
           };
+          console.log(`Loaded grade for submission ${submission.id}, skill ${grade.componentSkillId}:`, {
+            rubricLevel: grade.rubricLevel,
+            feedback: grade.feedback,
+            score: score || 1
+          });
         });
+      } else {
+        console.log(`No grades found for submission ${submission.id}`);
       }
       
-      // Then, override with any saved manual input
+      // Then, override with any saved manual input (only if not saved to database yet)
       if (savedData[submission.id]) {
         Object.keys(savedData[submission.id]).forEach(skillId => {
           const skillIdNum = parseInt(skillId);
           if (savedData[submission.id][skillIdNum]) {
-            initialData[submission.id][skillIdNum] = savedData[submission.id][skillIdNum];
-            console.log(`Restored manual input for submission ${submission.id}, skill ${skillId}:`, savedData[submission.id][skillIdNum]);
+            // Only use sessionStorage data if there's no database grade for this skill
+            const hasDbGrade = submission.grades?.some(g => g.componentSkillId === skillIdNum);
+            if (!hasDbGrade) {
+              initialData[submission.id][skillIdNum] = savedData[submission.id][skillIdNum];
+              console.log(`Restored manual input for submission ${submission.id}, skill ${skillId}:`, savedData[submission.id][skillIdNum]);
+            }
           }
         });
       }
@@ -838,7 +857,6 @@ export default function AssessmentSubmissions() {
                                         <Select
                                           value={
                                             gradingData[submission.id]?.[skill.id]?.rubricLevel || 
-                                            existingGrade?.rubricLevel || 
                                             ''
                                           }
                                           onValueChange={(value: 'emerging' | 'developing' | 'proficient' | 'applying') => {
@@ -846,7 +864,7 @@ export default function AssessmentSubmissions() {
                                             updateGradingData(submission.id, skill.id, {
                                               rubricLevel: value,
                                               score: level?.score || 1,
-                                              feedback: gradingData[submission.id]?.[skill.id]?.feedback || existingGrade?.feedback || ''
+                                              feedback: gradingData[submission.id]?.[skill.id]?.feedback || ''
                                             });
                                           }}
                                         >
@@ -874,16 +892,15 @@ export default function AssessmentSubmissions() {
                                           placeholder="Provide specific feedback for this skill..."
                                           value={
                                             gradingData[submission.id]?.[skill.id]?.feedback || 
-                                            existingGrade?.feedback || 
                                             ''
                                           }
                                           onChange={(e) => {
                                             const current = gradingData[submission.id]?.[skill.id];
-                                            const currentLevel = current?.rubricLevel || existingGrade?.rubricLevel || 'emerging';
-                                            const currentScore = current?.score || existingGrade?.score || 1;
+                                            const currentLevel = current?.rubricLevel || 'emerging';
+                                            const currentScore = current?.score || 1;
                                             updateGradingData(submission.id, skill.id, {
                                               rubricLevel: currentLevel,
-                                              score: parseInt(currentScore.toString()) || 1,
+                                              score: currentScore,
                                               feedback: e.target.value
                                             });
                                           }}
