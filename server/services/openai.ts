@@ -239,6 +239,75 @@ Respond with JSON in this format:
       };
     }
 
+    // Second, check for inappropriate language
+    const languageCheckPrompt = `Analyze the following student message for inappropriate language:
+
+STUDENT MESSAGE: "${latestMessage}"
+
+IMPORTANT: Look specifically for:
+- Profanity, vulgar language, or curse words
+- Sexually explicit language or references
+- Hate speech or discriminatory language
+- Bullying, harassment, or threatening language
+- Any language inappropriate for a school setting
+
+Respond with JSON in this format:
+{
+  "hasInappropriateLanguage": boolean,
+  "severity": "none|mild|moderate|severe",
+  "explanation": "brief explanation of findings"
+}`;
+
+    const languageResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a language analysis AI focused on detecting inappropriate language in educational settings. Consider school-appropriate standards.",
+        },
+        {
+          role: "user",
+          content: languageCheckPrompt,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 200,
+      temperature: 0.1,
+    });
+
+    const languageResult = JSON.parse(languageResponse.choices[0].message.content || "{}");
+
+    // Count inappropriate language instances in conversation history
+    if (languageResult.hasInappropriateLanguage === true) {
+      const inappropriateCount = studentMessages.filter(msg => {
+        // This is a simplified check - in production you might want to store flags per message
+        const simpleInappropriateWords = [
+          'damn', 'hell', 'crap', 'shit', 'fuck', 'bitch', 'ass', 'asshole',
+          'bastard', 'piss', 'dick', 'cock', 'pussy', 'whore', 'slut'
+        ];
+        return simpleInappropriateWords.some(word => 
+          msg.content.toLowerCase().includes(word.toLowerCase())
+        );
+      }).length;
+
+      console.log("LANGUAGE ALERT: Inappropriate language detected:", {
+        message: latestMessage,
+        severity: languageResult.severity,
+        count: inappropriateCount,
+        explanation: languageResult.explanation
+      });
+
+      // If this is the second instance, terminate conversation
+      if (inappropriateCount >= 2) {
+        return {
+          response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
+          shouldTerminate: true,
+          safetyFlag: "inappropriate_language_repeated",
+          suggestedEvaluation: undefined,
+        };
+      }
+    }
+
     // If safe, proceed with normal tutoring response
     const prompt = `You are an AI tutor helping students improve their competency in "${componentSkill.name}".
 
@@ -295,7 +364,7 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
   } catch (error) {
     console.error("OpenAI API error for tutor response:", error);
     
-    // Fallback safety check using keyword detection
+    // Fallback safety checks using keyword detection
     const studentMessages = conversationHistory.filter(
       (msg) => msg.role === "student",
     );
@@ -306,6 +375,11 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
       "kill someone", "murder", "kill them", "kill him", "kill her", 
       "hurt someone", "harm others", "want to kill", "going to kill",
       "planning to hurt", "thinking about killing", "homicide"
+    ];
+
+    const inappropriateKeywords = [
+      "damn", "hell", "crap", "shit", "fuck", "bitch", "ass", "asshole",
+      "bastard", "piss", "dick", "cock", "pussy", "whore", "slut"
     ];
 
     const content = latestMessage.toLowerCase();
@@ -322,6 +396,34 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
         safetyFlag: "homicidal_ideation_fallback",
         suggestedEvaluation: undefined,
       };
+    }
+
+    // Fallback inappropriate language check
+    const hasInappropriateLanguage = inappropriateKeywords.some((keyword) =>
+      content.includes(keyword)
+    );
+
+    if (hasInappropriateLanguage) {
+      // Count inappropriate language instances in conversation history
+      const inappropriateCount = studentMessages.filter(msg => 
+        inappropriateKeywords.some(word => 
+          msg.content.toLowerCase().includes(word)
+        )
+      ).length;
+
+      console.log("LANGUAGE ALERT (Fallback): Inappropriate language detected:", {
+        message: latestMessage,
+        count: inappropriateCount
+      });
+
+      if (inappropriateCount >= 2) {
+        return {
+          response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
+          shouldTerminate: true,
+          safetyFlag: "inappropriate_language_repeated_fallback",
+          suggestedEvaluation: undefined,
+        };
+      }
     }
 
     return {

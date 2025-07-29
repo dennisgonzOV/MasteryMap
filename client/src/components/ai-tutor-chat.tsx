@@ -148,11 +148,19 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         // Set termination state
         setIsTerminated(true);
         
-        // Add a system message indicating conversation has ended
+        // Add appropriate system message based on safety flag
+        let systemMessage = "This conversation has ended. Please complete your self-evaluation or speak with your teacher if you need assistance.";
+        
+        if (data.safetyFlag.includes('inappropriate_language')) {
+          systemMessage = "This conversation has ended due to inappropriate language. Please complete your self-evaluation or speak with your teacher.";
+        } else if (data.safetyFlag.includes('homicidal')) {
+          systemMessage = "This conversation has ended for safety reasons. Please speak with a trusted adult or counselor if you need support.";
+        }
+        
         const terminationMessage: ChatMessage = {
           id: `msg_${Date.now()}_system`,
           role: 'tutor',
-          content: "This conversation has ended. Please complete your self-evaluation or speak with your teacher if you need assistance.",
+          content: systemMessage,
           timestamp: new Date()
         };
         
@@ -370,7 +378,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                   value={currentMessage}
                   onChange={(e) => setCurrentMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={isTerminated ? "Conversation has ended for safety reasons" : "Ask questions, share experiences, or discuss your understanding..."}
+                  placeholder={isTerminated ? "Conversation has ended" : "Ask questions, share experiences, or discuss your understanding..."}
                   className="min-h-[60px] resize-none"
                   disabled={isLoading || isTerminated}
                 />
