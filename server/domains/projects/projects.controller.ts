@@ -2,7 +2,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { createInsertSchema } from 'drizzle-zod';
-import { projects, milestones } from '../../../shared/schema';
+import { projects, milestones } from '../../../shared/schemas';
 import { ProjectsService } from './projects.service';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../../auth';
 import { generateMilestonesFromComponentSkills, generateProjectIdeas } from '../../openai';

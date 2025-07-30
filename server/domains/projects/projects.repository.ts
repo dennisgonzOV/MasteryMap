@@ -8,7 +8,7 @@ import {
   projectTeamMembers,
   componentSkills as componentSkillsTable,
   users as usersTable
-} from '../../../shared/schema';
+} from '../../../shared/schemas';
 import type { 
   InsertProject, 
   SelectProject, 
@@ -16,7 +16,7 @@ import type {
   SelectMilestone,
   SelectUser,
   SelectComponentSkill
-} from '../../../shared/schema';
+} from '../../../shared/schemas';
 
 export class ProjectsRepository {
   

@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
-import { storage } from './storage';
+import { ModularStorage } from './storage.modular';
+const storage = new ModularStorage();
 import type { User } from '@shared/schema';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';

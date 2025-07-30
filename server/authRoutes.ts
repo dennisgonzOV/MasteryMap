@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import { AuthService, type AuthenticatedRequest, requireAuth } from './auth';
-import { storage } from './storage';
+import { ModularStorage } from './storage.modular';
+const storage = new ModularStorage();
 import { registerSchema, loginSchema } from '@shared/schema';
 import cookieParser from 'cookie-parser';
 
