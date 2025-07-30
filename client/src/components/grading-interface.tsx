@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,11 +26,19 @@ interface Submission {
   status: 'pending' | 'graded' | 'reviewed';
 }
 
+interface ComponentSkill {
+  id: number;
+  name: string;
+  competencyName?: string;
+  learnerOutcomeName?: string;
+}
+
 interface GradingInterfaceProps {
   submission: Submission;
   questions: Question[];
+  componentSkills: ComponentSkill[];
   onGradeSubmission: (submissionId: number, grades: Array<{
-    questionId: string;
+    componentSkillId: number;
     rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
     feedback: string;
     score: number;
@@ -40,6 +48,7 @@ interface GradingInterfaceProps {
 export default function GradingInterface({ 
   submission, 
   questions, 
+  componentSkills,
   onGradeSubmission
 }: GradingInterfaceProps) {
   const { toast } = useToast();
@@ -49,6 +58,13 @@ export default function GradingInterface({
     score: number;
   }>>({});
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState<Record<string, boolean>>({});
+  const [existingGrades, setExistingGrades] = useState<Array<{
+    id: number;
+    componentSkillId: number;
+    rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
+    score: number;
+    feedback: string;
+  }>>([]);
 
   const rubricLevels = [
     { value: 'emerging', label: 'Emerging', description: 'Beginning to show understanding', color: 'bg-red-100 text-red-800', score: 1 },
@@ -57,25 +73,55 @@ export default function GradingInterface({
     { value: 'applying', label: 'Applying', description: 'Applying understanding in new contexts', color: 'bg-green-100 text-green-800', score: 4 }
   ];
 
-  const handleRubricLevelChange = (questionId: string, level: string) => {
+  // Fetch existing grades on component mount
+  useEffect(() => {
+    const fetchExistingGrades = async () => {
+      try {
+        const response = await fetch(`/api/submissions/${submission.id}/grades`);
+        if (response.ok) {
+          const existingGrades = await response.json();
+          setExistingGrades(existingGrades);
+          
+          // Populate grades state with existing data
+          const gradesMap: Record<string, any> = {};
+          existingGrades.forEach((grade: any) => {
+            gradesMap[grade.componentSkillId.toString()] = {
+              rubricLevel: grade.rubricLevel,
+              feedback: grade.feedback || '',
+              score: grade.score
+            };
+          });
+          setGrades(gradesMap);
+        }
+      } catch (error) {
+        console.error('Error fetching existing grades:', error);
+      }
+    };
+
+    if (submission.id) {
+      fetchExistingGrades();
+    }
+  }, [submission.id]);
+
+  const handleRubricLevelChange = (componentSkillId: number, level: string) => {
     const rubricLevel = level as 'emerging' | 'developing' | 'proficient' | 'applying';
     const score = rubricLevels.find(r => r.value === rubricLevel)?.score || 1;
     
     setGrades(prev => ({
       ...prev,
-      [questionId]: {
-        ...prev[questionId],
+      [componentSkillId.toString()]: {
+        ...prev[componentSkillId.toString()],
         rubricLevel,
         score
       }
     }));
   };
 
-  const handleFeedbackChange = (questionId: string, feedback: string) => {
+  const handleFeedbackChange = (componentSkillId: number, feedback: string) => {
     setGrades(prev => ({
       ...prev,
-      [questionId]: {
-        ...prev[questionId],
+      [componentSkillId.toString()]: {
+        ...prev[componentSkillId.toString()],
         feedback
       }
     }));
@@ -125,15 +171,15 @@ export default function GradingInterface({
   };
 
   const handleSubmitGrades = () => {
-    const gradesList = Object.entries(grades).map(([questionId, grade]) => ({
-      questionId,
+    const gradesList = Object.entries(grades).map(([componentSkillId, grade]) => ({
+      componentSkillId: parseInt(componentSkillId),
       ...grade
     }));
 
     if (gradesList.length === 0) {
       toast({
         title: "No Grades",
-        description: "Please grade at least one question before submitting.",
+        description: "Please grade at least one component skill before submitting.",
         variant: "destructive",
       });
       return;
@@ -190,51 +236,41 @@ export default function GradingInterface({
               Overall Score: <span className="font-medium">{calculateOverallScore()}%</span>
             </div>
             <div className="text-sm text-gray-600">
-              Questions Graded: {Object.keys(grades).length} of {questions.length}
+              Skills Graded: {Object.keys(grades).length} of {componentSkills.length}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Question Grading */}
-      {questions.map((question, index) => (
-        <Card key={question.id}>
+      {/* Component Skill Grading */}
+      {componentSkills.map((skill, index) => (
+        <Card key={skill.id}>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <FileText className="h-5 w-5" />
-              <span>Question {index + 1}</span>
+              <span>{skill.name}</span>
             </CardTitle>
+            {skill.competencyName && (
+              <p className="text-sm text-gray-600">
+                {skill.learnerOutcomeName} → {skill.competencyName}
+              </p>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Question Text */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="font-medium text-gray-900">{question.text}</p>
-              {question.rubricCriteria && (
-                <p className="text-sm text-gray-600 mt-2">
-                  <strong>Rubric:</strong> {question.rubricCriteria}
-                </p>
-              )}
-            </div>
-
-            {/* Student Answer */}
+            {/* Student Responses for this skill */}
             <div>
-              <Label className="text-sm font-medium">Student Response</Label>
-              <div className="mt-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-gray-800">
-                  {submission.answers[question.id] || 'No response provided'}
-                </p>
+              <Label className="text-sm font-medium">Student Responses</Label>
+              <div className="mt-2 space-y-2">
+                {questions.map((question, qIndex) => (
+                  <div key={question.id} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm font-medium text-gray-900 mb-1">Question {qIndex + 1}: {question.text}</p>
+                    <p className="text-gray-800 text-sm">
+                      {submission.answers[question.id] || 'No response provided'}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
-
-            {/* Sample Answer (if available) */}
-            {question.sampleAnswer && (
-              <div>
-                <Label className="text-sm font-medium">Sample Answer</Label>
-                <div className="mt-2 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <p className="text-gray-800 text-sm">{question.sampleAnswer}</p>
-                </div>
-              </div>
-            )}
 
             <Separator />
 
@@ -242,16 +278,16 @@ export default function GradingInterface({
             <div>
               <Label className="text-sm font-medium">Rubric Level</Label>
               <RadioGroup
-                value={grades[question.id]?.rubricLevel || ''}
-                onValueChange={(value) => handleRubricLevelChange(question.id, value)}
+                value={grades[skill.id.toString()]?.rubricLevel || ''}
+                onValueChange={(value) => handleRubricLevelChange(skill.id, value)}
                 className="mt-2"
               >
                 <div className="grid grid-cols-2 gap-3">
                   {rubricLevels.map((level) => (
                     <div key={level.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={level.value} id={`${question.id}-${level.value}`} />
+                      <RadioGroupItem value={level.value} id={`${skill.id}-${level.value}`} />
                       <Label 
-                        htmlFor={`${question.id}-${level.value}`}
+                        htmlFor={`${skill.id}-${level.value}`}
                         className="flex-1 cursor-pointer"
                       >
                         <div className={`p-2 rounded-lg border ${level.color}`}>
@@ -272,8 +308,8 @@ export default function GradingInterface({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => generateAIFeedback(question.id)}
-                  disabled={isGeneratingFeedback[question.id] || !submission.answers[question.id]}
+                  onClick={() => generateAIFeedback(skill.id.toString())}
+                  disabled={isGeneratingFeedback[skill.id.toString()]}
                   className="flex items-center space-x-1"
                 >
                   <Sparkles className="h-3 w-3" />
@@ -281,8 +317,8 @@ export default function GradingInterface({
                 </Button>
               </div>
               <Textarea
-                value={grades[question.id]?.feedback || ''}
-                onChange={(e) => handleFeedbackChange(question.id, e.target.value)}
+                value={grades[skill.id.toString()]?.feedback || ''}
+                onChange={(e) => handleFeedbackChange(skill.id, e.target.value)}
                 placeholder="Provide specific feedback to help the student improve..."
                 className="mt-2 min-h-[100px]"
               />

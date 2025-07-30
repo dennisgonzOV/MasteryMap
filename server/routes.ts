@@ -1142,6 +1142,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get existing grades for a submission
+  app.get('/api/submissions/:id/grades', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Only teachers can view grades" });
+      }
+
+      const submissionId = parseInt(req.params.id);
+      
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      // Get grades for this submission
+      const grades = await db.select()
+        .from(gradesTable)
+        .where(eq(gradesTable.submissionId, submissionId));
+
+      res.json(grades);
+    } catch (error) {
+      console.error("Error fetching submission grades:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch submission grades", 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  });
+
   // Generate AI feedback for specific question
   app.post('/api/submissions/:id/generate-question-feedback', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {

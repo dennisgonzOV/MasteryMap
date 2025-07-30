@@ -93,11 +93,15 @@ export default function SubmissionReview() {
 
   
 
-  // Fetch component skills for context
-  const { data: componentSkills = [] } = useQuery({
+  // Fetch component skills for context and grading
+  const { data: allComponentSkills = [] } = useQuery({
     queryKey: ["/api/component-skills/details"],
     enabled: !!assessment?.componentSkillIds?.length,
   });
+
+  const componentSkills = allComponentSkills.filter(skill => 
+    assessment?.componentSkillIds?.includes(skill.id)
+  ) || [];
 
   // Set initial values when submission loads
   useEffect(() => {
