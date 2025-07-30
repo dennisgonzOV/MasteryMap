@@ -37,6 +37,9 @@ interface IStorage {
   // School operations
   getSchools(): Promise<School[]>;
   getSchool(id: number): Promise<School | undefined>;
+  
+  // Additional methods required by the implementation
+  updateUserPassword?(userId: number, hashedPassword: string): Promise<void>;
 }
 import type {
   User, Project, Milestone, Assessment, Submission, Credential, PortfolioArtifact,
@@ -45,7 +48,7 @@ import type {
   UpsertUser, InsertProject, InsertMilestone, InsertAssessment, InsertSubmission,
   InsertCredential, InsertPortfolioArtifact, InsertSelfEvaluation, ProjectAssignment,
   InsertProjectTeam, InsertProjectTeamMember, InsertSchool, InsertAuthToken
-} from "../shared/schema";
+} from "../shared/schemas";
 
 // Modular storage implementation using domain repositories
 export class ModularStorage implements IStorage {

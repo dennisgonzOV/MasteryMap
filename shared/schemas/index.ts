@@ -58,6 +58,15 @@ export {
   notifications
 };
 
+// Export all types and schemas for compatibility  
+export * from './common';
+export * from './auth';
+export * from './projects';
+export * from './assessments';
+export * from './portfolio';
+export * from './credentials';
+export * from './system';
+
 // Re-export relations (if needed for Drizzle ORM setup)
 export { authTokensRelations, usersRelations } from './auth';
 export { 
