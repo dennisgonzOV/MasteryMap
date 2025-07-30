@@ -2,8 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
-import { ModularStorage } from './storage.modular';
-const storage = new ModularStorage();
+import { storage } from './storage';
 import type { User } from '@shared/schema';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -74,12 +73,12 @@ export class AuthService {
     if (!tokenRecord || tokenRecord.type !== 'refresh') {
       return false;
     }
-
+    
     if (tokenRecord.expiresAt < new Date()) {
       await storage.deleteAuthToken(token);
       return false;
     }
-
+    
     return true;
   }
 
@@ -107,28 +106,27 @@ export class AuthService {
   }
 }
 
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    // Try to get token from cookies first, then fallback to Authorization header
-    let token = req.cookies?.token;
-
-    if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      }
-    }
-
-    if (!token) {
-      console.log('No token found in cookies or headers');
+    const accessToken = req.cookies.access_token;
+    
+    if (!accessToken) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
-    (req as any).user = decoded;
+    const payload = AuthService.verifyAccessToken(accessToken);
+    if (!payload) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    const user = await storage.getUser(payload.userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
-    console.log('Token verification failed:', error);
     return res.status(401).json({ message: 'Unauthorized' });
   }
 };

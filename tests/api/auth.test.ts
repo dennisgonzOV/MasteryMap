@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { getTestApp } from '../helpers/test-app';
 import { testUsers, testSchool } from '../fixtures/users';
-import { storage } from '../../server/storage.modular';
+import { storage } from '../../server/storage';
 
 describe('Authentication API', () => {
   let app: any;

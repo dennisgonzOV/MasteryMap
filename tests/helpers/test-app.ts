@@ -1,6 +1,6 @@
 // Test application setup for API testing
 import express from 'express';
-import { registerRoutes } from '../../server/routes.modular';
+import { registerRoutes } from '../../server/routes';
 
 // Create test app with the same middleware as main server
 export async function createTestApp() {

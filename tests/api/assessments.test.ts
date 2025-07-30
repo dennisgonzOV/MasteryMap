@@ -3,7 +3,7 @@ import request from 'supertest';
 import { app } from '../../server/index';
 import { testUsers, testSchool } from '../fixtures/users';
 import { testAssessment } from '../fixtures/projects';
-import { storage } from '../../server/storage.modular';
+import { storage } from '../../server/storage';
 
 describe('Assessments API', () => {
   let teacherToken: string;

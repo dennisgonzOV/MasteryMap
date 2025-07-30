@@ -48,8 +48,6 @@ app.use((req, res, next) => {
       process.exit(1);
     }
 
-    // Use modular routes for testing (can be toggled back to legacy)
-    const { registerRoutes } = await import("./routes.modular");
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

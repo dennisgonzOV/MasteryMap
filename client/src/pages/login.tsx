@@ -30,14 +30,13 @@ export default function Login() {
     mutationFn: async (data: LoginForm) => {
       return await apiRequest('/api/auth/login', 'POST', data);
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       toast({
         title: 'Success',
         description: 'Logged in successfully',
       });
-      // Invalidate and refetch auth query to get user data
-      await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
+      // Invalidate auth query to refetch user data
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
       setLocation('/');
     },
     onError: (error) => {
