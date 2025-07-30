@@ -38,7 +38,7 @@ interface IStorage {
   getSchools(): Promise<School[]>;
   getSchool(id: number): Promise<School | undefined>;
   
-  // Additional methods required by the implementation
+  // Additional methods required by the implementation  
   updateUserPassword?(userId: number, hashedPassword: string): Promise<void>;
 }
 import type {
@@ -180,6 +180,10 @@ export class ModularStorage implements IStorage {
   }
 
   // Assessment convenience methods for existing API compatibility
+  async getAssessmentsByProject(projectId: number): Promise<Assessment[]> {
+    return await this.assessmentsRepo.getAssessmentsByProject(projectId);
+  }
+
   async getAssessmentsByTeacher(teacherId: number): Promise<Assessment[]> {
     return await this.assessmentsRepo.getAssessmentsByTeacher(teacherId);
   }
@@ -238,6 +242,10 @@ export class ModularStorage implements IStorage {
     return credential || undefined;
   }
 
+  async getCredentials(studentId: number): Promise<Credential[]> {
+    return await this.credentialsRepo.getCredentialsByStudent(studentId);
+  }
+
   async getCredentialsByStudent(studentId: number): Promise<Credential[]> {
     return await this.credentialsRepo.getCredentialsByStudent(studentId);
   }
@@ -274,6 +282,11 @@ export class ModularStorage implements IStorage {
 
   async deletePortfolioArtifact(id: number): Promise<void> {
     await this.portfolioRepo.deletePortfolioArtifact(id);
+  }
+
+  // Additional methods for compatibility
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    await this.authRepo.updateUser(userId, { password: hashedPassword });
   }
 
   // Legacy operations that need full implementation (keeping for compatibility)

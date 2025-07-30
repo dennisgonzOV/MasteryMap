@@ -39,6 +39,40 @@ export const authTokens = pgTable("auth_tokens", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Zod schemas for forms and validation  
+const baseInsertUserSchema = createInsertSchema(users);
+export const selectUserSchema = z.object({
+  id: z.number(),
+  email: z.string(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  role: z.enum(["admin", "teacher", "student"]),
+  schoolId: z.number().nullable(),
+  profileImageUrl: z.string().nullable(),
+  emailConfirmed: z.boolean().nullable(),
+  createdAt: z.date().nullable(),
+  updatedAt: z.date().nullable(),
+});
+
+// Login schema for frontend forms
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(1, "Password is required"),
+});
+
+// Registration schema for frontend forms  
+export const registerSchema = baseInsertUserSchema.pick({
+  email: true,
+  password: true,
+  firstName: true,
+  lastName: true,
+  role: true,
+  schoolId: true,
+}).extend({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  email: z.string().email("Invalid email format"),
+});
+
 // Relations
 export const authTokensRelations = relations(authTokens, ({ one }) => ({
   user: one(users, {
@@ -59,8 +93,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 export type User = InferSelectModel<typeof users>;
 export type AuthToken = InferSelectModel<typeof authTokens>;
 
-// Insert schemas  
-export const insertUserSchema = createInsertSchema(users);
+// Schema exports for backend usage
+export const insertUserSchema = baseInsertUserSchema;
 export const insertAuthTokenSchema = createInsertSchema(authTokens);
 
 // Insert types

@@ -8,7 +8,7 @@ import {
   selfEvaluations as selfEvaluationsTable,
   milestones as milestonesTable,
   projects as projectsTable
-} from '../../../shared/schema';
+} from '../../../shared/schemas';
 import type { 
   InsertAssessment, 
   SelectAssessment,
@@ -18,14 +18,14 @@ import type {
   SelectGrade,
   InsertSelfEvaluation,
   SelectSelfEvaluation
-} from '../../../shared/schema';
+} from '../../../shared/schemas';
 
 export class AssessmentsRepository {
   
   // Assessment CRUD operations
   async createAssessment(assessmentData: InsertAssessment): Promise<SelectAssessment> {
     try {
-      const result = await db.insert(assessmentsTable).values(assessmentData).returning();
+      const result = await db.insert(assessmentsTable).values([assessmentData]).returning();
       return result[0];
     } catch (error) {
       console.error('Error creating assessment:', error);
@@ -51,6 +51,18 @@ export class AssessmentsRepository {
       return result[0] || null;
     } catch (error) {
       console.error('Error getting assessment by share code:', error);
+      throw new Error('Database error');
+    }
+  }
+
+  async getAssessmentsByProject(projectId: number): Promise<SelectAssessment[]> {
+    try {
+      return await db.select().from(assessmentsTable)
+        .innerJoin(milestonesTable, eq(assessmentsTable.milestoneId, milestonesTable.id))
+        .where(eq(milestonesTable.projectId, projectId))
+        .then(results => results.map(r => r.assessments));
+    } catch (error) {
+      console.error('Error getting assessments by project:', error);
       throw new Error('Database error');
     }
   }
@@ -235,7 +247,7 @@ export class AssessmentsRepository {
     try {
       return await db.select().from(selfEvaluationsTable)
         .where(eq(selfEvaluationsTable.studentId, studentId))
-        .orderBy(desc(selfEvaluationsTable.createdAt));
+        .orderBy(desc(selfEvaluationsTable.submittedAt));
     } catch (error) {
       console.error('Error getting self evaluations by student:', error);
       throw new Error('Database error');

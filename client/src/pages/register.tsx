@@ -25,7 +25,7 @@ export default function Register() {
   });
 
   const schoolsArray = Array.isArray(schools) ? schools : [];
-  console.log('Schools data:', schools, 'Array:', schoolsArray);
+
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),

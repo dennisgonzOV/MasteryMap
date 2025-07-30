@@ -61,7 +61,7 @@ export async function generateProjectIdeas(criteria: {
 }) {
   // Format component skills for the prompt
   const skillsText = criteria.componentSkills.map(skill => 
-    `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`
+    `- ${skill.name} (ID: ${skill.id})`
   ).join('\n');
 
   const prompt = `Generate 3 creative and engaging project-based learning ideas based on the following criteria:
@@ -223,7 +223,7 @@ export async function generateMilestonesFromComponentSkills(
   try {
     // Format component skills with full hierarchical context
     const skillsText = componentSkills.map(skill => 
-      `- ${skill.name} (Competency: ${skill.competencyName || 'N/A'} | Learner Outcome: ${skill.learnerOutcomeName || 'N/A'})`
+      `- ${skill.name} (ID: ${skill.id})`
     ).join('\n');
     
     const standardsText = bestStandards?.length 
@@ -420,7 +420,7 @@ export async function generateAssessment(
   competencies: Competency[]
 ): Promise<GeneratedAssessment> {
   try {
-    console.log('Generating assessment for milestone:', milestone.title);
+
     const competencyNames = competencies.map(c => c.name).join(', ');
 
     const prompt = `
@@ -485,11 +485,11 @@ export async function generateAssessmentFromComponentSkills(
   bestStandards?: any[]
 ): Promise<GeneratedAssessment> {
   try {
-    console.log('Generating assessment for milestone:', milestoneTitle);
+
     
-    // Format component skills with full context for better AI understanding
+    // Format component skills for AI understanding
     const skillsText = componentSkills.map(skill => 
-      `- ${skill.name} (Competency: ${skill.competencyName || 'N/A'} | Learner Outcome: ${skill.learnerOutcomeName || 'N/A'})`
+      `- ${skill.name} (ID: ${skill.id})`
     ).join('\n');
     
     const standardsText = bestStandards?.length 
@@ -852,7 +852,7 @@ export async function suggestCredentials(
 Based on the following student achievements, suggest appropriate credentials (stickers) to award:
 
 Student Achievements:
-${proficientGrades.map(g => `Outcome ${g.outcomeId}: ${g.rubricLevel} level`).join('\n')}
+${proficientGrades.map(g => `Skill ${g.componentSkillId}: ${g.rubricLevel} level`).join('\n')}
 
 Suggest 1-3 stickers that recognize specific skills or competencies demonstrated. 
 Stickers should be:
