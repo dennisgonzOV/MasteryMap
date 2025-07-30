@@ -107,30 +107,28 @@ export class AuthService {
   }
 }
 
-export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Check both Authorization header and cookie
-    const authHeader = req.headers.authorization?.replace('Bearer ', '');
-    const cookieToken = req.cookies?.token;
-    const token = authHeader || cookieToken;
+    // Try to get token from cookies first, then fallback to Authorization header
+    let token = req.cookies?.token;
 
     if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (!token) {
+      console.log('No token found in cookies or headers');
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const payload = AuthService.verifyAccessToken(token);
-    if (!payload) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    const user = await storage.getUser(payload.userId);
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
-    }
-
-    (req as AuthenticatedRequest).user = user;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+    (req as any).user = decoded;
     next();
   } catch (error) {
+    console.log('Token verification failed:', error);
     return res.status(401).json({ message: 'Unauthorized' });
   }
 };

@@ -56,10 +56,11 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     // Set HTTP-only cookie
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      secure: false, // Set to false for development in Replit
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      path: '/'
+      path: '/',
+      domain: undefined // Let browser set domain automatically
     });
 
     // Return user data (without password) and token
@@ -109,10 +110,11 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     // Set HTTP-only cookie
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      secure: false, // Set to false for development in Replit
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      path: '/'
+      path: '/',
+      domain: undefined // Let browser set domain automatically
     });
 
     // Return user data (without password) and token
