@@ -14,6 +14,12 @@ interface IStorage {
   createUser(user: UpsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<UpsertUser>): Promise<User>;
 
+  // Auth token operations
+  createAuthToken(tokenData: InsertAuthToken): Promise<AuthToken>;
+  getAuthToken(token: string): Promise<AuthToken | undefined>;
+  deleteAuthToken(token: string): Promise<void>;
+  deleteAuthTokensByUserId(userId: number): Promise<void>;
+
   // Project operations  
   createProject(project: InsertProject): Promise<Project>;
   getProject(id: number): Promise<Project | undefined>;
@@ -282,6 +288,24 @@ export class ModularStorage implements IStorage {
 
   async deletePortfolioArtifact(id: number): Promise<void> {
     await this.portfolioRepo.deletePortfolioArtifact(id);
+  }
+
+  // Auth token operations - delegated to AuthRepository
+  async createAuthToken(tokenData: InsertAuthToken): Promise<AuthToken> {
+    return await this.authRepo.createAuthToken(tokenData);
+  }
+
+  async getAuthToken(token: string): Promise<AuthToken | undefined> {
+    const authToken = await this.authRepo.getAuthToken(token);
+    return authToken || undefined;
+  }
+
+  async deleteAuthToken(token: string): Promise<void> {
+    await this.authRepo.deleteAuthToken(token);
+  }
+
+  async deleteAuthTokensByUserId(userId: number): Promise<void> {
+    await this.authRepo.deleteAuthTokensByUserId(userId);
   }
 
   // Additional methods for compatibility

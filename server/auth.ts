@@ -107,7 +107,7 @@ export class AuthService {
   }
 }
 
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Check both Authorization header and cookie
     const authHeader = req.headers.authorization?.replace('Bearer ', '');
@@ -128,7 +128,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ message: 'User not found' });
     }
 
-    req.user = user;
+    (req as AuthenticatedRequest).user = user;
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Unauthorized' });

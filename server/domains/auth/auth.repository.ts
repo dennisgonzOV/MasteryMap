@@ -3,18 +3,21 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../../db';
 import { 
   users as usersTable,
-  schools as schoolsTable 
+  schools as schoolsTable,
+  authTokens as authTokensTable
 } from '../../../shared/schema';
 import type { 
-  InsertUser, 
-  SelectUser, 
-  SelectSchool 
+  UpsertUser, 
+  User, 
+  School,
+  InsertAuthToken,
+  AuthToken
 } from '../../../shared/schema';
 
 export class AuthRepository {
   
   // User CRUD operations
-  async createUser(userData: InsertUser): Promise<SelectUser> {
+  async createUser(userData: UpsertUser): Promise<User> {
     try {
       const result = await db.insert(usersTable).values(userData).returning();
       return result[0];
@@ -24,7 +27,7 @@ export class AuthRepository {
     }
   }
 
-  async getUserById(id: number): Promise<SelectUser | null> {
+  async getUserById(id: number): Promise<User | null> {
     try {
       const result = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
       return result[0] || null;
@@ -34,7 +37,7 @@ export class AuthRepository {
     }
   }
 
-  async getUserByEmail(email: string): Promise<SelectUser | null> {
+  async getUserByEmail(email: string): Promise<User | null> {
     try {
       const result = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
       return result[0] || null;
@@ -44,7 +47,7 @@ export class AuthRepository {
     }
   }
 
-  async updateUser(id: number, updates: Partial<InsertUser>): Promise<SelectUser | null> {
+  async updateUser(id: number, updates: Partial<UpsertUser>): Promise<User | null> {
     try {
       const result = await db
         .update(usersTable)
@@ -68,7 +71,7 @@ export class AuthRepository {
     }
   }
 
-  async getAllUsers(): Promise<SelectUser[]> {
+  async getAllUsers(): Promise<User[]> {
     try {
       return await db.select().from(usersTable);
     } catch (error) {
@@ -77,7 +80,7 @@ export class AuthRepository {
     }
   }
 
-  async getUsersByRole(role: 'admin' | 'teacher' | 'student'): Promise<SelectUser[]> {
+  async getUsersByRole(role: 'admin' | 'teacher' | 'student'): Promise<User[]> {
     try {
       return await db.select().from(usersTable).where(eq(usersTable.role, role));
     } catch (error) {
@@ -86,7 +89,7 @@ export class AuthRepository {
     }
   }
 
-  async getUsersBySchool(schoolId: number): Promise<SelectUser[]> {
+  async getUsersBySchool(schoolId: number): Promise<User[]> {
     try {
       return await db.select().from(usersTable).where(eq(usersTable.schoolId, schoolId));
     } catch (error) {
@@ -96,7 +99,7 @@ export class AuthRepository {
   }
 
   // School operations
-  async getAllSchools(): Promise<SelectSchool[]> {
+  async getAllSchools(): Promise<School[]> {
     try {
       return await db.select().from(schoolsTable);
     } catch (error) {
@@ -105,12 +108,51 @@ export class AuthRepository {
     }
   }
 
-  async getSchoolById(id: number): Promise<SelectSchool | null> {
+  async getSchoolById(id: number): Promise<School | null> {
     try {
       const result = await db.select().from(schoolsTable).where(eq(schoolsTable.id, id)).limit(1);
       return result[0] || null;
     } catch (error) {
       console.error('Error getting school by ID:', error);
+      throw new Error('Database error');
+    }
+  }
+
+  // Auth token operations
+  async createAuthToken(tokenData: InsertAuthToken): Promise<AuthToken> {
+    try {
+      const result = await db.insert(authTokensTable).values(tokenData).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error creating auth token:', error);
+      throw new Error('Database error');
+    }
+  }
+
+  async getAuthToken(token: string): Promise<AuthToken | null> {
+    try {
+      const result = await db.select().from(authTokensTable).where(eq(authTokensTable.token, token)).limit(1);
+      return result[0] || null;
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      throw new Error('Database error');
+    }
+  }
+
+  async deleteAuthToken(token: string): Promise<void> {
+    try {
+      await db.delete(authTokensTable).where(eq(authTokensTable.token, token));
+    } catch (error) {
+      console.error('Error deleting auth token:', error);
+      throw new Error('Database error');
+    }
+  }
+
+  async deleteAuthTokensByUserId(userId: number): Promise<void> {
+    try {
+      await db.delete(authTokensTable).where(eq(authTokensTable.userId, userId));
+    } catch (error) {
+      console.error('Error deleting auth tokens by user ID:', error);
       throw new Error('Database error');
     }
   }
