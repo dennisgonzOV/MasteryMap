@@ -74,12 +74,12 @@ export class AuthService {
     if (!tokenRecord || tokenRecord.type !== 'refresh') {
       return false;
     }
-    
+
     if (tokenRecord.expiresAt < new Date()) {
       await storage.deleteAuthToken(token);
       return false;
     }
-    
+
     return true;
   }
 
@@ -107,15 +107,18 @@ export class AuthService {
   }
 }
 
-export const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const accessToken = req.cookies.access_token;
-    
-    if (!accessToken) {
+    // Check both Authorization header and cookie
+    const authHeader = req.headers.authorization?.replace('Bearer ', '');
+    const cookieToken = req.cookies?.token;
+    const token = authHeader || cookieToken;
+
+    if (!token) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const payload = AuthService.verifyAccessToken(accessToken);
+    const payload = AuthService.verifyAccessToken(token);
     if (!payload) {
       return res.status(401).json({ message: 'Invalid token' });
     }

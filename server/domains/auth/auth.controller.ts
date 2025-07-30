@@ -28,7 +28,7 @@ const loginSchema = z.object({
 authRouter.post('/register', async (req: Request, res: Response) => {
   try {
     const validatedData = registerSchema.parse(req.body);
-    
+
     // Check if user already exists
     const existingUser = await authService.findUserByEmail(validatedData.email);
     if (existingUser) {
@@ -37,7 +37,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
-    
+
     // Create user
     const userData = {
       ...validatedData,
@@ -45,7 +45,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     };
 
     const newUser = await authService.createUser(userData);
-    
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: newUser.id, email: newUser.email, role: newUser.role },
@@ -57,8 +57,9 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/'
     });
 
     // Return user data (without password) and token
@@ -85,7 +86,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
 authRouter.post('/login', async (req: Request, res: Response) => {
   try {
     const validatedData = loginSchema.parse(req.body);
-    
+
     // Find user by email
     const user = await authService.findUserByEmail(validatedData.email);
     if (!user) {
@@ -109,8 +110,9 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/'
     });
 
     // Return user data (without password) and token
@@ -138,7 +140,7 @@ authRouter.get('/user', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const fullUser = await authService.findUserById(user.userId);
-    
+
     if (!fullUser) {
       return res.status(404).json({ message: 'User not found' });
     }
