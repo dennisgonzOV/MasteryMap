@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { app } from '../../server/index';
 import { testUsers, testSchool } from '../fixtures/users';
-import { storage } from '../../server/storage';
+import { storage } from '../../server/storage.modular';
 
 describe('Portfolio API', () => {
   let studentToken: string;
