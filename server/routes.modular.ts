@@ -12,7 +12,10 @@ import { credentialsRouter } from './domains/credentials';
 // Import remaining legacy routes temporarily (will be modularized next)
 import { setupAuthRoutes } from "./authRoutes";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "./auth";
-import { storage } from "./storage";
+import { ModularStorage } from "./storage.modular";
+
+// Create modular storage instance
+const storage = new ModularStorage();
 
 // Import schemas and AI services for remaining routes
 import { 

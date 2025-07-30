@@ -6,7 +6,38 @@ import { PortfolioRepository } from './domains/portfolio/portfolio.repository';
 import { CredentialsRepository } from './domains/credentials/credentials.repository';
 
 // Import existing storage interface for compatibility
-import type { IStorage } from './storage';
+// Define storage interface for domain repository orchestration
+interface IStorage {
+  // User operations
+  getUser(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: UpsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<UpsertUser>): Promise<User>;
+
+  // Project operations  
+  createProject(project: InsertProject): Promise<Project>;
+  getProject(id: number): Promise<Project | undefined>;
+  getProjectsByTeacher(teacherId: number): Promise<Project[]>;
+  getProjectsByStudent(studentId: number): Promise<Project[]>;
+  updateProject(id: number, updates: Partial<InsertProject>): Promise<Project>;
+  
+  // Assessment operations
+  createAssessment(assessment: InsertAssessment): Promise<Assessment>;
+  getAssessment(id: number): Promise<Assessment | undefined>;
+  getAssessmentsByProject(projectId: number): Promise<Assessment[]>;
+  
+  // Portfolio operations
+  createPortfolioArtifact(artifact: InsertPortfolioArtifact): Promise<PortfolioArtifact>;
+  getPortfolioArtifacts(studentId: number): Promise<PortfolioArtifact[]>;
+  
+  // Credential operations
+  createCredential(credential: InsertCredential): Promise<Credential>;
+  getCredentials(studentId: number): Promise<Credential[]>;
+  
+  // School operations
+  getSchools(): Promise<School[]>;
+  getSchool(id: number): Promise<School | undefined>;
+}
 import type {
   User, Project, Milestone, Assessment, Submission, Credential, PortfolioArtifact,
   AuthToken, ProjectTeam, ProjectTeamMember, School, LearnerOutcome, Competency,
