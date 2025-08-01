@@ -638,6 +638,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Creating assessment with questions:", assessmentData.questions);
 
+      // Convert componentSkillIds if it's not a proper array
+      if (assessmentData.componentSkillIds && !Array.isArray(assessmentData.componentSkillIds)) {
+        assessmentData.componentSkillIds = Array.from(assessmentData.componentSkillIds);
+      }
+      
       const assessment = await storage.createAssessment(assessmentData);
       res.json(assessment);
     } catch (error) {
@@ -1001,7 +1006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get the assessment to calculate isLate
-      const assessment = await storage.getAssessment(submission.assessmentId);
+      const assessment = submission.assessmentId ? await storage.getAssessment(submission.assessmentId) : null;
 
       // Enhance submission with isLate calculation
       const enhancedSubmission = {
@@ -1051,7 +1056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const [updatedGrade] = await db.update(gradesTable)
                 .set({
                   rubricLevel: gradeItem.rubricLevel,
-                  score: Number(gradeItem.score),
+                  score: gradeItem.score?.toString() || "0",
                   feedback: gradeItem.feedback,
                   gradedBy: userId,
                   gradedAt: new Date()
@@ -1125,7 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       submissionId,
                       componentSkillId: gradeItem.componentSkillId,
                       rubricLevel: gradeItem.rubricLevel,
-                      score: gradeItem.score,
+                      score: gradeItem.score?.toString() || "0",
                       feedback: gradeItem.feedback,
                       gradedBy: userId,
                     })
@@ -1966,7 +1971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analytics endpoint for admin dashboard
   app.get("/api/analytics/dashboard", requireAuth, async (req, res) => {
     try {
-      if (req.user?.role !== 'admin') {
+      if ((req as AuthenticatedRequest).user?.role !== 'admin') {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -1983,7 +1988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activeUsers: users.filter(u => {
           const oneMonthAgo = new Date();
           oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-          return new Date(u.updatedAt) > oneMonthAgo;
+          return u.updatedAt ? new Date(u.updatedAt) > oneMonthAgo : false;
         }).length,
         totalProjects: projects.length,
         activeProjects: projects.filter(p => p.status === 'active').length,
@@ -2082,7 +2087,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(milestonesTable.projectId, project.id))
             .orderBy(milestonesTable.dueDate);
 
-          const nextDeadline = milestonesList.find(m => new Date(m.dueDate) > new Date())?.dueDate || null;
+          const nextDeadline = milestonesList.find(m => m.dueDate && new Date(m.dueDate) > new Date())?.dueDate || null;
 
           return {
             id: project.id,
@@ -2106,11 +2111,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Teacher pending tasks
   app.get("/api/teacher/pending-tasks", requireAuth, async (req, res) => {
     try {
-      if (req.user?.role !== 'teacher') {
+      if ((req as AuthenticatedRequest).user?.role !== 'teacher') {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const teacherId = req.user.id;
+      const teacherId = (req as AuthenticatedRequest).user!.id;
 
       // Get pending grading tasks
       const teacherProjects = await db.select()
@@ -2134,7 +2139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .innerJoin(usersTable, eq(submissionsTable.studentId, usersTable.id))
         .where(and(
           inArray(milestonesTable.projectId, projectIds),
-          isNull(submissionsTable.grade)
+          isNull(submissionsTable.gradedAt)
         ))
         .limit(10) : [];
 
@@ -2159,11 +2164,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Teacher current milestones
   app.get("/api/teacher/current-milestones", requireAuth, async (req, res) => {
     try {
-      if (req.user?.role !== 'teacher') {
+      if ((req as AuthenticatedRequest).user?.role !== 'teacher') {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const teacherId = req.user.id;
+      const teacherId = (req as AuthenticatedRequest).user!.id;
 
       const teacherProjects = await db.select()
         .from(projectsTable)
@@ -2175,7 +2180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(milestonesTable)
         .where(and(
           inArray(milestonesTable.projectId, projectIds),
-          gte(milestonesTable.dueDate, new Date().toISOString()))
+          sql`${milestonesTable.dueDate} >= ${new Date().toISOString()}`)
         )
         .orderBy(milestonesTable.dueDate)
         .limit(5) : [];
@@ -2185,7 +2190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: milestone.title,
         description: milestone.description,
         dueDate: milestone.dueDate,
-        status: new Date(milestone.dueDate) > new Date() ? 'not_started' as const : 'in_progress' as const,
+        status: milestone.dueDate && new Date(milestone.dueDate) > new Date() ? 'not_started' as const : 'in_progress' as const,
         progress: Math.floor(Math.random() * 100) // Would need actual progress tracking
       }));
 
@@ -2199,11 +2204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all students in teacher's school with progress
   app.get("/api/teacher/school-students-progress", requireAuth, async (req, res) => {
     try {
-      if (req.user?.role !== 'teacher') {
+      if ((req as AuthenticatedRequest).user?.role !== 'teacher') {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const teacher = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id)).limit(1);
+      const teacher = await db.select().from(usersTable).where(eq(usersTable.id, (req as AuthenticatedRequest).user!.id)).limit(1);
       if (!teacher.length || !teacher[0].schoolId) {
         return res.status(400).json({ message: "Teacher school not found" });
       }
