@@ -114,6 +114,32 @@ export default function TeacherAssessments() {
     retry: false,
   });
 
+  // Fetch all submissions to calculate grading progress
+  const { data: allSubmissions = [] } = useQuery<any[]>({
+    queryKey: ["/api/submissions/all-for-teacher"],
+    queryFn: async () => {
+      // Fetch submissions for all teacher's assessments
+      const submissionsPromises = assessments.map(async (assessment) => {
+        try {
+          const response = await fetch(`/api/assessments/${assessment.id}/submissions`, {
+            credentials: 'include'
+          });
+          if (!response.ok) return [];
+          const submissions = await response.json();
+          return submissions.map((s: any) => ({ ...s, assessmentId: assessment.id }));
+        } catch (error) {
+          console.warn(`Failed to fetch submissions for assessment ${assessment.id}:`, error);
+          return [];
+        }
+      });
+      
+      const allSubmissionsArrays = await Promise.all(submissionsPromises);
+      return allSubmissionsArrays.flat();
+    },
+    enabled: isAuthenticated && (user as User)?.role === 'teacher' && assessments.length > 0,
+    retry: false,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
@@ -436,14 +462,26 @@ export default function TeacherAssessments() {
                         <div className="flex items-center justify-center mb-1">
                           <Users className="h-4 w-4 text-green-500" />
                         </div>
-                        <p className="text-sm font-semibold text-gray-900">24</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {allSubmissions.filter(s => s.assessmentId === assessment.id).length}
+                        </p>
                         <p className="text-xs text-gray-600">Submissions</p>
                       </div>
                       <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
                         <div className="flex items-center justify-center mb-1">
                           <Clock className="h-4 w-4 text-orange-500" />
                         </div>
-                        <p className="text-sm font-semibold text-gray-900">6</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {(() => {
+                            const assessmentSubmissions = allSubmissions.filter(s => s.assessmentId === assessment.id);
+                            const pendingSubmissions = assessmentSubmissions.filter(s => 
+                              !(s.grade !== undefined && s.grade !== null) && 
+                              !(s.grades && s.grades.length > 0) &&
+                              !s.gradedAt
+                            );
+                            return pendingSubmissions.length;
+                          })()}
+                        </p>
                         <p className="text-xs text-gray-600">Pending</p>
                       </div>
                     </div>
@@ -493,12 +531,41 @@ export default function TeacherAssessments() {
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700">Grading Progress</span>
-                        <span className="text-sm font-semibold text-gray-900">67%</span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {(() => {
+                            // Calculate actual grading progress for this assessment
+                            const assessmentSubmissions = allSubmissions.filter(s => s.assessmentId === assessment.id);
+                            if (assessmentSubmissions.length === 0) return "0%";
+                            
+                            const gradedSubmissions = assessmentSubmissions.filter(s => 
+                              (s.grade !== undefined && s.grade !== null) || 
+                              (s.grades && s.grades.length > 0) ||
+                              s.gradedAt
+                            );
+                            
+                            const progress = Math.round((gradedSubmissions.length / assessmentSubmissions.length) * 100);
+                            return `${progress}%`;
+                          })()}
+                        </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: '67%' }}
+                          style={{ 
+                            width: (() => {
+                              const assessmentSubmissions = allSubmissions.filter(s => s.assessmentId === assessment.id);
+                              if (assessmentSubmissions.length === 0) return '0%';
+                              
+                              const gradedSubmissions = assessmentSubmissions.filter(s => 
+                                (s.grade !== undefined && s.grade !== null) || 
+                                (s.grades && s.grades.length > 0) ||
+                                s.gradedAt
+                              );
+                              
+                              const progress = Math.round((gradedSubmissions.length / assessmentSubmissions.length) * 100);
+                              return `${progress}%`;
+                            })()
+                          }}
                         />
                       </div>
                     </div>
