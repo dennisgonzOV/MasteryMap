@@ -546,14 +546,9 @@ export default function AssessmentSubmissions() {
         {/* AI Grading Controls */}
         <Card className="mb-8 border-gradient-to-r from-blue-200 to-purple-200 bg-gradient-to-r from-blue-50 to-purple-50">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 text-blue-800">
-                <Brain className="h-6 w-6" />
-                <span className="text-xl">AI-Powered Grading</span>
-              </div>
-              <Badge className="bg-purple-100 text-purple-800 border-purple-200">
-                Powered by GPT-4
-              </Badge>
+            <CardTitle className="flex items-center space-x-2 text-blue-800">
+              <Brain className="h-6 w-6" />
+              <span className="text-xl">AI-Powered Grading</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
