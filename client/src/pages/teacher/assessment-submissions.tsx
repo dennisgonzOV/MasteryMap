@@ -543,21 +543,30 @@ export default function AssessmentSubmissions() {
           </div>
         </div>
 
-        {/* Bulk Grading Controls */}
-        {stats.ungraded > 0 && (
-          <Card className="mb-8 border-blue-200 bg-blue-50">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-blue-800">
-                <Zap className="h-5 w-5" />
-                <span>Bulk AI Grading</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        {/* AI Grading Controls */}
+        <Card className="mb-8 border-gradient-to-r from-blue-200 to-purple-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-blue-800">
+                <Brain className="h-6 w-6" />
+                <span className="text-xl">AI-Powered Grading</span>
+              </div>
+              <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                Powered by GPT-4
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Bulk Grading */}
               <div className="space-y-4">
-                <p className="text-blue-700">
-                  Use AI to automatically grade all {stats.ungraded} ungraded submissions. 
-                  The AI will analyze student responses against the rubric criteria and provide 
-                  personalized feedback for each submission.
+                <div className="flex items-center space-x-2 mb-3">
+                  <Zap className="h-5 w-5 text-yellow-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Bulk AI Grading</h3>
+                </div>
+                <p className="text-gray-700 text-sm">
+                  Grade all {stats.ungraded} ungraded submissions automatically. AI analyzes responses 
+                  against rubric criteria and provides personalized feedback.
                 </p>
 
                 {isBulkGrading && (
@@ -577,21 +586,115 @@ export default function AssessmentSubmissions() {
                 <Button
                   onClick={() => bulkGradeMutation.mutate()}
                   disabled={isBulkGrading || stats.ungraded === 0}
-                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                  className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                   size="lg"
                 >
                   <Brain className="h-4 w-4" />
                   <span>
                     {isBulkGrading 
                       ? 'Grading in Progress...' 
-                      : `Grade ${stats.ungraded} Submissions with AI`
+                      : stats.ungraded > 0 
+                        ? `Grade ${stats.ungraded} Submissions with AI`
+                        : 'All Submissions Graded'
                     }
                   </span>
                 </Button>
+
+                {stats.ungraded === 0 && (
+                  <div className="flex items-center justify-center space-x-2 text-green-600 text-sm">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>All submissions have been graded</span>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+
+              {/* Individual AI Grading Info */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <MessageSquare className="h-5 w-5 text-green-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Individual AI Grading</h3>
+                </div>
+                <p className="text-gray-700 text-sm">
+                  Grade submissions one by one with AI assistance. Review and edit AI-generated 
+                  grades and feedback before finalizing.
+                </p>
+                
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span>AI analyzes responses against component skills</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Provides rubric-based scoring and feedback</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                    <span>Fully editable before saving</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-3 rounded-lg border border-gray-200">
+                  <p className="text-sm text-gray-600">
+                    <strong>Tip:</strong> Use individual AI grading to maintain full control over 
+                    each assessment while leveraging AI insights.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions Toolbar */}
+        <Card className="mb-6 bg-gray-50 border-gray-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <h3 className="font-medium text-gray-900">Quick Actions</h3>
+                {stats.ungraded > 0 && (
+                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                    {stats.ungraded} pending
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center space-x-3">
+                {stats.ungraded > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={() => bulkGradeMutation.mutate()}
+                    disabled={isBulkGrading}
+                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Brain className="h-4 w-4" />
+                    <span>Grade All with AI</span>
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    // Expand all submissions
+                    const allIds = new Set(submissions.map(s => s.id));
+                    setExpandedSubmissions(allIds);
+                  }}
+                  className="flex items-center space-x-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  <span>Expand All</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setExpandedSubmissions(new Set())}
+                  className="flex items-center space-x-2"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <span>Collapse All</span>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Submissions List */}
         <div className="space-y-6">
@@ -635,8 +738,15 @@ export default function AssessmentSubmissions() {
                               </Badge>
                             )}
                             {submission.aiGeneratedFeedback && (
-                              <Badge className="text-xs bg-blue-100 text-blue-800 border-blue-200">
-                                AI Graded
+                              <Badge className="text-xs bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 border-blue-200 flex items-center space-x-1">
+                                <Brain className="h-3 w-3" />
+                                <span>AI Graded</span>
+                              </Badge>
+                            )}
+                            {aiGradingSubmissions.has(submission.id) && (
+                              <Badge className="text-xs bg-yellow-100 text-yellow-800 border-yellow-200 animate-pulse flex items-center space-x-1">
+                                <div className="w-2 h-2 bg-yellow-600 rounded-full animate-bounce"></div>
+                                <span>AI Processing...</span>
                               </Badge>
                             )}
                           </div>
@@ -666,12 +776,25 @@ export default function AssessmentSubmissions() {
                               size="sm"
                               onClick={() => aiGradeMutation.mutate(submission.id)}
                               disabled={aiGradingSubmissions.has(submission.id) || isBulkGrading}
-                              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                              className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md"
                             >
                               <Brain className="h-4 w-4" />
-                              <span>{aiGradingSubmissions.has(submission.id) ? 'Grading...' : 'AI Grade'}</span>
+                              <span>{aiGradingSubmissions.has(submission.id) ? 'AI Grading...' : 'Grade with AI'}</span>
                             </Button>
                           )}
+
+                          {(submission.grades && submission.grades.length > 0) || submission.grade ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => aiGradeMutation.mutate(submission.id)}
+                              disabled={aiGradingSubmissions.has(submission.id) || isBulkGrading}
+                              className="flex items-center space-x-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                              <span>{aiGradingSubmissions.has(submission.id) ? 'Re-grading...' : 'Re-grade with AI'}</span>
+                            </Button>
+                          ) : null}
 
                           <Button
                             size="sm"
@@ -684,7 +807,7 @@ export default function AssessmentSubmissions() {
                             ) : (
                               <ChevronRight className="h-4 w-4" />
                             )}
-                            <span>{isExpanded ? 'Collapse' : 'Review'}</span>
+                            <span>{isExpanded ? 'Collapse' : 'Review & Grade'}</span>
                           </Button>
                         </div>
                       </div>
