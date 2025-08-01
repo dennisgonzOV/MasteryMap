@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Save, Sparkles, User, Clock, FileText } from 'lucide-react';
+import { Save, Sparkles, User, Clock, FileText, Edit, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Question {
@@ -65,6 +65,8 @@ export default function GradingInterface({
     score: number;
     feedback: string;
   }>>([]);
+  const [isLocked, setIsLocked] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<number | null>(null);
 
   const rubricLevels = [
     { value: 'emerging', label: 'Emerging', description: 'Beginning to show understanding', color: 'bg-red-100 text-red-800', score: 1 },
@@ -92,6 +94,11 @@ export default function GradingInterface({
             };
           });
           setGrades(gradesMap);
+          
+          // Lock interface if grades already exist
+          if (existingGrades.length > 0) {
+            setIsLocked(true);
+          }
         }
       } catch (error) {
         console.error('Error fetching existing grades:', error);
@@ -104,6 +111,8 @@ export default function GradingInterface({
   }, [submission.id]);
 
   const handleRubricLevelChange = (componentSkillId: number, level: string) => {
+    if (isLocked && editingSkill !== componentSkillId) return;
+    
     const rubricLevel = level as 'emerging' | 'developing' | 'proficient' | 'applying';
     const score = rubricLevels.find(r => r.value === rubricLevel)?.score || 1;
     
@@ -118,6 +127,8 @@ export default function GradingInterface({
   };
 
   const handleFeedbackChange = (componentSkillId: number, feedback: string) => {
+    if (isLocked && editingSkill !== componentSkillId) return;
+    
     setGrades(prev => ({
       ...prev,
       [componentSkillId.toString()]: {
@@ -125,6 +136,30 @@ export default function GradingInterface({
         feedback
       }
     }));
+  };
+
+  const handleEditSkill = (componentSkillId: number) => {
+    setEditingSkill(componentSkillId);
+  };
+
+  const handleSaveSkill = (componentSkillId: number) => {
+    setEditingSkill(null);
+  };
+
+  const handleCancelEdit = (componentSkillId: number) => {
+    // Restore original grade data
+    const existingGrade = existingGrades.find(g => g.componentSkillId === componentSkillId);
+    if (existingGrade) {
+      setGrades(prev => ({
+        ...prev,
+        [componentSkillId.toString()]: {
+          rubricLevel: existingGrade.rubricLevel,
+          feedback: existingGrade.feedback,
+          score: existingGrade.score
+        }
+      }));
+    }
+    setEditingSkill(null);
   };
 
   const generateAIFeedback = async (questionId: string) => {
@@ -187,6 +222,10 @@ export default function GradingInterface({
 
     onGradeSubmission(submission.id, gradesList);
     
+    // Lock the interface after successful submission
+    setIsLocked(true);
+    setEditingSkill(null);
+    
     toast({
       title: "Grades Submitted",
       description: "Student has been notified of their grades and feedback.",
@@ -246,9 +285,49 @@ export default function GradingInterface({
       {componentSkills.map((skill, index) => (
         <Card key={skill.id}>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-5 w-5" />
-              <span>{skill.name}</span>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>{skill.name}</span>
+                {isLocked && editingSkill !== skill.id && (
+                  <Lock className="h-4 w-4 text-gray-500" />
+                )}
+              </div>
+              {isLocked && (
+                <div className="flex items-center space-x-2">
+                  {editingSkill === skill.id ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSaveSkill(skill.id)}
+                        className="flex items-center space-x-1"
+                      >
+                        <Save className="h-3 w-3" />
+                        <span>Save</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCancelEdit(skill.id)}
+                        className="flex items-center space-x-1"
+                      >
+                        <span>Cancel</span>
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditSkill(skill.id)}
+                      className="flex items-center space-x-1"
+                    >
+                      <Edit className="h-3 w-3" />
+                      <span>Edit</span>
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardTitle>
             {skill.competencyName && (
               <p className="text-sm text-gray-600">
@@ -280,17 +359,22 @@ export default function GradingInterface({
               <RadioGroup
                 value={grades[skill.id.toString()]?.rubricLevel || ''}
                 onValueChange={(value) => handleRubricLevelChange(skill.id, value)}
+                disabled={isLocked && editingSkill !== skill.id}
                 className="mt-2"
               >
                 <div className="grid grid-cols-2 gap-3">
                   {rubricLevels.map((level) => (
                     <div key={level.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={level.value} id={`${skill.id}-${level.value}`} />
+                      <RadioGroupItem 
+                        value={level.value} 
+                        id={`${skill.id}-${level.value}`}
+                        disabled={isLocked && editingSkill !== skill.id}
+                      />
                       <Label 
                         htmlFor={`${skill.id}-${level.value}`}
-                        className="flex-1 cursor-pointer"
+                        className={`flex-1 ${isLocked && editingSkill !== skill.id ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                       >
-                        <div className={`p-2 rounded-lg border ${level.color}`}>
+                        <div className={`p-2 rounded-lg border ${level.color} ${isLocked && editingSkill !== skill.id ? 'opacity-60' : ''}`}>
                           <div className="font-medium">{level.label}</div>
                           <div className="text-xs opacity-75">{level.description}</div>
                         </div>
@@ -309,7 +393,7 @@ export default function GradingInterface({
                   variant="outline"
                   size="sm"
                   onClick={() => generateAIFeedback(skill.id.toString())}
-                  disabled={isGeneratingFeedback[skill.id.toString()]}
+                  disabled={isGeneratingFeedback[skill.id.toString()] || (isLocked && editingSkill !== skill.id)}
                   className="flex items-center space-x-1"
                 >
                   <Sparkles className="h-3 w-3" />
@@ -320,7 +404,8 @@ export default function GradingInterface({
                 value={grades[skill.id.toString()]?.feedback || ''}
                 onChange={(e) => handleFeedbackChange(skill.id, e.target.value)}
                 placeholder="Provide specific feedback to help the student improve..."
-                className="mt-2 min-h-[100px]"
+                disabled={isLocked && editingSkill !== skill.id}
+                className={`mt-2 min-h-[100px] ${isLocked && editingSkill !== skill.id ? 'opacity-60 cursor-not-allowed' : ''}`}
               />
             </div>
           </CardContent>
@@ -331,11 +416,11 @@ export default function GradingInterface({
       <div className="flex justify-end">
         <Button
           onClick={handleSubmitGrades}
-          disabled={Object.keys(grades).length === 0}
+          disabled={Object.keys(grades).length === 0 || isLocked}
           className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
         >
           <Save className="h-4 w-4" />
-          <span>Submit Grades & Feedback</span>
+          <span>{isLocked ? 'Grades Submitted' : 'Submit Grades & Feedback'}</span>
         </Button>
       </div>
     </div>
