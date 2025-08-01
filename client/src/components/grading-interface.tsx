@@ -111,6 +111,7 @@ export default function GradingInterface({
   }, [submission.id]);
 
   const handleRubricLevelChange = (componentSkillId: number, level: string) => {
+    // Only allow changes if not locked, or if locked and this skill is being edited
     if (isLocked && editingSkill !== componentSkillId) return;
     
     const rubricLevel = level as 'emerging' | 'developing' | 'proficient' | 'applying';
@@ -127,6 +128,7 @@ export default function GradingInterface({
   };
 
   const handleFeedbackChange = (componentSkillId: number, feedback: string) => {
+    // Only allow changes if not locked, or if locked and this skill is being edited
     if (isLocked && editingSkill !== componentSkillId) return;
     
     setGrades(prev => ({
@@ -417,7 +419,7 @@ export default function GradingInterface({
         <Button
           onClick={handleSubmitGrades}
           disabled={Object.keys(grades).length === 0 || isLocked}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+          className={`flex items-center space-x-2 ${isLocked ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
         >
           <Save className="h-4 w-4" />
           <span>{isLocked ? 'Grades Submitted' : 'Submit Grades & Feedback'}</span>
