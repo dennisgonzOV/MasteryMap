@@ -251,6 +251,8 @@ export default function TakeAssessment() {
   };
 
   const handleAIFeedbackContinue = () => {
+    setAiFeedbackModal(prev => ({ ...prev, open: false }));
+    
     // Move to next skill or finish
     if (currentSkillIndex < assessmentComponentSkills.length - 1) {
       setCurrentSkillIndex(prev => prev + 1);

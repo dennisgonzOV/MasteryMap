@@ -144,32 +144,32 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       // Handle safety flags and conversation termination
       if (data.shouldTerminate && data.safetyFlag) {
         console.log("Conversation terminated due to safety concerns:", data.safetyFlag);
-        
+
         // Add appropriate system message based on safety flag
         let systemMessage = "This conversation has ended. Please complete your self-evaluation or speak with your teacher if you need assistance.";
-        
+
         if (data.safetyFlag.includes('inappropriate_language')) {
           systemMessage = "This conversation has ended due to inappropriate language. Please complete your self-evaluation or speak with your teacher.";
         } else if (data.safetyFlag.includes('homicidal') || data.safetyFlag.includes('suicidal')) {
           systemMessage = "This conversation has ended for safety reasons. Please speak with a trusted adult or counselor if you need support.";
         }
-        
+
         const terminationMessage: ChatMessage = {
           id: `msg_${Date.now()}_system`,
           role: 'tutor',
           content: systemMessage,
           timestamp: new Date()
         };
-        
+
         // Set termination state and add system message
         setIsTerminated(true);
         setCurrentMessage('');
         setIsLoading(false);
-        
+
         setTimeout(() => {
           setMessages(prev => [...prev, terminationMessage]);
         }, 2000);
-        
+
         return;
       }
 
