@@ -94,7 +94,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
       incidentType: incident.incidentType,
       message: incident.message,
       conversationHistory: incident.conversationHistory,
-      severity: incident.incidentType.includes('homicidal') ? 'critical' : 'high',
+      severity: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal')) ? 'critical' : 'high',
       resolved: false
     });
 
@@ -103,7 +103,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
       db.insert(notificationsTable).values({
         userId: teacher.id,
         type: 'safety_incident',
-        title: incident.incidentType.includes('homicidal') 
+        title: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal'))
           ? 'URGENT: Safety Incident Reported'
           : 'Safety Incident: Inappropriate Language',
         message: `Student ${studentInfo.firstName} ${studentInfo.lastName} triggered a safety alert during AI chat interaction.${contextInfo}`,
@@ -111,9 +111,9 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
           studentId: incident.studentId,
           studentName: `${studentInfo.firstName} ${studentInfo.lastName}`,
           incidentType: incident.incidentType,
-          severity: incident.incidentType.includes('homicidal') ? 'critical' : 'high'
+          severity: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal')) ? 'critical' : 'high'
         },
-        priority: incident.incidentType.includes('homicidal') ? 'high' : 'medium',
+        priority: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal')) ? 'high' : 'medium',
         read: false
       })
     );
@@ -123,7 +123,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
     // Create a comprehensive log entry that can be monitored
     const incidentReport = {
       type: 'SAFETY_INCIDENT',
-      severity: incident.incidentType.includes('homicidal') ? 'CRITICAL' : 'HIGH',
+      severity: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal')) ? 'CRITICAL' : 'HIGH',
       student: {
         id: studentInfo.id,
         name: `${studentInfo.firstName} ${studentInfo.lastName}`,

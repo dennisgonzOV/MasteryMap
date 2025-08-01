@@ -150,7 +150,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         
         if (data.safetyFlag.includes('inappropriate_language')) {
           systemMessage = "This conversation has ended due to inappropriate language. Please complete your self-evaluation or speak with your teacher.";
-        } else if (data.safetyFlag.includes('homicidal')) {
+        } else if (data.safetyFlag.includes('homicidal') || data.safetyFlag.includes('suicidal')) {
           systemMessage = "This conversation has ended for safety reasons. Please speak with a trusted adult or counselor if you need support.";
         }
         

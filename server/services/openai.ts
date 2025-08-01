@@ -83,30 +83,37 @@ Respond in JSON format:
     console.error("OpenAI API error for self-evaluation feedback:", error);
 
     // Fallback safety check using keyword detection
-    const riskKeywords = [
-      "kill",
-      "murder",
-      "suicide",
-      "self-harm",
-      "harm others",
-      "hurt myself",
-      "want to die",
-      "end my life",
-      "hurt someone",
-      "violence",
+    const homicidalKeywords = [
+      "kill someone", "murder", "kill them", "kill him", "kill her", 
+      "hurt someone", "harm others", "want to kill", "going to kill",
+      "violence"
+    ];
+    
+    const suicidalKeywords = [
+      "kill myself", "want to die", "end my life", "hurt myself", 
+      "suicide", "self-harm", "take my own life", "better off dead"
     ];
 
     const content = `${justification} ${examples}`.toLowerCase();
-    const hasRiskyContent = riskKeywords.some((keyword) =>
-      content.includes(keyword),
+    const hasHomicidalContent = homicidalKeywords.some((keyword) =>
+      content.includes(keyword)
     );
+    const hasSuicidalContent = suicidalKeywords.some((keyword) =>
+      content.includes(keyword)
+    );
+    const hasRiskyContent = hasHomicidalContent || hasSuicidalContent;
+
+    let riskType: "homicide" | "suicide" | "other" | undefined = undefined;
+    if (hasHomicidalContent) riskType = "homicide";
+    else if (hasSuicidalContent) riskType = "suicide";
+    else if (hasRiskyContent) riskType = "other";
 
     return {
       improvementFeedback: hasRiskyContent
         ? "Please speak with your teacher about your response."
         : "Keep working on developing your skills through practice and reflection.",
       hasRiskyContent,
-      riskType: hasRiskyContent ? "other" : undefined,
+      riskType,
       confidence: 0.7,
     };
   }
@@ -187,20 +194,24 @@ async function generateTutorResponse(
     const latestMessage =
       studentMessages[studentMessages.length - 1]?.content || "";
 
-    // First, perform safety check for homicidal ideations
-    const safetyCheckPrompt = `Analyze the following student message for any homicidal ideations, threats of violence against others, or concerning content about harming other people:
+    // First, perform safety check for homicidal ideations and suicidal content
+    const safetyCheckPrompt = `Analyze the following student message for any concerning content about self-harm or harming others:
 
 STUDENT MESSAGE: "${latestMessage}"
 
 IMPORTANT: Look specifically for:
-- References to killing, murdering, or harming others
+- References to killing, murdering, or harming others (homicidal ideation)
 - Threats of violence against specific individuals or groups
 - Plans or desires to hurt other people
 - Any expressions of homicidal thoughts or ideations
+- Suicidal ideation or thoughts of self-harm
+- References to wanting to die, end one's life, or hurt oneself
+- Expressions of self-destructive thoughts or behaviors
 
 Respond with JSON in this format:
 {
   "hasHomicidalContent": boolean,
+  "hasSuicidalContent": boolean,
   "riskLevel": "none|low|medium|high",
   "explanation": "brief explanation of findings"
 }`;
@@ -210,7 +221,7 @@ Respond with JSON in this format:
       messages: [
         {
           role: "system",
-          content: "You are a safety analysis AI focused on identifying homicidal ideations and threats of violence against others. Prioritize student and public safety above all else.",
+          content: "You are a safety analysis AI focused on identifying homicidal ideations, suicidal ideation, and threats of violence. Prioritize student safety and mental health above all else.",
         },
         {
           role: "user",
@@ -249,6 +260,35 @@ Respond with JSON in this format:
         response: "I'm concerned about what you've shared and want you to know that mental health is very important. This has been flagged and someone will reach out to you to provide support. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
         shouldTerminate: true,
         safetyFlag: "homicidal_ideation",
+        suggestedEvaluation: undefined,
+      };
+    }
+
+    // If suicidal content is detected, return immediate termination response
+    if (safetyResult.hasSuicidalContent === true) {
+      console.log("SAFETY ALERT: Suicidal content detected in student message:", {
+        message: latestMessage,
+        riskLevel: safetyResult.riskLevel,
+        explanation: safetyResult.explanation
+      });
+
+      // Notify teachers of this critical safety incident
+      const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+      if (studentId) {
+        await notifyTeacherOfSafetyIncident({
+          studentId: studentId,
+          componentSkillId: componentSkill.id,
+          incidentType: 'suicidal_ideation',
+          message: latestMessage,
+          timestamp: new Date(),
+          conversationHistory: conversationHistory
+        });
+      }
+
+      return {
+        response: "I'm very concerned about what you've shared. Your safety and well-being are important, and I want to make sure you get the support you need. This has been flagged and someone will reach out to you immediately. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline right away. You are not alone.",
+        shouldTerminate: true,
+        safetyFlag: "suicidal_ideation",
         suggestedEvaluation: undefined,
       };
     }
@@ -412,6 +452,13 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
       "planning to hurt", "thinking about killing", "homicide"
     ];
 
+    const suicidalKeywords = [
+      "kill myself", "want to die", "end my life", "hurt myself", 
+      "suicide", "suicidal", "self harm", "self-harm", "take my own life",
+      "don't want to live", "better off dead", "thinking about suicide",
+      "planning to kill myself"
+    ];
+
     const inappropriateKeywords = [
       "damn", "hell", "crap", "shit", "fuck", "bitch", "ass", "asshole",
       "bastard", "piss", "dick", "cock", "pussy", "whore", "slut"
@@ -419,6 +466,9 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
 
     const content = latestMessage.toLowerCase();
     const hasHomicidalContent = homicidalKeywords.some((keyword) =>
+      content.includes(keyword)
+    );
+    const hasSuicidalContent = suicidalKeywords.some((keyword) =>
       content.includes(keyword)
     );
 
@@ -441,6 +491,29 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
         response: "I'm concerned about what you've shared and want you to know that mental health is very important. This has been flagged and someone will reach out to you to provide support. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline if you need immediate help.",
         shouldTerminate: true,
         safetyFlag: "homicidal_ideation_fallback",
+        suggestedEvaluation: undefined,
+      };
+    }
+
+    if (hasSuicidalContent) {
+      console.log("SAFETY ALERT (Fallback): Potential suicidal content detected:", latestMessage);
+
+      // Notify teachers of this critical safety incident (fallback detection)
+      const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+      if (studentId) {
+        await notifyTeacherOfSafetyIncident({
+          studentId: studentId,
+          incidentType: 'suicidal_ideation_fallback',
+          message: latestMessage,
+          timestamp: new Date(),
+          conversationHistory: conversationHistory
+        });
+      }
+
+      return {
+        response: "I'm very concerned about what you've shared. Your safety and well-being are important, and I want to make sure you get the support you need. This has been flagged and someone will reach out to you immediately. This conversation is now closed. Please speak with a trusted adult, counselor, or call a crisis helpline right away. You are not alone.",
+        shouldTerminate: true,
+        safetyFlag: "suicidal_ideation_fallback",
         suggestedEvaluation: undefined,
       };
     }
