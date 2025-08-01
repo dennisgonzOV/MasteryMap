@@ -464,7 +464,7 @@ export default function AssessmentSubmissions() {
     return Math.round((totalScore / submission.grades.length) * 25); // Convert to percentage (4 levels * 25%)
   };
 
-  if (assessmentLoading || submissionsLoading) {
+  if (assessmentLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex items-center space-x-4">
