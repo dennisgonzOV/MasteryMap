@@ -234,14 +234,6 @@ export default function AssessmentDetails() {
                   </div>
                 </div>
               )}
-              
-              <Button
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-                onClick={() => setLocation(`/teacher/assessments/${id}/grade`)}
-              >
-                <Eye className="h-4 w-4" />
-                <span>Grade Submissions</span>
-              </Button>
             </div>
           </div>
 
