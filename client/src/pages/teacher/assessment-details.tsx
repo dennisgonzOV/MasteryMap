@@ -95,6 +95,7 @@ export default function AssessmentDetails() {
   const { data: submissions = [], isLoading: submissionsLoading } = useQuery<Submission[]>({
     queryKey: [`/api/assessments/${id}/submissions`],
     enabled: isAuthenticated && !!id,
+    refetchInterval: 5000, // Refetch every 5 seconds to keep status updated
   });
 
   // Set existing share code when assessment loads
@@ -160,7 +161,9 @@ export default function AssessmentDetails() {
 
   const competencyGroups = getCompetencyInfo(assessment, componentSkillsDetails);
   const totalStudents = submissions.length;
-  const completedSubmissions = submissions.filter(s => s.grade !== undefined).length;
+  const completedSubmissions = submissions.filter(s => 
+    (s.grade !== undefined && s.grade !== null) || (s.grades && s.grades.length > 0)
+  ).length;
   const lateSubmissions = submissions.filter(s => s.isLate).length;
   const averageGrade = submissions.length > 0 
     ? submissions.reduce((sum, s) => sum + (s.grade || 0), 0) / submissions.length 
@@ -406,11 +409,13 @@ export default function AssessmentDetails() {
                         </p>
                       </div>
                       <div className="flex-shrink-0">
-                        {submission.grade !== undefined ? (
+                        {(submission.grade !== undefined && submission.grade !== null) || (submission.grades && submission.grades.length > 0) ? (
                           <div className="flex items-center space-x-1">
                             <CheckCircle className="h-4 w-4 text-green-500" />
                             <span className="text-sm font-medium text-green-600">
-                              {submission.grade}%
+                              {submission.grade !== undefined && submission.grade !== null 
+                                ? `${submission.grade}%` 
+                                : 'Graded'}
                             </span>
                           </div>
                         ) : (
