@@ -728,6 +728,29 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(grades.gradedAt));
   }
 
+  async updateGrade(gradeId: number, updates: Partial<Omit<Grade, "id">>): Promise<Grade> {
+    const [updatedGrade] = await db
+      .update(grades)
+      .set({ ...updates, gradedAt: new Date() })
+      .where(eq(grades.id, gradeId))
+      .returning();
+    return updatedGrade;
+  }
+
+  async getExistingGrade(submissionId: number, componentSkillId: number): Promise<Grade | null> {
+    const existingGrades = await db
+      .select()
+      .from(grades)
+      .where(and(
+        eq(grades.submissionId, submissionId),
+        eq(grades.componentSkillId, componentSkillId)
+      ))
+      .orderBy(desc(grades.gradedAt))
+      .limit(1);
+    
+    return existingGrades.length > 0 ? existingGrades[0] : null;
+  }
+
   async getStudentCompetencyProgress(studentId: number): Promise<Array<{
     competencyId: number;
     competencyName: string;

@@ -1031,19 +1031,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Starting grading for submission " + submissionId + ", generateAiFeedback: " + generateAiFeedback);
 
       // Save grades - support both detailed component skill grading and simple overall grading
+      // Check for existing grades and update them instead of creating duplicates
       let savedGrades: any[] = [];
       if (gradeData && Array.isArray(gradeData)) {
         savedGrades = await Promise.all(
-          gradeData.map((gradeItem: any) => 
-            storage.createGrade({
-              submissionId,
-              componentSkillId: gradeItem.componentSkillId,
-              rubricLevel: gradeItem.rubricLevel,
-              score: gradeItem.score,
-              feedback: gradeItem.feedback,
-              gradedBy: userId,
-            })
-          )
+          gradeData.map(async (gradeItem: any) => {
+            // Check if grade already exists for this submission and component skill
+            const existingGrades = await db.select()
+              .from(gradesTable)
+              .where(and(
+                eq(gradesTable.submissionId, submissionId),
+                eq(gradesTable.componentSkillId, gradeItem.componentSkillId)
+              ))
+              .orderBy(desc(gradesTable.gradedAt))
+              .limit(1);
+
+            if (existingGrades.length > 0) {
+              // Update existing grade
+              const [updatedGrade] = await db.update(gradesTable)
+                .set({
+                  rubricLevel: gradeItem.rubricLevel,
+                  score: Number(gradeItem.score),
+                  feedback: gradeItem.feedback,
+                  gradedBy: userId,
+                  gradedAt: new Date()
+                })
+                .where(eq(gradesTable.id, existingGrades[0].id))
+                .returning();
+              return updatedGrade;
+            } else {
+              // Create new grade if none exists
+              return storage.createGrade({
+                submissionId,
+                componentSkillId: gradeItem.componentSkillId,
+                rubricLevel: gradeItem.rubricLevel,
+                score: gradeItem.score,
+                feedback: gradeItem.feedback,
+                gradedBy: userId,
+              });
+            }
+          })
         );
       }
 
