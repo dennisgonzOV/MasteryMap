@@ -60,6 +60,16 @@ export default function AITutorChat({
     scrollToBottom();
   }, [messages]);
 
+  // Reset component state when switching to a new component skill
+  useEffect(() => {
+    setMessages([]);
+    setCurrentMessage('');
+    setHasGreeted(false);
+    setCurrentStep(1);
+    setIsTerminated(false);
+    setIsLoading(false);
+  }, [componentSkill.id]);
+
   useEffect(() => {
     // Move to step 2 and initialize AI chat when level is selected
     if (selfEvaluation.selfAssessedLevel && currentStep === 1) {
@@ -298,10 +308,16 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
             variant="ghost"
             size="sm"
             onClick={() => {
-              onEvaluationUpdate({ selfAssessedLevel: '' });
+              onEvaluationUpdate({ 
+                selfAssessedLevel: '',
+                justification: '',
+                examples: ''
+              });
               setCurrentStep(1);
               setMessages([]);
               setHasGreeted(false);
+              setCurrentMessage('');
+              setIsTerminated(false);
             }}
           >
             Change Level

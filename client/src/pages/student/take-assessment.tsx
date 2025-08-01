@@ -222,8 +222,11 @@ export default function TakeAssessment() {
     setSelfEvaluations(prev => ({
       ...prev,
       [skillId]: {
-        ...prev[skillId],
         componentSkillId: skillId,
+        selfAssessedLevel: '',
+        justification: '',
+        examples: '',
+        ...prev[skillId],
         ...updates,
       } as SelfEvaluationData
     }));
