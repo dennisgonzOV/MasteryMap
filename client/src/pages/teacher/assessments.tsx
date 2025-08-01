@@ -9,7 +9,6 @@ import { queryClient } from "@/lib/queryClient";
 import type { Assessment, Project, User } from "@shared/schema";
 import Navigation from "@/components/navigation";
 import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
-import ViewSubmissionsModal from "@/components/modals/view-submissions-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,9 +54,7 @@ export default function TeacherAssessments() {
   const [selectedMilestone, setSelectedMilestone] = useState<number | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
-  const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
-  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
-  const [selectedAssessmentForSubmissions, setSelectedAssessmentForSubmissions] = useState<number | null>(null);
+  
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -212,10 +209,7 @@ export default function TeacherAssessments() {
     }
   };
 
-  const handleViewSubmissions = (assessmentId: number) => {
-    setSelectedAssessmentForSubmissions(assessmentId);
-    setShowSubmissionsModal(true);
-  };
+  
 
 
 
@@ -526,14 +520,7 @@ export default function TeacherAssessments() {
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
-                        <Button 
-                          size="sm"
-                          variant="ghost"
-                          className="text-gray-600 hover:text-purple-600 hover:bg-purple-50 h-8 px-2"
-                          onClick={() => handleViewSubmissions(assessment.id)}
-                        >
-                          <Users className="h-3 w-3" />
-                        </Button>
+                        
                         <Button 
                           size="sm"
                           className="bg-blue-600 text-white hover:bg-blue-700 h-8 px-3 text-xs"
@@ -586,20 +573,7 @@ export default function TeacherAssessments() {
         }}
       />
 
-      {/* View Submissions Modal */}
-      {selectedAssessmentForSubmissions && (
-        <ViewSubmissionsModal
-          isOpen={showSubmissionsModal}
-          onClose={() => {
-            setShowSubmissionsModal(false);
-            setSelectedAssessmentForSubmissions(null);
-          }}
-          assessmentId={selectedAssessmentForSubmissions}
-          assessmentTitle={
-            assessments.find((a: any) => a.id === selectedAssessmentForSubmissions)?.title || 'Assessment'
-          }
-        />
-      )}
+      
     </div>
   );
 }
