@@ -13,7 +13,7 @@ interface SafetyIncident {
   teacherId?: number;
   assessmentId?: number;
   componentSkillId?: number;
-  incidentType: 'homicidal_ideation' | 'inappropriate_language' | 'homicidal_ideation_fallback' | 'inappropriate_language_repeated' | 'inappropriate_language_repeated_fallback';
+  incidentType: 'homicidal_ideation' | 'suicidal_ideation' | 'inappropriate_language' | 'homicidal_ideation_fallback' | 'suicidal_ideation_fallback' | 'inappropriate_language_fallback';
   message: string;
   timestamp: Date;
   conversationHistory?: any[];

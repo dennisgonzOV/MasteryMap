@@ -331,56 +331,33 @@ Respond with JSON in this format:
 
     const languageResult = JSON.parse(languageResponse.choices[0].message.content || "{}");
 
-    // Count inappropriate language instances in conversation history
+    // If inappropriate language is detected, return immediate termination response
     if (languageResult.hasInappropriateLanguage === true) {
-      // Use simple keyword check for consistent counting across all messages
-      const inappropriateWords = [
-        'damn', 'hell', 'crap', 'shit', 'fuck', 'bitch', 'ass', 'asshole',
-        'bastard', 'piss', 'dick', 'cock', 'pussy', 'whore', 'slut', 'faggot',
-        'butt face', 'penis', 'balls', 'retard', 'gay', 'homo'
-      ];
-      
-      let inappropriateCount = 0;
-      
-      for (const msg of studentMessages) {
-        const hasInappropriate = inappropriateWords.some(word => 
-          msg.content.toLowerCase().includes(word.toLowerCase())
-        );
-        
-        if (hasInappropriate) {
-          inappropriateCount++;
-        }
-      }
-
       console.log("LANGUAGE ALERT: Inappropriate language detected:", {
         message: latestMessage,
         severity: languageResult.severity,
-        count: inappropriateCount,
         explanation: languageResult.explanation
       });
 
-      // If this is the first instance (count >= 1), terminate conversation
-      if (inappropriateCount >= 1) {
-        // Notify teachers of repeated inappropriate language
-        const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
-        if (studentId) {
-          await notifyTeacherOfSafetyIncident({
-            studentId: studentId,
-            componentSkillId: componentSkill.id,
-            incidentType: 'inappropriate_language_repeated',
-            message: latestMessage,
-            timestamp: new Date(),
-            conversationHistory: conversationHistory
-          });
-        }
-
-        return {
-          response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
-          shouldTerminate: true,
-          safetyFlag: "inappropriate_language_repeated",
-          suggestedEvaluation: undefined,
-        };
+      // Notify teachers of inappropriate language
+      const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+      if (studentId) {
+        await notifyTeacherOfSafetyIncident({
+          studentId: studentId,
+          componentSkillId: componentSkill.id,
+          incidentType: 'inappropriate_language',
+          message: latestMessage,
+          timestamp: new Date(),
+          conversationHistory: conversationHistory
+        });
       }
+
+      return {
+        response: "I've noticed inappropriate language in your message. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
+        shouldTerminate: true,
+        safetyFlag: "inappropriate_language",
+        suggestedEvaluation: undefined,
+      };
     }
 
     // If safe, proceed with normal tutoring response
@@ -519,49 +496,39 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
     }
 
     // Fallback inappropriate language check using keyword detection
+    const inappropriateWords = [
+      'damn', 'hell', 'crap', 'shit', 'fuck', 'bitch', 'ass', 'asshole',
+      'bastard', 'piss', 'dick', 'cock', 'pussy', 'whore', 'slut', 'faggot',
+      'butt face', 'penis', 'balls', 'retard', 'gay', 'homo'
+    ];
+
     const hasInappropriateLanguage = inappropriateWords.some((keyword) =>
       content.includes(keyword)
     );
 
     if (hasInappropriateLanguage) {
-      // Count inappropriate language instances in conversation history
-      let inappropriateCount = 0;
-      
-      for (const msg of studentMessages) {
-        const hasInappropriate = inappropriateWords.some(word => 
-          msg.content.toLowerCase().includes(word.toLowerCase())
-        );
-        
-        if (hasInappropriate) {
-          inappropriateCount++;
-        }
-      }
-
       console.log("LANGUAGE ALERT (Fallback): Inappropriate language detected:", {
-        message: latestMessage,
-        count: inappropriateCount
+        message: latestMessage
       });
 
-      if (inappropriateCount >= 1) {
-        // Notify teachers of repeated inappropriate language (fallback detection)
-        const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
-        if (studentId) {
-          await notifyTeacherOfSafetyIncident({
-            studentId: studentId,
-            incidentType: 'inappropriate_language_repeated_fallback',
-            message: latestMessage,
-            timestamp: new Date(),
-            conversationHistory: conversationHistory
-          });
-        }
-
-        return {
-          response: "I've noticed inappropriate language has been used multiple times in our conversation. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
-          shouldTerminate: true,
-          safetyFlag: "inappropriate_language_repeated_fallback",
-          suggestedEvaluation: undefined,
-        };
+      // Notify teachers of inappropriate language (fallback detection)
+      const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
+      if (studentId) {
+        await notifyTeacherOfSafetyIncident({
+          studentId: studentId,
+          incidentType: 'inappropriate_language_fallback',
+          message: latestMessage,
+          timestamp: new Date(),
+          conversationHistory: conversationHistory
+        });
       }
+
+      return {
+        response: "I've noticed inappropriate language in your message. This has been flagged and someone will reach out to you about appropriate language use at school. This conversation is now closed.",
+        shouldTerminate: true,
+        safetyFlag: "inappropriate_language_fallback",
+        suggestedEvaluation: undefined,
+      };
     }
 
     return {
