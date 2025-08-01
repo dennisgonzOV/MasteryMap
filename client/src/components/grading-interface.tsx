@@ -82,23 +82,28 @@ export default function GradingInterface({
         const response = await fetch(`/api/submissions/${submission.id}/grades`);
         if (response.ok) {
           const existingGrades = await response.json();
+          console.log('Fetched existing grades:', existingGrades);
           setExistingGrades(existingGrades);
           
           // Populate grades state with existing data
           const gradesMap: Record<string, any> = {};
           existingGrades.forEach((grade: any) => {
+            console.log('Processing existing grade:', grade);
             gradesMap[grade.componentSkillId.toString()] = {
               rubricLevel: grade.rubricLevel,
               feedback: grade.feedback || '',
               score: grade.score
             };
           });
+          console.log('Populated grades map:', gradesMap);
           setGrades(gradesMap);
           
           // Lock interface if grades already exist
           if (existingGrades.length > 0) {
             setIsLocked(true);
           }
+        } else {
+          console.error('Failed to fetch grades:', response.statusText);
         }
       } catch (error) {
         console.error('Error fetching existing grades:', error);

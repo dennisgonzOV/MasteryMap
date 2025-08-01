@@ -952,11 +952,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add isLate calculation and ensure proper data format
       const assessment = await storage.getAssessment(assessmentId);
-      const enhancedSubmissions = submissions.map(submission => ({
-        ...submission,
-        answers: submission.responses || {},
-        isLate: assessment?.dueDate ? new Date(submission.submittedAt) > new Date(assessment.dueDate) : false
-      }));
+      
+      // Fetch grades for each submission
+      const enhancedSubmissions = await Promise.all(
+        submissions.map(async (submission) => {
+          const grades = await db.select()
+            .from(gradesTable)
+            .where(eq(gradesTable.submissionId, submission.id));
+          
+          console.log(`Submission ${submission.id} has ${grades.length} grades:`, grades);
+          
+          return {
+            ...submission,
+            answers: submission.responses || {},
+            grades: grades,
+            isLate: assessment?.dueDate ? new Date(submission.submittedAt) > new Date(assessment.dueDate) : false
+          };
+        })
+      );
 
       res.json(enhancedSubmissions);
     } catch (error) {

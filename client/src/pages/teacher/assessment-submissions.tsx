@@ -127,7 +127,7 @@ export default function AssessmentSubmissions() {
 
   // State for UI interactions
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(new Set());
-  
+
   // Initialize gradingData from sessionStorage if available, otherwise empty object
   const [gradingData, setGradingData] = useState<Record<number, Record<number, {
     rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
@@ -151,9 +151,22 @@ export default function AssessmentSubmissions() {
   });
 
   // Fetch submissions
-  const { data: submissions = [], isLoading: submissionsLoading, refetch: refetchSubmissions } = useQuery<Submission[]>({
-    queryKey: [`/api/assessments/${id}/submissions`],
-    enabled: isAuthenticated && !!id,
+  const { data: submissions = [], refetch: refetchSubmissions } = useQuery({
+    queryKey: ['assessment-submissions', id],
+    queryFn: async () => {
+      const response = await fetch(`/api/assessments/${id}/submissions`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch submissions');
+      const data = await response.json();
+      console.log('Fetched submissions with grades:', data.map((s: any) => ({
+        id: s.id,
+        studentName: s.studentName,
+        grades: s.grades
+      })));
+      return data;
+    },
+    enabled: !!id
   });
 
   // Fetch component skills for the assessment
@@ -173,20 +186,20 @@ export default function AssessmentSubmissions() {
   // Initialize gradingData with existing grades when submissions load (only once)
   const initializeGradingData = React.useCallback(() => {
     if (!submissions.length || !relevantSkills.length || isGradingDataInitialized) return;
-    
+
     console.log("Initializing grading data for assessment", id);
     console.log("Submissions with grades:", submissions.map(s => ({ 
       id: s.id, 
       gradesCount: s.grades?.length || 0,
       grades: s.grades 
     })));
-    
+
     const initialData: typeof gradingData = {};
-    
+
     // Initialize data for each submission
     submissions.forEach(submission => {
       initialData[submission.id] = {};
-      
+
       // Always prioritize existing grades from database
       if (submission.grades && submission.grades.length > 0) {
         console.log(`Loading grades for submission ${submission.id}:`, submission.grades);
@@ -206,7 +219,7 @@ export default function AssessmentSubmissions() {
         });
       } else {
         console.log(`No grades found for submission ${submission.id}`);
-        
+
         // Only then check sessionStorage for unsaved manual input
         try {
           const saved = sessionStorage.getItem(`gradingData_${id}`);
@@ -227,7 +240,7 @@ export default function AssessmentSubmissions() {
         }
       }
     });
-    
+
     console.log("Final initialized grading data:", initialData);
     setGradingData(initialData);
     setIsGradingDataInitialized(true);
@@ -305,12 +318,12 @@ export default function AssessmentSubmissions() {
     mutationFn: async () => {
       setIsBulkGrading(true);
       setBulkGradingProgress(0);
-      
+
       const ungradedSubmissions = submissions.filter(sub => 
         !sub.grades?.length && !sub.grade
       );
       const total = ungradedSubmissions.length;
-      
+
       for (let i = 0; i < ungradedSubmissions.length; i++) {
         const submission = ungradedSubmissions[i];
         try {
@@ -324,7 +337,7 @@ export default function AssessmentSubmissions() {
         }
         setBulkGradingProgress(((i + 1) / total) * 100);
       }
-      
+
       setIsBulkGrading(false);
       return { success: true };
     },
@@ -355,7 +368,7 @@ export default function AssessmentSubmissions() {
     score: number;
   }) => {
     console.log(`Updating grading data for submission ${submissionId}, skill ${skillId}:`, data);
-    
+
     setGradingData(prev => {
       const newData = {
         ...prev,
@@ -364,7 +377,7 @@ export default function AssessmentSubmissions() {
           [skillId]: data
         }
       };
-      
+
       // Save to sessionStorage for persistence across navigation
       try {
         const storageKey = `gradingData_${id}`;
@@ -373,7 +386,7 @@ export default function AssessmentSubmissions() {
       } catch (error) {
         console.error('Failed to save grading data to sessionStorage:', error);
       }
-      
+
       return newData;
     });
   };
@@ -395,7 +408,7 @@ export default function AssessmentSubmissions() {
     if (gradeMutation.isSuccess && gradeMutation.variables?.submissionId) {
       const submissionId = gradeMutation.variables.submissionId;
       console.log(`Grade mutation successful for submission ${submissionId}, cleaning up sessionStorage`);
-      
+
       try {
         const storageKey = `gradingData_${id}`;
         const saved = sessionStorage.getItem(storageKey);
@@ -416,7 +429,7 @@ export default function AssessmentSubmissions() {
   const getRubricLevelBadge = (level: string) => {
     const levelConfig = rubricLevels.find(r => r.value === level);
     if (!levelConfig) return null;
-    
+
     return (
       <Badge className={`${levelConfig.color} border`}>
         {levelConfig.label}
@@ -431,7 +444,7 @@ export default function AssessmentSubmissions() {
     ).length;
     const ungraded = total - graded;
     const aiGraded = submissions.filter(sub => sub.aiGeneratedFeedback).length;
-    
+
     return { total, graded, ungraded, aiGraded };
   };
 
@@ -444,7 +457,7 @@ export default function AssessmentSubmissions() {
     if (submission.grade !== undefined && submission.grade !== null) {
       return submission.grade;
     }
-    
+
     // Fallback to manual grades if available
     if (!submission.grades?.length) return null;
     const totalScore = submission.grades.reduce((sum, grade) => sum + parseFloat(grade.score), 0);
@@ -546,7 +559,7 @@ export default function AssessmentSubmissions() {
                   The AI will analyze student responses against the rubric criteria and provide 
                   personalized feedback for each submission.
                 </p>
-                
+
                 {isBulkGrading && (
                   <div className="space-y-3">
                     <Progress value={bulkGradingProgress} className="h-3" />
@@ -560,7 +573,7 @@ export default function AssessmentSubmissions() {
                     </div>
                   </div>
                 )}
-                
+
                 <Button
                   onClick={() => bulkGradeMutation.mutate()}
                   disabled={isBulkGrading || stats.ungraded === 0}
@@ -596,7 +609,7 @@ export default function AssessmentSubmissions() {
             submissions.map((submission) => {
               const isExpanded = expandedSubmissions.has(submission.id);
               const averageScore = getAverageScore(submission);
-              
+
               return (
                 <Card key={submission.id} className="overflow-hidden">
                   {/* Submission Header */}
@@ -659,7 +672,7 @@ export default function AssessmentSubmissions() {
                               <span>{aiGradingSubmissions.has(submission.id) ? 'Grading...' : 'AI Grade'}</span>
                             </Button>
                           )}
-                          
+
                           <Button
                             size="sm"
                             variant="outline"
@@ -687,10 +700,10 @@ export default function AssessmentSubmissions() {
                           <MessageSquare className="h-5 w-5" />
                           <span>Student Responses</span>
                         </h4>
-                        
+
                         {assessment?.questions?.map((question, index) => {
                           const response = submission.responses?.find(r => r.questionId === question.id);
-                          
+
                           return (
                             <Card key={question.id} className="bg-white">
                               <CardContent className="p-4 space-y-3">
@@ -725,7 +738,7 @@ export default function AssessmentSubmissions() {
                             <Brain className="h-5 w-5 text-blue-600" />
                             <span>AI Assessment Results</span>
                           </h4>
-                          
+
                           <Card className="bg-blue-50 border-blue-200">
                             <CardContent className="p-4">
                               <div className="flex items-center justify-between mb-3">
@@ -752,11 +765,11 @@ export default function AssessmentSubmissions() {
                             <Brain className="h-5 w-5 text-blue-600" />
                             <span>AI Component Skill Assessment</span>
                           </h4>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {submission.grades?.map((grade) => {
                               const skill = relevantSkills.find(s => s.id === grade.componentSkillId);
-                              
+
                               return (
                                 <Card key={grade.id} className="bg-blue-50 border-blue-200">
                                   <CardContent className="p-4">
@@ -789,11 +802,11 @@ export default function AssessmentSubmissions() {
                             <Star className="h-5 w-5" />
                             <span>Manual Grades</span>
                           </h4>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {submission.grades?.map((grade) => {
                               const skill = relevantSkills.find(s => s.id === grade.componentSkillId);
-                              
+
                               return (
                                 <Card key={grade.id} className="bg-white">
                                   <CardContent className="p-4">
@@ -831,17 +844,17 @@ export default function AssessmentSubmissions() {
                               }
                             </span>
                           </h4>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {relevantSkills.map((skill) => {
                               // Get existing grade for this skill if available
                               const existingGrade = submission.grades?.find(g => g.componentSkillId === skill.id);
-                              
+
                               return (
                                 <Card key={skill.id} className="bg-white">
                                   <CardContent className="p-4 space-y-4">
                                     <h6 className="font-medium text-gray-900">{skill.name}</h6>
-                                    
+
                                     <div className="space-y-3">
                                       <div>
                                         <Label className="text-sm font-medium">Rubric Level</Label>
@@ -876,7 +889,7 @@ export default function AssessmentSubmissions() {
                                           </SelectContent>
                                         </Select>
                                       </div>
-                                      
+
                                       <div>
                                         <Label className="text-sm font-medium">Feedback</Label>
                                         <Textarea
@@ -905,7 +918,7 @@ export default function AssessmentSubmissions() {
                               );
                             })}
                           </div>
-                          
+
                           <div className="flex justify-end space-x-3">
                             <Button
                               variant="outline"
@@ -925,7 +938,7 @@ export default function AssessmentSubmissions() {
                               <RotateCcw className="h-4 w-4" />
                               <span>Reset</span>
                             </Button>
-                            
+
                             <Button
                               onClick={() => handleManualGrade(submission.id)}
                               disabled={gradeMutation.isPending}
