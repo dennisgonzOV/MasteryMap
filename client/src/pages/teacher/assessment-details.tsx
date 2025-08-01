@@ -360,10 +360,6 @@ export default function AssessmentDetails() {
                     <span className="text-sm text-gray-600">Late Submissions</span>
                     <span className="font-semibold text-red-600">{lateSubmissions}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Average Grade</span>
-                    <span className="font-semibold text-blue-600">{averageGrade.toFixed(1)}%</span>
-                  </div>
 
                   <div className="pt-2">
                     <div className="flex items-center justify-between mb-2">
