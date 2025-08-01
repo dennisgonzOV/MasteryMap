@@ -359,8 +359,8 @@ Respond with JSON in this format:
         explanation: languageResult.explanation
       });
 
-      // If this is the second instance (count >= 2), terminate conversation
-      if (inappropriateCount >= 2) {
+      // If this is the first instance (count >= 1), terminate conversation
+      if (inappropriateCount >= 1) {
         // Notify teachers of repeated inappropriate language
         const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
         if (studentId) {
@@ -542,7 +542,7 @@ Respond in a helpful, encouraging tone that guides them to think more deeply abo
         count: inappropriateCount
       });
 
-      if (inappropriateCount >= 2) {
+      if (inappropriateCount >= 1) {
         // Notify teachers of repeated inappropriate language (fallback detection)
         const studentId = conversationHistory.find(msg => msg.role === 'student')?.studentId;
         if (studentId) {
