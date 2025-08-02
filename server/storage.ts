@@ -747,7 +747,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(desc(grades.gradedAt))
       .limit(1);
-    
+
     return existingGrades.length > 0 ? existingGrades[0] : null;
   }
 
@@ -900,8 +900,7 @@ export class DatabaseStorage implements IStorage {
 
       result.push({
         ...outcome,
-        competencies: competenciesWithSkills,
-      });
+        competencies: competenciesWithSkills,      });
     }
 
     return result;

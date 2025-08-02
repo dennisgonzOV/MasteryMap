@@ -397,7 +397,7 @@ export default function StudentPortfolio() {
               <h3 className="text-lg font-semibold text-gray-900">My Achievements</h3>
               
               {/* Competency Progress Section */}
-              <CompetencyProgress />
+              <CompetencyProgress studentId={user?.id} />
 
               <div className="border-t border-gray-200 pt-6">
                 <h4 className="text-md font-medium text-gray-900 mb-4">Earned Credentials</h4>
