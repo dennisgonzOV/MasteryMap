@@ -194,8 +194,8 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                           value={skill.averageScore} 
                           color={getProgressColor(skill.averageScore, skill.progressDirection)}
                           size="sm"
-                          className="h-1
-                          1.5 w-full"
+                          className="h-1.5 w-full"
+                          showPercentage={false}
                         />
 
                         {/* Achievement Bar */}
