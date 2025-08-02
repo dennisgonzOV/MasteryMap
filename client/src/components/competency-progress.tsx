@@ -179,22 +179,16 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                       key={`${skill.competencyId}-${skill.componentSkillId}`} 
                       className="group p-3 rounded-xl border border-gray-100 bg-gradient-to-r from-gray-50/50 to-white hover:shadow-sm transition-all duration-200"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0 pr-4">
                           <h4 className="font-medium text-gray-900 text-sm truncate">
                             {skill.componentSkillName}
                           </h4>
-                          <div className="flex items-center gap-3 mt-1 mb-2">
+                          <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs text-gray-500">
                               {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
                             </span>
                           </div>
-                          <ProgressBar 
-                            value={skill.averageScore} 
-                            color={getProgressColor(skill.averageScore, skill.progressDirection)}
-                            size="sm"
-                            className="h-1.5"
-                          />
                         </div>
 
                         <div className="text-right flex-shrink-0">
@@ -202,6 +196,15 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                             Latest: {skill.lastScore}%
                           </div>
                         </div>
+                      </div>
+                      
+                      <div className="w-full">
+                        <ProgressBar 
+                          value={skill.averageScore} 
+                          color={getProgressColor(skill.averageScore, skill.progressDirection)}
+                          size="sm"
+                          className="h-1.5 w-full"
+                        />
                       </div>
                     </div>
                   ))}
