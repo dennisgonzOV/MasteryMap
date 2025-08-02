@@ -1261,7 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only students and teachers can use the AI tutor" });
       }
 
-      const { componentSkill, conversationHistory, currentEvaluation } = req.body;
+      const { componentSkill, conversationHistory, currentEvaluation, assessmentId } = req.body;
 
       if (!componentSkill || !conversationHistory) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -1274,14 +1274,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentLevel: currentEvaluation?.selfAssessedLevel
       });
 
+      // Add studentId to conversation history for safety incident tracking
+      const enhancedConversationHistory = conversationHistory.map((msg: any) => ({
+        ...msg,
+        studentId: req.user?.role === 'student' ? userId : msg.studentId
+      }));
+
       // Generate AI tutor response
       const tutorResponse = await generateTutorResponse(
         componentSkill,
-        conversationHistory,
+        enhancedConversationHistory,
         currentEvaluation
       );
 
-      // Log safety flags for monitoring
+      // Handle safety flags by creating notifications
       if (tutorResponse.safetyFlag) {
         console.log("SAFETY FLAG RAISED:", {
           userId,
@@ -1290,8 +1296,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: new Date().toISOString()
         });
 
-        // TODO: Implement notification system to alert teachers/administrators
-        // This could include email alerts, dashboard notifications, etc.
+        // Create safety incident and notify teachers
+        const studentId = req.user?.role === 'student' ? userId : userId; // For now, assume the user triggering is the student
+        const latestMessage = conversationHistory.filter((msg: any) => msg.role === 'student').pop()?.content || '';
+
+        try {
+          // Import the notification service
+          const { notifyTeacherOfSafetyIncident } = await import('./services/notifications');
+          
+          // Map safety flags to incident types
+          let incidentType: 'homicidal_ideation' | 'suicidal_ideation' | 'inappropriate_language' | 'homicidal_ideation_fallback' | 'suicidal_ideation_fallback' | 'inappropriate_language_fallback';
+          
+          switch (tutorResponse.safetyFlag) {
+            case 'homicidal_ideation':
+              incidentType = 'homicidal_ideation';
+              break;
+            case 'suicidal_ideation':
+              incidentType = 'suicidal_ideation';
+              break;
+            case 'inappropriate_language':
+              incidentType = 'inappropriate_language';
+              break;
+            case 'homicidal_ideation_fallback':
+              incidentType = 'homicidal_ideation_fallback';
+              break;
+            case 'suicidal_ideation_fallback':
+              incidentType = 'suicidal_ideation_fallback';
+              break;
+            case 'inappropriate_language_fallback':
+              incidentType = 'inappropriate_language_fallback';
+              break;
+            default:
+              incidentType = 'inappropriate_language';
+          }
+
+          await notifyTeacherOfSafetyIncident({
+            studentId: studentId,
+            assessmentId: assessmentId || undefined,
+            componentSkillId: componentSkill.id,
+            incidentType: incidentType,
+            message: latestMessage,
+            timestamp: new Date(),
+            conversationHistory: enhancedConversationHistory
+          });
+
+          console.log("Safety incident notification created successfully");
+        } catch (notificationError) {
+          console.error("Error creating safety incident notification:", notificationError);
+        }
       }
 
       console.log("AI Tutor Response generated successfully");
