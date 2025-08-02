@@ -53,7 +53,7 @@ Respond in JSON format:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -157,7 +157,7 @@ Respond with JSON array of questions in this format:
 ]`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -217,7 +217,7 @@ Respond with JSON in this format:
 }`;
 
     const safetyResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -313,7 +313,7 @@ Respond with JSON in this format:
 }`;
 
     const languageResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -388,7 +388,7 @@ Keep your response conversational, encouraging, and focused on helping them deve
 Respond in a helpful, encouraging tone that guides them to think more deeply about their competency level.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
