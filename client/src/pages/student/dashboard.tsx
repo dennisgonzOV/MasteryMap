@@ -168,97 +168,51 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Learning Progress Overview */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            {/* Competency Progress */}
-            <div className="lg:col-span-2">
-              <Card className="apple-shadow border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <TrendingUp className="h-5 w-5 text-blue-600" />
-                    <span>My Learning Progress</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {competencyProgress.map((competency) => {
-                    const Icon = competency.icon;
-                    return (
-                      <div key={competency.id} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-4">
-                            <div className={`w-12 h-12 bg-${competency.color}-600 rounded-full flex items-center justify-center`}>
-                              <Icon className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-900">{competency.name}</h4>
-                              <p className="text-sm text-gray-600">XQ Competency</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-blue-600">{competency.progress}%</div>
-                            <div className="text-sm text-gray-600">{competency.level}</div>
-                          </div>
+          {/* Recent Achievements */}
+          <div className="mb-8">
+            <Card className="apple-shadow border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Award className="h-5 w-5 text-purple-600" />
+                  <span>Recent Achievements</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {credentialsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                        <div className="flex-1 space-y-1">
+                          <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                          <div className="h-2 bg-gray-200 rounded w-1/2"></div>
                         </div>
-                        <ProgressBar 
-                          value={competency.progress} 
-                          color={competency.color as any}
-                          size="sm"
-                        />
-                        <p className="text-xs text-gray-500 mt-2">Last updated {competency.lastUpdated}</p>
                       </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Recent Achievements */}
-              <Card className="apple-shadow border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Award className="h-5 w-5 text-purple-600" />
-                    <span>Recent Achievements</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {credentialsLoading ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="animate-pulse flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                          <div className="flex-1 space-y-1">
-                            <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                            <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : recentCredentials.length === 0 ? (
-                    <div className="text-center py-6">
-                      <Star className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">No achievements yet</p>
-                      <p className="text-xs text-gray-500">Complete projects to earn credentials</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {recentCredentials.map((credential) => (
-                        <CredentialBadge key={credential.id} credential={credential} showDetails />
-                      ))}
-                      {credentials.length > 3 && (
-                        <Link href="/student/portfolio">
-                          <Button variant="ghost" size="sm" className="w-full mt-2">
-                            View All Achievements
-                            <ArrowRight className="h-4 w-4 ml-2" />
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                    ))}
+                  </div>
+                ) : recentCredentials.length === 0 ? (
+                  <div className="text-center py-6">
+                    <Star className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">No achievements yet</p>
+                    <p className="text-xs text-gray-500">Complete projects to earn credentials</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentCredentials.map((credential) => (
+                      <CredentialBadge key={credential.id} credential={credential} showDetails />
+                    ))}
+                    {credentials.length > 3 && (
+                      <Link href="/student/portfolio">
+                        <Button variant="ghost" size="sm" className="w-full mt-2">
+                          View All Achievements
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           
