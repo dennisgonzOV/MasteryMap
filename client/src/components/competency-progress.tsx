@@ -168,9 +168,6 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <div className={`text-xl font-bold ${getScoreColor(skill.averageScore, skill.progressDirection)}`}>
-                        {skill.averageScore}%
-                      </div>
                       <div className="text-xs text-gray-500">
                         Latest: {skill.lastScore}%
                       </div>
