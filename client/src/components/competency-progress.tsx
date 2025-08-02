@@ -211,13 +211,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                             <div className="flex-1 bg-blue-200 border-r border-white"></div>
                             <div className="flex-1 bg-green-200"></div>
                           </div>
-                          <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
-                            <span>0%</span>
-                            <span>60%</span>
-                            <span>76%</span>
-                            <span>90%</span>
-                            <span>100%</span>
-                          </div>
+                          
                           {/* Achievement indicator */}
                           <div className="relative mt-1">
                             <div 
