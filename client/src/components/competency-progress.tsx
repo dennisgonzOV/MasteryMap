@@ -124,17 +124,17 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
 
   const getProgressColor = (score: number, direction: string) => {
     if (direction === 'declining') return 'red';
-    if (score >= 90) return 'green';
-    if (score >= 80) return 'blue';
-    if (score >= 70) return 'yellow';
+    if (score >= 3.5) return 'green';
+    if (score >= 2.5) return 'blue';
+    if (score >= 1.5) return 'yellow';
     return 'orange';
   };
 
   const getScoreColor = (score: number, direction: string) => {
     if (direction === 'declining') return 'text-red-600';
-    if (score >= 90) return 'text-emerald-600';
-    if (score >= 80) return 'text-blue-600';
-    if (score >= 70) return 'text-amber-600';
+    if (score >= 3.5) return 'text-emerald-600';
+    if (score >= 2.5) return 'text-blue-600';
+    if (score >= 1.5) return 'text-amber-600';
     return 'text-orange-600';
   };
 
@@ -191,7 +191,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
 
                       <div className="w-full space-y-2">
                         <ProgressBar 
-                          value={skill.averageScore} 
+                          value={(skill.averageScore / 4) * 100} 
                           color={getProgressColor(skill.averageScore, skill.progressDirection)}
                           size="sm"
                           className="h-1.5 w-full"
@@ -203,22 +203,22 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                           {/* Achievement Level Indicator */}
                           <div className="flex w-full h-8 bg-gray-50 rounded-lg overflow-hidden mb-2">
                             <div className={`flex-1 flex items-center justify-center text-xs font-medium border-r border-white ${
-                              Math.ceil(skill.averageScore / 25) === 1 ? 'bg-red-200 text-red-800' : 'bg-gray-100 text-gray-500'
+                              skill.averageScore < 1.5 ? 'bg-red-200 text-red-800' : 'bg-gray-100 text-gray-500'
                             }`}>
                               Emerging
                             </div>
                             <div className={`flex-1 flex items-center justify-center text-xs font-medium border-r border-white ${
-                              Math.ceil(skill.averageScore / 25) === 2 ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-100 text-gray-500'
+                              skill.averageScore >= 1.5 && skill.averageScore < 2.5 ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-100 text-gray-500'
                             }`}>
                               Developing
                             </div>
                             <div className={`flex-1 flex items-center justify-center text-xs font-medium border-r border-white ${
-                              Math.ceil(skill.averageScore / 25) === 3 ? 'bg-blue-200 text-blue-800' : 'bg-gray-100 text-gray-500'
+                              skill.averageScore >= 2.5 && skill.averageScore < 3.5 ? 'bg-blue-200 text-blue-800' : 'bg-gray-100 text-gray-500'
                             }`}>
                               Proficient
                             </div>
                             <div className={`flex-1 flex items-center justify-center text-xs font-medium ${
-                              Math.ceil(skill.averageScore / 25) === 4 || skill.averageScore === 100 ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
+                              skill.averageScore >= 3.5 ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
                             }`}>
                               Applying
                             </div>
@@ -227,13 +227,13 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                           <div className="text-center">
                             <span className="text-sm font-medium text-gray-700">
                               Current Level: {
-                                skill.averageScore <= 25 ? 'Emerging' :
-                                skill.averageScore <= 50 ? 'Developing' :
-                                skill.averageScore <= 75 ? 'Proficient' : 'Applying'
+                                skill.averageScore < 1.5 ? 'Emerging' :
+                                skill.averageScore >= 1.5 && skill.averageScore < 2.5 ? 'Developing' :
+                                skill.averageScore >= 2.5 && skill.averageScore < 3.5 ? 'Proficient' : 'Applying'
                               }
                             </span>
                             <span className="text-xs text-gray-500 ml-2">
-                              (Score: {Math.round(skill.averageScore)})
+                              (Score: {skill.averageScore.toFixed(1)})
                             </span>
                           </div>
                         </div>
