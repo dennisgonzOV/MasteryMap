@@ -231,9 +231,6 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                                 skill.averageScore <= 75 ? 'Proficient' : 'Applying'
                               }
                             </span>
-                            <span className="text-xs text-gray-500 ml-2">
-                              (Score: {Math.round(skill.averageScore)})
-                            </span>
                           </div>
                         </div>
                       </div>
