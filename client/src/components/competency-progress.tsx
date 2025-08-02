@@ -181,23 +181,22 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0 pr-4">
-                          <h4 className="font-medium text-gray-900 text-sm truncate">
-                            {skill.componentSkillName}
-                          </h4>
-                          <div className="flex items-center gap-3 mt-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-medium text-gray-900 text-sm">
+                              {skill.componentSkillName}
+                            </h4>
+                            <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                              Current Level: {
+                                skill.averageScore < 1.5 ? 'Emerging' :
+                                skill.averageScore >= 1.5 && skill.averageScore < 2.5 ? 'Developing' :
+                                skill.averageScore >= 2.5 && skill.averageScore < 3.5 ? 'Proficient' : 'Applying'
+                              } (Score: {skill.averageScore.toFixed(1)})
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       <div className="w-full space-y-2">
-                        <ProgressBar 
-                          value={(skill.averageScore / 4) * 100} 
-                          color={getProgressColor(skill.averageScore, skill.progressDirection)}
-                          size="sm"
-                          className="h-1.5 w-full"
-                          showPercentage={false}
-                        />
-
                         {/* Achievement Bar */}
                         <div className="w-full">
                           {/* Achievement Level Indicator */}
@@ -224,18 +223,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                             </div>
                           </div>
 
-                          <div className="text-center">
-                            <span className="text-sm font-medium text-gray-700">
-                              Current Level: {
-                                skill.averageScore < 1.5 ? 'Emerging' :
-                                skill.averageScore >= 1.5 && skill.averageScore < 2.5 ? 'Developing' :
-                                skill.averageScore >= 2.5 && skill.averageScore < 3.5 ? 'Proficient' : 'Applying'
-                              }
-                            </span>
-                            <span className="text-xs text-gray-500 ml-2">
-                              (Score: {skill.averageScore.toFixed(1)})
-                            </span>
-                          </div>
+                          
                         </div>
                       </div>
                     </div>
