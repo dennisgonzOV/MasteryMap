@@ -168,52 +168,7 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Recent Achievements */}
-          <div className="mb-8">
-            <Card className="apple-shadow border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Award className="h-5 w-5 text-purple-600" />
-                  <span>Recent Achievements</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {credentialsLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                        <div className="flex-1 space-y-1">
-                          <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                          <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : recentCredentials.length === 0 ? (
-                  <div className="text-center py-6">
-                    <Star className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">No achievements yet</p>
-                    <p className="text-xs text-gray-500">Complete projects to earn credentials</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentCredentials.map((credential) => (
-                      <CredentialBadge key={credential.id} credential={credential} showDetails />
-                    ))}
-                    {credentials.length > 3 && (
-                      <Link href="/student/portfolio">
-                        <Button variant="ghost" size="sm" className="w-full mt-2">
-                          View All Achievements
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          
 
           
 
