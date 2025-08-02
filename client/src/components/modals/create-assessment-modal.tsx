@@ -181,13 +181,13 @@ export default function CreateAssessmentModal({
 
   const onSubmit = (data: AssessmentForm) => {
     console.log("Submitting assessment:", data);
-    
+
     // For self-evaluation assessments, we don't need questions
     const submissionData = {
       ...data,
       questions: data.assessmentType === "teacher" ? data.questions : undefined,
     };
-    
+
     createAssessmentMutation.mutate(submissionData);
   };
 
@@ -274,7 +274,7 @@ export default function CreateAssessmentModal({
     try {
       // Mock AI generation for now - you can replace this with actual API call
       await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
-      
+
       // Generate sample questions based on preferences
       const questionTemplates = {
         "open-ended": [
@@ -337,11 +337,11 @@ export default function CreateAssessmentModal({
       // Generate questions based on selected types and count
       const generatedQuestions = [];
       const questionsPerType = Math.ceil(aiQuestionCount / selectedTypes.length);
-      
+
       for (const type of selectedTypes) {
         const templates = questionTemplates[type as keyof typeof questionTemplates];
         const questionsToAdd = Math.min(questionsPerType, templates.length);
-        
+
         // Add questions from this type's templates, cycling through if needed
         for (let i = 0; i < questionsToAdd && generatedQuestions.length < aiQuestionCount; i++) {
           const templateIndex = i % templates.length; // Cycle through templates if we need more questions
@@ -356,7 +356,7 @@ export default function CreateAssessmentModal({
       while (generatedQuestions.length < aiQuestionCount) {
         for (const type of selectedTypes) {
           if (generatedQuestions.length >= aiQuestionCount) break;
-          
+
           const templates = questionTemplates[type as keyof typeof questionTemplates];
           const templateIndex = generatedQuestions.length % templates.length;
           generatedQuestions.push({
@@ -370,7 +370,7 @@ export default function CreateAssessmentModal({
       const finalQuestions = generatedQuestions.slice(0, aiQuestionCount);
 
       form.setValue("questions", finalQuestions);
-      
+
       toast({
         title: "AI Assessment Generated",
         description: `Generated ${finalQuestions.length} questions based on your preferences. You can review and edit them.`,
@@ -527,7 +527,7 @@ export default function CreateAssessmentModal({
                                   </Badge>
                                 </div>
                               </button>
-                              
+
                               {expandedOutcomes.has(outcome.id) && (
                                 <div className="px-4 pb-3 space-y-2">
                                   {outcome.competencies?.map((competency: any) => (
@@ -549,25 +549,50 @@ export default function CreateAssessmentModal({
                                           </Badge>
                                         </div>
                                       </button>
-                                      
+
                                       {expandedCompetencies.has(competency.id) && (
                                         <div className="px-3 pb-2 space-y-1">
                                           {competency.componentSkills?.map((skill: any) => (
                                             <div key={`skill-${skill.id}`} className="flex items-start space-x-2 py-1">
-                                              <Checkbox
-                                                id={`skill-${skill.id}`}
-                                                checked={field.value?.includes(skill.id)}
-                                                onCheckedChange={(checked) => 
-                                                  handleComponentSkillChange(skill.id, checked as boolean)
-                                                }
-                                                className="mt-0.5"
-                                              />
-                                              <label
-                                                htmlFor={`skill-${skill.id}`}
-                                                className="text-xs text-gray-600 cursor-pointer leading-tight"
-                                              >
-                                                {skill.name}
-                                              </label>
+                                              {assessmentType === "self-evaluation" ? (
+                                                <>
+                                                  <input
+                                                    type="radio"
+                                                    id={`skill-${skill.id}`}
+                                                    name="componentSkill"
+                                                    checked={field.value?.includes(skill.id)}
+                                                    onChange={() => {
+                                                      // For self-evaluation, only allow one selection
+                                                      form.setValue("componentSkillIds", [skill.id]);
+                                                      form.trigger("componentSkillIds");
+                                                    }}
+                                                    className="mt-0.5"
+                                                  />
+                                                  <label
+                                                    htmlFor={`skill-${skill.id}`}
+                                                    className="text-xs text-gray-600 cursor-pointer leading-tight"
+                                                  >
+                                                    {skill.name}
+                                                  </label>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Checkbox
+                                                    id={`skill-${skill.id}`}
+                                                    checked={field.value?.includes(skill.id)}
+                                                    onCheckedChange={(checked) => 
+                                                      handleComponentSkillChange(skill.id, checked as boolean)
+                                                    }
+                                                    className="mt-0.5"
+                                                  />
+                                                  <label
+                                                    htmlFor={`skill-${skill.id}`}
+                                                    className="text-xs text-gray-600 cursor-pointer leading-tight"
+                                                  >
+                                                    {skill.name}
+                                                  </label>
+                                                </>
+                                              )}
                                             </div>
                                           ))}
                                         </div>
@@ -607,7 +632,7 @@ export default function CreateAssessmentModal({
                       <li>Safety guardrails detect concerning content and notify teachers</li>
                     </ul>
                   </div>
-                  
+
                   {selectedSkills.length > 0 && (
                     <div className="bg-white p-3 rounded border border-green-200">
                       <p className="text-sm font-medium text-green-800 mb-2">
@@ -628,7 +653,7 @@ export default function CreateAssessmentModal({
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="bg-amber-50 border border-amber-200 p-3 rounded">
                     <p className="text-sm text-amber-800">
                       <strong>Important:</strong> AI safety checks will flag concerning content (including references to self-harm or violence) and automatically notify you for immediate follow-up.
@@ -648,7 +673,7 @@ export default function CreateAssessmentModal({
                   <p className="text-sm text-blue-700">Generate questions automatically based on selected component skills</p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Number of Questions */}
                 <div>
@@ -820,7 +845,7 @@ export default function CreateAssessmentModal({
                             Add Option
                           </Button>
                         </div>
-                        
+
                         {(form.watch(`questions.${index}.options`) || []).map((option: string, optionIndex: number) => (
                           <div key={`option-${index}-${optionIndex}`} className="flex items-center space-x-2">
                             <Input
@@ -855,8 +880,7 @@ export default function CreateAssessmentModal({
                               <FormControl>
                                 <Input
                                   placeholder="Enter the correct answer"
-                                  {...field}
-                                  className="focus-ring"
+                                  {...field}                                  className="focus-ring"
                                 />
                               </FormControl>
                               <FormMessage />
