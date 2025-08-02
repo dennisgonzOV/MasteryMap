@@ -2435,7 +2435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const progress = await storage.getStudentCompetencyProgress(studentId);
+      const progress = await storage.getAllCompetencyProgressForStudent(studentId);
       res.json(progress);
     } catch (error) {
       console.error("Error fetching competency progress:", error);
