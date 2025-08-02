@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ProgressBar from "@/components/progress-bar";
-import { TrendingUp, TrendingDown, Minus, Clock, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Clock, Target, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import React from 'react';
+import React, { useState } from 'react';
 
 interface CompetencyProgressData {
   competencyId: number;
@@ -24,6 +24,8 @@ interface CompetencyProgressProps {
 }
 
 export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyProgressProps) {
+  const [collapsedCompetencies, setCollapsedCompetencies] = useState<Set<string>>(new Set());
+
   const { data: competencyProgress = [], isLoading } = useQuery<CompetencyProgressData[]>({
     queryKey: ['/api/students/competency-progress', studentId],
     queryFn: async () => {
@@ -37,6 +39,16 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
       return response.json();
     },
   });
+
+  const toggleCompetency = (competencyName: string) => {
+    const newCollapsed = new Set(collapsedCompetencies);
+    if (newCollapsed.has(competencyName)) {
+      newCollapsed.delete(competencyName);
+    } else {
+      newCollapsed.add(competencyName);
+    }
+    setCollapsedCompetencies(newCollapsed);
+  };
 
   // Group competencies by name
   const groupedCompetencies = competencyProgress.reduce((acc, item) => {
@@ -137,53 +149,67 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {Object.entries(groupedCompetencies).map(([competencyName, skills]) => (
-          <div key={competencyName} className="space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <h3 className="font-semibold text-gray-900 text-base">
-                {competencyName}
-              </h3>
-              <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600">
-                {skills.length} skill{skills.length !== 1 ? 's' : ''}
-              </Badge>
-            </div>
+        {Object.entries(groupedCompetencies).map(([competencyName, skills]) => {
+          const isCollapsed = collapsedCompetencies.has(competencyName);
+          
+          return (
+            <div key={competencyName} className="space-y-3">
+              <div 
+                className="flex items-center gap-2 pb-2 border-b border-gray-100 cursor-pointer hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors"
+                onClick={() => toggleCompetency(competencyName)}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                )}
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <h3 className="font-semibold text-gray-900 text-base">
+                  {competencyName}
+                </h3>
+                <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600">
+                  {skills.length} skill{skills.length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
 
-            <div className="grid gap-2">
-              {skills.map((skill) => (
-                <div 
-                  key={`${skill.competencyId}-${skill.componentSkillId}`} 
-                  className="group p-3 rounded-xl border border-gray-100 bg-gradient-to-r from-gray-50/50 to-white hover:shadow-sm transition-all duration-200"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h4 className="font-medium text-gray-900 text-sm truncate">
-                        {skill.componentSkillName}
-                      </h4>
-                      <div className="flex items-center gap-3 mt-1 mb-2">
-                        <span className="text-xs text-gray-500">
-                          {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      <ProgressBar 
-                        value={skill.averageScore} 
-                        color={getProgressColor(skill.averageScore, skill.progressDirection)}
-                        size="sm"
-                        className="h-1.5"
-                      />
-                    </div>
+            {!isCollapsed && (
+                <div className="grid gap-2">
+                  {skills.map((skill) => (
+                    <div 
+                      key={`${skill.competencyId}-${skill.componentSkillId}`} 
+                      className="group p-3 rounded-xl border border-gray-100 bg-gradient-to-r from-gray-50/50 to-white hover:shadow-sm transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0 pr-4">
+                          <h4 className="font-medium text-gray-900 text-sm truncate">
+                            {skill.componentSkillName}
+                          </h4>
+                          <div className="flex items-center gap-3 mt-1 mb-2">
+                            <span className="text-xs text-gray-500">
+                              {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <ProgressBar 
+                            value={skill.averageScore} 
+                            color={getProgressColor(skill.averageScore, skill.progressDirection)}
+                            size="sm"
+                            className="h-1.5"
+                          />
+                        </div>
 
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-xs text-gray-500">
-                        Latest: {skill.lastScore}%
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-xs text-gray-500">
+                            Latest: {skill.lastScore}%
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
