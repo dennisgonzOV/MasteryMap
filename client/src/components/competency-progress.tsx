@@ -186,15 +186,11 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                               {skill.componentSkillName}
                             </h4>
                             <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                              {skill.averageScore > 0 ? (
-                                `Current Level: ${
-                                  skill.averageScore < 1.5 ? 'Emerging' :
-                                  skill.averageScore >= 1.5 && skill.averageScore < 2.5 ? 'Developing' :
-                                  skill.averageScore >= 2.5 && skill.averageScore < 3.5 ? 'Proficient' : 'Applying'
-                                } (Score: ${skill.averageScore.toFixed(1)})`
-                              ) : (
-                                'Not Yet Assessed'
-                              )}
+                              Current Level: {
+                                skill.averageScore < 1.5 ? 'Emerging' :
+                                skill.averageScore >= 1.5 && skill.averageScore < 2.5 ? 'Developing' :
+                                skill.averageScore >= 2.5 && skill.averageScore < 3.5 ? 'Proficient' : 'Applying'
+                              } (Score: {skill.averageScore.toFixed(1)})
                             </span>
                           </div>
                         </div>
@@ -206,7 +202,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                           {/* Achievement Level Indicator */}
                           <div className="flex w-full h-8 bg-gray-50 rounded-lg overflow-hidden mb-2">
                             <div className={`flex-1 flex items-center justify-center text-xs font-medium border-r border-white ${
-                              skill.averageScore > 0 && skill.averageScore < 1.5 ? 'bg-red-200 text-red-800' : 'bg-gray-100 text-gray-500'
+                              skill.averageScore < 1.5 ? 'bg-red-200 text-red-800' : 'bg-gray-100 text-gray-500'
                             }`}>
                               Emerging
                             </div>
@@ -226,12 +222,6 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                               Applying
                             </div>
                           </div>
-                          
-                          {skill.averageScore === 0 && (
-                            <div className="text-center py-2">
-                              <p className="text-sm text-gray-500">No assessments completed for this skill yet</p>
-                            </div>
-                          )}
 
                           
                         </div>

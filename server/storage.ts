@@ -1,17 +1,3 @@
-import { z } from "zod";
-
-interface CompetencyProgressData {
-  competencyId: number;
-  competencyName: string;
-  componentSkillId: number;
-  componentSkillName: string;
-  averageScore: number;
-  totalScores: number[];
-  lastScore: number;
-  lastUpdated: string;
-  progressDirection: 'improving' | 'declining' | 'stable';
-}
-
 import {
   users,
   projects,
@@ -171,7 +157,17 @@ export interface IStorage {
   // Grade operations
   createGrade(grade: Omit<Grade, "id" | "gradedAt">): Promise<Grade>;
   getGradesBySubmission(submissionId: number): Promise<Grade[]>;
-  getStudentCompetencyProgress(studentId: number): Promise<Array<CompetencyProgressData>>;
+  getStudentCompetencyProgress(studentId: number): Promise<Array<{
+    competencyId: number;
+    competencyName: string;
+    componentSkillId: number;
+    componentSkillName: string;
+    averageScore: number;
+    totalScores: number[];
+    lastScore: number;
+    lastUpdated: string;
+    progressDirection: 'improving' | 'declining' | 'stable';
+  }>>;
 
   // Self-evaluation operations
   createSelfEvaluation(selfEvaluation: InsertSelfEvaluation): Promise<SelfEvaluation>;
@@ -755,7 +751,17 @@ export class DatabaseStorage implements IStorage {
     return existingGrades.length > 0 ? existingGrades[0] : null;
   }
 
-  async getStudentCompetencyProgress(studentId: number): Promise<Array<CompetencyProgressData>> {
+  async getStudentCompetencyProgress(studentId: number): Promise<Array<{
+    competencyId: number;
+    competencyName: string;
+    componentSkillId: number;
+    componentSkillName: string;
+    averageScore: number;
+    totalScores: number[];
+    lastScore: number;
+    lastUpdated: string;
+    progressDirection: 'improving' | 'declining' | 'stable';
+  }>> {
     try {
       // Get all grades for the student with related component skills and competencies
       // Use separate queries to avoid Drizzle ORM field selection issues
