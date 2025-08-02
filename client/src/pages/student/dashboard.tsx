@@ -9,9 +9,11 @@ import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
 import CredentialBadge from "@/components/credential-badge";
 import ProgressBar from "@/components/progress-bar";
+import CompetencyHive from "@/components/competency-hive";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   BookOpen, 
   Award, 
@@ -24,7 +26,11 @@ import {
   Star,
   Trophy,
   AlertCircle,
-  Hash
+  Hash,
+  Calendar,
+  CheckCircle,
+  Briefcase,
+  Folder
 } from "lucide-react";
 
 export default function StudentDashboard() {
@@ -61,21 +67,21 @@ export default function StudentDashboard() {
   // Fetch student projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
     queryKey: ["/api/projects"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
   // Fetch student credentials
   const { data: credentials = [], isLoading: credentialsLoading } = useQuery({
     queryKey: ["/api/credentials/student"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
   // Fetch portfolio artifacts
   const { data: artifacts = [] } = useQuery({
     queryKey: ["/api/portfolio/artifacts"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
@@ -101,26 +107,26 @@ export default function StudentDashboard() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'student') {
+  if (!isAuthenticated || (user as any)?.role !== 'student') {
     return null;
   }
 
   // Use real competency progress data from API
   const { data: competencyProgress = [] } = useQuery({
-    queryKey: ["/api/competency-progress/student", user?.id],
-    enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
+    queryKey: ["/api/competency-progress/student", (user as any)?.id],
+    enabled: isAuthenticated && (user as any)?.role === 'student' && !!(user as any)?.id,
     retry: false,
   });
 
   // Fetch upcoming deadlines
   const { data: upcomingDeadlines = [] } = useQuery({
     queryKey: ["/api/deadlines/student"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
-  const recentCredentials = credentials.slice(0, 3);
-  const activeProjects = projects.filter(p => p.status === 'active');
+  const recentCredentials = Array.isArray(credentials) ? (credentials as any[]).slice(0, 3) : [];
+  const activeProjects = Array.isArray(projects) ? (projects as any[]).filter((p: any) => p.status === 'active') : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -133,7 +139,7 @@ export default function StudentDashboard() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Welcome back, {user.firstName}!
+                  Welcome back, {(user as any)?.firstName || 'Student'}!
                 </h1>
                 <p className="text-gray-600">
                   Continue your learning journey and track your progress across all projects.
@@ -168,11 +174,215 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          
+          {/* Main Dashboard Grid */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8">
+            {/* Left Column - Projects and Tasks */}
+            <div className="xl:col-span-2 space-y-6">
+              {/* Active Projects */}
+              <Card className="shadow-lg border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-xl">
+                    <Briefcase className="h-6 w-6 mr-3 text-blue-600" />
+                    My Active Projects
+                    {activeProjects.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {activeProjects.length}
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {projectsLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-24 bg-gray-200 rounded-lg"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : activeProjects.length > 0 ? (
+                    <ScrollArea className="h-96">
+                      <div className="space-y-4 pr-4">
+                        {activeProjects.map((project: any) => (
+                          <ProjectCard key={project.id} project={project} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Projects</h3>
+                      <p className="text-gray-600">Check back later for new project assignments.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-          
+              {/* Upcoming Deadlines */}
+              <Card className="shadow-lg border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-xl">
+                    <Calendar className="h-6 w-6 mr-3 text-red-600" />
+                    Upcoming Deadlines
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {Array.isArray(upcomingDeadlines) && upcomingDeadlines.length > 0 ? (
+                    <div className="space-y-3">
+                      {(upcomingDeadlines as any[]).slice(0, 5).map((deadline: any, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Clock className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <p className="font-medium text-gray-900">{deadline.title || deadline.name}</p>
+                              <p className="text-sm text-gray-600">{deadline.projectTitle}</p>
+                            </div>
+                          </div>
+                          <Badge variant={deadline.priority === 'high' ? 'destructive' : 'secondary'}>
+                            {new Date(deadline.dueDate).toLocaleDateString()}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-3" />
+                      <p className="text-gray-600">No upcoming deadlines. You're all caught up!</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          
+            {/* Right Column - Quick Stats */}
+            <div className="space-y-6">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 gap-4">
+                <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-blue-100 text-sm">Active Projects</p>
+                        <p className="text-3xl font-bold">{activeProjects.length}</p>
+                      </div>
+                      <Briefcase className="h-8 w-8 text-blue-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-green-100 text-sm">Credentials Earned</p>
+                        <p className="text-3xl font-bold">{Array.isArray(credentials) ? credentials.length : 0}</p>
+                      </div>
+                      <Award className="h-8 w-8 text-green-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-purple-100 text-sm">Portfolio Items</p>
+                        <p className="text-3xl font-bold">{Array.isArray(artifacts) ? artifacts.length : 0}</p>
+                      </div>
+                      <Folder className="h-8 w-8 text-purple-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Credentials */}
+              <Card className="shadow-lg border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-lg">
+                    <Trophy className="h-5 w-5 mr-2 text-yellow-600" />
+                    Recent Achievements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recentCredentials.length > 0 ? (
+                    <div className="space-y-3">
+                      {recentCredentials.map((credential: any) => (
+                        <CredentialBadge key={credential.id} credential={credential} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Star className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600 text-sm">No credentials yet. Keep working on your projects!</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Competency Hive Section */}
+          <Card className="shadow-lg border-0 mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl">
+                <Brain className="h-7 w-7 mr-3 text-purple-600" />
+                My Competency Hive
+              </CardTitle>
+              <p className="text-gray-600 mt-2">
+                Track your progress across all XQ competencies. Each hexagon represents a different skill area, 
+                with colors indicating your mastery level.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <CompetencyHive 
+                studentId={(user as any)?.id} 
+                showProgress={true} 
+              />
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/student/projects">
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-0 bg-gradient-to-br from-blue-50 to-blue-100">
+                <CardContent className="p-6 text-center">
+                  <Briefcase className="h-10 w-10 text-blue-600 mx-auto mb-3" />
+                  <h3 className="font-semibold text-gray-900 mb-1">View All Projects</h3>
+                  <p className="text-sm text-gray-600">See all your assigned projects</p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/student/portfolio">
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-0 bg-gradient-to-br from-green-50 to-green-100">
+                <CardContent className="p-6 text-center">
+                  <Folder className="h-10 w-10 text-green-600 mx-auto mb-3" />
+                  <h3 className="font-semibold text-gray-900 mb-1">My Portfolio</h3>
+                  <p className="text-sm text-gray-600">Manage your work artifacts</p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/student/credentials">
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-0 bg-gradient-to-br from-yellow-50 to-yellow-100">
+                <CardContent className="p-6 text-center">
+                  <Award className="h-10 w-10 text-yellow-600 mx-auto mb-3" />
+                  <h3 className="font-semibold text-gray-900 mb-1">Credentials</h3>
+                  <p className="text-sm text-gray-600">View earned badges</p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/student/enter-code">
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-0 bg-gradient-to-br from-purple-50 to-purple-100">
+                <CardContent className="p-6 text-center">
+                  <Hash className="h-10 w-10 text-purple-600 mx-auto mb-3" />
+                  <h3 className="font-semibold text-gray-900 mb-1">Join Assessment</h3>
+                  <p className="text-sm text-gray-600">Enter teacher's code</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
         </div>
       </main>
     </div>
