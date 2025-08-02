@@ -1,8 +1,9 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ProgressBar from "@/components/progress-bar";
-import { TrendingUp, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Clock, Target } from "lucide-react";
 import { format } from "date-fns";
 import React from 'react';
 
@@ -47,29 +48,27 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
     return acc;
   }, {} as Record<string, CompetencyProgressData[]>);
 
-  const decliningCompetencies = competencyProgress.filter(
-    comp => comp.progressDirection === 'declining'
-  );
-
   if (isLoading) {
     return (
-      <Card className="apple-shadow border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-            <span>Competency Progress</span>
+      <Card className="border border-gray-100 shadow-sm bg-white/50 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-gray-800">
+            <div className="p-1.5 bg-blue-100 rounded-lg">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+            </div>
+            <span className="text-lg font-semibold">Competency Progress</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-2 bg-gray-200 rounded w-full mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+        <CardContent className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse space-y-3">
+              <div className="h-4 bg-gray-200 rounded-lg w-2/3"></div>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-100 rounded w-full"></div>
+                <div className="h-2 bg-gray-100 rounded w-3/4"></div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
     );
@@ -77,19 +76,23 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
 
   if (competencyProgress.length === 0) {
     return (
-      <Card className="apple-shadow border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-            <span>Competency Progress</span>
+      <Card className="border border-gray-100 shadow-sm bg-white/50 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-gray-800">
+            <div className="p-1.5 bg-blue-100 rounded-lg">
+              <Target className="h-4 w-4 text-blue-600" />
+            </div>
+            <span className="text-lg font-semibold">Competency Progress</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No competency data available yet</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Complete assessments to start tracking your progress
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Clock className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="font-medium text-gray-900 mb-2">No progress data yet</h3>
+            <p className="text-sm text-gray-500 max-w-sm mx-auto">
+              Complete assessments to start tracking your competency progress across different skills
             </p>
           </div>
         </CardContent>
@@ -100,98 +103,112 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
   const getProgressIcon = (direction: string) => {
     switch (direction) {
       case 'improving':
-        return <TrendingUp className="h-4 w-4 text-green-600" />;
+        return <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />;
       case 'declining':
-        return <TrendingUp className="h-4 w-4 text-red-600" />;
+        return <TrendingDown className="h-3.5 w-3.5 text-red-500" />;
       default:
-        return <TrendingUp className="h-4 w-4 text-gray-500" />;
+        return <Minus className="h-3.5 w-3.5 text-gray-400" />;
     }
   };
 
   const getProgressColor = (score: number, direction: string) => {
     if (direction === 'declining') return 'red';
-    if (score >= 85) return 'green';
+    if (score >= 90) return 'green';
+    if (score >= 80) return 'blue';
     if (score >= 70) return 'yellow';
-    if (score >= 60) return 'orange';
-    return 'blue';
+    return 'orange';
   };
 
+  const getScoreColor = (score: number, direction: string) => {
+    if (direction === 'declining') return 'text-red-600';
+    if (score >= 90) return 'text-emerald-600';
+    if (score >= 80) return 'text-blue-600';
+    if (score >= 70) return 'text-amber-600';
+    return 'text-orange-600';
+  };
 
   return (
-    <div className="space-y-6">
-
-
-      <Card className="apple-shadow border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-            <span>Competency Progress</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {Object.entries(groupedCompetencies).map(([competencyName, skills]) => (
-            <div key={competencyName} className="space-y-4">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg border-b border-gray-200 dark:border-gray-700 pb-2">
+    <Card className="border border-gray-100 shadow-sm bg-white/50 backdrop-blur-sm">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-gray-800">
+          <div className="p-1.5 bg-blue-100 rounded-lg">
+            <TrendingUp className="h-4 w-4 text-blue-600" />
+          </div>
+          <span className="text-lg font-semibold">Competency Progress</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {Object.entries(groupedCompetencies).map(([competencyName, skills]) => (
+          <div key={competencyName} className="space-y-3">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <h3 className="font-semibold text-gray-900 text-base">
                 {competencyName}
               </h3>
+              <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600">
+                {skills.length} skill{skills.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
 
-              <div className="space-y-4">
-                {skills.map((skill) => (
-                  <div 
-                    key={`${skill.competencyId}-${skill.componentSkillId}`} 
-                    className={`p-4 rounded-xl transition-all duration-200 ${
-                      skill.progressDirection === 'declining' 
-                        ? 'bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800' 
-                        : 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                          {skill.componentSkillName}
-                        </h4>
-                        <div className="flex items-center space-x-2 mt-1">
-
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
+            <div className="grid gap-2">
+              {skills.map((skill) => (
+                <div 
+                  key={`${skill.competencyId}-${skill.componentSkillId}`} 
+                  className="group p-3 rounded-xl border border-gray-100 bg-gradient-to-r from-gray-50/50 to-white hover:shadow-sm transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 text-sm truncate pr-2">
+                        {skill.componentSkillName}
+                      </h4>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-gray-500">
+                          {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {getProgressIcon(skill.progressDirection)}
+                          <span className="text-xs text-gray-500 capitalize">
+                            {skill.progressDirection}
                           </span>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                          {skill.averageScore}%
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Last: {skill.lastScore}%
                         </div>
                       </div>
                     </div>
 
+                    <div className="text-right flex-shrink-0">
+                      <div className={`text-xl font-bold ${getScoreColor(skill.averageScore, skill.progressDirection)}`}>
+                        {skill.averageScore}%
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Latest: {skill.lastScore}%
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <ProgressBar 
                       value={skill.averageScore} 
                       color={getProgressColor(skill.averageScore, skill.progressDirection)}
                       size="sm"
-                      className="mb-2"
+                      className="h-1.5"
                     />
-
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>
-                        Updated: {format(new Date(skill.lastUpdated), 'MMM d, yyyy')}
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">
+                        {format(new Date(skill.lastUpdated), 'MMM d')}
                       </span>
                       {skill.totalScores.length > 1 && (
-                        <span>
+                        <span className="text-xs text-gray-400">
                           Range: {Math.min(...skill.totalScores)}% - {Math.max(...skill.totalScores)}%
                         </span>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
