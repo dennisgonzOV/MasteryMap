@@ -5,7 +5,9 @@ import {
   assessments as assessmentsTable,
   componentSkills as componentSkillsTable,
   safetyIncidents as safetyIncidentsTable,
-  notifications as notificationsTable
+  notifications as notificationsTable,
+  projects as projectsTable,
+  milestones as milestonesTable
 } from "../../shared/schema";
 
 interface SafetyIncident {
@@ -40,16 +42,54 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
 
     const studentInfo = student[0];
 
-    // Get teachers from the same school
-    const schoolTeachers = await db.select({
-      id: usersTable.id,
-      firstName: usersTable.firstName,
-      lastName: usersTable.lastName,
-      email: usersTable.email
-    })
-    .from(usersTable)
-    .where(eq(usersTable.schoolId, studentInfo.schoolId!))
-    .where(eq(usersTable.role, 'teacher'));
+    let teachersToNotify: any[] = [];
+
+    // If this is related to a specific assessment, try to notify only the teacher who created it
+    if (incident.assessmentId) {
+      const assessment = await db.select({
+        id: assessmentsTable.id,
+        title: assessmentsTable.title,
+        milestoneId: assessmentsTable.milestoneId
+      })
+      .from(assessmentsTable)
+      .where(eq(assessmentsTable.id, incident.assessmentId))
+      .limit(1);
+
+      if (assessment.length && assessment[0].milestoneId) {
+        // Get the project teacher through milestone -> project -> teacher
+        const projectTeacher = await db.select({
+          id: usersTable.id,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          email: usersTable.email
+        })
+        .from(usersTable)
+        .innerJoin(projectsTable, eq(projectsTable.teacherId, usersTable.id))
+        .innerJoin(milestonesTable, eq(milestonesTable.projectId, projectsTable.id))
+        .where(eq(milestonesTable.id, assessment[0].milestoneId))
+        .limit(1);
+
+        if (projectTeacher.length) {
+          teachersToNotify = projectTeacher;
+          console.log(`Notifying specific teacher for assessment ${incident.assessmentId}:`, projectTeacher[0]);
+        }
+      }
+    }
+
+    // If no specific teacher found, fall back to all teachers in the school (for critical incidents)
+    if (teachersToNotify.length === 0) {
+      teachersToNotify = await db.select({
+        id: usersTable.id,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        email: usersTable.email
+      })
+      .from(usersTable)
+      .where(eq(usersTable.schoolId, studentInfo.schoolId!))
+      .where(eq(usersTable.role, 'teacher'));
+      
+      console.log(`Falling back to all school teachers (${teachersToNotify.length} teachers)`);
+    }
 
     // Get assessment and component skill context if available
     let contextInfo = '';
@@ -81,7 +121,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
       studentName: `${studentInfo.firstName} ${studentInfo.lastName}`,
       incidentType: incident.incidentType,
       timestamp: incident.timestamp.toISOString(),
-      teachersNotified: schoolTeachers.length,
+      teachersNotified: teachersToNotify.length,
       contextInfo
     });
 
@@ -98,8 +138,8 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
       resolved: false
     });
 
-    // Create in-app notifications for all teachers in the school
-    const notificationPromises = schoolTeachers.map(teacher => 
+    // Create in-app notifications for the targeted teachers
+    const notificationPromises = teachersToNotify.map(teacher => 
       db.insert(notificationsTable).values({
         userId: teacher.id,
         type: 'safety_incident',
@@ -135,7 +175,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
         timestamp: incident.timestamp.toISOString()
       },
       context: contextInfo,
-      teachersNotified: schoolTeachers.map(t => ({
+      teachersNotified: teachersToNotify.map(t => ({
         id: t.id,
         name: `${t.firstName} ${t.lastName}`,
         email: t.email
