@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +53,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-gray-800">
             <div className="p-1.5 bg-blue-100 rounded-lg">
-              <TrendingUp className="h-4 w-4 text-blue-600" />
+              <Target className="h-4 w-4 text-blue-600" />
             </div>
             <span className="text-lg font-semibold">Competency Progress</span>
           </CardTitle>
@@ -165,12 +164,6 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                         <span className="text-xs text-gray-500">
                           {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
                         </span>
-                        <div className="flex items-center gap-1">
-                          {getProgressIcon(skill.progressDirection)}
-                          <span className="text-xs text-gray-500 capitalize">
-                            {skill.progressDirection}
-                          </span>
-                        </div>
                       </div>
                     </div>
 
@@ -191,7 +184,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                       size="sm"
                       className="h-1.5"
                     />
-                    
+
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-400">
                         {format(new Date(skill.lastUpdated), 'MMM d')}
