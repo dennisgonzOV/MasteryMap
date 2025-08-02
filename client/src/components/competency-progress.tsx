@@ -151,7 +151,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
       <CardContent className="space-y-6">
         {Object.entries(groupedCompetencies).map(([competencyName, skills]) => {
           const isCollapsed = collapsedCompetencies.has(competencyName);
-          
+
           return (
             <div key={competencyName} className="space-y-3">
               <div 
@@ -188,7 +188,7 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="w-full space-y-2">
                         <ProgressBar 
                           value={skill.averageScore} 
@@ -196,29 +196,44 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                           size="sm"
                           className="h-1.5 w-full"
                         />
-                        
+
                         {/* Achievement Bar */}
                         <div className="w-full">
-                          <div className="flex w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="flex-1 bg-red-200 border-r border-white"></div>
-                            <div className="flex-1 bg-yellow-200 border-r border-white"></div>
-                            <div className="flex-1 bg-blue-200 border-r border-white"></div>
-                            <div className="flex-1 bg-green-200"></div>
+                          {/* Achievement Level Indicator */}
+                          <div className="flex w-full h-8 bg-gray-50 rounded-lg overflow-hidden mb-2">
+                            <div className={`flex-1 flex items-center justify-center text-xs font-medium border-r border-white ${
+                              Math.ceil(skill.averageScore / 25) === 1 ? 'bg-red-200 text-red-800' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              Emerging
+                            </div>
+                            <div className={`flex-1 flex items-center justify-center text-xs font-medium border-r border-white ${
+                              Math.ceil(skill.averageScore / 25) === 2 ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              Developing
+                            </div>
+                            <div className={`flex-1 flex items-center justify-center text-xs font-medium border-r border-white ${
+                              Math.ceil(skill.averageScore / 25) === 3 ? 'bg-blue-200 text-blue-800' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              Proficient
+                            </div>
+                            <div className={`flex-1 flex items-center justify-center text-xs font-medium ${
+                              Math.ceil(skill.averageScore / 25) === 4 || skill.averageScore === 100 ? 'bg-green-200 text-green-800' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              Applying
+                            </div>
                           </div>
-                          
-                          {/* Achievement indicator */}
-                          <div className="relative mt-1">
-                            <div 
-                              className="absolute w-2 h-2 bg-gray-800 rounded-full transform -translate-x-1/2"
-                              style={{ left: `${skill.averageScore}%` }}
-                            ></div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
-                            <span>Emerging</span>
-                            <span>Developing</span>
-                            <span>Proficient</span>
-                            <span>Applying</span>
+
+                          <div className="text-center">
+                            <span className="text-sm font-medium text-gray-700">
+                              Current Level: {
+                                skill.averageScore <= 25 ? 'Emerging' :
+                                skill.averageScore <= 50 ? 'Developing' :
+                                skill.averageScore <= 75 ? 'Proficient' : 'Applying'
+                              }
+                            </span>
+                            <span className="text-xs text-gray-500 ml-2">
+                              (Score: {Math.round(skill.averageScore)})
+                            </span>
                           </div>
                         </div>
                       </div>
