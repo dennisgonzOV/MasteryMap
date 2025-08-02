@@ -1021,6 +1021,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to award stickers based on rubric levels
+  const awardStickers = async (studentId: number, grades: any[]) => {
+    const stickerColors = {
+      emerging: { color: 'red', title: 'Red Sticker', description: 'Emerging proficiency level achieved' },
+      developing: { color: 'yellow', title: 'Yellow Sticker', description: 'Developing proficiency level achieved' },
+      proficient: { color: 'blue', title: 'Blue Sticker', description: 'Proficient level achieved' },
+      applying: { color: 'green', title: 'Green Sticker', description: 'Applying level achieved' }
+    };
+
+    const stickersToAward = [];
+
+    for (const grade of grades) {
+      const stickerConfig = stickerColors[grade.rubricLevel as keyof typeof stickerColors];
+      if (stickerConfig) {
+        // Check if student already has this sticker for this component skill
+        const existingSticker = await db.select()
+          .from(credentialsTable)
+          .where(and(
+            eq(credentialsTable.studentId, studentId),
+            eq(credentialsTable.componentSkillId, grade.componentSkillId),
+            eq(credentialsTable.type, 'sticker')
+          ))
+          .limit(1);
+
+        // Only award if they don't already have a sticker for this skill
+        if (existingSticker.length === 0) {
+          const componentSkill = await storage.getComponentSkill(grade.componentSkillId);
+          
+          stickersToAward.push({
+            studentId: studentId,
+            type: 'sticker' as const,
+            componentSkillId: grade.componentSkillId,
+            title: `${stickerConfig.title} - ${componentSkill?.name || 'Component Skill'}`,
+            description: `${stickerConfig.description} for ${componentSkill?.name || 'this component skill'}`,
+            iconUrl: null,
+            approvedBy: grade.gradedBy
+          });
+        }
+      }
+    }
+
+    // Award all stickers
+    if (stickersToAward.length > 0) {
+      await Promise.all(
+        stickersToAward.map(sticker => storage.createCredential(sticker))
+      );
+      console.log(`Awarded ${stickersToAward.length} stickers to student ${studentId}`);
+    }
+
+    return stickersToAward;
+  };
+
   // Grading routes
   app.post('/api/submissions/:id/grade', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -1170,10 +1222,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Updating submission " + submissionId + " with grade: " + finalGrade + ", feedback length: " + (finalFeedback?.length || 0));
       const updatedSubmission = await storage.updateSubmission(submissionId, updateData);
 
+      // Award stickers for component skill grades
+      let awardedStickers: any[] = [];
+      if (savedGrades.length > 0) {
+        const submission = await storage.getSubmission(submissionId);
+        if (submission) {
+          awardedStickers = await awardStickers(submission.studentId, savedGrades);
+        }
+      }
+
       res.json({ 
         grades: savedGrades, 
         feedback: finalFeedback,
-        submission: updatedSubmission 
+        submission: updatedSubmission,
+        stickersAwarded: awardedStickers
       });
     } catch (error) {
       console.error("Error grading submission:", error);

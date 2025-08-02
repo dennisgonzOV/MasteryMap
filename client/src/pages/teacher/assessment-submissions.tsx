@@ -426,13 +426,14 @@ export default function AssessmentSubmissions() {
     }
   }, [gradeMutation.isSuccess, gradeMutation.variables, id]);
 
-  const getRubricLevelBadge = (level: string) => {
+  const getRubricLevelBadge = (level: string, showSticker: boolean = false) => {
     const levelConfig = rubricLevels.find(r => r.value === level);
     if (!levelConfig) return null;
 
     return (
       <Badge className={`${levelConfig.color} border`}>
         {levelConfig.label}
+        {showSticker && <span className="ml-1">⭐️</span>}
       </Badge>
     );
   };
@@ -613,7 +614,7 @@ export default function AssessmentSubmissions() {
                   Grade submissions one by one with AI assistance. Review and edit AI-generated 
                   grades and feedback before finalizing.
                 </p>
-                
+
                 <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
@@ -893,7 +894,7 @@ export default function AssessmentSubmissions() {
                                   <CardContent className="p-4">
                                     <div className="flex items-center justify-between mb-3">
                                       <h6 className="font-medium text-gray-900">{skill?.name}</h6>
-                                      {getRubricLevelBadge(grade.rubricLevel)}
+                                      {getRubricLevelBadge(grade.rubricLevel, true)}
                                     </div>
                                     <div className="space-y-2">
                                       <div className="text-lg font-semibold text-blue-800">
@@ -930,7 +931,7 @@ export default function AssessmentSubmissions() {
                                   <CardContent className="p-4">
                                     <div className="flex items-center justify-between mb-3">
                                       <h6 className="font-medium text-gray-900">{skill?.name}</h6>
-                                      {getRubricLevelBadge(grade.rubricLevel)}
+                                      {getRubricLevelBadge(grade.rubricLevel, true)}
                                     </div>
                                     <div className="space-y-2">
                                       <div className="text-lg font-semibold text-gray-900">

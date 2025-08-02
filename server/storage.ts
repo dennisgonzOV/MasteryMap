@@ -904,6 +904,8 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+```text
+
   }
 
   async getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]> {
