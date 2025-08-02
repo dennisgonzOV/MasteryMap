@@ -69,7 +69,7 @@ export default function TakeAssessment() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Self-evaluation specific state
   const [currentSkillIndex, setCurrentSkillIndex] = useState(0);
   const [selfEvaluations, setSelfEvaluations] = useState<Record<number, SelfEvaluationData>>({});
@@ -166,9 +166,9 @@ export default function TakeAssessment() {
       return response.json();
     },
     onSuccess: (data) => {
-      const currentSkill = assessmentComponentSkills[currentSkillIndex];
+      const currentSkill = assessmentComponentSkills[0];
       const currentEval = selfEvaluations[currentSkill?.id];
-      
+
       // Show AI feedback modal if available
       if (data.aiAnalysis?.improvementFeedback) {
         setAiFeedbackModal({
@@ -184,15 +184,11 @@ export default function TakeAssessment() {
           title: "Self-evaluation submitted!",
           description: "Your response has been saved.",
         });
-        
+
         // Move to next skill or finish
-        if (currentSkillIndex < assessmentComponentSkills.length - 1) {
-          setCurrentSkillIndex(prev => prev + 1);
-        } else {
-          setTimeout(() => {
+         setTimeout(() => {
             setLocation('/student/dashboard');
           }, 1000);
-        }
       }
     },
     onError: (error) => {
@@ -233,9 +229,9 @@ export default function TakeAssessment() {
   };
 
   const submitCurrentSelfEvaluation = async () => {
-    const currentSkill = assessmentComponentSkills[currentSkillIndex];
+    const currentSkill = assessmentComponentSkills[0];
     const currentEval = selfEvaluations[currentSkill.id];
-    
+
     if (!currentEval || !currentEval.selfAssessedLevel || !currentEval.justification) {
       toast({
         title: "Incomplete self-evaluation",
@@ -255,25 +251,16 @@ export default function TakeAssessment() {
 
   const handleAIFeedbackContinue = () => {
     setAiFeedbackModal(prev => ({ ...prev, open: false }));
-    
+
     // Move to next skill or finish
-    if (currentSkillIndex < assessmentComponentSkills.length - 1) {
-      setCurrentSkillIndex(prev => prev + 1);
-    } else {
-      // All skills completed, redirect to dashboard
-      toast({
-        title: "Self-evaluation complete!",
-        description: "All component skills have been evaluated. Great work!",
-      });
-      setTimeout(() => {
+     setTimeout(() => {
         setLocation('/student/dashboard');
       }, 2000);
-    }
   };
 
   // Calculate progress based on assessment type
   const progress = assessment?.assessmentType === 'self-evaluation' 
-    ? (currentSkillIndex / Math.max(assessmentComponentSkills.length, 1)) * 100
+    ? (0 / Math.max(assessmentComponentSkills.length, 1)) * 100
     : ((currentQuestionIndex + 1) / Math.max(assessment?.questions.length || 1, 1)) * 100;
 
   if (isLoading || assessmentLoading) {
@@ -322,9 +309,6 @@ export default function TakeAssessment() {
 
   const handleNext = () => {
     if (assessment.assessmentType === 'self-evaluation') {
-      if (currentSkillIndex < assessmentComponentSkills.length - 1) {
-        setCurrentSkillIndex(prev => prev + 1);
-      }
     } else {
       if (currentQuestionIndex < (assessment.questions?.length || 0) - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
@@ -334,9 +318,6 @@ export default function TakeAssessment() {
 
   const handlePrevious = () => {
     if (assessment.assessmentType === 'self-evaluation') {
-      if (currentSkillIndex > 0) {
-        setCurrentSkillIndex(prev => prev - 1);
-      }
     } else {
       if (currentQuestionIndex > 0) {
         setCurrentQuestionIndex(prev => prev - 1);
@@ -536,7 +517,7 @@ export default function TakeAssessment() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">
                 {assessment.assessmentType === 'self-evaluation' ? (
-                  `Component Skill ${currentSkillIndex + 1} of ${assessmentComponentSkills.length}`
+                  `Component Skill`
                 ) : (
                   `Question ${currentQuestionIndex + 1} of ${assessment.questions?.length || 0}`
                 )}
@@ -555,7 +536,7 @@ export default function TakeAssessment() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <FileText className="h-5 w-5" />
-                  <span>Self-Evaluate with AI Tutor: {assessmentComponentSkills[currentSkillIndex]?.name}</span>
+                  <span>Self-Evaluate with AI Tutor: {assessmentComponentSkills[0]?.name}</span>
                 </CardTitle>
                 <p className="text-sm text-gray-600 mt-1">
                   Chat with your AI tutor to explore your understanding and competency level for this skill.
@@ -563,17 +544,15 @@ export default function TakeAssessment() {
               </CardHeader>
               <CardContent>
                 <AITutorChat
-                  componentSkill={assessmentComponentSkills[currentSkillIndex]}
-                  selfEvaluation={selfEvaluations[assessmentComponentSkills[currentSkillIndex]?.id] || {
+                  componentSkill={assessmentComponentSkills[0]}
+                  selfEvaluation={selfEvaluations[assessmentComponentSkills[0]?.id] || {
                     selfAssessedLevel: '',
                     justification: '',
                     examples: ''
                   }}
-                  onEvaluationUpdate={(updates) => 
-                    updateSelfEvaluation(assessmentComponentSkills[currentSkillIndex].id, updates)
-                  }
+                  onEvaluationUpdate={(updates) => updateSelfEvaluation(assessmentComponentSkills[0].id, updates)}
                   onComplete={submitCurrentSelfEvaluation}
-                  isSubmitting={submitSelfEvaluationMutation.isPending}
+                  isSubmitting={isSubmitting}
                 />
               </CardContent>
             </Card>
@@ -691,7 +670,7 @@ export default function TakeAssessment() {
           <Button
             variant="outline"
             onClick={handlePrevious}
-            disabled={assessment.assessmentType === 'self-evaluation' ? currentSkillIndex === 0 : currentQuestionIndex === 0}
+            disabled={assessment.assessmentType === 'self-evaluation' ? true : currentQuestionIndex === 0}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Previous
@@ -706,9 +685,7 @@ export default function TakeAssessment() {
 
           {assessment.assessmentType === 'self-evaluation' ? (
             <div className="text-sm text-gray-600">
-              {currentSkillIndex === assessmentComponentSkills.length - 1 
-                ? "Complete your chat to submit your final evaluation"
-                : "Complete your chat to continue to the next skill"}
+                "Complete your chat to submit your final evaluation"
             </div>
           ) : isLastQuestion ? (
             <Button
@@ -736,50 +713,34 @@ export default function TakeAssessment() {
           )}
         </div>
 
-        {/* Overview */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {assessment.assessmentType === 'self-evaluation' ? 'Component Skills Overview' : 'Question Overview'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {assessment.assessmentType === 'self-evaluation' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {assessmentComponentSkills.map((skill, index) => {
-                  const isCompleted = selfEvaluations[skill.id]?.selfAssessedLevel && selfEvaluations[skill.id]?.justification;
-                  const isCurrent = index === currentSkillIndex;
-                  
-                  return (
-                    <button
-                      key={skill.id}
-                      onClick={() => setCurrentSkillIndex(index)}
-                      className={`
-                        p-3 rounded text-left text-sm transition-colors border
-                        ${isCurrent 
-                          ? 'bg-blue-600 text-white border-blue-600' 
-                          : isCompleted
-                            ? 'bg-green-100 text-green-800 border-green-300'
-                            : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
-                        }
-                      `}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{skill.name}</span>
-                        {isCompleted && !isCurrent && (
-                          <CheckCircle className="h-4 w-4" />
-                        )}
-                      </div>
-                      {isCompleted && (
-                        <div className="text-xs mt-1 opacity-75">
-                          Level: {selfEvaluations[skill.id]?.selfAssessedLevel}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+        {/* Current Component Skill Display */}
+        {assessment.assessmentType === 'self-evaluation' && (
+          <Card className="mt-6 bg-blue-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="text-lg text-blue-900">
+                Component Skill Assessment
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-white rounded border border-blue-200">
+                <h3 className="font-semibold text-blue-900 mb-2">
+                  {assessmentComponentSkills[0]?.name}
+                </h3>
+                <p className="text-sm text-blue-700">
+                  You will evaluate your current competency level for this component skill through conversation with an AI tutor.
+                </p>
               </div>
-            ) : (
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Question Overview for regular assessments */}
+        {assessment.assessmentType !== 'self-evaluation' && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Question Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="grid grid-cols-5 gap-2">
                 {(assessment.questions || []).map((question, index) => (
                   <button
@@ -802,9 +763,9 @@ export default function TakeAssessment() {
                   </button>
                 ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* AI Feedback Modal */}
         <AIFeedbackModal
@@ -815,7 +776,7 @@ export default function TakeAssessment() {
           skillName={aiFeedbackModal.skillName}
           selectedLevel={aiFeedbackModal.selectedLevel}
           onContinue={handleAIFeedbackContinue}
-          isLastSkill={currentSkillIndex === assessmentComponentSkills.length - 1}
+          isLastSkill={true}
         />
       </div>
     </div>
