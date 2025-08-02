@@ -38,7 +38,6 @@ import {
   type InsertSelfEvaluation,
   type ProjectAssignment,
   type InsertProjectTeam,
-  type InsertProjectTeamMember,
   type InsertSchool,
   type InsertAuthToken,
   UpsertUser,
@@ -86,7 +85,7 @@ export interface IStorage {
   getProjectTeams(projectId: number): Promise<ProjectTeam[]>;
   getProjectTeam(teamId: number): Promise<ProjectTeam | undefined>;
   deleteProjectTeam(teamId: number): Promise<void>;
-  addTeamMember(teamMember: InsertProjectTeamMember): Promise<ProjectTeamMember>;
+  addTeamMember(teamMember: Omit<ProjectTeamMember, 'id' | 'joinedAt'>): Promise<ProjectTeamMember>;
   removeTeamMember(memberId: number): Promise<void>;
   getTeamMembers(teamId: number): Promise<ProjectTeamMember[]>;
   getStudentsBySchool(schoolId: number): Promise<User[]>;
@@ -772,7 +771,7 @@ export class DatabaseStorage implements IStorage {
 
       // Filter grades for this student's submissions
       const submissionIds = allSubmissions.map(s => s.id);
-      const studentGradesRaw = allGrades.filter(g => submissionIds.includes(g.submissionId));
+      const studentGradesRaw = allGrades.filter(g => g.submissionId && submissionIds.includes(g.submissionId));
 
       // Create lookup maps
       const skillMap = new Map(allComponentSkills.map(s => [s.id, s]));
@@ -900,12 +899,11 @@ export class DatabaseStorage implements IStorage {
 
       result.push({
         ...outcome,
-        competencies: competenciesWithSkills,      });
+        competencies: competenciesWithSkills,
+      });
     }
 
     return result;
-```text
-
   }
 
   async getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]> {
@@ -1066,7 +1064,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(projectTeams).where(eq(projectTeams.projectId, projectId));
   }
 
-  async addTeamMember(memberData: InsertProjectTeamMember): Promise<ProjectTeamMember> {
+  async addTeamMember(memberData: Omit<ProjectTeamMember, 'id' | 'joinedAt'>): Promise<ProjectTeamMember> {
     const [member] = await db.insert(projectTeamMembers).values(memberData).returning();
     return member;
   }
