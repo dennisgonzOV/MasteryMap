@@ -185,9 +185,6 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                             {skill.componentSkillName}
                           </h4>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs text-gray-500">
-                              {skill.totalScores.length} assessment{skill.totalScores.length !== 1 ? 's' : ''}
-                            </span>
                           </div>
                         </div>
 
