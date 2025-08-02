@@ -185,16 +185,13 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                       className="h-1.5"
                     />
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">
-                        {format(new Date(skill.lastUpdated), 'MMM d')}
-                      </span>
-                      {skill.totalScores.length > 1 && (
+                    {skill.totalScores.length > 1 && (
+                      <div className="flex justify-end">
                         <span className="text-xs text-gray-400">
                           Range: {Math.min(...skill.totalScores)}% - {Math.max(...skill.totalScores)}%
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
