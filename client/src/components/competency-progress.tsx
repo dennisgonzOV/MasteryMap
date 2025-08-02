@@ -199,12 +199,6 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                         
                         {/* Achievement Bar */}
                         <div className="w-full">
-                          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                            <span>Emerging</span>
-                            <span>Developing</span>
-                            <span>Proficient</span>
-                            <span>Applying</span>
-                          </div>
                           <div className="flex w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div className="flex-1 bg-red-200 border-r border-white"></div>
                             <div className="flex-1 bg-yellow-200 border-r border-white"></div>
@@ -218,6 +212,13 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                               className="absolute w-2 h-2 bg-gray-800 rounded-full transform -translate-x-1/2"
                               style={{ left: `${skill.averageScore}%` }}
                             ></div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                            <span>Emerging</span>
+                            <span>Developing</span>
+                            <span>Proficient</span>
+                            <span>Applying</span>
                           </div>
                         </div>
                       </div>
