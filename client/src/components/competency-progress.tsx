@@ -189,13 +189,43 @@ export function CompetencyProgress({ studentId, onProgressDecline }: CompetencyP
                         </div>
                       </div>
                       
-                      <div className="w-full">
+                      <div className="w-full space-y-2">
                         <ProgressBar 
                           value={skill.averageScore} 
                           color={getProgressColor(skill.averageScore, skill.progressDirection)}
                           size="sm"
                           className="h-1.5 w-full"
                         />
+                        
+                        {/* Achievement Bar */}
+                        <div className="w-full">
+                          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                            <span>Emerging</span>
+                            <span>Developing</span>
+                            <span>Proficient</span>
+                            <span>Applying</span>
+                          </div>
+                          <div className="flex w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="flex-1 bg-red-200 border-r border-white"></div>
+                            <div className="flex-1 bg-yellow-200 border-r border-white"></div>
+                            <div className="flex-1 bg-blue-200 border-r border-white"></div>
+                            <div className="flex-1 bg-green-200"></div>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
+                            <span>0%</span>
+                            <span>60%</span>
+                            <span>76%</span>
+                            <span>90%</span>
+                            <span>100%</span>
+                          </div>
+                          {/* Achievement indicator */}
+                          <div className="relative mt-1">
+                            <div 
+                              className="absolute w-2 h-2 bg-gray-800 rounded-full transform -translate-x-1/2"
+                              style={{ left: `${skill.averageScore}%` }}
+                            ></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
