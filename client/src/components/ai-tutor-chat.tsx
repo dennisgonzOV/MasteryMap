@@ -213,7 +213,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
     // Step 2 will be automatically triggered by the useEffect above
   };
 
-  const isReadyToComplete = selfEvaluation.selfAssessedLevel && selfEvaluation.justification && messages.length >= 4;
+  const isReadyToComplete = selfEvaluation.selfAssessedLevel && messages.length >= 4;
 
   return (
     <div className="space-y-4">
@@ -411,49 +411,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         </Card>
       )}
 
-      {/* Justification Summary */}
-      {selfEvaluation.selfAssessedLevel && currentStep === 2 && (
-        <Card className="bg-yellow-50 border-yellow-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-yellow-900">
-              Your Self-Evaluation Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-yellow-800">
-                  Selected Level: {selfEvaluation.selfAssessedLevel}
-                </label>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-yellow-800 mb-1 block">
-                  Your Justification (based on our conversation):
-                </label>
-                <Textarea
-                  value={selfEvaluation.justification}
-                  onChange={(e) => onEvaluationUpdate({ justification: e.target.value })}
-                  placeholder="Summarize your reasoning for selecting this level..."
-                  rows={3}
-                  className="text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-yellow-800 mb-1 block">
-                  Examples (optional):
-                </label>
-                <Textarea
-                  value={selfEvaluation.examples}
-                  onChange={(e) => onEvaluationUpdate({ examples: e.target.value })}
-                  placeholder="Provide specific examples from our discussion..."
-                  rows={2}
-                  className="text-sm"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      
 
       {/* Complete Button */}
       <div className="flex justify-between items-center">
