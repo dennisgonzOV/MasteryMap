@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Award, Star, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import type { Credential } from "@shared/schema";
+import StickerIcon from "./sticker-icon";
 
 interface CredentialBadgeProps {
   credential: Credential;
@@ -65,14 +66,30 @@ export default function CredentialBadge({
 
   const Icon = getCredentialIcon(credential.type);
 
+  const renderIcon = () => {
+    if (credential.type === 'sticker' && credential.iconUrl) {
+      const iconSize = size === 'sm' ? 24 : size === 'lg' ? 48 : 32;
+      return (
+        <StickerIcon 
+          level={credential.iconUrl as 'red' | 'yellow' | 'blue' | 'green'} 
+          size={iconSize}
+        />
+      );
+    } else {
+      return (
+        <div className={`${getCredentialColor(credential.type, credential.title, credential.iconUrl || undefined)} rounded-full flex items-center justify-center ${getSizeClasses(size)}`}>
+          <Icon className="text-white" />
+        </div>
+      );
+    }
+  };
+
   if (showDetails) {
     return (
       <Card className="card-hover apple-shadow border-0">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
-            <div className={`${getCredentialColor(credential.type, credential.title, credential.iconUrl || undefined)} rounded-full flex items-center justify-center ${getSizeClasses(size)}`}>
-              <Icon className="text-white" />
-            </div>
+            {renderIcon()}</div>
             <div className="flex-1">
               <h4 className="font-semibold text-gray-900 text-sm">
                 {credential.title}
@@ -97,9 +114,7 @@ export default function CredentialBadge({
 
   return (
     <div className="flex items-center space-x-2">
-      <div className={`${getCredentialColor(credential.type, credential.title, credential.iconUrl || undefined)} rounded-full flex items-center justify-center ${getSizeClasses(size)}`}>
-        <Icon className="text-white" />
-      </div>
+      {renderIcon()}</div>
       {size !== 'sm' && (
         <div>
           <p className="text-sm font-medium text-gray-900">
