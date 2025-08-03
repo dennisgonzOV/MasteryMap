@@ -150,16 +150,124 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         );
       
       case 'yellow':
-        // Developing - Lightning bolt energy
+        // Developing - Dynamic lightning with energy waves
         return (
           <svg {...commonProps}>
             <defs>
-              <radialGradient id={`yellowGradient${size}`} cx="0.3" cy="0.3" r="0.8">
-                <stop offset="0%" stopColor="#f39c12" />
-                <stop offset="40%" stopColor="#f1c40f" />
-                <stop offset="100%" stopColor="#d68910" />
+              <radialGradient id={`yellowGradient${size}`} cx="0.3" cy="0.2" r="1.1">
+                <stop offset="0%" stopColor="#ffd700" />
+                <stop offset="20%" stopColor="#f39c12" />
+                <stop offset="50%" stopColor="#f1c40f" />
+                <stop offset="80%" stopColor="#d68910" />
+                <stop offset="100%" stopColor="#b7950b" />
+              </radialGradient>
+              <radialGradient id={`yellowCenterGlow${size}`} cx="0.5" cy="0.5" r="0.8">
+                <stop offset="0%" stopColor="#ffffff" opacity="0.4" />
+                <stop offset="60%" stopColor="#ffd700" opacity="0.2" />
+                <stop offset="100%" stopColor="#ffffff" opacity="0" />
               </radialGradient>
               <filter id={`yellowGlow${size}`}>
+                <feGaussianBlur stdDeviation="1.2" result="coloredBlur"/>
+                <feMerge> 
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+              <linearGradient id={`yellowLightning${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="50%" stopColor="#ffd700" />
+                <stop offset="100%" stopColor="#f39c12" />
+              </linearGradient>
+            </defs>
+            
+            {/* Animated outer ring */}
+            <circle cx="12" cy="12" r="11" fill={`url(#yellowGradient${size})`} stroke="#b7950b" strokeWidth="1.5">
+              <animate attributeName="r" values="10.8;11.2;10.8" dur="2.5s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="12" cy="12" r="11" fill={`url(#yellowCenterGlow${size})`} />
+            
+            {/* Energy wave circles */}
+            <g transform="translate(12,12)">
+              <circle cx="0" cy="0" r="3" fill="none" stroke="white" strokeWidth="0.8" opacity="0.6">
+                <animate attributeName="r" values="2;7;2" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.1;0.8" dur="2s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="0" cy="0" r="5" fill="none" stroke="#ffd700" strokeWidth="0.6" opacity="0.4">
+                <animate attributeName="r" values="4;8;4" dur="2.8s" begin="0.7s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.6;0.05;0.6" dur="2.8s" begin="0.7s" repeatCount="indefinite"/>
+              </circle>
+            </g>
+            
+            {/* Dynamic energy particles */}
+            <g transform="translate(12,12)" filter={`url(#yellowGlow${size})`}>
+              {[0, 1, 2, 3, 4, 5].map((i) => {
+                const angle = i * 60;
+                const radius = 7 + (i % 2) * 1;
+                const x = Math.cos(angle * Math.PI / 180) * radius;
+                const y = Math.sin(angle * Math.PI / 180) * radius;
+                return (
+                  <circle key={i} cx={x} cy={y} r={0.8} fill="#ffd700" opacity="0.8">
+                    <animate attributeName="opacity" values="0.3;1;0.3" dur={`${1.5 + i * 0.3}s`} begin={`${i * 0.2}s`} repeatCount="indefinite"/>
+                    <animateTransform attributeName="transform" type="rotate" values={`0;360`} dur={`${4 + i * 0.5}s`} repeatCount="indefinite"/>
+                  </circle>
+                );
+              })}
+            </g>
+            
+            {/* Enhanced lightning bolt with glow */}
+            <g filter={`url(#yellowGlow${size})`}>
+              <path d="M10 5 L16 5 L12.5 11 L15 11 L8.5 19 L11 12 L7.5 12 Z" 
+                    fill={`url(#yellowLightning${size})`} stroke="#ffd700" strokeWidth="0.8" opacity="0.95">
+                <animate attributeName="opacity" values="0.8;1;0.8" dur="1.8s" repeatCount="indefinite"/>
+              </path>
+              {/* Lightning glow effect */}
+              <path d="M10 5 L16 5 L12.5 11 L15 11 L8.5 19 L11 12 L7.5 12 Z" 
+                    fill="none" stroke="white" strokeWidth="1.5" opacity="0.6">
+                <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.8s" repeatCount="indefinite"/>
+              </path>
+            </g>
+            
+            {/* Electric sparks */}
+            <g>
+              {[0, 1, 2].map((i) => {
+                const sparkPositions = [{x: 8, y: 6}, {x: 15, y: 8}, {x: 11, y: 16}];
+                const pos = sparkPositions[i];
+                return (
+                  <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+                    <path d="M0 0 L1 2 L2 0 L1 -1 Z M-1 1 L0 -1 L-2 0 L-1 2 Z" 
+                          fill="white" opacity="0.8" transform="scale(0.6)">
+                      <animate attributeName="opacity" values="0;1;0" dur={`${1.2 + i * 0.4}s`} begin={`${i * 0.5}s`} repeatCount="indefinite"/>
+                      <animateTransform attributeName="transform" type="rotate" values="0;180;360" dur={`${2 + i * 0.3}s`} repeatCount="indefinite"/>
+                    </path>
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+        );
+      
+      case 'blue':
+        // Proficient - Dynamic shield with protection aura
+        return (
+          <svg {...commonProps}>
+            <defs>
+              <radialGradient id={`blueGradient${size}`} cx="0.3" cy="0.2" r="1.1">
+                <stop offset="0%" stopColor="#5dade2" />
+                <stop offset="30%" stopColor="#3498db" />
+                <stop offset="60%" stopColor="#2980b9" />
+                <stop offset="100%" stopColor="#1b4f72" />
+              </radialGradient>
+              <radialGradient id={`blueShield${size}`} cx="0.5" cy="0.2" r="1">
+                <stop offset="0%" stopColor="#ffffff" opacity="0.6" />
+                <stop offset="40%" stopColor="#aed6f1" opacity="0.3" />
+                <stop offset="100%" stopColor="#ffffff" opacity="0" />
+              </radialGradient>
+              <linearGradient id={`blueShieldMain${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" opacity="0.95" />
+                <stop offset="50%" stopColor="#ebf3fd" opacity="0.9" />
+                <stop offset="100%" stopColor="#d6eaf8" opacity="0.85" />
+              </linearGradient>
+              <filter id={`blueGlow${size}`}>
                 <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
                 <feMerge> 
                   <feMergeNode in="coloredBlur"/>
@@ -167,46 +275,88 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
                 </feMerge>
               </filter>
             </defs>
-            <circle cx="12" cy="12" r="11" fill={`url(#yellowGradient${size})`} stroke="#b7950b" strokeWidth="1"/>
             
-            {/* Zigzag energy pattern */}
-            <g transform="translate(12,12)" filter={`url(#yellowGlow${size})`}>
-              <path d="M-6,-6 L-2,-2 L-6,2 L-2,6 M2,-6 L6,-2 L2,2 L6,6" 
-                    stroke="white" strokeWidth="2" fill="none" opacity="0.7" strokeLinecap="round"/>
+            {/* Animated outer ring */}
+            <circle cx="12" cy="12" r="11" fill={`url(#blueGradient${size})`} stroke="#1b4f72" strokeWidth="1.5">
+              <animate attributeName="r" values="10.7;11.3;10.7" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            
+            {/* Protection aura rings */}
+            <g transform="translate(12,12)">
+              <circle cx="0" cy="0" r="4" fill="none" stroke="white" strokeWidth="0.6" opacity="0.5">
+                <animate attributeName="r" values="3;8;3" dur="4s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.7;0.1;0.7" dur="4s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="0" cy="0" r="6" fill="none" stroke="#aed6f1" strokeWidth="0.4" opacity="0.4">
+                <animate attributeName="r" values="5;9;5" dur="5s" begin="1s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.5;0.05;0.5" dur="5s" begin="1s" repeatCount="indefinite"/>
+              </circle>
             </g>
             
-            {/* Lightning bolt */}
-            <path d="M10 6 L15 6 L12 12 L14 12 L9 18 L11 11 L8 11 Z" 
-                  fill="white" stroke="#d68910" strokeWidth="0.5"/>
-          </svg>
-        );
-      
-      case 'blue':
-        // Proficient - Shield with check
-        return (
-          <svg {...commonProps}>
-            <defs>
-              <linearGradient id={`blueGradient${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#3498db" />
-                <stop offset="50%" stopColor="#2980b9" />
-                <stop offset="100%" stopColor="#1f4e79" />
-              </linearGradient>
-              <radialGradient id={`blueShield${size}`} cx="0.5" cy="0.3" r="0.8">
-                <stop offset="0%" stopColor="#ffffff" opacity="0.2" />
-                <stop offset="100%" stopColor="#ffffff" opacity="0" />
-              </radialGradient>
-            </defs>
-            <circle cx="12" cy="12" r="11" fill={`url(#blueGradient${size})`} stroke="#1b4f72" strokeWidth="1"/>
+            {/* Defensive particles orbiting */}
+            <g transform="translate(12,12)" filter={`url(#blueGlow${size})`}>
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+                const angle = i * 45;
+                const radius = 7.5 + (i % 2) * 0.8;
+                const x = Math.cos(angle * Math.PI / 180) * radius;
+                const y = Math.sin(angle * Math.PI / 180) * radius;
+                return (
+                  <g key={i}>
+                    <animateTransform attributeName="transform" type="rotate" values={`0;360`} dur={`${6 + i * 0.5}s`} repeatCount="indefinite"/>
+                    <circle cx={x} cy={y} r={0.6} fill="#aed6f1" opacity="0.8">
+                      <animate attributeName="opacity" values="0.4;1;0.4" dur={`${2 + i * 0.2}s`} begin={`${i * 0.3}s`} repeatCount="indefinite"/>
+                      <animate attributeName="r" values="0.4;0.8;0.4" dur={`${2.5 + i * 0.3}s`} begin={`${i * 0.2}s`} repeatCount="indefinite"/>
+                    </circle>
+                  </g>
+                );
+              })}
+            </g>
             
-            {/* Shield shape */}
-            <path d="M12 4 L17 7 L17 13 Q17 16 12 19 Q7 16 7 13 L7 7 Z" 
-                  fill="white" opacity="0.9" stroke="#2980b9" strokeWidth="1"/>
-            <path d="M12 4 L17 7 L17 13 Q17 16 12 19 Q7 16 7 13 L7 7 Z" 
-                  fill={`url(#blueShield${size})`}/>
+            {/* Enhanced shield shape with subtle animation */}
+            <g filter={`url(#blueGlow${size})`}>
+              <path d="M12 4 L17 7 L17 13 Q17 16 12 19 Q7 16 7 13 L7 7 Z" 
+                    fill={`url(#blueShieldMain${size})`} stroke="#2980b9" strokeWidth="1.2" opacity="0.95">
+                <animate attributeName="opacity" values="0.9;1;0.9" dur="3s" repeatCount="indefinite"/>
+              </path>
+              <path d="M12 4 L17 7 L17 13 Q17 16 12 19 Q7 16 7 13 L7 7 Z" 
+                    fill={`url(#blueShield${size})`}/>
+              
+              {/* Shield highlights */}
+              <path d="M12 4 L15.5 6.5 L15.5 8.5" stroke="white" strokeWidth="1" fill="none" opacity="0.7" strokeLinecap="round"/>
+              <path d="M12 4 L8.5 6.5 L8.5 8.5" stroke="white" strokeWidth="0.8" fill="none" opacity="0.6" strokeLinecap="round"/>
+            </g>
             
-            {/* Check mark */}
-            <path d="M9 11.5 L11 13.5 L15 9.5" 
-                  stroke="#2980b9" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Animated check mark with success glow */}
+            <g filter={`url(#blueGlow${size})`}>
+              <path d="M9 11.5 L11 13.5 L15 9.5" 
+                    stroke="#2980b9" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
+                <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite"/>
+              </path>
+              {/* Check mark glow */}
+              <path d="M9 11.5 L11 13.5 L15 9.5" 
+                    stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.6">
+                <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2.5s" repeatCount="indefinite"/>
+              </path>
+            </g>
+            
+            {/* Success sparkles around check */}
+            <g>
+              {[0, 1, 2, 3].map((i) => {
+                const sparklePositions = [
+                  {x: 8.5, y: 10}, {x: 12.5, y: 8.5}, {x: 15.5, y: 10.5}, {x: 10.5, y: 14.5}
+                ];
+                const pos = sparklePositions[i];
+                return (
+                  <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+                    <path d="M0 0 L0.3 0.8 L1 0.8 L0.5 1.3 L0.8 2 L0 1.5 L-0.8 2 L-0.5 1.3 L-1 0.8 L-0.3 0.8 Z" 
+                          fill="white" opacity="0.8" transform="scale(0.5)">
+                      <animate attributeName="opacity" values="0.2;1;0.2" dur={`${1.8 + i * 0.4}s`} begin={`${i * 0.5}s`} repeatCount="indefinite"/>
+                      <animateTransform attributeName="transform" type="rotate" values="0;360" dur={`${3 + i * 0.5}s`} repeatCount="indefinite"/>
+                    </path>
+                  </g>
+                );
+              })}
+            </g>
           </svg>
         );
       
