@@ -1023,17 +1023,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to award stickers based on rubric levels
   const awardStickers = async (studentId: number, grades: any[]) => {
-    const stickerColors = {
-      emerging: { color: 'red', title: 'Red Sticker', description: 'Emerging proficiency level achieved' },
-      developing: { color: 'yellow', title: 'Developing Sticker', description: 'Developing proficiency level achieved' },
-      proficient: { color: 'blue', title: 'Blue Sticker', description: 'Proficient level achieved' },
-      applying: { color: 'green', title: 'Green Sticker', description: 'Applying level achieved' }
+    const stickerConfigs = {
+      emerging: { 
+        level: 'Emerging', 
+        color: 'red',
+        description: 'Emerging proficiency level achieved' 
+      },
+      developing: { 
+        level: 'Developing', 
+        color: 'yellow',
+        description: 'Developing proficiency level achieved' 
+      },
+      proficient: { 
+        level: 'Proficient', 
+        color: 'blue',
+        description: 'Proficient level achieved' 
+      },
+      applying: { 
+        level: 'Applying', 
+        color: 'green',
+        description: 'Applying level achieved' 
+      }
     };
 
     const stickersToAward = [];
 
     for (const grade of grades) {
-      const stickerConfig = stickerColors[grade.rubricLevel as keyof typeof stickerColors];
+      const stickerConfig = stickerConfigs[grade.rubricLevel as keyof typeof stickerConfigs];
       if (stickerConfig) {
         // Check if student already has this sticker for this component skill
         const existingSticker = await db.select()
@@ -1053,9 +1069,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             studentId: studentId,
             type: 'sticker' as const,
             componentSkillId: grade.componentSkillId,
-            title: `${stickerConfig.title} - ${componentSkill?.name || 'Component Skill'}`,
+            title: `${stickerConfig.level} - ${componentSkill?.name || 'Component Skill'}`,
             description: `${stickerConfig.description} for ${componentSkill?.name || 'this component skill'}`,
-            iconUrl: null,
+            iconUrl: stickerConfig.color, // Store the color in iconUrl for now
             approvedBy: grade.gradedBy
           });
         }

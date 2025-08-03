@@ -28,7 +28,7 @@ export default function CredentialBadge({
     }
   };
 
-  const getCredentialColor = (type: string, title?: string) => {
+  const getCredentialColor = (type: string, title?: string, iconUrl?: string) => {
     if (type === 'sticker') {
       if (title?.toLowerCase().includes('emerging')) {
         return 'credential-badge red';
@@ -70,7 +70,7 @@ export default function CredentialBadge({
       <Card className="card-hover apple-shadow border-0">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
-            <div className={`${getCredentialColor(credential.type, credential.title)} rounded-full flex items-center justify-center ${getSizeClasses(size)}`}>
+            <div className={`${getCredentialColor(credential.type, credential.title, credential.iconUrl || undefined)} rounded-full flex items-center justify-center ${getSizeClasses(size)}`}>
               <Icon className="text-white" />
             </div>
             <div className="flex-1">
@@ -97,7 +97,7 @@ export default function CredentialBadge({
 
   return (
     <div className="flex items-center space-x-2">
-      <div className={`${getCredentialColor(credential.type, credential.title)} rounded-full flex items-center justify-center ${getSizeClasses(size)}`}>
+      <div className={`${getCredentialColor(credential.type, credential.title, credential.iconUrl || undefined)} rounded-full flex items-center justify-center ${getSizeClasses(size)}`}>
         <Icon className="text-white" />
       </div>
       {size !== 'sm' && (
