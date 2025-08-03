@@ -1025,7 +1025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const awardStickers = async (studentId: number, grades: any[]) => {
     const stickerColors = {
       emerging: { color: 'red', title: 'Red Sticker', description: 'Emerging proficiency level achieved' },
-      developing: { color: 'yellow', title: 'Yellow Sticker', description: 'Developing proficiency level achieved' },
+      developing: { color: 'yellow', title: 'Developing Sticker', description: 'Developing proficiency level achieved' },
       proficient: { color: 'blue', title: 'Blue Sticker', description: 'Proficient level achieved' },
       applying: { color: 'green', title: 'Green Sticker', description: 'Applying level achieved' }
     };
