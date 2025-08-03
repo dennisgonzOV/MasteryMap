@@ -326,36 +326,14 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
               <path d="M12 4 L8.5 6.5 L8.5 8.5" stroke="white" strokeWidth="0.8" fill="none" opacity="0.6" strokeLinecap="round"/>
             </g>
             
-            {/* Animated check mark with success glow */}
-            <g filter={`url(#blueGlow${size})`}>
-              <path d="M9 11.5 L11 13.5 L15 9.5" 
-                    stroke="#2980b9" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
-                <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite"/>
-              </path>
-              {/* Check mark glow */}
-              <path d="M9 11.5 L11 13.5 L15 9.5" 
-                    stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.6">
-                <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2.5s" repeatCount="indefinite"/>
-              </path>
-            </g>
-            
-            {/* Success sparkles around check */}
+            {/* Shield center glow effect */}
             <g>
-              {[0, 1, 2, 3].map((i) => {
-                const sparklePositions = [
-                  {x: 8.5, y: 10}, {x: 12.5, y: 8.5}, {x: 15.5, y: 10.5}, {x: 10.5, y: 14.5}
-                ];
-                const pos = sparklePositions[i];
-                return (
-                  <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
-                    <path d="M0 0 L0.3 0.8 L1 0.8 L0.5 1.3 L0.8 2 L0 1.5 L-0.8 2 L-0.5 1.3 L-1 0.8 L-0.3 0.8 Z" 
-                          fill="white" opacity="0.8" transform="scale(0.5)">
-                      <animate attributeName="opacity" values="0.2;1;0.2" dur={`${1.8 + i * 0.4}s`} begin={`${i * 0.5}s`} repeatCount="indefinite"/>
-                      <animateTransform attributeName="transform" type="rotate" values="0;360" dur={`${3 + i * 0.5}s`} repeatCount="indefinite"/>
-                    </path>
-                  </g>
-                );
-              })}
+              <circle cx="12" cy="11.5" r="2.5" fill="white" opacity="0.3">
+                <animate attributeName="opacity" values="0.2;0.4;0.2" dur="3s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="12" cy="11.5" r="1.8" fill="#aed6f1" opacity="0.5">
+                <animate attributeName="opacity" values="0.3;0.6;0.3" dur="2.5s" repeatCount="indefinite"/>
+              </circle>
             </g>
           </svg>
         );
