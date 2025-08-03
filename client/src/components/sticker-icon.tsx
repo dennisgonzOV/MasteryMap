@@ -18,35 +18,62 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
 
     switch (level) {
       case 'red':
-        // Emerging - Rising sun design
+        // Emerging - Seedling with growth animation
         return (
           <svg {...commonProps}>
             <defs>
-              <radialGradient id={`redGradient${size}`} cx="0.5" cy="0.6" r="0.7">
-                <stop offset="0%" stopColor="#ff7979" />
-                <stop offset="50%" stopColor="#e74c3c" />
-                <stop offset="100%" stopColor="#c0392b" />
+              <radialGradient id={`redGradient${size}`} cx="0.4" cy="0.3" r="0.9">
+                <stop offset="0%" stopColor="#ff6b6b" />
+                <stop offset="30%" stopColor="#e74c3c" />
+                <stop offset="70%" stopColor="#c0392b" />
+                <stop offset="100%" stopColor="#8b0000" />
               </radialGradient>
-              <linearGradient id={`redShine${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" opacity="0.3" />
+              <radialGradient id={`redCenterGlow${size}`} cx="0.5" cy="0.5" r="0.6">
+                <stop offset="0%" stopColor="#ffffff" opacity="0.4" />
                 <stop offset="100%" stopColor="#ffffff" opacity="0" />
-              </linearGradient>
+              </radialGradient>
+              <filter id={`redPulse${size}`}>
+                <feGaussianBlur stdDeviation="0.5" result="coloredBlur"/>
+                <feMerge> 
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
             </defs>
-            <circle cx="12" cy="12" r="11" fill={`url(#redGradient${size})`} stroke="#8b0000" strokeWidth="1"/>
-            <circle cx="12" cy="12" r="11" fill={`url(#redShine${size})`} />
+            <circle cx="12" cy="12" r="11" fill={`url(#redGradient${size})`} stroke="#722F37" strokeWidth="1.5"/>
+            <circle cx="12" cy="12" r="11" fill={`url(#redCenterGlow${size})`} />
             
-            {/* Sun rays pattern */}
-            <g transform="translate(12,12)">
-              {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
-                <g key={i} transform={`rotate(${angle})`}>
-                  <rect x="-0.5" y="-8" width="1" height="2" fill="#fff" opacity="0.8" rx="0.5"/>
-                </g>
-              ))}
+            {/* Organic growth pattern - spiraling dots */}
+            <g transform="translate(12,12)" filter={`url(#redPulse${size})`}>
+              {[0, 1, 2, 3, 4, 5].map((i) => {
+                const angle = i * 60 + 15;
+                const radius = 3 + i * 1.2;
+                const x = Math.cos(angle * Math.PI / 180) * radius;
+                const y = Math.sin(angle * Math.PI / 180) * radius;
+                return (
+                  <circle key={i} cx={x} cy={y} r={0.8 + i * 0.2} fill="white" opacity={0.9 - i * 0.1}>
+                    <animate attributeName="opacity" values="0.3;0.9;0.3" dur="2s" begin={`${i * 0.3}s`} repeatCount="indefinite"/>
+                  </circle>
+                );
+              })}
             </g>
             
-            {/* Central star */}
-            <path d="M12 5 L13.5 9.5 L18 9.5 L14.5 12.5 L16 17 L12 14 L8 17 L9.5 12.5 L6 9.5 L10.5 9.5 Z" 
-                  fill="white" opacity="0.9" strokeWidth="0.5" stroke="#c0392b"/>
+            {/* Central seedling icon */}
+            <g transform="translate(12,12)">
+              {/* Stem */}
+              <rect x="-0.5" y="2" width="1" height="6" fill="white" opacity="0.9" rx="0.5"/>
+              {/* First leaf */}
+              <path d="M-0.5 3 Q-3 1 -2 4 Q-1 3 -0.5 3" fill="white" opacity="0.8"/>
+              {/* Second leaf */}
+              <path d="M0.5 1 Q3 -1 2 2 Q1 1 0.5 1" fill="white" opacity="0.8"/>
+              {/* Growth sparkles */}
+              <circle cx="-3" cy="0" r="0.5" fill="white" opacity="0.7">
+                <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="3" cy="-2" r="0.3" fill="white" opacity="0.6">
+                <animate attributeName="opacity" values="0;1;0" dur="1.8s" begin="0.5s" repeatCount="indefinite"/>
+              </circle>
+            </g>
           </svg>
         );
       
@@ -112,39 +139,68 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         );
       
       case 'green':
-        // Applying - Trophy/achievement design
+        // Applying - Dynamic rocket ship with trail
         return (
           <svg {...commonProps}>
             <defs>
-              <radialGradient id={`greenGradient${size}`} cx="0.4" cy="0.3" r="0.8">
-                <stop offset="0%" stopColor="#2ecc71" />
-                <stop offset="50%" stopColor="#27ae60" />
-                <stop offset="100%" stopColor="#196f3d" />
+              <radialGradient id={`greenGradient${size}`} cx="0.3" cy="0.2" r="1.2">
+                <stop offset="0%" stopColor="#48bb78" />
+                <stop offset="30%" stopColor="#38a169" />
+                <stop offset="70%" stopColor="#2f855a" />
+                <stop offset="100%" stopColor="#1a202c" />
               </radialGradient>
-              <linearGradient id={`greenShine${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" opacity="0.4" />
-                <stop offset="50%" stopColor="#ffffff" opacity="0.1" />
-                <stop offset="100%" stopColor="#ffffff" opacity="0" />
+              <linearGradient id={`greenTrail${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#68d391" opacity="0.8" />
+                <stop offset="50%" stopColor="#48bb78" opacity="0.4" />
+                <stop offset="100%" stopColor="#2f855a" opacity="0.1" />
               </linearGradient>
+              <filter id={`greenGlow${size}`}>
+                <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+                <feMerge> 
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
             </defs>
-            <circle cx="12" cy="12" r="11" fill={`url(#greenGradient${size})`} stroke="#0e5e2a" strokeWidth="1"/>
-            <circle cx="12" cy="12" r="11" fill={`url(#greenShine${size})`} />
+            <circle cx="12" cy="12" r="11" fill={`url(#greenGradient${size})`} stroke="#1a365d" strokeWidth="1.5"/>
             
-            {/* Simplified trophy design */}
-            <path d="M8 8 L8 12 Q8 14 12 14 Q16 14 16 12 L16 8 Z" 
-                  fill="white" opacity="0.9" stroke="#27ae60" strokeWidth="1"/>
-            <rect x="10" y="14" width="4" height="2" fill="white" opacity="0.9"/>
-            <rect x="9" y="16" width="6" height="1" fill="white" opacity="0.9"/>
+            {/* Dynamic trail effect */}
+            <g transform="translate(12,12)" filter={`url(#greenGlow${size})`}>
+              {[0, 1, 2, 3].map((i) => (
+                <circle key={i} cx={2 + i * 1.5} cy={6 + i * 1.2} r={1.5 - i * 0.3} fill="#68d391" opacity={0.7 - i * 0.15}>
+                  <animate attributeName="opacity" values="0.1;0.7;0.1" dur="1.2s" begin={`${i * 0.2}s`} repeatCount="indefinite"/>
+                </circle>
+              ))}
+            </g>
             
-            {/* Star on trophy */}
-            <path d="M12 9.5 L12.5 10.5 L13.5 10.5 L12.8 11.2 L13 12.2 L12 11.7 L11 12.2 L11.2 11.2 L10.5 10.5 L11.5 10.5 Z" 
-                  fill="#27ae60"/>
+            {/* Rocket body */}
+            <g transform="translate(12,12)">
+              {/* Main body */}
+              <ellipse cx="0" cy="1" rx="2.5" ry="5" fill="white" opacity="0.95" stroke="#38a169" strokeWidth="0.8"/>
+              {/* Nose cone */}
+              <path d="M0 -4 L-1.5 -1 L1.5 -1 Z" fill="white" opacity="0.9"/>
+              {/* Window */}
+              <circle cx="0" cy="0" r="1.2" fill="#4fd1c7" opacity="0.8" stroke="white" strokeWidth="0.5"/>
+              {/* Wings */}
+              <path d="M-2.5 3 L-4 6 L-1.5 4.5 Z" fill="white" opacity="0.85"/>
+              <path d="M2.5 3 L4 6 L1.5 4.5 Z" fill="white" opacity="0.85"/>
+              {/* Exhaust flame */}
+              <path d="M-1 6 Q0 9 1 6 Q0 7.5 -1 6" fill="#ffd93d" opacity="0.9">
+                <animateTransform attributeName="transform" type="scale" values="1;1.2;1" dur="0.8s" repeatCount="indefinite"/>
+              </path>
+            </g>
             
-            {/* Simple achievement rays */}
-            <g transform="translate(12,12)" opacity="0.6">
-              {[0, 60, 120, 180, 240, 300].map((angle, i) => (
+            {/* Success stars orbiting */}
+            <g transform="translate(12,12)">
+              {[0, 120, 240].map((angle, i) => (
                 <g key={i} transform={`rotate(${angle})`}>
-                  <rect x="-0.5" y="-10" width="1" height="2" fill="#ffffff" rx="0.5"/>
+                  <g transform="translate(0,-8)">
+                    <animateTransform attributeName="transform" type="rotate" values={`${angle};${angle + 360}`} dur="3s" repeatCount="indefinite"/>
+                    <path d="M0 0 L0.5 1.5 L2 1.5 L1 2.5 L1.5 4 L0 3 L-1.5 4 L-1 2.5 L-2 1.5 L-0.5 1.5 Z" 
+                          fill="white" opacity="0.8" transform="scale(0.6)">
+                      <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+                    </path>
+                  </g>
                 </g>
               ))}
             </g>
