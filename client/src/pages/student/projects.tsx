@@ -133,6 +133,33 @@ export default function StudentProjects() {
             </p>
           </div>
 
+          {/* Join Assessment Card */}
+          <Card className="apple-shadow border-0 mb-8 bg-gradient-to-r from-purple-50 to-blue-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-purple-100 rounded-full">
+                    <Target className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      Join an Assessment
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      Enter a 5-letter code to access assessments shared by your teacher
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => setLocation("/student/enter-code")}
+                  className="bg-purple-600 text-white hover:bg-purple-700 btn-primary"
+                >
+                  Enter Code
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Project Status Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Card className="apple-shadow border-0">
@@ -194,33 +221,6 @@ export default function StudentProjects() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Join Assessment Card */}
-          <Card className="apple-shadow border-0 mb-8 bg-gradient-to-r from-purple-50 to-blue-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-purple-100 rounded-full">
-                    <Target className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                      Join an Assessment
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Enter a 5-letter code to access assessments shared by your teacher
-                    </p>
-                  </div>
-                </div>
-                <Button 
-                  onClick={() => setLocation("/student/enter-code")}
-                  className="bg-purple-600 text-white hover:bg-purple-700 btn-primary"
-                >
-                  Enter Code
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Filters and Search */}
           <Card className="apple-shadow border-0 mb-8">
