@@ -31,13 +31,9 @@ export default function Navigation() {
   }
 
   const getNavigationItems = () => {
-    const baseItems = [
-      { name: 'Dashboard', href: `/${user?.role}/dashboard`, icon: LayoutDashboard },
-    ];
-
     if (user?.role === 'teacher') {
       return [
-        ...baseItems,
+        { name: 'Dashboard', href: '/teacher/dashboard', icon: LayoutDashboard },
         { name: 'Projects', href: '/teacher/projects', icon: BookOpen },
         { name: 'Assessments', href: '/teacher/assessments', icon: Target },
       ];
@@ -45,7 +41,6 @@ export default function Navigation() {
 
     if (user?.role === 'student') {
       return [
-        ...baseItems,
         { name: 'Projects', href: '/student/projects', icon: BookOpen },
         { name: 'Portfolio', href: '/student/portfolio', icon: Award },
       ];
@@ -53,14 +48,14 @@ export default function Navigation() {
 
     if (user?.role === 'admin') {
       return [
-        ...baseItems,
+        { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Users', href: '/admin/users', icon: Users },
         { name: 'Password Reset', href: '/admin/password-reset', icon: Settings },
         { name: 'Settings', href: '/admin/settings', icon: Settings },
       ];
     }
 
-    return baseItems;
+    return [];
   };
 
   const navigationItems = getNavigationItems();

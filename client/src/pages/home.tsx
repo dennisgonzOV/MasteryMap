@@ -8,19 +8,19 @@ export default function Home() {
 
   useEffect(() => {
     if (user) {
-      // Redirect to role-specific dashboard
+      // Redirect to role-specific landing page
       switch (user.role) {
         case 'teacher':
           setLocation('/teacher/dashboard');
           break;
         case 'student':
-          setLocation('/student/dashboard');
+          setLocation('/student/projects');
           break;
         case 'admin':
           setLocation('/admin/dashboard');
           break;
         default:
-          setLocation('/student/dashboard');
+          setLocation('/student/projects');
       }
     }
   }, [user, setLocation]);
