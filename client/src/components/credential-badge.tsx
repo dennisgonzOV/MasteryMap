@@ -89,7 +89,7 @@ export default function CredentialBadge({
       <Card className="card-hover apple-shadow border-0">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
-            {renderIcon()}</div>
+            {renderIcon()}
             <div className="flex-1">
               <h4 className="font-semibold text-gray-900 text-sm">
                 {credential.title}
@@ -102,7 +102,7 @@ export default function CredentialBadge({
                   {credential.type}
                 </Badge>
                 <span className="text-xs text-gray-500">
-                  {format(new Date(credential.awardedAt), 'MMM d, yyyy')}
+                  {credential.awardedAt ? format(new Date(credential.awardedAt), 'MMM d, yyyy') : 'No date'}
                 </span>
               </div>
             </div>
@@ -114,14 +114,14 @@ export default function CredentialBadge({
 
   return (
     <div className="flex items-center space-x-2">
-      {renderIcon()}</div>
+      {renderIcon()}
       {size !== 'sm' && (
         <div>
           <p className="text-sm font-medium text-gray-900">
             {credential.title}
           </p>
           <p className="text-xs text-gray-600">
-            {credential.type} • {format(new Date(credential.awardedAt), 'MMM d')}
+            {credential.type} • {credential.awardedAt ? format(new Date(credential.awardedAt), 'MMM d') : 'No date'}
           </p>
         </div>
       )}
