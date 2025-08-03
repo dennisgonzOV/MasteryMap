@@ -134,7 +134,7 @@ export default function TakeAssessment() {
         title: "Assessment submitted successfully!",
         description: "Your responses have been saved and will be reviewed by your teacher.",
       });
-      setLocation('/student/dashboard');
+      setLocation('/student/projects');
     },
     onError: (error) => {
       toast({
@@ -187,7 +187,7 @@ export default function TakeAssessment() {
 
         // Move to next skill or finish
          setTimeout(() => {
-            setLocation('/student/dashboard');
+            setLocation('/student/projects');
           }, 1000);
       }
     },
@@ -254,7 +254,7 @@ export default function TakeAssessment() {
 
     // Move to next skill or finish
      setTimeout(() => {
-        setLocation('/student/dashboard');
+        setLocation('/student/projects');
       }, 2000);
   };
 
@@ -287,8 +287,8 @@ export default function TakeAssessment() {
             <p className="text-gray-600 mb-4">
               The assessment you're looking for doesn't exist or may have been removed.
             </p>
-            <Button onClick={() => setLocation('/student/dashboard')}>
-              Go to Dashboard
+            <Button onClick={() => setLocation('/student/projects')}>
+              Go to Projects
             </Button>
           </CardContent>
         </Card>
@@ -419,11 +419,11 @@ export default function TakeAssessment() {
         <div className="mb-4">
           <Button
             variant="ghost"
-            onClick={() => setLocation('/student/dashboard')}
+            onClick={() => setLocation('/student/projects')}
             className="flex items-center space-x-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Dashboard</span>
+            <span>Back to Projects</span>
           </Button>
         </div>
 
