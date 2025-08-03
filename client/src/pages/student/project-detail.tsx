@@ -368,7 +368,7 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                                     milestone.displayStatus === 'completed' 
                                       ? 'text-green-600 border-green-200' 
                                       : milestone.displayStatus === 'submitted' 
-                                        ? 'text-gray-500 border-gray-300 bg-gray-50 cursor-default' 
+                                        ? 'text-blue-600 border-blue-300 bg-blue-50 cursor-not-allowed' 
                                         : ''
                                   }
                                   disabled={milestone.displayStatus === 'submitted'}
@@ -378,7 +378,51 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                                 </Button>
                               </div>
                             </div>
-                            <p className="text-sm text-gray-600">{milestone.description}</p>
+                            <p className="text-sm text-gray-600 mb-2">{milestone.description}</p>
+                            
+                            {/* Show submission date for submitted milestones */}
+                            {milestone.displayStatus === 'submitted' && (() => {
+                              // Find the most recent submission for this milestone
+                              const milestoneSubmissions = studentSubmissions.filter(submission => {
+                                return submission.assessment?.milestoneId === milestone.id;
+                              });
+                              
+                              if (milestoneSubmissions.length > 0) {
+                                const mostRecentSubmission = milestoneSubmissions.reduce((latest, current) => {
+                                  return new Date(current.submittedAt) > new Date(latest.submittedAt) ? current : latest;
+                                });
+                                
+                                return (
+                                  <div className="flex items-center space-x-1 text-xs text-blue-600">
+                                    <CheckCircle className="h-3 w-3" />
+                                    <span>Submitted on {format(new Date(mostRecentSubmission.submittedAt), 'MMM d, yyyy \'at\' h:mm a')}</span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+
+                            {/* Show completion date for completed milestones */}
+                            {milestone.displayStatus === 'completed' && (() => {
+                              // Find the most recent graded submission for this milestone
+                              const milestoneSubmissions = studentSubmissions.filter(submission => {
+                                return submission.assessment?.milestoneId === milestone.id && submission.gradedAt;
+                              });
+                              
+                              if (milestoneSubmissions.length > 0) {
+                                const mostRecentGraded = milestoneSubmissions.reduce((latest, current) => {
+                                  return new Date(current.gradedAt) > new Date(latest.gradedAt) ? current : latest;
+                                });
+                                
+                                return (
+                                  <div className="flex items-center space-x-1 text-xs text-green-600">
+                                    <CheckCircle className="h-3 w-3" />
+                                    <span>Completed on {format(new Date(mostRecentGraded.gradedAt), 'MMM d, yyyy \'at\' h:mm a')}</span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                         </div>
                       ))}
