@@ -364,10 +364,17 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                                       handleMilestoneComplete(milestone.id);
                                     }
                                   }}
-                                  className={milestone.displayStatus === 'completed' ? 'text-green-600 border-green-200' : milestone.displayStatus === 'submitted' ? 'text-blue-600' : ''}
+                                  className={
+                                    milestone.displayStatus === 'completed' 
+                                      ? 'text-green-600 border-green-200' 
+                                      : milestone.displayStatus === 'submitted' 
+                                        ? 'text-gray-500 border-gray-300 bg-gray-50 cursor-default' 
+                                        : ''
+                                  }
+                                  disabled={milestone.displayStatus === 'submitted'}
                                 >
                                   {milestone.displayStatus === 'completed' ? 'View Completed' : 
-                                   milestone.displayStatus === 'submitted' ? 'View Submission' : 'Complete'}
+                                   milestone.displayStatus === 'submitted' ? 'Submitted' : 'Complete'}
                                 </Button>
                               </div>
                             </div>
