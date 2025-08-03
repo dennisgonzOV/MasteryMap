@@ -125,40 +125,45 @@ export default function StudentProjects() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              My Projects & Assessments
-            </h1>
-            <p className="text-gray-600">
-              Track your progress, complete milestones, and submit your work.
-            </p>
-          </div>
-
-          {/* Join Assessment Card */}
-          <Card className="apple-shadow border-0 mb-8 bg-gradient-to-r from-purple-50 to-blue-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-purple-100 rounded-full">
-                    <Target className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                      Join an Assessment
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Enter a 5-letter code to access assessments shared by your teacher
-                    </p>
-                  </div>
-                </div>
-                <Button 
-                  onClick={() => setLocation("/student/enter-code")}
-                  className="bg-purple-600 text-white hover:bg-purple-700 btn-primary"
-                >
-                  Enter Code
-                </Button>
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  My Projects & Assessments
+                </h1>
+                <p className="text-gray-600">
+                  Track your progress, complete milestones, and submit your work.
+                </p>
               </div>
-            </CardContent>
-          </Card>
+              
+              {/* Join Assessment Card - Compact */}
+              <div className="lg:min-w-0 lg:flex-shrink-0">
+                <Card className="apple-shadow border-0 bg-gradient-to-r from-purple-50 to-blue-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-purple-100 rounded-full">
+                        <Target className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                          Join Assessment
+                        </h3>
+                        <p className="text-xs text-gray-600 mb-2">
+                          Enter 5-letter code
+                        </p>
+                        <Button 
+                          size="sm"
+                          onClick={() => setLocation("/student/enter-code")}
+                          className="bg-purple-600 text-white hover:bg-purple-700 btn-primary text-xs h-8"
+                        >
+                          Enter Code
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
 
           {/* Project Status Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
