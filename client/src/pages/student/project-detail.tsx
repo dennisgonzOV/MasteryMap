@@ -95,15 +95,33 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   // Enhanced milestone status calculation with submission tracking
   const milestonesWithStatus = milestones.map(milestone => {
     // Check if student has submitted any assessments for this milestone
-    const hasSubmissions = studentSubmissions.some(submission => {
+    const milestoneSubmissions = studentSubmissions.filter(submission => {
       // Find assessments that belong to this milestone
       return submission.assessment?.milestoneId === milestone.id;
     });
     
+    const hasSubmissions = milestoneSubmissions.length > 0;
+    
+    // Check if any submissions are graded (indicating completion)
+    const hasGradedSubmissions = milestoneSubmissions.some(submission => 
+      submission.gradedAt || submission.feedback
+    );
+    
+    // Determine display status based on submission and grading state
+    let displayStatus = 'not_started';
+    if (hasGradedSubmissions) {
+      displayStatus = 'completed';
+    } else if (hasSubmissions) {
+      displayStatus = 'submitted';
+    } else if (milestone.status === 'completed') {
+      displayStatus = 'completed';
+    }
+    
     return {
       ...milestone,
       hasSubmissions,
-      displayStatus: hasSubmissions ? 'submitted' : milestone.status || 'not_started'
+      hasGradedSubmissions,
+      displayStatus
     };
   });
 
@@ -314,6 +332,11 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center space-x-2">
                                 <h3 className="font-medium text-gray-900">{milestone.title}</h3>
+                                {milestone.displayStatus === 'completed' && (
+                                  <Badge className="bg-green-100 text-green-800 text-xs">
+                                    Completed
+                                  </Badge>
+                                )}
                                 {milestone.displayStatus === 'submitted' && (
                                   <Badge className="bg-blue-100 text-blue-800 text-xs">
                                     Submitted
@@ -341,9 +364,9 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                                       handleMilestoneComplete(milestone.id);
                                     }
                                   }}
-                                  className={milestone.displayStatus === 'completed' ? 'text-green-600' : milestone.displayStatus === 'submitted' ? 'text-blue-600' : ''}
+                                  className={milestone.displayStatus === 'completed' ? 'text-green-600 border-green-200' : milestone.displayStatus === 'submitted' ? 'text-blue-600' : ''}
                                 >
-                                  {milestone.displayStatus === 'completed' ? 'View Details' : 
+                                  {milestone.displayStatus === 'completed' ? 'View Completed' : 
                                    milestone.displayStatus === 'submitted' ? 'View Submission' : 'Complete'}
                                 </Button>
                               </div>

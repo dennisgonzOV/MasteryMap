@@ -54,6 +54,17 @@ export default function StudentProjects() {
     retry: false,
   });
 
+  // Fetch student submissions to check completion status
+  const { data: studentSubmissions = [] } = useQuery({
+    queryKey: ["/api/submissions/student"],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const response = await fetch(`/api/submissions/student`);
+      if (!response.ok) throw new Error('Failed to fetch submissions');
+      return response.json();
+    },
+  });
+
   // Fetch milestones for all student projects
   const { data: projectMilestones = {} } = useQuery({
     queryKey: ["/api/projects/milestones", projects.map(p => p.id)],
@@ -64,7 +75,23 @@ export default function StudentProjects() {
         try {
           const response = await fetch(`/api/projects/${project.id}/milestones`);
           if (response.ok) {
-            milestonesData[project.id] = await response.json();
+            const milestones = await response.json();
+            // Add completion status to each milestone
+            const milestonesWithStatus = milestones.map((milestone: any) => {
+              const milestoneSubmissions = studentSubmissions.filter((submission: any) => {
+                return submission.assessment?.milestoneId === milestone.id;
+              });
+              
+              const hasGradedSubmissions = milestoneSubmissions.some((submission: any) => 
+                submission.gradedAt || submission.feedback
+              );
+              
+              return {
+                ...milestone,
+                isCompleted: hasGradedSubmissions || milestone.status === 'completed'
+              };
+            });
+            milestonesData[project.id] = milestonesWithStatus;
           } else {
             milestonesData[project.id] = [];
           }
@@ -199,11 +226,14 @@ export default function StudentProjects() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Target className="h-5 w-5 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-700">Milestones</span>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium text-gray-700">Completed</span>
                   </div>
                   <span className="text-lg font-bold text-gray-900">
-                    {projects.reduce((sum, p) => sum + (projectMilestones[p.id]?.length || 0), 0)}
+                    {projects.reduce((sum, p) => {
+                      const milestones = projectMilestones[p.id] || [];
+                      return sum + milestones.filter((m: any) => m.isCompleted).length;
+                    }, 0)}
                   </span>
                 </div>
               </CardContent>
@@ -341,11 +371,17 @@ export default function StudentProjects() {
                       </div>
 
                       {/* Project Stats */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Target className="h-4 w-4" />
                           <span>
                             {milestones.length} milestones
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-sm text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>
+                            {milestones.filter((m: any) => m.isCompleted).length} completed
                           </span>
                         </div>
                         {overdueMilestones.length > 0 && (
