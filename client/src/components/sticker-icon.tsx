@@ -22,18 +22,18 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         return (
           <svg {...commonProps}>
             <defs>
-              <radialGradient id="redGradient" cx="0.5" cy="0.6" r="0.7">
+              <radialGradient id={`redGradient${size}`} cx="0.5" cy="0.6" r="0.7">
                 <stop offset="0%" stopColor="#ff7979" />
                 <stop offset="50%" stopColor="#e74c3c" />
                 <stop offset="100%" stopColor="#c0392b" />
               </radialGradient>
-              <linearGradient id="redShine" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id={`redShine${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" opacity="0.3" />
                 <stop offset="100%" stopColor="#ffffff" opacity="0" />
               </linearGradient>
             </defs>
-            <circle cx="12" cy="12" r="11" fill="url(#redGradient)" stroke="#8b0000" strokeWidth="1"/>
-            <circle cx="12" cy="12" r="11" fill="url(#redShine)" />
+            <circle cx="12" cy="12" r="11" fill={`url(#redGradient${size})`} stroke="#8b0000" strokeWidth="1"/>
+            <circle cx="12" cy="12" r="11" fill={`url(#redShine${size})`} />
             
             {/* Sun rays pattern */}
             <g transform="translate(12,12)">
@@ -55,12 +55,12 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         return (
           <svg {...commonProps}>
             <defs>
-              <radialGradient id="yellowGradient" cx="0.3" cy="0.3" r="0.8">
+              <radialGradient id={`yellowGradient${size}`} cx="0.3" cy="0.3" r="0.8">
                 <stop offset="0%" stopColor="#f39c12" />
                 <stop offset="40%" stopColor="#f1c40f" />
                 <stop offset="100%" stopColor="#d68910" />
               </radialGradient>
-              <filter id="yellowGlow">
+              <filter id={`yellowGlow${size}`}>
                 <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
                 <feMerge> 
                   <feMergeNode in="coloredBlur"/>
@@ -68,10 +68,10 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
                 </feMerge>
               </filter>
             </defs>
-            <circle cx="12" cy="12" r="11" fill="url(#yellowGradient)" stroke="#b7950b" strokeWidth="1"/>
+            <circle cx="12" cy="12" r="11" fill={`url(#yellowGradient${size})`} stroke="#b7950b" strokeWidth="1"/>
             
             {/* Zigzag energy pattern */}
-            <g transform="translate(12,12)" filter="url(#yellowGlow)">
+            <g transform="translate(12,12)" filter={`url(#yellowGlow${size})`}>
               <path d="M-6,-6 L-2,-2 L-6,2 L-2,6 M2,-6 L6,-2 L2,2 L6,6" 
                     stroke="white" strokeWidth="2" fill="none" opacity="0.7" strokeLinecap="round"/>
             </g>
@@ -87,23 +87,23 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         return (
           <svg {...commonProps}>
             <defs>
-              <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id={`blueGradient${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#3498db" />
                 <stop offset="50%" stopColor="#2980b9" />
                 <stop offset="100%" stopColor="#1f4e79" />
               </linearGradient>
-              <radialGradient id="blueShield" cx="0.5" cy="0.3" r="0.8">
+              <radialGradient id={`blueShield${size}`} cx="0.5" cy="0.3" r="0.8">
                 <stop offset="0%" stopColor="#ffffff" opacity="0.2" />
                 <stop offset="100%" stopColor="#ffffff" opacity="0" />
               </radialGradient>
             </defs>
-            <circle cx="12" cy="12" r="11" fill="url(#blueGradient)" stroke="#1b4f72" strokeWidth="1"/>
+            <circle cx="12" cy="12" r="11" fill={`url(#blueGradient${size})`} stroke="#1b4f72" strokeWidth="1"/>
             
             {/* Shield shape */}
             <path d="M12 4 L17 7 L17 13 Q17 16 12 19 Q7 16 7 13 L7 7 Z" 
                   fill="white" opacity="0.9" stroke="#2980b9" strokeWidth="1"/>
             <path d="M12 4 L17 7 L17 13 Q17 16 12 19 Q7 16 7 13 L7 7 Z" 
-                  fill="url(#blueShield)"/>
+                  fill={`url(#blueShield${size})`}/>
             
             {/* Check mark */}
             <path d="M9 11.5 L11 13.5 L15 9.5" 
@@ -116,29 +116,21 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         return (
           <svg {...commonProps}>
             <defs>
-              <radialGradient id="greenGradient" cx="0.4" cy="0.3" r="0.8">
+              <radialGradient id={`greenGradient${size}`} cx="0.4" cy="0.3" r="0.8">
                 <stop offset="0%" stopColor="#2ecc71" />
                 <stop offset="50%" stopColor="#27ae60" />
                 <stop offset="100%" stopColor="#196f3d" />
               </radialGradient>
-              <linearGradient id="greenShine" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id={`greenShine${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ffffff" opacity="0.4" />
                 <stop offset="50%" stopColor="#ffffff" opacity="0.1" />
                 <stop offset="100%" stopColor="#ffffff" opacity="0" />
               </linearGradient>
             </defs>
-            <circle cx="12" cy="12" r="11" fill="url(#greenGradient)" stroke="#0e5e2a" strokeWidth="1"/>
-            <circle cx="12" cy="12" r="11" fill="url(#greenShine)" />
+            <circle cx="12" cy="12" r="11" fill={`url(#greenGradient${size})`} stroke="#0e5e2a" strokeWidth="1"/>
+            <circle cx="12" cy="12" r="11" fill={`url(#greenShine${size})`} />
             
-            {/* Laurel wreaths */}
-            <g transform="translate(12,12)">
-              <path d="M-7,-3 Q-6,-5 -4,-4 Q-5,-2 -7,-3 M-6,-1 Q-5,-3 -3,-2 Q-4,0 -6,-1" 
-                    fill="white" opacity="0.8"/>
-              <path d="M7,-3 Q6,-5 4,-4 Q5,-2 7,-3 M6,-1 Q5,-3 3,-2 Q4,0 6,-1" 
-                    fill="white" opacity="0.8"/>
-            </g>
-            
-            {/* Trophy cup */}
+            {/* Simplified trophy design */}
             <path d="M8 8 L8 12 Q8 14 12 14 Q16 14 16 12 L16 8 Z" 
                   fill="white" opacity="0.9" stroke="#27ae60" strokeWidth="1"/>
             <rect x="10" y="14" width="4" height="2" fill="white" opacity="0.9"/>
@@ -147,6 +139,15 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
             {/* Star on trophy */}
             <path d="M12 9.5 L12.5 10.5 L13.5 10.5 L12.8 11.2 L13 12.2 L12 11.7 L11 12.2 L11.2 11.2 L10.5 10.5 L11.5 10.5 Z" 
                   fill="#27ae60"/>
+            
+            {/* Simple achievement rays */}
+            <g transform="translate(12,12)" opacity="0.6">
+              {[0, 60, 120, 180, 240, 300].map((angle, i) => (
+                <g key={i} transform={`rotate(${angle})`}>
+                  <rect x="-0.5" y="-10" width="1" height="2" fill="#ffffff" rx="0.5"/>
+                </g>
+              ))}
+            </g>
           </svg>
         );
       
