@@ -126,7 +126,7 @@ export default function StudentProjects() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              My Projects
+              My Projects & Assessments
             </h1>
             <p className="text-gray-600">
               Track your progress, complete milestones, and submit your work.
