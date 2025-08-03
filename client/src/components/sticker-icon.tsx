@@ -18,60 +18,132 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
 
     switch (level) {
       case 'red':
-        // Emerging - Seedling with growth animation
+        // Emerging - Dynamic growing tree with animated elements
         return (
           <svg {...commonProps}>
             <defs>
-              <radialGradient id={`redGradient${size}`} cx="0.4" cy="0.3" r="0.9">
+              <radialGradient id={`redGradient${size}`} cx="0.3" cy="0.2" r="1.1">
                 <stop offset="0%" stopColor="#ff6b6b" />
-                <stop offset="30%" stopColor="#e74c3c" />
-                <stop offset="70%" stopColor="#c0392b" />
+                <stop offset="20%" stopColor="#ff5722" />
+                <stop offset="50%" stopColor="#e74c3c" />
+                <stop offset="80%" stopColor="#c0392b" />
                 <stop offset="100%" stopColor="#8b0000" />
               </radialGradient>
-              <radialGradient id={`redCenterGlow${size}`} cx="0.5" cy="0.5" r="0.6">
-                <stop offset="0%" stopColor="#ffffff" opacity="0.4" />
+              <radialGradient id={`redCenterGlow${size}`} cx="0.5" cy="0.5" r="0.7">
+                <stop offset="0%" stopColor="#ffffff" opacity="0.6" />
+                <stop offset="60%" stopColor="#ffeb3b" opacity="0.2" />
                 <stop offset="100%" stopColor="#ffffff" opacity="0" />
               </radialGradient>
               <filter id={`redPulse${size}`}>
-                <feGaussianBlur stdDeviation="0.5" result="coloredBlur"/>
+                <feGaussianBlur stdDeviation="0.8" result="coloredBlur"/>
                 <feMerge> 
                   <feMergeNode in="coloredBlur"/>
                   <feMergeNode in="SourceGraphic"/>
                 </feMerge>
               </filter>
+              <linearGradient id={`redLeafGradient${size}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#81c784" />
+                <stop offset="50%" stopColor="#66bb6a" />
+                <stop offset="100%" stopColor="#4caf50" />
+              </linearGradient>
             </defs>
-            <circle cx="12" cy="12" r="11" fill={`url(#redGradient${size})`} stroke="#722F37" strokeWidth="1.5"/>
+            
+            {/* Outer ring pulse */}
+            <circle cx="12" cy="12" r="11" fill={`url(#redGradient${size})`} stroke="#722F37" strokeWidth="1.5">
+              <animate attributeName="r" values="10.5;11;10.5" dur="3s" repeatCount="indefinite"/>
+            </circle>
             <circle cx="12" cy="12" r="11" fill={`url(#redCenterGlow${size})`} />
             
-            {/* Organic growth pattern - spiraling dots */}
+            {/* Floating growth particles around the tree */}
             <g transform="translate(12,12)" filter={`url(#redPulse${size})`}>
-              {[0, 1, 2, 3, 4, 5].map((i) => {
-                const angle = i * 60 + 15;
-                const radius = 3 + i * 1.2;
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+                const angle = i * 45 + (i % 2 * 22.5);
+                const radius = 6 + (i % 3) * 1.5;
                 const x = Math.cos(angle * Math.PI / 180) * radius;
                 const y = Math.sin(angle * Math.PI / 180) * radius;
                 return (
-                  <circle key={i} cx={x} cy={y} r={0.8 + i * 0.2} fill="white" opacity={0.9 - i * 0.1}>
-                    <animate attributeName="opacity" values="0.3;0.9;0.3" dur="2s" begin={`${i * 0.3}s`} repeatCount="indefinite"/>
-                  </circle>
+                  <g key={i}>
+                    <circle cx={x} cy={y} r={0.6 + (i % 3) * 0.2} fill="#81c784" opacity={0.8}>
+                      <animate attributeName="opacity" values="0.2;1;0.2" dur={`${2 + i * 0.2}s`} begin={`${i * 0.4}s`} repeatCount="indefinite"/>
+                      <animateTransform attributeName="transform" type="translate" values={`0,0;0,-2;0,0`} dur={`${3 + i * 0.3}s`} begin={`${i * 0.2}s`} repeatCount="indefinite"/>
+                    </circle>
+                    {/* Tiny sparkle trails */}
+                    <circle cx={x + 1} cy={y - 1} r="0.3" fill="white" opacity="0.6">
+                      <animate attributeName="opacity" values="0;0.8;0" dur={`${1.5 + i * 0.1}s`} begin={`${i * 0.5}s`} repeatCount="indefinite"/>
+                    </circle>
+                  </g>
                 );
               })}
             </g>
             
-            {/* Central seedling icon */}
+            {/* Central growing tree */}
             <g transform="translate(12,12)">
-              {/* Stem */}
-              <rect x="-0.5" y="2" width="1" height="6" fill="white" opacity="0.9" rx="0.5"/>
-              {/* First leaf */}
-              <path d="M-0.5 3 Q-3 1 -2 4 Q-1 3 -0.5 3" fill="white" opacity="0.8"/>
-              {/* Second leaf */}
-              <path d="M0.5 1 Q3 -1 2 2 Q1 1 0.5 1" fill="white" opacity="0.8"/>
-              {/* Growth sparkles */}
-              <circle cx="-3" cy="0" r="0.5" fill="white" opacity="0.7">
-                <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+              {/* Tree trunk with texture */}
+              <rect x="-0.8" y="3" width="1.6" height="5" fill="#8d6e63" opacity="0.9" rx="0.8">
+                <animate attributeName="height" values="4;5;4.5" dur="4s" repeatCount="indefinite"/>
+              </rect>
+              <rect x="-0.5" y="3.5" width="1" height="4" fill="#a1887f" opacity="0.7" rx="0.5"/>
+              
+              {/* Dynamic growing branches */}
+              <g>
+                {/* Left branch */}
+                <path d="M-0.5 4 Q-2.5 2 -3 3.5" stroke="#8d6e63" strokeWidth="1.2" fill="none" opacity="0.8">
+                  <animate attributeName="opacity" values="0.3;0.8;0.5" dur="3s" repeatCount="indefinite"/>
+                </path>
+                {/* Right branch */}
+                <path d="M0.5 3 Q2.5 1 3 2.5" stroke="#8d6e63" strokeWidth="1.2" fill="none" opacity="0.8">
+                  <animate attributeName="opacity" values="0.5;0.8;0.3" dur="3s" begin="1s" repeatCount="indefinite"/>
+                </path>
+                
+                {/* Animated leaves growing */}
+                <ellipse cx="-3" cy="3" rx="1.2" ry="0.8" fill={`url(#redLeafGradient${size})`} opacity="0.9" transform="rotate(-30)">
+                  <animateTransform attributeName="transform" type="rotate" values="-35;-25;-35" dur="2.5s" repeatCount="indefinite"/>
+                  <animate attributeName="rx" values="1;1.4;1.2" dur="3s" repeatCount="indefinite"/>
+                </ellipse>
+                <ellipse cx="3" cy="2" rx="1" ry="0.7" fill={`url(#redLeafGradient${size})`} opacity="0.9" transform="rotate(25)">
+                  <animateTransform attributeName="transform" type="rotate" values="20;30;25" dur="2.8s" begin="0.5s" repeatCount="indefinite"/>
+                  <animate attributeName="rx" values="0.8;1.2;1" dur="3.5s" begin="0.5s" repeatCount="indefinite"/>
+                </ellipse>
+                
+                {/* Top crown leaves */}
+                <ellipse cx="-1" cy="1" rx="1.5" ry="1" fill={`url(#redLeafGradient${size})`} opacity="0.85" transform="rotate(-15)">
+                  <animateTransform attributeName="transform" type="rotate" values="-20;-10;-15" dur="3.2s" repeatCount="indefinite"/>
+                </ellipse>
+                <ellipse cx="1" cy="0.5" rx="1.3" ry="0.9" fill={`url(#redLeafGradient${size})`} opacity="0.85" transform="rotate(15)">
+                  <animateTransform attributeName="transform" type="rotate" values="10;20;15" dur="2.9s" begin="0.3s" repeatCount="indefinite"/>
+                </ellipse>
+                <ellipse cx="0" cy="-0.5" rx="1.1" ry="0.8" fill={`url(#redLeafGradient${size})`} opacity="0.9">
+                  <animate attributeName="ry" values="0.7;1;0.8" dur="3.8s" repeatCount="indefinite"/>
+                </ellipse>
+              </g>
+              
+              {/* Magical growth sparkles */}
+              <g>
+                {[0, 1, 2, 3, 4].map((i) => {
+                  const sparklePositions = [
+                    {x: -4, y: -1}, {x: 4, y: -2}, {x: -2, y: -3}, {x: 2, y: -4}, {x: 0, y: -5}
+                  ];
+                  const pos = sparklePositions[i];
+                  return (
+                    <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+                      <path d="M0 0 L0.4 1.2 L1.5 1.2 L0.8 2 L1.2 3.2 L0 2.4 L-1.2 3.2 L-0.8 2 L-1.5 1.2 L-0.4 1.2 Z" 
+                            fill="white" opacity="0.9" transform="scale(0.3)">
+                        <animate attributeName="opacity" values="0.3;1;0.3" dur={`${1.8 + i * 0.4}s`} begin={`${i * 0.6}s`} repeatCount="indefinite"/>
+                        <animateTransform attributeName="transform" type="scale" values="0.2;0.4;0.2" dur={`${2 + i * 0.3}s`} begin={`${i * 0.6}s`} repeatCount="indefinite"/>
+                      </path>
+                    </g>
+                  );
+                })}
+              </g>
+              
+              {/* Growth energy waves */}
+              <circle cx="0" cy="2" r="1" fill="none" stroke="white" strokeWidth="0.5" opacity="0.4">
+                <animate attributeName="r" values="1;4;1" dur="4s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.6;0.1;0.6" dur="4s" repeatCount="indefinite"/>
               </circle>
-              <circle cx="3" cy="-2" r="0.3" fill="white" opacity="0.6">
-                <animate attributeName="opacity" values="0;1;0" dur="1.8s" begin="0.5s" repeatCount="indefinite"/>
+              <circle cx="0" cy="2" r="2" fill="none" stroke="#81c784" strokeWidth="0.3" opacity="0.3">
+                <animate attributeName="r" values="2;5;2" dur="5s" begin="1s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.4;0.05;0.4" dur="5s" begin="1s" repeatCount="indefinite"/>
               </circle>
             </g>
           </svg>
