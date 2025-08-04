@@ -96,8 +96,20 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   const milestonesWithStatus = milestones.map(milestone => {
     // Check if student has submitted any assessments for this milestone
     const milestoneSubmissions = studentSubmissions.filter(submission => {
-      // Find assessments that belong to this milestone
-      return submission.assessment?.milestoneId === milestone.id;
+      // Check if the submission's assessment belongs to this milestone
+      return submission.assessment && submission.assessment.milestoneId === milestone.id;
+    });
+    
+    console.log(`Milestone ${milestone.id} (${milestone.title}):`, {
+      totalSubmissions: studentSubmissions.length,
+      milestoneSubmissions: milestoneSubmissions.length,
+      submissionAssessments: milestoneSubmissions.map(s => ({
+        id: s.id,
+        assessmentId: s.assessmentId,
+        milestoneId: s.assessment?.milestoneId,
+        submittedAt: s.submittedAt,
+        gradedAt: s.gradedAt
+      }))
     });
     
     const hasSubmissions = milestoneSubmissions.length > 0;
