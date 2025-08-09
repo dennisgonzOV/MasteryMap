@@ -51,6 +51,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes
   setupAuthRoutes(app);
 
+  // Student assessment submissions
+  app.get("/api/student/assessment-submissions/:studentId", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const studentId = parseInt(req.params.studentId);
+      const { role, id: userId } = req.user;
+
+      // Only allow students to view their own submissions, or teachers/admins
+      if (role === 'student' && userId !== studentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const submissionResults = await db
+        .select({
+          id: submissions.id,
+          assessmentId: submissions.assessmentId,
+          assessmentTitle: assessments.title,
+          assessmentDescription: assessments.description,
+          questions: assessments.questions,
+          responses: submissions.responses,
+          submittedAt: submissions.submittedAt,
+          feedback: submissions.feedback,
+          projectTitle: projects.title,
+          milestoneTitle: milestones.title,
+        })
+        .from(submissions)
+        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
+        .leftJoin(milestones, eq(assessments.milestoneId, milestones.id))
+        .leftJoin(projects, eq(milestones.projectId, projects.id))
+        .where(eq(submissions.studentId, studentId))
+        .orderBy(desc(submissions.submittedAt));
+
+      // Get earned credentials for each submission
+      const submissionsWithCredentials = await Promise.all(
+        submissionResults.map(async (submission) => {
+          // Get credentials earned for this student (general credentials, not tied to specific assessments)
+          const earnedCredentials = await db
+            .select({
+              id: credentials.id,
+              title: credentials.title,
+              description: credentials.description,
+              type: credentials.type,
+              awardedAt: credentials.awardedAt,
+            })
+            .from(credentials)
+            .where(eq(credentials.studentId, studentId));
+
+          // Get grades for this submission
+          const grades = await db
+            .select()
+            .from(gradesTable)
+            .where(eq(gradesTable.submissionId, submission.id));
+
+          return {
+            ...submission,
+            earnedCredentials,
+            questionGrades: grades.reduce((acc: any, grade) => {
+              acc[grade.componentSkillId] = {
+                score: grade.score ? parseFloat(grade.score) : 0,
+                rubricLevel: grade.rubricLevel,
+                feedback: grade.feedback
+              };
+              return acc;
+            }, {}),
+          };
+        })
+      );
+
+      res.json(submissionsWithCredentials);
+    } catch (error) {
+      console.error("Error fetching student assessment submissions:", error);
+      res.status(500).json({ error: "Failed to fetch assessment submissions" });
+    }
+  });
+
   // Project routes
   app.post('/api/projects', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
     try {

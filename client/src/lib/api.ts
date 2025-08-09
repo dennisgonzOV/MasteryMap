@@ -1,7 +1,18 @@
 import { apiRequest } from "./queryClient";
 
 export const api = {
-  // Auth
+  // Student assessment submissions
+  async getStudentAssessmentSubmissions(studentId: number) {
+    const response = await fetch(`/api/student/assessment-submissions/${studentId}`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch assessment submissions');
+    }
+    return response.json();
+  },
+
+  // Auth endpoints
   getCurrentUser: () => fetch("/api/auth/user", { credentials: "include" }).then(res => res.json()),
 
   // Projects
@@ -39,8 +50,9 @@ export const api = {
     fetch("/api/submissions/student", { credentials: "include" }).then(res => res.json()),
   getAssessmentSubmissions: (assessmentId: number) => 
     fetch(`/api/assessments/${assessmentId}/submissions`, { credentials: "include" }).then(res => res.json()),
-  getStudentAssessmentSubmissions: (studentId: number) => 
-    fetch(`/api/student/assessment-submissions/${studentId}`, { credentials: "include" }).then(res => res.json()),
+  // The line below is the updated version of the original getStudentAssessmentSubmissions
+  // getStudentAssessmentSubmissions: (studentId: number) => 
+  //   fetch(`/api/student/assessment-submissions/${studentId}`, { credentials: "include" }).then(res => res.json()),
   gradeSubmission: (submissionId: number, data: any) => 
     apiRequest(`/api/submissions/${submissionId}/grade`, "POST", data),
 

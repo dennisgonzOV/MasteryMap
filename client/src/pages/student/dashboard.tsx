@@ -47,18 +47,20 @@ export default function StudentDashboard() {
 
   // Redirect to login if authentication error
   useEffect(() => {
-    if (!isLoading && (isAuthError || (!isAuthenticated && !hasError))) {
-      if (isAuthError) {
-        toast({
-          title: "Session Expired",
-          description: "Your session has expired. Please log in again.",
-          variant: "destructive",
-        });
-      }
+    if (!isLoading && isAuthError) {
+      toast({
+        title: "Session Expired",
+        description: "Your session has expired. Please log in again.",
+        variant: "destructive",
+      });
       setLocation("/login");
       return;
     }
-  }, [isAuthenticated, isLoading, isAuthError, hasError, setLocation, toast]);
+    if (!isLoading && !isAuthenticated && !isNetworkError) {
+      setLocation("/login");
+      return;
+    }
+  }, [isAuthenticated, isLoading, isAuthError, isNetworkError, setLocation, toast]);
 
   // Fetch student projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
@@ -103,8 +105,27 @@ export default function StudentDashboard() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'student') {
-    return null;
+  // Show loading while checking authentication
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="flex items-center space-x-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="text-lg text-gray-700">Authenticating...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.role !== 'student') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600">This page is only accessible to students.</p>
+        </div>
+      </div>
+    );
   }
 
   // Use real competency progress data from API
