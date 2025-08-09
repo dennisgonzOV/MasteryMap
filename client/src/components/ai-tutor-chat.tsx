@@ -99,13 +99,13 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
   const getLevelSpecificGreeting = (level: string) => {
     switch (level) {
       case 'emerging':
-        return `At the Emerging level, you're beginning to understand this skill. Can you tell me about a specific situation where you've tried to use "${componentSkill.name}"? What challenges did you face, and what support would help you grow?`;
+        return `At the Emerging level, you're beginning to understand and use this skill with significant support. Can you tell me about a specific situation where you've tried to use "${componentSkill.name}"? What challenges did you face, and what support would help you grow?`;
       case 'developing':
-        return `At the Developing level, you're building confidence with this skill. Can you share an example of when you successfully demonstrated "${componentSkill.name}"? What made that experience successful?`;
+        return `At the Developing level, you're building confidence and competency with this skill. Can you share an example of when you successfully demonstrated "${componentSkill.name}"? What made that experience successful?`;
       case 'proficient':
-        return `At the Proficient level, you have a solid grasp of this skill. I'd love to hear about a specific example where you demonstrated "${componentSkill.name}" effectively. What made you successful?`;
+        return `At the Proficient level, you demonstrate solid understanding and effective use of this skill. I'd love to hear about a specific example where you demonstrated "${componentSkill.name}" in practice. What made you successful?`;
       case 'applying':
-        return `At the Applying level, you're using this skill in sophisticated ways. Please share a detailed example of how you've applied "${componentSkill.name}" in a complex situation. How have you helped others with this skill?`;
+        return `At the Applying level, you use this skill in complex situations and help others develop it. Please share a detailed example of how you've applied "${componentSkill.name}" in a complex situation. How have you helped others with this skill?`;
       default:
         return `Let's explore your understanding of this skill together. Can you tell me what "${componentSkill.name}" means to you?`;
     }
@@ -124,7 +124,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
     setMessages(prev => [...prev, userMessage]);
     setCurrentMessage('');
     setIsLoading(true);
-    
+
     // Increment student message count
     const newStudentMessageCount = studentMessageCount + 1;
     setStudentMessageCount(newStudentMessageCount);
@@ -435,7 +435,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         </Card>
       )}
 
-      
+
 
       {/* Complete Button */}
       <div className="flex justify-between items-center">
@@ -445,19 +445,22 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
             : `Continue chatting to develop your self-evaluation. (${studentMessageCount}/2 messages)`}
         </div>
         <Button
-          onClick={onComplete}
-          disabled={!isReadyToComplete || isSubmitting}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          {isSubmitting ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Submitting...</span>
-            </div>
-          ) : (
-            'Complete Evaluation'
-          )}
-        </Button>
+            onClick={onComplete}
+            disabled={!isReadyToComplete || isSubmitting}
+            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Processing AI Analysis...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Complete Evaluation
+              </>
+            )}
+          </Button>
       </div>
     </div>
   );
