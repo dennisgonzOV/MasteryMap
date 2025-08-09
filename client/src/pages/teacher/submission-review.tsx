@@ -52,7 +52,7 @@ interface Submission {
   studentName: string;
   studentEmail: string;
   submittedAt: string;
-  responses: Record<string, string>;
+  responses: Record<string, string> | { questionId: string; answer: string }[];
   grade?: number;
   feedback?: string;
   isLate: boolean;
@@ -74,7 +74,7 @@ export default function SubmissionReview() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
-  
+
   const [grade, setGrade] = useState<string>("");
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,7 +91,7 @@ export default function SubmissionReview() {
     enabled: !!submissionId,
   });
 
-  
+
 
   // Fetch component skills for context and grading
   const { data: allComponentSkills = [] } = useQuery({
@@ -111,11 +111,11 @@ export default function SubmissionReview() {
     }
   }, [submission]);
 
-  
+
 
   const handleSubmitGrade = async () => {
     const gradeValue = parseFloat(grade);
-    
+
     if (grade === "" || isNaN(gradeValue) || gradeValue < 0 || gradeValue > 100) {
       toast({
         title: "Invalid Grade",
@@ -146,7 +146,7 @@ export default function SubmissionReview() {
         title: "Success",
         description: "Submission graded successfully",
       });
-      
+
       // Refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/submissions", submissionId] });
       queryClient.invalidateQueries({ queryKey: ["/api/assessments", assessmentId, "submissions"] });
@@ -184,7 +184,7 @@ export default function SubmissionReview() {
 
       const data = await response.json();
       setFeedback(data.feedback);
-      
+
       toast({
         title: "AI Feedback Generated",
         description: "You can review and edit the feedback before final submission.",
@@ -229,7 +229,7 @@ export default function SubmissionReview() {
     );
   }
 
-  
+
 
   const relevantSkills = componentSkills?.filter(skill => 
     assessment.componentSkillIds?.includes(skill.id)
@@ -238,7 +238,7 @@ export default function SubmissionReview() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
+
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -252,7 +252,7 @@ export default function SubmissionReview() {
               <span>Back to Submissions</span>
             </Button>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <Badge variant={submission.isLate ? "destructive" : "default"}>
               {submission.isLate ? "Late Submission" : "On Time"}
@@ -278,7 +278,7 @@ export default function SubmissionReview() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 mb-4">{assessment.description}</p>
-                
+
                 {/* Component Skills */}
                 {getCompetencyInfo(assessment, componentSkills).length > 0 && (
                   <div>
@@ -331,16 +331,25 @@ export default function SubmissionReview() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <Label className="text-sm font-medium text-gray-700 mb-2 block">
                         Student Answer:
                       </Label>
                       <p className="text-gray-900 whitespace-pre-wrap">
-                        {submission.responses[question.id] || "No answer provided"}
+                        {(() => {
+                          // Handle both array format (new) and object format (legacy)
+                          if (Array.isArray(submission.responses)) {
+                            const response = submission.responses.find(r => r.questionId === question.id);
+                            return response?.answer || "No answer provided";
+                          } else if (submission.responses && typeof submission.responses === 'object') {
+                            return submission.responses[question.id] || "No answer provided";
+                          }
+                          return "No answer provided";
+                        })()}
                       </p>
                     </div>
-                    
+
                     {question.sampleAnswer && (
                       <div className="mt-3 bg-green-50 p-3 rounded-lg">
                         <Label className="text-sm font-medium text-green-800 mb-1 block">
@@ -451,7 +460,7 @@ export default function SubmissionReview() {
                       </>
                     )}
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     onClick={generateAIFeedback}

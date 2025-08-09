@@ -80,7 +80,7 @@ interface Submission {
   responses: Array<{
     questionId: string;
     answer: string;
-  }>;
+  }> | { [questionId: string]: string }; // Adjusted to allow for object format
   grades?: Grade[];
   grade?: number; // AI-generated overall grade
   feedback?: string;
@@ -821,7 +821,14 @@ export default function AssessmentSubmissions() {
                         </h4>
 
                         {assessment?.questions?.map((question, index) => {
-                          const response = submission.responses?.find(r => r.questionId === question.id);
+                          // Handle both array format (new) and object format (legacy)
+                          let responseText = "No answer provided";
+                          if (Array.isArray(submission.responses)) {
+                            const response = submission.responses.find(r => r.questionId === question.id);
+                            responseText = response?.answer || "No answer provided";
+                          } else if (submission.responses && typeof submission.responses === 'object') {
+                            responseText = submission.responses[question.id] || "No answer provided";
+                          }
 
                           return (
                             <Card key={question.id} className="bg-white">
@@ -838,8 +845,8 @@ export default function AssessmentSubmissions() {
                                       </p>
                                     )}
                                     <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                                      <p className="text-gray-800">
-                                        {response?.answer || 'No response provided'}
+                                      <p className="text-gray-800 whitespace-pre-wrap break-words">
+                                        {responseText}
                                       </p>
                                     </div>
                                   </div>
