@@ -404,7 +404,13 @@ function AssessmentsTab() {
     // Show assessments that are either:
     // 1. Active (submitted but not yet graded)
     // 2. Complete (graded)
-    return submission.status === 'submitted' || submission.status === 'graded';
+    // Include submissions with submittedAt date (indicating they were submitted)
+    return submission.submittedAt && (
+      submission.status === 'submitted' || 
+      submission.status === 'graded' ||
+      submission.gradedAt || // Has been graded
+      !submission.status // No status set but has submittedAt
+    );
   });
 
   if (isLoading) {
