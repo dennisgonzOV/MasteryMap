@@ -399,6 +399,14 @@ function AssessmentsTab() {
     retry: false,
   });
 
+  // Filter submissions to show only active and complete assessments
+  const filteredSubmissions = submissions.filter((submission) => {
+    // Show assessments that are either:
+    // 1. Active (submitted but not yet graded)
+    // 2. Complete (graded)
+    return submission.status === 'submitted' || submission.status === 'graded';
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -408,14 +416,14 @@ function AssessmentsTab() {
     );
   }
 
-  if (submissions.length === 0) {
+  if (filteredSubmissions.length === 0) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-12">
           <div className="text-center">
             <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Assessments Yet</h3>
-            <p className="text-gray-600">You haven't taken any assessments yet. Check back later!</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Active or Complete Assessments</h3>
+            <p className="text-gray-600">You don't have any active or completed assessments yet. Check back later!</p>
           </div>
         </CardContent>
       </Card>
@@ -424,7 +432,7 @@ function AssessmentsTab() {
 
   return (
     <div className="space-y-6">
-      {submissions.map((submission) => (
+      {filteredSubmissions.map((submission) => (
         <AssessmentSubmissionCard key={submission.id} submission={submission} />
       ))}
     </div>
