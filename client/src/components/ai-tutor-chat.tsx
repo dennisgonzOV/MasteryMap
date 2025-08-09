@@ -417,7 +417,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                   value={currentMessage}
                   onChange={(e) => setCurrentMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={isTerminated ? "Conversation has ended" : studentMessageCount >= 2 ? "Conversation limit reached" : "Ask questions, share experiences, or discuss your understanding..."}
+                  placeholder={isTerminated ? "Conversation has ended" : studentMessageCount >= 2 ? "You've completed the required conversation. Click 'Complete Evaluation' to submit." : "Ask questions, share experiences, or discuss your understanding..."}
                   className="min-h-[60px] resize-none"
                   disabled={isLoading || isTerminated || studentMessageCount >= 2}
                 />
@@ -440,9 +440,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       {/* Complete Button */}
       <div className="flex justify-between items-center">
         <div className="text-sm text-gray-600">
-          {isReadyToComplete 
-            ? "Ready to submit your self-evaluation!" 
-            : studentMessageCount >= 2
+          {studentMessageCount >= 2
             ? "Conversation complete - ready to submit your evaluation!"
             : `Continue chatting to develop your self-evaluation. (${studentMessageCount}/2 messages)`}
         </div>

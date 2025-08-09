@@ -232,10 +232,10 @@ export default function TakeAssessment() {
     const currentSkill = assessmentComponentSkills[0];
     const currentEval = selfEvaluations[currentSkill.id];
 
-    if (!currentEval || !currentEval.selfAssessedLevel || !currentEval.justification) {
+    if (!currentEval || !currentEval.selfAssessedLevel) {
       toast({
         title: "Incomplete self-evaluation",
-        description: "Please complete all required fields before submitting.",
+        description: "Please select your competency level and complete the conversation with the AI tutor before submitting.",
         variant: "destructive",
       });
       return;
