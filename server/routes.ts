@@ -33,10 +33,19 @@ import {
   bestStandards as bestStandardsTable,
   projectTeamMembers,
   notifications as notificationsTable,
-  safetyIncidents as safetyIncidentsTable
+  safetyIncidents as safetyIncidentsTable,
+  assessmentSubmissions, // New import
+  portfolioArtifacts, // New import
+  credentials, // New import
+  projects, // New import
+  milestones, // New import
+  assessments, // New import
 } from "../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "./db";
+
+// Define AuthRequest type if it's not globally available
+type AuthRequest = AuthenticatedRequest;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes
@@ -642,7 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (assessmentData.componentSkillIds && !Array.isArray(assessmentData.componentSkillIds)) {
         assessmentData.componentSkillIds = Array.from(assessmentData.componentSkillIds);
       }
-      
+
       const assessment = await storage.createAssessment(assessmentData);
       res.json(assessment);
     } catch (error) {
@@ -957,16 +966,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add isLate calculation and ensure proper data format
       const assessment = await storage.getAssessment(assessmentId);
-      
+
       // Fetch grades for each submission
       const enhancedSubmissions = await Promise.all(
         submissions.map(async (submission) => {
           const grades = await db.select()
             .from(gradesTable)
             .where(eq(gradesTable.submissionId, submission.id));
-          
+
           console.log(`Submission ${submission.id} has ${grades.length} grades:`, grades);
-          
+
           return {
             ...submission,
             answers: submission.responses || {},
@@ -1064,7 +1073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Only award if they don't already have a sticker for this skill
         if (existingSticker.length === 0) {
           const componentSkill = await storage.getComponentSkill(grade.componentSkillId);
-          
+
           stickersToAward.push({
             studentId: studentId,
             type: 'sticker' as const,
@@ -1275,7 +1284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const submissionId = parseInt(req.params.id);
-      
+
       const submission = await storage.getSubmission(submissionId);
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
@@ -1381,10 +1390,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Import the notification service
           const { notifyTeacherOfSafetyIncident } = await import('./services/notifications');
-          
+
           // Map safety flags to incident types
           let incidentType: 'homicidal_ideation' | 'suicidal_ideation' | 'inappropriate_language' | 'homicidal_ideation_fallback' | 'suicidal_ideation_fallback' | 'inappropriate_language_fallback';
-          
+
           switch (tutorResponse.safetyFlag) {
             case 'homicidal_ideation':
               incidentType = 'homicidal_ideation';
@@ -2759,6 +2768,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('School skills stats error:', error);
       res.status(500).json({ message: "Failed to fetch school skills statistics" });
+    }
+  });
+
+  // Add the new endpoint for student assessment submissions
+  // Get student's assessment submissions with details
+  app.get("/api/student/assessment-submissions/:studentId", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const studentId = parseInt(req.params.studentId);
+
+      // Verify the user can access this data (student accessing own data)
+      if (req.user.role === 'student' && req.user.id !== studentId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get all submissions for the student
+      const submissions = await db
+        .select({
+          id: assessmentSubmissions.id,
+          assessmentId: assessmentSubmissions.assessmentId,
+          assessmentTitle: assessments.title,
+          assessmentDescription: assessments.description,
+          questions: assessments.questions,
+          responses: assessmentSubmissions.responses,
+          status: assessmentSubmissions.status,
+          totalScore: assessmentSubmissions.totalScore,
+          submittedAt: assessmentSubmissions.submittedAt,
+          projectTitle: projects.title,
+          milestoneTitle: milestones.title,
+          grades: assessmentSubmissions.grades,
+        })
+        .from(assessmentSubmissions)
+        .innerJoin(assessments, eq(assessmentSubmissions.assessmentId, assessments.id))
+        .leftJoin(milestones, eq(assessments.milestoneId, milestones.id))
+        .leftJoin(projects, eq(milestones.projectId, projects.id))
+        .where(eq(assessmentSubmissions.studentId, studentId))
+        .orderBy(desc(assessmentSubmissions.submittedAt));
+
+      // Get earned credentials for each submission
+      const submissionsWithCredentials = await Promise.all(
+        submissions.map(async (submission) => {
+          // Get credentials earned from this specific assessment
+          const earnedCredentials = await db
+            .select({
+              id: credentials.id,
+              title: credentials.title,
+              description: credentials.description,
+              type: credentials.type,
+              awardedAt: credentials.awardedAt,
+            })
+            .from(credentials)
+            .where(
+              and(
+                eq(credentials.studentId, studentId),
+                eq(credentials.assessmentId, submission.assessmentId)
+              )
+            );
+
+          return {
+            ...submission,
+            earnedCredentials,
+            questionGrades: submission.grades ? JSON.parse(submission.grades as string) : null,
+          };
+        })
+      );
+
+      res.json(submissionsWithCredentials);
+    } catch (error) {
+      console.error("Error fetching student assessment submissions:", error);
+      res.status(500).json({ error: "Failed to fetch assessment submissions" });
     }
   });
 
