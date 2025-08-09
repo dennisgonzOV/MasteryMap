@@ -136,14 +136,6 @@ export default function AIFeedbackModal({
               <div className="space-y-2 text-purple-800">
                 <div className="flex items-start space-x-2">
                   <span className="w-2 h-2 bg-purple-400 rounded-full mt-2"></span>
-                  <span className="text-sm">Your self-evaluation has been saved and shared with your teacher</span>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <span className="w-2 h-2 bg-purple-400 rounded-full mt-2"></span>
-                  <span className="text-sm">Review this feedback regularly to track your improvement</span>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <span className="w-2 h-2 bg-purple-400 rounded-full mt-2"></span>
                   <span className="text-sm">Discuss specific goals with your teacher based on these insights</span>
                 </div>
                 {!isLastSkill && (
