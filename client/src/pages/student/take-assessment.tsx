@@ -73,6 +73,7 @@ export default function TakeAssessment() {
   // Self-evaluation specific state
   const [currentSkillIndex, setCurrentSkillIndex] = useState(0);
   const [selfEvaluations, setSelfEvaluations] = useState<Record<number, SelfEvaluationData>>({});
+  const [isProcessingAIAnalysis, setIsProcessingAIAnalysis] = useState(false);
   const [aiFeedbackModal, setAiFeedbackModal] = useState<{
     open: boolean;
     feedback: string;
@@ -241,11 +242,14 @@ export default function TakeAssessment() {
       return;
     }
 
+    setIsProcessingAIAnalysis(true);
     try {
       await submitSelfEvaluationMutation.mutateAsync(currentEval);
       // Success handling is done in the mutation's onSuccess callback
     } catch (error) {
       console.error('Error submitting self-evaluation:', error);
+    } finally {
+      setIsProcessingAIAnalysis(false);
     }
   };
 
@@ -552,7 +556,7 @@ export default function TakeAssessment() {
                   }}
                   onEvaluationUpdate={(updates) => updateSelfEvaluation(assessmentComponentSkills[0].id, updates)}
                   onComplete={submitCurrentSelfEvaluation}
-                  isSubmitting={isSubmitting}
+                  isSubmitting={isSubmitting || isProcessingAIAnalysis}
                 />
               </CardContent>
             </Card>
