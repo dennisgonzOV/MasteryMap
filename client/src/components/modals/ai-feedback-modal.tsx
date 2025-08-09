@@ -157,13 +157,7 @@ export default function AIFeedbackModal({
           </Card>
         </div>
 
-        <DialogFooter className="flex items-center space-x-4 pt-6">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Review Later
-          </Button>
+        <DialogFooter className="flex justify-end pt-6">
           <Button
             onClick={handleContinue}
             className="bg-blue-600 hover:bg-blue-700"
