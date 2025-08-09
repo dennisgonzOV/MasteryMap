@@ -226,7 +226,7 @@ export default function Landing() {
               Empowering project-based learning through innovative technology and AI-driven insights.
             </p>
             <div className="mt-4 text-xs text-gray-500">
-              © 2024 MasteryMap. All rights reserved.
+              MasteryMap © 2025 True Aim LLC. All rights reserved.
             </div>
           </div>
         </div>
