@@ -50,6 +50,7 @@ export default function AITutorChat({
   const [hasGreeted, setHasGreeted] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [isTerminated, setIsTerminated] = useState(false);
+  const [studentMessageCount, setStudentMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -68,6 +69,7 @@ export default function AITutorChat({
     setCurrentStep(1);
     setIsTerminated(false);
     setIsLoading(false);
+    setStudentMessageCount(0);
   }, [componentSkill.id]);
 
   useEffect(() => {
@@ -122,6 +124,10 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
     setMessages(prev => [...prev, userMessage]);
     setCurrentMessage('');
     setIsLoading(true);
+    
+    // Increment student message count
+    const newStudentMessageCount = studentMessageCount + 1;
+    setStudentMessageCount(newStudentMessageCount);
 
     try {
       const response = await fetch('/api/ai-tutor/chat', {
@@ -150,6 +156,24 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       };
 
       setMessages(prev => [...prev, tutorMessage]);
+
+      // Check if we've reached the 2-message limit
+      if (newStudentMessageCount >= 2) {
+        const limitMessage: ChatMessage = {
+          id: `msg_${Date.now()}_limit`,
+          role: 'tutor',
+          content: "Thank you for our conversation! You've shared great insights about your understanding. Based on our discussion, you're now ready to complete your self-evaluation. Please click 'Complete Evaluation' to submit your final assessment.",
+          timestamp: new Date()
+        };
+
+        setTimeout(() => {
+          setMessages(prev => [...prev, limitMessage]);
+          setIsTerminated(true);
+        }, 1000);
+
+        setIsLoading(false);
+        return;
+      }
 
       // Handle safety flags and conversation termination
       if (data.shouldTerminate && data.safetyFlag) {
@@ -213,7 +237,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
     // Step 2 will be automatically triggered by the useEffect above
   };
 
-  const isReadyToComplete = selfEvaluation.selfAssessedLevel && messages.length >= 4;
+  const isReadyToComplete = selfEvaluation.selfAssessedLevel && studentMessageCount >= 2;
 
   return (
     <div className="space-y-4">
@@ -393,13 +417,13 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                   value={currentMessage}
                   onChange={(e) => setCurrentMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={isTerminated ? "Conversation has ended" : "Ask questions, share experiences, or discuss your understanding..."}
+                  placeholder={isTerminated ? "Conversation has ended" : studentMessageCount >= 2 ? "Conversation limit reached" : "Ask questions, share experiences, or discuss your understanding..."}
                   className="min-h-[60px] resize-none"
-                  disabled={isLoading || isTerminated}
+                  disabled={isLoading || isTerminated || studentMessageCount >= 2}
                 />
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!currentMessage.trim() || isLoading || isTerminated}
+                  disabled={!currentMessage.trim() || isLoading || isTerminated || studentMessageCount >= 2}
                   size="sm"
                   className="px-3"
                 >
@@ -418,7 +442,9 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         <div className="text-sm text-gray-600">
           {isReadyToComplete 
             ? "Ready to submit your self-evaluation!" 
-            : "Continue chatting to develop your self-evaluation."}
+            : studentMessageCount >= 2
+            ? "Conversation complete - ready to submit your evaluation!"
+            : `Continue chatting to develop your self-evaluation. (${studentMessageCount}/2 messages)`}
         </div>
         <Button
           onClick={onComplete}
