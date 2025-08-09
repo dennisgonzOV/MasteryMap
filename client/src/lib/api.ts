@@ -39,6 +39,8 @@ export const api = {
     fetch("/api/submissions/student", { credentials: "include" }).then(res => res.json()),
   getAssessmentSubmissions: (assessmentId: number) => 
     fetch(`/api/assessments/${assessmentId}/submissions`, { credentials: "include" }).then(res => res.json()),
+  getStudentAssessmentSubmissions: (studentId: number) => 
+    fetch(`/api/student/assessment-submissions/${studentId}`, { credentials: "include" }).then(res => res.json()),
   gradeSubmission: (submissionId: number, data: any) => 
     apiRequest(`/api/submissions/${submissionId}/grade`, "POST", data),
 

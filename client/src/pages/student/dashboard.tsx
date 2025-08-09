@@ -548,4 +548,3 @@ function AssessmentSubmissionCard({ submission }) {
     </Card>
   );
 }
-}

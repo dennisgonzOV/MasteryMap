@@ -34,12 +34,12 @@ import {
   projectTeamMembers,
   notifications as notificationsTable,
   safetyIncidents as safetyIncidentsTable,
-  assessmentSubmissions, // New import
-  portfolioArtifacts, // New import
-  credentials, // New import
-  projects, // New import
-  milestones, // New import
-  assessments, // New import
+  projects,
+  milestones,
+  assessments,
+  submissions,
+  portfolioArtifacts,
+  credentials
 } from "../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "./db";
@@ -2783,32 +2783,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all submissions for the student
-      const submissions = await db
+      const submissionResults = await db
         .select({
-          id: assessmentSubmissions.id,
-          assessmentId: assessmentSubmissions.assessmentId,
+          id: submissions.id,
+          assessmentId: submissions.assessmentId,
           assessmentTitle: assessments.title,
           assessmentDescription: assessments.description,
           questions: assessments.questions,
-          responses: assessmentSubmissions.responses,
-          status: assessmentSubmissions.status,
-          totalScore: assessmentSubmissions.totalScore,
-          submittedAt: assessmentSubmissions.submittedAt,
+          responses: submissions.responses,
+          submittedAt: submissions.submittedAt,
+          feedback: submissions.feedback,
           projectTitle: projects.title,
           milestoneTitle: milestones.title,
-          grades: assessmentSubmissions.grades,
         })
-        .from(assessmentSubmissions)
-        .innerJoin(assessments, eq(assessmentSubmissions.assessmentId, assessments.id))
+        .from(submissions)
+        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
         .leftJoin(milestones, eq(assessments.milestoneId, milestones.id))
         .leftJoin(projects, eq(milestones.projectId, projects.id))
-        .where(eq(assessmentSubmissions.studentId, studentId))
-        .orderBy(desc(assessmentSubmissions.submittedAt));
+        .where(eq(submissions.studentId, studentId))
+        .orderBy(desc(submissions.submittedAt));
 
       // Get earned credentials for each submission
       const submissionsWithCredentials = await Promise.all(
-        submissions.map(async (submission) => {
-          // Get credentials earned from this specific assessment
+        submissionResults.map(async (submission) => {
+          // Get credentials earned for this student (general credentials, not tied to specific assessments)
           const earnedCredentials = await db
             .select({
               id: credentials.id,
@@ -2818,17 +2816,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               awardedAt: credentials.awardedAt,
             })
             .from(credentials)
-            .where(
-              and(
-                eq(credentials.studentId, studentId),
-                eq(credentials.assessmentId, submission.assessmentId)
-              )
-            );
+            .where(eq(credentials.studentId, studentId));
+
+          // Get grades for this submission
+          const grades = await db
+            .select()
+            .from(gradesTable)
+            .where(eq(gradesTable.submissionId, submission.id));
 
           return {
             ...submission,
             earnedCredentials,
-            questionGrades: submission.grades ? JSON.parse(submission.grades as string) : null,
+            questionGrades: grades.reduce((acc: any, grade) => {
+              acc[grade.componentSkillId] = {
+                score: grade.score ? parseFloat(grade.score) : 0,
+                rubricLevel: grade.rubricLevel,
+                feedback: grade.feedback
+              };
+              return acc;
+            }, {}),
           };
         })
       );
