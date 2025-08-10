@@ -64,23 +64,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const submissionResults = await db
         .select({
-          id: submissions.id,
-          assessmentId: submissions.assessmentId,
-          assessmentTitle: assessments.title,
-          assessmentDescription: assessments.description,
-          questions: assessments.questions,
-          responses: submissions.responses,
-          submittedAt: submissions.submittedAt,
-          feedback: submissions.feedback,
-          projectTitle: projects.title,
-          milestoneTitle: milestones.title,
+          id: submissionsTable.id,
+          assessmentId: submissionsTable.assessmentId,
+          assessmentTitle: assessmentsTable.title,
+          assessmentDescription: assessmentsTable.description,
+          questions: assessmentsTable.questions,
+          responses: submissionsTable.responses,
+          submittedAt: submissionsTable.submittedAt,
+          feedback: submissionsTable.feedback,
+          projectTitle: projectsTable.title,
+          milestoneTitle: milestonesTable.title,
         })
-        .from(submissions)
-        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
-        .leftJoin(milestones, eq(assessments.milestoneId, milestones.id))
-        .leftJoin(projects, eq(milestones.projectId, projects.id))
-        .where(eq(submissions.studentId, studentId))
-        .orderBy(desc(submissions.submittedAt));
+        .from(submissionsTable)
+        .innerJoin(assessmentsTable, eq(submissionsTable.assessmentId, assessmentsTable.id))
+        .leftJoin(milestonesTable, eq(assessmentsTable.milestoneId, milestonesTable.id))
+        .leftJoin(projectsTable, eq(milestonesTable.projectId, projectsTable.id))
+        .where(eq(submissionsTable.studentId, studentId))
+        .orderBy(desc(submissionsTable.submittedAt));
 
       // Get earned credentials for each submission
       const submissionsWithCredentials = await Promise.all(
@@ -99,16 +99,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get credentials earned specifically for this assessment submission
           const assessmentCredentials = await db
             .select({
-              id: credentials.id,
-              title: credentials.title,
-              description: credentials.description,
-              type: credentials.type,
-              awardedAt: credentials.awardedAt,
+              id: credentialsTable.id,
+              title: credentialsTable.title,
+              description: credentialsTable.description,
+              type: credentialsTable.type,
+              awardedAt: credentialsTable.awardedAt,
             })
-            .from(credentials)
+            .from(credentialsTable)
             .where(and(
-              eq(credentials.studentId, studentId),
-              eq(credentials.submissionId, submission.id)
+              eq(credentialsTable.studentId, studentId),
+              eq(credentialsTable.submissionId, submission.id)
             ));
 
           return {
@@ -2855,90 +2855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add the new endpoint for student assessment submissions
-  // Get student's assessment submissions with details
-  app.get("/api/student/assessment-submissions/:studentId", requireAuth, async (req: AuthRequest, res) => {
-    try {
-      const studentId = parseInt(req.params.studentId);
-
-      // Verify the user can access this data (student accessing own data)
-      if (req.user.role === 'student' && req.user.id !== studentId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      // Get all submissions for the student
-      const submissionResults = await db
-        .select({
-          id: submissions.id,
-          assessmentId: submissions.assessmentId,
-          assessmentTitle: assessments.title,
-          assessmentDescription: assessments.description,
-          questions: assessments.questions,
-          responses: submissions.responses,
-          submittedAt: submissions.submittedAt,
-          feedback: submissions.feedback,
-          projectTitle: projects.title,
-          milestoneTitle: milestones.title,
-        })
-        .from(submissions)
-        .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
-        .leftJoin(milestones, eq(assessments.milestoneId, milestones.id))
-        .leftJoin(projects, eq(milestones.projectId, projects.id))
-        .where(eq(submissions.studentId, studentId))
-        .orderBy(desc(submissions.submittedAt));
-
-      // Get earned credentials for each submission
-      const submissionsWithCredentials = await Promise.all(
-        submissionResults.map(async (submission) => {
-          // Get grades for this submission
-          const grades = await db
-            .select()
-            .from(gradesTable)
-            .where(eq(gradesTable.submissionId, submission.id));
-
-          // Calculate total score from grades
-          const totalScore = grades.length > 0 
-            ? Math.round((grades.reduce((sum, grade) => sum + (parseFloat(grade.score) || 0), 0) / grades.length) * 25)
-            : null;
-
-          // Get credentials earned specifically for this assessment submission
-          const assessmentCredentials = await db
-            .select({
-              id: credentials.id,
-              title: credentials.title,
-              description: credentials.description,
-              type: credentials.type,
-              awardedAt: credentials.awardedAt,
-            })
-            .from(credentials)
-            .where(and(
-              eq(credentials.studentId, studentId),
-              eq(credentials.submissionId, submission.id)
-            ));
-
-          return {
-            ...submission,
-            earnedCredentials: assessmentCredentials,
-            totalScore,
-            status: totalScore !== null ? 'graded' : (submission.submittedAt ? 'submitted' : 'draft'),
-            questionGrades: grades.reduce((acc: any, grade) => {
-              acc[grade.componentSkillId] = {
-                score: grade.score ? parseFloat(grade.score) : 0,
-                rubricLevel: grade.rubricLevel,
-                feedback: grade.feedback
-              };
-              return acc;
-            }, {}),
-          };
-        })
-      );
-
-      res.json(submissionsWithCredentials);
-    } catch (error) {
-      console.error("Error fetching student assessment submissions:", error);
-      res.status(500).json({ error: "Failed to fetch assessment submissions" });
-    }
-  });
+  
 
   const httpServer = createServer(app);
   return httpServer;
