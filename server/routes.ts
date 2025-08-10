@@ -26,20 +26,20 @@ import {
   portfolioArtifacts as portfolioArtifactsTable,
   learnerOutcomes as learnerOutcomesTable,
   competencies as competenciesTable,
-  projectAssignments,
+  projectTeamMembers,
   grades as gradesTable,
   selfEvaluations as selfEvaluationsTable,
   componentSkills as componentSkillsTable,
   bestStandards as bestStandardsTable,
-  projectTeamMembers,
-  notifications as notificationsTable,
-  safetyIncidents as safetyIncidentsTable,
+  projectAssignments,
   projects,
   milestones,
   assessments,
   submissions,
   portfolioArtifacts,
-  credentials
+  credentials,
+  safetyIncidents as safetyIncidentsTable,
+  notifications as notificationsTable,
 } from "../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "./db";
@@ -85,17 +85,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get earned credentials for each submission
       const submissionsWithCredentials = await Promise.all(
         submissionResults.map(async (submission) => {
-          // Get credentials earned for this student (general credentials, not tied to specific assessments)
-          const earnedCredentials = await db
+          // Get credentials earned for this specific assessment submission
+          // First get grades for this submission to find associated component skills
+          const submissionGrades = await db
             .select({
-              id: credentials.id,
-              title: credentials.title,
-              description: credentials.description,
-              type: credentials.type,
-              awardedAt: credentials.awardedAt,
+              componentSkillId: gradesTable.componentSkillId,
+              gradedAt: gradesTable.gradedAt
             })
-            .from(credentials)
-            .where(eq(credentials.studentId, studentId));
+            .from(gradesTable)
+            .where(eq(gradesTable.submissionId, submission.id));
+
+          // Get credentials earned for component skills that were graded in this submission
+          // and awarded around the time of grading (within 1 day)
+          const earnedCredentials = [];
+          if (submissionGrades.length > 0) {
+            const componentSkillIds = submissionGrades.map(g => g.componentSkillId);
+            const gradeDate = submissionGrades[0].gradedAt;
+
+            if (gradeDate) {
+              const dayBefore = new Date(gradeDate.getTime() - 24 * 60 * 60 * 1000);
+              const dayAfter = new Date(gradeDate.getTime() + 24 * 60 * 60 * 1000);
+
+              const submissionCredentials = await db
+                .select({
+                  id: credentials.id,
+                  title: credentials.title,
+                  description: credentials.description,
+                  type: credentials.type,
+                  awardedAt: credentials.awardedAt,
+                })
+                .from(credentials)
+                .where(and(
+                  eq(credentials.studentId, studentId),
+                  inArray(credentials.componentSkillId, componentSkillIds),
+                  gte(credentials.awardedAt, dayBefore),
+                  sql`${credentials.awardedAt} <= ${dayAfter}`
+                ));
+
+              earnedCredentials.push(...submissionCredentials);
+            }
+          }
 
           // Get grades for this submission
           const grades = await db
@@ -2884,17 +2913,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get earned credentials for each submission
       const submissionsWithCredentials = await Promise.all(
         submissionResults.map(async (submission) => {
-          // Get credentials earned for this student (general credentials, not tied to specific assessments)
-          const earnedCredentials = await db
+          // Get credentials earned for this specific assessment submission
+          // First get grades for this submission to find associated component skills
+          const submissionGrades = await db
             .select({
-              id: credentials.id,
-              title: credentials.title,
-              description: credentials.description,
-              type: credentials.type,
-              awardedAt: credentials.awardedAt,
+              componentSkillId: gradesTable.componentSkillId,
+              gradedAt: gradesTable.gradedAt
             })
-            .from(credentials)
-            .where(eq(credentials.studentId, studentId));
+            .from(gradesTable)
+            .where(eq(gradesTable.submissionId, submission.id));
+
+          // Get credentials earned for component skills that were graded in this submission
+          // and awarded around the time of grading (within 1 day)
+          const earnedCredentials = [];
+          if (submissionGrades.length > 0) {
+            const componentSkillIds = submissionGrades.map(g => g.componentSkillId);
+            const gradeDate = submissionGrades[0].gradedAt;
+
+            if (gradeDate) {
+              const dayBefore = new Date(gradeDate.getTime() - 24 * 60 * 60 * 1000);
+              const dayAfter = new Date(gradeDate.getTime() + 24 * 60 * 60 * 1000);
+
+              const submissionCredentials = await db
+                .select({
+                  id: credentials.id,
+                  title: credentials.title,
+                  description: credentials.description,
+                  type: credentials.type,
+                  awardedAt: credentials.awardedAt,
+                })
+                .from(credentials)
+                .where(and(
+                  eq(credentials.studentId, studentId),
+                  inArray(credentials.componentSkillId, componentSkillIds),
+                  gte(credentials.awardedAt, dayBefore),
+                  sql`${credentials.awardedAt} <= ${dayAfter}`
+                ));
+
+              earnedCredentials.push(...submissionCredentials);
+            }
+          }
 
           // Get grades for this submission
           const grades = await db
