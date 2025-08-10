@@ -580,8 +580,9 @@ function AssessmentSubmissionCard({ submission }) {
       {isExpanded && (
         <CardContent className="pt-0">
           <div className="space-y-6">
-            {/* Earned Credentials */}
-            {submission.earnedCredentials && submission.earnedCredentials.length > 0 && (
+            {/* Earned Credentials - Only show for graded assessments */}
+            {(submission.totalScore !== null && submission.totalScore !== undefined) && 
+             submission.earnedCredentials && submission.earnedCredentials.length > 0 && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <Star className="h-5 w-5 text-yellow-500 mr-2" />
