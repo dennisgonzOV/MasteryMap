@@ -81,11 +81,11 @@ export default function StudentProjects() {
               const milestoneSubmissions = studentSubmissions.filter((submission: any) => {
                 return submission.assessment?.milestoneId === milestone.id;
               });
-              
+
               const hasGradedSubmissions = milestoneSubmissions.some((submission: any) => 
                 submission.gradedAt || submission.feedback
               );
-              
+
               return {
                 ...milestone,
                 isCompleted: hasGradedSubmissions || milestone.status === 'completed'
@@ -147,7 +147,7 @@ export default function StudentProjects() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <Navigation />
-      
+
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -161,34 +161,8 @@ export default function StudentProjects() {
                   Track your progress, complete milestones, and submit your work.
                 </p>
               </div>
-              
-              {/* Join Assessment Card - Compact */}
-              <div className="lg:min-w-0 lg:flex-shrink-0">
-                <Card className="apple-shadow border-0 bg-gradient-to-r from-purple-50 to-blue-50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-purple-100 rounded-full">
-                        <Target className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                          Join Assessment
-                        </h3>
-                        <p className="text-xs text-gray-600 mb-2">
-                          Enter 5-letter code
-                        </p>
-                        <Button 
-                          size="sm"
-                          onClick={() => setLocation("/student/enter-code")}
-                          className="bg-purple-600 text-white hover:bg-purple-700 btn-primary text-xs h-8"
-                        >
-                          Enter Code
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+
+              {/* Removed Join Assessment Card */}
             </div>
           </div>
 
@@ -335,7 +309,7 @@ export default function StudentProjects() {
                 const upcomingMilestones = milestones.filter(m => 
                   m.dueDate && new Date(m.dueDate) >= new Date()
                 );
-                
+
                 return (
                   <Card key={project.id} className="apple-shadow border-0 card-hover">
                     <CardContent className="p-6">
