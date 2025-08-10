@@ -41,7 +41,7 @@ export default function Navigation() {
 
     if (user?.role === 'student') {
       return [
-        { name: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
+        { name: 'Assessments', href: '/student/dashboard', icon: LayoutDashboard },
         { name: 'Projects', href: '/student/projects', icon: BookOpen },
         { name: 'Portfolio', href: '/student/portfolio', icon: Award },
       ];
