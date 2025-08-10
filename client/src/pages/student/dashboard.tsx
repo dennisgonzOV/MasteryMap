@@ -269,7 +269,7 @@ export default function StudentDashboard() {
                   }`}
                   onClick={() => setActiveTab('assessments')}
                 >
-                  My Assessments
+                  Assessments
                 </button>
               </nav>
             </div>
