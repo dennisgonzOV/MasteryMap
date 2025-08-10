@@ -620,7 +620,16 @@ function AssessmentSubmissionCard({ submission }) {
                     <div className="bg-gray-50 p-3 rounded-lg mb-3">
                       <p className="text-sm font-medium text-gray-700 mb-1">Your Answer:</p>
                       <p className="text-gray-900">
-                        {submission.responses[question.id] || "No answer provided"}
+                        {(() => {
+                          // Handle both array format (new) and object format (legacy)
+                          if (Array.isArray(submission.responses)) {
+                            const response = submission.responses.find(r => r.questionId === question.id);
+                            return response?.answer || "No answer provided";
+                          } else if (submission.responses && typeof submission.responses === 'object') {
+                            return submission.responses[question.id] || "No answer provided";
+                          }
+                          return "No answer provided";
+                        })()}
                       </p>
                     </div>
 
