@@ -196,56 +196,7 @@ export default function StudentDashboard() {
           
 
           
-        {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-600 font-medium">Active Projects</p>
-                    <p className="text-2xl font-bold text-green-700">{activeProjects.length}</p>
-                  </div>
-                  <BookOpen className="h-8 w-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-blue-600 font-medium">Credentials</p>
-                    <p className="text-2xl font-bold text-blue-700">{credentials.length}</p>
-                  </div>
-                  <Award className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-purple-600 font-medium">Portfolio Items</p>
-                    <p className="text-2xl font-bold text-purple-700">{artifacts.length}</p>
-                  </div>
-                  <Trophy className="h-8 w-8 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-orange-600 font-medium">Upcoming</p>
-                    <p className="text-2xl font-bold text-orange-700">{upcomingDeadlines.length}</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        
 
           {/* Main Content Tabs */}
           <div className="space-y-8">
