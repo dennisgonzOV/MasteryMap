@@ -103,9 +103,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .from(gradesTable)
             .where(eq(gradesTable.submissionId, submission.id));
 
+          // Determine if submission is graded (has grades)
+          const isGraded = grades.length > 0;
+
           return {
             ...submission,
             earnedCredentials,
+            status: isGraded ? 'graded' : (submission.submittedAt ? 'submitted' : 'draft'),
             questionGrades: grades.reduce((acc: any, grade) => {
               acc[grade.componentSkillId] = {
                 score: grade.score ? parseFloat(grade.score) : 0,
