@@ -344,6 +344,56 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
     retry: false,
   });
 
+  // Fetch student submissions to check completion status
+  const { data: studentSubmissions = [] } = useQuery({
+    queryKey: ["/api/submissions/student"],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const response = await fetch(`/api/submissions/student`);
+      if (!response.ok) throw new Error('Failed to fetch submissions');
+      return response.json();
+    },
+  });
+
+  // Fetch milestones for all student projects
+  const { data: projectMilestones = {} } = useQuery({
+    queryKey: ["/api/projects/milestones", projects.map(p => p.id)],
+    enabled: !!user?.id && projects.length > 0,
+    queryFn: async () => {
+      const milestonesData: Record<number, any[]> = {};
+      for (const project of projects) {
+        try {
+          const response = await fetch(`/api/projects/${project.id}/milestones`);
+          if (response.ok) {
+            const milestones = await response.json();
+            // Add completion status to each milestone
+            const milestonesWithStatus = milestones.map((milestone: any) => {
+              const milestoneSubmissions = studentSubmissions.filter((submission: any) => {
+                return submission.assessment?.milestoneId === milestone.id;
+              });
+
+              const hasGradedSubmissions = milestoneSubmissions.some((submission: any) => 
+                submission.gradedAt || submission.feedback
+              );
+
+              return {
+                ...milestone,
+                isCompleted: hasGradedSubmissions || milestone.status === 'completed'
+              };
+            });
+            milestonesData[project.id] = milestonesWithStatus;
+          } else {
+            milestonesData[project.id] = [];
+          }
+        } catch (error) {
+          console.error(`Error fetching milestones for project ${project.id}:`, error);
+          milestonesData[project.id] = [];
+        }
+      }
+      return milestonesData;
+    },
+  });
+
   // Filter projects to show only active and completed ones
   const eligibleProjects = projects.filter(project => 
     project.status === 'active' || project.status === 'completed'
@@ -354,13 +404,15 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
+    const projectMilestonesList = projectMilestones[project.id] || [];
+    
     return (
       project.title.toLowerCase().includes(query) ||
       project.description.toLowerCase().includes(query) ||
-      (project.milestones && project.milestones.some(milestone => 
+      projectMilestonesList.some(milestone => 
         milestone.title.toLowerCase().includes(query) ||
         milestone.description.toLowerCase().includes(query)
-      ))
+      )
     );
   });
 
@@ -393,14 +445,19 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
   return (
     <div className="space-y-6">
       {searchFilteredProjects.map((project) => (
-        <ProjectMilestoneCard key={project.id} project={project} searchQuery={searchQuery} />
+        <ProjectMilestoneCard 
+          key={project.id} 
+          project={project} 
+          milestones={projectMilestones[project.id] || []}
+          searchQuery={searchQuery} 
+        />
       ))}
     </div>
   );
 }
 
 // Project Milestone Card Component
-function ProjectMilestoneCard({ project, searchQuery }) {
+function ProjectMilestoneCard({ project, milestones = [], searchQuery }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const getStatusBadge = (status: string) => {
@@ -415,7 +472,7 @@ function ProjectMilestoneCard({ project, searchQuery }) {
   };
 
   const getMilestoneStatusBadge = (milestone) => {
-    if (milestone.completed) {
+    if (milestone.isCompleted) {
       return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
     }
     if (new Date(milestone.dueDate) < new Date()) {
@@ -425,14 +482,14 @@ function ProjectMilestoneCard({ project, searchQuery }) {
   };
 
   // Filter milestones based on search query
-  const filteredMilestones = project.milestones?.filter(milestone => {
+  const filteredMilestones = milestones.filter(milestone => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
       milestone.title.toLowerCase().includes(query) ||
       milestone.description.toLowerCase().includes(query)
     );
-  }) || [];
+  });
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -446,7 +503,7 @@ function ProjectMilestoneCard({ project, searchQuery }) {
               <CardTitle className="text-lg">{project.title}</CardTitle>
               <p className="text-gray-600 text-sm">{project.description}</p>
               <p className="text-xs text-gray-500">
-                {project.milestones?.length || 0} milestones
+                {milestones.length} milestones
               </p>
             </div>
           </div>
