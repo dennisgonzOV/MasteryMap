@@ -12,6 +12,7 @@ import ProgressBar from "@/components/progress-bar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { 
   BookOpen, 
   Award, 
@@ -25,7 +26,8 @@ import {
   Trophy,
   AlertCircle,
   Hash,
-  FileText
+  FileText,
+  Search
 } from "lucide-react";
 
 export default function StudentDashboard() {
@@ -33,6 +35,7 @@ export default function StudentDashboard() {
   const { isAuthenticated, isLoading, user, isNetworkError, isAuthError, hasError } = useAuth();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('assessments'); // Default to assessments tab
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Handle network errors
   useEffect(() => {
@@ -193,7 +196,56 @@ export default function StudentDashboard() {
 
           {/* Main Content */}
           <div className="space-y-8">
-            <AssessmentsTab />
+            {/* Search Bar */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search projects, assessments, or milestones..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tabs for Project Milestones and Assessments */}
+            <Card>
+              <CardHeader>
+                <div className="border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-8">
+                    <button
+                      className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'assessments'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                      onClick={() => setActiveTab('assessments')}
+                    >
+                      <Target className="h-4 w-4 inline mr-2" />
+                      Assessments
+                    </button>
+                    <button
+                      className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'milestones'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                      onClick={() => setActiveTab('milestones')}
+                    >
+                      <BookOpen className="h-4 w-4 inline mr-2" />
+                      Project Milestones
+                    </button>
+                  </nav>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {activeTab === 'assessments' && <AssessmentsTab searchQuery={searchQuery} />}
+                {activeTab === 'milestones' && <ProjectMilestonesTab searchQuery={searchQuery} />}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>
@@ -202,7 +254,7 @@ export default function StudentDashboard() {
 }
 
 // Assessments Tab Component
-function AssessmentsTab() {
+function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
   const { user } = useAuth();
 
   // Fetch student's projects to determine active/completed project IDs
@@ -252,6 +304,17 @@ function AssessmentsTab() {
     return false;
   });
 
+  // Apply search filter
+  const searchFilteredSubmissions = filteredSubmissions.filter((submission) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      submission.assessmentTitle.toLowerCase().includes(query) ||
+      (submission.projectTitle && submission.projectTitle.toLowerCase().includes(query))
+    );
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -261,14 +324,21 @@ function AssessmentsTab() {
     );
   }
 
-  if (filteredSubmissions.length === 0) {
+  if (searchFilteredSubmissions.length === 0) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-12">
           <div className="text-center">
             <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Available Assessments</h3>
-            <p className="text-gray-600">You don't have any assessments from active/completed projects or submitted assessments yet.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchQuery ? 'No Matching Assessments' : 'No Available Assessments'}
+            </h3>
+            <p className="text-gray-600">
+              {searchQuery 
+                ? `No assessments found matching "${searchQuery}".`
+                : "You don't have any assessments from active/completed projects or submitted assessments yet."
+              }
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -277,10 +347,197 @@ function AssessmentsTab() {
 
   return (
     <div className="space-y-6">
-      {filteredSubmissions.map((submission) => (
+      {searchFilteredSubmissions.map((submission) => (
         <AssessmentSubmissionCard key={submission.id} submission={submission} />
       ))}
     </div>
+  );
+}
+
+// Project Milestones Tab Component
+function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
+  const { user } = useAuth();
+
+  // Fetch student's projects
+  const { data: projects = [], isLoading } = useQuery({
+    queryKey: ["/api/projects"],
+    enabled: !!user?.id && user?.role === 'student',
+    retry: false,
+  });
+
+  // Filter projects to show only active and completed ones
+  const eligibleProjects = projects.filter(project => 
+    project.status === 'active' || project.status === 'completed'
+  );
+
+  // Apply search filter
+  const searchFilteredProjects = eligibleProjects.filter((project) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      project.title.toLowerCase().includes(query) ||
+      project.description.toLowerCase().includes(query) ||
+      (project.milestones && project.milestones.some(milestone => 
+        milestone.title.toLowerCase().includes(query) ||
+        milestone.description.toLowerCase().includes(query)
+      ))
+    );
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Loading milestones...</span>
+      </div>
+    );
+  }
+
+  if (searchFilteredProjects.length === 0) {
+    return (
+      <div className="text-center p-12">
+        <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {searchQuery ? 'No Matching Projects' : 'No Active Projects'}
+        </h3>
+        <p className="text-gray-600">
+          {searchQuery 
+            ? `No projects or milestones found matching "${searchQuery}".`
+            : "You don't have any active or completed projects with milestones yet."
+          }
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {searchFilteredProjects.map((project) => (
+        <ProjectMilestoneCard key={project.id} project={project} searchQuery={searchQuery} />
+      ))}
+    </div>
+  );
+}
+
+// Project Milestone Card Component
+function ProjectMilestoneCard({ project, searchQuery }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+      case 'completed':
+        return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
+    }
+  };
+
+  const getMilestoneStatusBadge = (milestone) => {
+    if (milestone.completed) {
+      return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+    }
+    if (new Date(milestone.dueDate) < new Date()) {
+      return <Badge className="bg-red-100 text-red-800">Overdue</Badge>;
+    }
+    return <Badge className="bg-yellow-100 text-yellow-800">In Progress</Badge>;
+  };
+
+  // Filter milestones based on search query
+  const filteredMilestones = project.milestones?.filter(milestone => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      milestone.title.toLowerCase().includes(query) ||
+      milestone.description.toLowerCase().includes(query)
+    );
+  }) || [];
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-100 rounded-full">
+              <BookOpen className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">{project.title}</CardTitle>
+              <p className="text-gray-600 text-sm">{project.description}</p>
+              <p className="text-xs text-gray-500">
+                {project.milestones?.length || 0} milestones
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            {getStatusBadge(project.status)}
+            <Button variant="ghost" size="sm">
+              {isExpanded ? 'Collapse' : 'View Milestones'}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      {isExpanded && (
+        <CardContent className="pt-0">
+          <div className="space-y-4">
+            {filteredMilestones.length > 0 ? (
+              filteredMilestones.map((milestone, index) => (
+                <div key={milestone.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        Milestone {index + 1}: {milestone.title}
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-2">{milestone.description}</p>
+                      <div className="flex items-center text-xs text-gray-500 space-x-4">
+                        <div className="flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Due: {new Date(milestone.dueDate).toLocaleDateString()}
+                        </div>
+                        {milestone.xqRubricLevel && (
+                          <div className="flex items-center">
+                            <Target className="h-3 w-3 mr-1" />
+                            Level: {milestone.xqRubricLevel}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      {getMilestoneStatusBadge(milestone)}
+                    </div>
+                  </div>
+
+                  {milestone.deliverables && milestone.deliverables.length > 0 && (
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Deliverables:</h5>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        {milestone.deliverables.map((deliverable, idx) => (
+                          <li key={idx} className="flex items-start">
+                            <span className="inline-block w-2 h-2 bg-blue-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                            {deliverable}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="text-center p-6 text-gray-500">
+                {searchQuery ? (
+                  <p>No milestones found matching "{searchQuery}" in this project.</p>
+                ) : (
+                  <p>No milestones available for this project.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
