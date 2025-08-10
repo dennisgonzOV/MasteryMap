@@ -564,12 +564,6 @@ function AssessmentSubmissionCard({ submission }) {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {(submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) && 
-             submission.questionGrades && Object.keys(submission.questionGrades).length > 0 && (
-              <Badge className={getScoreBadge(Object.values(submission.questionGrades)[0]?.score || 0)}>
-                {Object.values(submission.questionGrades)[0]?.score || 0}%
-              </Badge>
-            )}
             {getStatusBadge(submission)}
             <Button variant="ghost" size="sm">
               {isExpanded ? 'Collapse' : 'View Details'}
