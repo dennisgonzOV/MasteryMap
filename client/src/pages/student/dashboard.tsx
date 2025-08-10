@@ -524,15 +524,17 @@ function ProjectMilestoneCard({ project, searchQuery }) {
 function AssessmentSubmissionCard({ submission }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'submitted':
-        return <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>;
-      case 'graded':
-        return <Badge className="bg-green-100 text-green-800">Graded</Badge>;
-      default:
-        return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
+  const getStatusBadge = (submission) => {
+    // Check if graded (has a totalScore)
+    if (submission.totalScore !== null && submission.totalScore !== undefined) {
+      return <Badge className="bg-green-100 text-green-800">Graded</Badge>;
     }
+    // Check if submitted (has submittedAt timestamp)
+    if (submission.submittedAt) {
+      return <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>;
+    }
+    // Otherwise it's a draft
+    return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
   };
 
   const getScoreBadge = (score: number) => {
@@ -567,7 +569,7 @@ function AssessmentSubmissionCard({ submission }) {
                 {submission.totalScore}%
               </Badge>
             )}
-            {getStatusBadge(submission.status)}
+            {getStatusBadge(submission)}
             <Button variant="ghost" size="sm">
               {isExpanded ? 'Collapse' : 'View Details'}
             </Button>
