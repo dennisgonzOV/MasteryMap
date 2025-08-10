@@ -259,7 +259,7 @@ export default function StudentDashboard() {
                   }`}
                   onClick={() => setActiveTab('overview')}
                 >
-                  Overview
+                  Projects
                 </button>
                 <button
                   className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
