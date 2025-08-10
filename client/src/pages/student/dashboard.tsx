@@ -277,37 +277,16 @@ function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
     .filter(project => project.status === 'active' || project.status === 'completed')
     .map(project => project.id);
 
-  // Filter submissions based on the criteria:
-  // 1. From active/completed projects the student is part of, OR
-  // 2. Submitted assessments from the student (regardless of project status)
+  // Filter submissions to show only standalone assessments (not linked to any project/milestone)
   const filteredSubmissions = submissions.filter((submission) => {
-    // If the student has submitted this assessment, always show it
-    if (submission.submittedAt) {
-      return true;
-    }
-
-    // For non-submitted assessments, only show if they're from eligible projects
-    // Check if this assessment belongs to an active or completed project
-    if (submission.projectTitle) {
-      // Find the project by title (this is a simplified approach)
-      const relatedProject = projects.find(p => p.title === submission.projectTitle);
-      if (relatedProject && eligibleProjectIds.includes(relatedProject.id)) {
-        return true;
-      }
-    }
-
-    // For standalone assessments (no project), only show if submitted
-    if (!submission.projectTitle && submission.submittedAt) {
-      return true;
-    }
-
-    return false;
+    // Only show assessments that are NOT linked to any project (standalone assessments)
+    return !submission.projectTitle;
   });
 
   // Apply search filter
   const searchFilteredSubmissions = filteredSubmissions.filter((submission) => {
     if (!searchQuery.trim()) return true;
-    
+
     const query = searchQuery.toLowerCase();
     return (
       submission.assessmentTitle.toLowerCase().includes(query) ||
@@ -336,7 +315,7 @@ function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
             <p className="text-gray-600">
               {searchQuery 
                 ? `No assessments found matching "${searchQuery}".`
-                : "You don't have any assessments from active/completed projects or submitted assessments yet."
+                : "You don't have any standalone assessments available yet."
               }
             </p>
           </div>
@@ -373,7 +352,7 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
   // Apply search filter
   const searchFilteredProjects = eligibleProjects.filter((project) => {
     if (!searchQuery.trim()) return true;
-    
+
     const query = searchQuery.toLowerCase();
     return (
       project.title.toLowerCase().includes(query) ||
