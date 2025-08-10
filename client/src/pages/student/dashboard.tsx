@@ -32,7 +32,7 @@ export default function StudentDashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user, isNetworkError, isAuthError, hasError } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('assessments'); // Default to assessments tab
 
   // Handle network errors
   useEffect(() => {
@@ -148,7 +148,7 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <Navigation />
-      
+
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -162,7 +162,7 @@ export default function StudentDashboard() {
                   Continue your learning journey and track your progress across all projects.
                 </p>
               </div>
-              
+
               {/* Assessment Code Entry */}
               <div className="lg:min-w-0 lg:flex-shrink-0">
                 <Card className="bg-gradient-to-r from-blue-600 to-purple-600 border-0 text-white">
@@ -191,146 +191,9 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          
-
-          
-
-          
-        
-
-          {/* Main Content Tabs */}
+          {/* Main Content */}
           <div className="space-y-8">
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                <button
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'overview'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                  onClick={() => setActiveTab('overview')}
-                >
-                  Projects
-                </button>
-                <button
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'assessments'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                  onClick={() => setActiveTab('assessments')}
-                >
-                  Assessments
-                </button>
-              </nav>
-            </div>
-
-            {/* Conditional Tab Content */}
-            {activeTab === 'assessments' && <AssessmentsTab />}
-
-            {/* Overview Tab Content */}
-            {activeTab === 'overview' && (
-            <div className="space-y-8">
-              {/* Active Projects */}
-              {activeProjects.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Active Projects</h2>
-                    <Link href="/student/projects">
-                      <Button variant="outline" size="sm">
-                        View All
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </Link>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {activeProjects.slice(0, 3).map((project) => (
-                      <ProjectCard key={project.id} project={project} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recent Credentials */}
-              {recentCredentials.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Recent Credentials</h2>
-                    <Link href="/student/portfolio">
-                      <Button variant="outline" size="sm">
-                        View Portfolio
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </Link>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {recentCredentials.map((credential) => (
-                      <CredentialBadge key={credential.id} credential={credential} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Competency Progress */}
-              {competencyProgress.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Your Progress</h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {competencyProgress.slice(0, 4).map((progress, index) => (
-                      <Card key={index}>
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-semibold text-gray-900 truncate">
-                              {progress.competencyName}
-                            </h3>
-                            <Badge variant="secondary">
-                              {progress.averageScore}%
-                            </Badge>
-                          </div>
-                          <ProgressBar progress={progress.averageScore} className="mb-2" />
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Brain className="h-4 w-4 mr-1" />
-                            <span>{progress.submissionCount} submissions</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Upcoming Deadlines */}
-              {upcomingDeadlines.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Upcoming Deadlines</h2>
-                  </div>
-                  <Card>
-                    <CardContent className="p-0">
-                      {upcomingDeadlines.slice(0, 5).map((deadline, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border-b border-gray-100 last:border-b-0">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-red-100 rounded-full">
-                              <AlertCircle className="h-4 w-4 text-red-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900">{deadline.title}</h4>
-                              <p className="text-sm text-gray-600">{deadline.projectTitle}</p>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="text-red-600 border-red-200">
-                            {new Date(deadline.dueDate).toLocaleDateString()}
-                          </Badge>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </div>
-            )}
+            <AssessmentsTab />
           </div>
         </div>
       </main>
@@ -341,7 +204,7 @@ export default function StudentDashboard() {
 // Assessments Tab Component
 function AssessmentsTab() {
   const { user } = useAuth();
-  
+
   // Fetch student's assessment submissions
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["/api/student/assessment-submissions", user?.id],
