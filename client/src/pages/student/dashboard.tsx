@@ -205,6 +205,13 @@ export default function StudentDashboard() {
 function AssessmentsTab() {
   const { user } = useAuth();
 
+  // Fetch student's projects to determine active/completed project IDs
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/projects"],
+    enabled: !!user?.id && user?.role === 'student',
+    retry: false,
+  });
+
   // Fetch student's assessment submissions
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["/api/student/assessment-submissions", user?.id],
@@ -213,18 +220,36 @@ function AssessmentsTab() {
     retry: false,
   });
 
-  // Filter submissions to show only active and complete assessments
+  // Get project IDs for active and completed projects the student is part of
+  const eligibleProjectIds = projects
+    .filter(project => project.status === 'active' || project.status === 'completed')
+    .map(project => project.id);
+
+  // Filter submissions based on the criteria:
+  // 1. From active/completed projects the student is part of, OR
+  // 2. Submitted assessments from the student (regardless of project status)
   const filteredSubmissions = submissions.filter((submission) => {
-    // Show assessments that are either:
-    // 1. Active (submitted but not yet graded)
-    // 2. Complete (graded)
-    // Include submissions with submittedAt date (indicating they were submitted)
-    return submission.submittedAt && (
-      submission.status === 'submitted' || 
-      submission.status === 'graded' ||
-      submission.gradedAt || // Has been graded
-      !submission.status // No status set but has submittedAt
-    );
+    // If the student has submitted this assessment, always show it
+    if (submission.submittedAt) {
+      return true;
+    }
+
+    // For non-submitted assessments, only show if they're from eligible projects
+    // Check if this assessment belongs to an active or completed project
+    if (submission.projectTitle) {
+      // Find the project by title (this is a simplified approach)
+      const relatedProject = projects.find(p => p.title === submission.projectTitle);
+      if (relatedProject && eligibleProjectIds.includes(relatedProject.id)) {
+        return true;
+      }
+    }
+
+    // For standalone assessments (no project), only show if submitted
+    if (!submission.projectTitle && submission.submittedAt) {
+      return true;
+    }
+
+    return false;
   });
 
   if (isLoading) {
@@ -242,8 +267,8 @@ function AssessmentsTab() {
         <CardContent className="flex items-center justify-center p-12">
           <div className="text-center">
             <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Active or Complete Assessments</h3>
-            <p className="text-gray-600">You don't have any active or completed assessments yet. Check back later!</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Available Assessments</h3>
+            <p className="text-gray-600">You don't have any assessments from active/completed projects or submitted assessments yet.</p>
           </div>
         </CardContent>
       </Card>
