@@ -525,8 +525,8 @@ function AssessmentSubmissionCard({ submission }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const getStatusBadge = (submission) => {
-    // Check if graded (has a totalScore)
-    if (submission.totalScore !== null && submission.totalScore !== undefined) {
+    // Check if graded (has grades or explicit graded status)
+    if (submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) {
       return <Badge className="bg-green-100 text-green-800">Graded</Badge>;
     }
     // Check if submitted (has submittedAt timestamp)
@@ -564,9 +564,10 @@ function AssessmentSubmissionCard({ submission }) {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {submission.status === 'graded' && submission.totalScore !== null && (
-              <Badge className={getScoreBadge(submission.totalScore)}>
-                {submission.totalScore}%
+            {(submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) && 
+             submission.questionGrades && Object.keys(submission.questionGrades).length > 0 && (
+              <Badge className={getScoreBadge(Object.values(submission.questionGrades)[0]?.score || 0)}>
+                {Object.values(submission.questionGrades)[0]?.score || 0}%
               </Badge>
             )}
             {getStatusBadge(submission)}
@@ -580,8 +581,9 @@ function AssessmentSubmissionCard({ submission }) {
       {isExpanded && (
         <CardContent className="pt-0">
           <div className="space-y-6">
-            {/* Earned Credentials */}
-            {submission.earnedCredentials && submission.earnedCredentials.length > 0 && (
+            {/* Earned Credentials - Only show for graded assessments */}
+            {(submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) && 
+             submission.earnedCredentials && submission.earnedCredentials.length > 0 && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <Star className="h-5 w-5 text-yellow-500 mr-2" />
