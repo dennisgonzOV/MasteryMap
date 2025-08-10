@@ -85,8 +85,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get earned credentials for each submission
       const submissionsWithCredentials = await Promise.all(
         submissionResults.map(async (submission) => {
-          // Get credentials earned for this student (general credentials, not tied to specific assessments)
-          const earnedCredentials = await db
+          // Get grades for this submission
+          const grades = await db
+            .select()
+            .from(gradesTable)
+            .where(eq(gradesTable.submissionId, submission.id));
+
+          // Calculate total score from grades
+          const totalScore = grades.length > 0 
+            ? Math.round((grades.reduce((sum, grade) => sum + (parseFloat(grade.score) || 0), 0) / grades.length) * 25)
+            : null;
+
+          // Get credentials earned specifically for this assessment submission
+          const assessmentCredentials = await db
             .select({
               id: credentials.id,
               title: credentials.title,
@@ -95,17 +106,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               awardedAt: credentials.awardedAt,
             })
             .from(credentials)
-            .where(eq(credentials.studentId, studentId));
-
-          // Get grades for this submission
-          const grades = await db
-            .select()
-            .from(gradesTable)
-            .where(eq(gradesTable.submissionId, submission.id));
+            .where(and(
+              eq(credentials.studentId, studentId),
+              eq(credentials.submissionId, submission.id)
+            ));
 
           return {
             ...submission,
-            earnedCredentials,
+            earnedCredentials: assessmentCredentials,
+            totalScore,
+            status: totalScore !== null ? 'graded' : (submission.submittedAt ? 'submitted' : 'draft'),
             questionGrades: grades.reduce((acc: any, grade) => {
               acc[grade.componentSkillId] = {
                 score: grade.score ? parseFloat(grade.score) : 0,
@@ -2587,7 +2597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // For students, get their own progress. For teachers/admins, allow studentId query param
+      // For teachers/admins, allow studentId query param
       let studentId = userId;
       if (req.user.role === 'teacher' || req.user.role === 'admin') {
         const queryStudentId = req.query.studentId;
@@ -2880,8 +2890,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get earned credentials for each submission
       const submissionsWithCredentials = await Promise.all(
         submissionResults.map(async (submission) => {
-          // Get credentials earned for this student (general credentials, not tied to specific assessments)
-          const earnedCredentials = await db
+          // Get grades for this submission
+          const grades = await db
+            .select()
+            .from(gradesTable)
+            .where(eq(gradesTable.submissionId, submission.id));
+
+          // Calculate total score from grades
+          const totalScore = grades.length > 0 
+            ? Math.round((grades.reduce((sum, grade) => sum + (parseFloat(grade.score) || 0), 0) / grades.length) * 25)
+            : null;
+
+          // Get credentials earned specifically for this assessment submission
+          const assessmentCredentials = await db
             .select({
               id: credentials.id,
               title: credentials.title,
@@ -2890,17 +2911,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               awardedAt: credentials.awardedAt,
             })
             .from(credentials)
-            .where(eq(credentials.studentId, studentId));
-
-          // Get grades for this submission
-          const grades = await db
-            .select()
-            .from(gradesTable)
-            .where(eq(gradesTable.submissionId, submission.id));
+            .where(and(
+              eq(credentials.studentId, studentId),
+              eq(credentials.submissionId, submission.id)
+            ));
 
           return {
             ...submission,
-            earnedCredentials,
+            earnedCredentials: assessmentCredentials,
+            totalScore,
+            status: totalScore !== null ? 'graded' : (submission.submittedAt ? 'submitted' : 'draft'),
             questionGrades: grades.reduce((acc: any, grade) => {
               acc[grade.componentSkillId] = {
                 score: grade.score ? parseFloat(grade.score) : 0,
