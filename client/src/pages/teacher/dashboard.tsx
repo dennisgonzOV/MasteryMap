@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
+import { useAuthErrorHandling, useQueryErrorHandling } from "@/hooks/useErrorHandling";
+import { FullscreenLoader } from "@/components/ui/loading-spinner";
 import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
 import NotificationSystem from "@/components/notification-system";
@@ -40,31 +42,8 @@ export default function TeacherDashboard() {
 
   const { isNetworkError, isAuthError, hasError } = useAuth();
 
-  // Handle network errors
-  useEffect(() => {
-    if (isNetworkError) {
-      toast({
-        title: "Connection Error",
-        description: "Unable to connect to the server. Please check your internet connection and try again.",
-        variant: "destructive",
-      });
-    }
-  }, [isNetworkError, toast]);
-
-  // Redirect to login if authentication error
-  useEffect(() => {
-    if (!isLoading && (isAuthError || (!isAuthenticated && !hasError))) {
-      if (isAuthError) {
-        toast({
-          title: "Session Expired",
-          description: "Your session has expired. Please log in again.",
-          variant: "destructive",
-        });
-      }
-      setLocation("/login");
-      return;
-    }
-  }, [isAuthenticated, isLoading, isAuthError, hasError, setLocation, toast]);
+  // Use centralized error handling
+  useAuthErrorHandling(isLoading, isAuthenticated, { isNetworkError, isAuthError, hasError });
 
   // Fetch projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
@@ -80,27 +59,11 @@ export default function TeacherDashboard() {
     retry: false,
   });
 
-  // Handle unauthorized errors
-  useEffect(() => {
-    if (projectsError && isUnauthorizedError(projectsError as Error)) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setLocation("/login");
-    }
-  }, [projectsError, setLocation]);
+  // Handle query errors
+  useQueryErrorHandling(projectsError as Error);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="flex items-center space-x-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-lg text-gray-700">Loading...</span>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader text="Loading..." />;
   }
 
   if (!isAuthenticated || user?.role !== 'teacher') {
