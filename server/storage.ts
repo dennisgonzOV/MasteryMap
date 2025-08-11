@@ -75,11 +75,6 @@ export interface IStorage {
   deleteAuthToken(token: string): Promise<void>;
   deleteAuthTokensByUserId(userId: number): Promise<void>;
 
-  // School operations
-  getSchools(): Promise<School[]>;
-  getSchool(id: number): Promise<School | undefined>;
-  createSchool(school: InsertSchool): Promise<School>;
-
   // Project team operations
   createProjectTeam(team: InsertProjectTeam): Promise<ProjectTeam>;
   getProjectTeams(projectId: number): Promise<ProjectTeam[]>;
@@ -139,9 +134,7 @@ export interface IStorage {
   // 3-Level Hierarchy operations
   getLearnerOutcomes(): Promise<LearnerOutcome[]>;
   getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
-  getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
-  getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]>;
-  getComponentSkill(id: number): Promise<ComponentSkill | undefined>;
+
   getComponentSkillsWithDetails(): Promise<any[]>;
   getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
 
@@ -174,13 +167,6 @@ export interface IStorage {
   getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]>;
   getSelfEvaluationsByStudent(studentId: number): Promise<SelfEvaluation[]>;
   updateSelfEvaluation(id: number, updates: Partial<InsertSelfEvaluation>): Promise<SelfEvaluation>;
-  flagRiskySelfEvaluation(id: number, teacherNotified: boolean): Promise<void>;
-
-    // B.E.S.T. Standards methods
-  getBestStandards(): Promise<BestStandard[]>;
-  getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
-  getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
-  searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -207,13 +193,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
-  }
-
-  async updateUserPassword(id: number, hashedPassword: string): Promise<void> {
-    await db
-      .update(users)
-      .set({ password: hashedPassword })
-      .where(eq(users.id, id));
   }
 
   // Auth token operations
@@ -727,29 +706,6 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(grades.gradedAt));
   }
 
-  async updateGrade(gradeId: number, updates: Partial<Omit<Grade, "id">>): Promise<Grade> {
-    const [updatedGrade] = await db
-      .update(grades)
-      .set({ ...updates, gradedAt: new Date() })
-      .where(eq(grades.id, gradeId))
-      .returning();
-    return updatedGrade;
-  }
-
-  async getExistingGrade(submissionId: number, componentSkillId: number): Promise<Grade | null> {
-    const existingGrades = await db
-      .select()
-      .from(grades)
-      .where(and(
-        eq(grades.submissionId, submissionId),
-        eq(grades.componentSkillId, componentSkillId)
-      ))
-      .orderBy(desc(grades.gradedAt))
-      .limit(1);
-
-    return existingGrades.length > 0 ? existingGrades[0] : null;
-  }
-
   async getStudentCompetencyProgress(studentId: number): Promise<Array<{
     competencyId: number;
     competencyName: string;
@@ -906,29 +862,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]> {
-    return await db
-      .select()
-      .from(competencies)
-      .where(eq(competencies.learnerOutcomeId, learnerOutcomeId))
-      .orderBy(competencies.name);
-  }
 
-  async getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]> {
-    return await db
-      .select()
-      .from(componentSkills)
-      .where(eq(componentSkills.competencyId, competencyId))
-      .orderBy(componentSkills.name);
-  }
-
-  async getComponentSkill(id: number): Promise<ComponentSkill | undefined> {
-    const [skill] = await db
-      .select()
-      .from(componentSkills)
-      .where(eq(componentSkills.id, id));
-    return skill;
-  }
 
 
 
@@ -1039,21 +973,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // School operations
-  async getSchools(): Promise<School[]> {
-    return await db.select().from(schools).orderBy(schools.name);
-  }
-
-  async getSchool(id: number): Promise<School | undefined> {
-    const [school] = await db.select().from(schools).where(eq(schools.id, id));
-    return school;
-  }
-
-  async createSchool(schoolData: InsertSchool): Promise<School> {
-    const [school] = await db.insert(schools).values(schoolData).returning();
-    return school;
-  }
-
   // Project team operations
   async createProjectTeam(teamData: InsertProjectTeam): Promise<ProjectTeam> {
     const [team] = await db.insert(projectTeams).values(teamData).returning();
@@ -1134,41 +1053,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(selfEvaluations.id, id))
       .returning();
     return updated;
-  }
-
-  async flagRiskySelfEvaluation(id: number, teacherNotified: boolean): Promise<void> {
-    await db.update(selfEvaluations)
-      .set({ hasRiskyContent: true, teacherNotified })
-      .where(eq(selfEvaluations.id, id));
-  }
-
-  // B.E.S.T. Standards methods
-  async getBestStandards(): Promise<BestStandard[]> {
-    return await db.select().from(bestStandards).orderBy(bestStandards.benchmarkNumber);
-  }
-
-  async getBestStandardsBySubject(subject: string): Promise<BestStandard[]> {
-    return await db.select()
-      .from(bestStandards)
-      .where(eq(bestStandards.subject, subject))
-      .orderBy(bestStandards.benchmarkNumber);
-  }
-
-  async getBestStandardsByGrade(grade: string): Promise<BestStandard[]> {
-    return await db.select()
-      .from(bestStandards)
-      .where(eq(bestStandards.grade, grade))
-      .orderBy(bestStandards.benchmarkNumber);
-  }
-
-  async searchBestStandards(searchTerm: string): Promise<BestStandard[]> {
-    return await db.select()
-      .from(bestStandards)
-      .where(or(
-        like(bestStandards.description, `%${searchTerm}%`),
-        like(bestStandards.benchmarkNumber, `%${searchTerm}%`)
-      ))
-      .orderBy(bestStandards.benchmarkNumber);
   }
 }
 

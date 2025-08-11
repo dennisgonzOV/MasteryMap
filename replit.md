@@ -7,6 +7,16 @@ MasteryMap is an AI-powered Project-Based Learning (PBL) management system for e
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **2025-08-11**: Dead code removal and cleanup in server/storage.ts (approx. 200+ lines removed)
+  - Removed unused storage interface methods: updateUserPassword, updateGrade, getExistingGrade
+  - Removed unused school operations: getSchools, getSchool, createSchool
+  - Removed unused 3-level hierarchy methods: getCompetenciesByLearnerOutcome, getComponentSkillsByCompetency, getComponentSkill
+  - Removed unused self-evaluation method: flagRiskySelfEvaluation
+  - Removed unused B.E.S.T. Standards methods: getBestStandards, getBestStandardsBySubject, getBestStandardsByGrade, searchBestStandards
+  - Cleaned up interface and implementation to improve maintainability
+  - Scripts directory preserved for database maintenance utilities
+  - Application continues running successfully after cleanup
+
 - **2025-08-02**: Fixed critical syntax errors in server/storage.ts that were preventing the application from starting
   - Removed malformed code blocks and template literals
   - Fixed duplicate type imports for ProjectTeamMember
