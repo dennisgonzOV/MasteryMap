@@ -221,9 +221,9 @@ export async function generateMilestonesFromComponentSkills(
   bestStandards?: any[]
 ): Promise<GeneratedMilestone[]> {
   try {
-    // Format component skills with full hierarchical context
+    // Format component skills with full hierarchical context  
     const skillsText = componentSkills.map(skill => 
-      `- ${skill.name} (Competency: ${skill.competencyName || 'N/A'} | Learner Outcome: ${skill.learnerOutcomeName || 'N/A'})`
+      `- ${skill.name} (Competency: ${(skill as any).competencyName || 'N/A'} | Learner Outcome: ${(skill as any).learnerOutcomeName || 'N/A'})`
     ).join('\n');
     
     const standardsText = bestStandards?.length 
@@ -489,7 +489,7 @@ export async function generateAssessmentFromComponentSkills(
     
     // Format component skills with full context for better AI understanding
     const skillsText = componentSkills.map(skill => 
-      `- ${skill.name} (Competency: ${skill.competencyName || 'N/A'} | Learner Outcome: ${skill.learnerOutcomeName || 'N/A'})`
+      `- ${skill.name} (Competency: ${(skill as any).competencyName || 'N/A'} | Learner Outcome: ${(skill as any).learnerOutcomeName || 'N/A'})`
     ).join('\n');
     
     const standardsText = bestStandards?.length 
@@ -852,7 +852,7 @@ export async function suggestCredentials(
 Based on the following student achievements, suggest appropriate credentials (stickers) to award:
 
 Student Achievements:
-${proficientGrades.map(g => `Outcome ${g.outcomeId}: ${g.rubricLevel} level`).join('\n')}
+${proficientGrades.map(g => `Outcome ${(g as any).outcomeId || g.componentSkillId}: ${g.rubricLevel} level`).join('\n')}
 
 Suggest 1-3 stickers that recognize specific skills or competencies demonstrated. 
 Stickers should be:

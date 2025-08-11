@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
-import QRCode from "qrcode";
+// import QRCode from "qrcode"; // Removed due to dependency cleanup
 import Navigation from "@/components/navigation";
 import CredentialBadge from "@/components/credential-badge";
 import { CompetencyProgress } from "@/components/competency-progress";
@@ -73,21 +73,22 @@ export default function StudentPortfolio() {
   // Generate QR code for portfolio sharing
   useEffect(() => {
     if (isAuthenticated && user) {
-      const portfolioUrl = `${window.location.origin}/portfolio/student/${user.id}`;
-      QRCode.toDataURL(portfolioUrl, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#1F2937', // Dark gray
-          light: '#FFFFFF', // White
-        },
-      })
-        .then((dataUrl) => {
-          setQrCodeDataUrl(dataUrl);
-        })
-        .catch((error) => {
-          console.error('Error generating QR code:', error);
-        });
+      // TODO: Re-implement QR code generation if needed
+      // const portfolioUrl = `${window.location.origin}/portfolio/student/${user.id}`;
+      // QRCode.toDataURL(portfolioUrl, {
+      //   width: 200,
+      //   margin: 2,
+      //   color: {
+      //     dark: '#1F2937', // Dark gray
+      //     light: '#FFFFFF', // White
+      //   },
+      // })
+      //   .then((dataUrl) => {
+      //     setQrCodeDataUrl(dataUrl);
+      //   })
+      //   .catch((error) => {
+      //     console.error('Error generating QR code:', error);
+      //   });
     }
   }, [isAuthenticated, user]);
 
