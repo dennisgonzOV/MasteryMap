@@ -4,6 +4,13 @@ import { storage } from "./storage";
 import { setupAuthRoutes } from "./authRoutes";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "./auth";
 import { 
+  validateIntParam, 
+  sanitizeForPrompt, 
+  createErrorResponse,
+  csrfProtection,
+  aiLimiter
+} from "./middleware/security";
+import { 
   insertProjectSchema, 
   insertMilestoneSchema, 
   insertAssessmentSchema, 
@@ -52,7 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuthRoutes(app);
 
   // Student assessment submissions
-  app.get("/api/student/assessment-submissions/:studentId", requireAuth, async (req: AuthRequest, res) => {
+  app.get("/api/student/assessment-submissions/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthRequest, res) => {
     try {
       const studentId = parseInt(req.params.studentId);
       
@@ -169,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project routes
-  app.post('/api/projects', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+  app.post('/api/projects', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -234,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/projects/:id', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
@@ -250,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+  app.put('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
@@ -277,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+  app.delete('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
@@ -305,7 +312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Start project
-  app.post('/api/projects/:id/start', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+  app.post('/api/projects/:id/start', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const project = await storage.getProject(projectId);
@@ -334,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Milestone generation
-  app.post('/api/projects/:id/generate-milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/projects/:id/generate-milestones', requireAuth, validateIntParam('id'), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -378,23 +385,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(savedMilestones);
     } catch (error) {
       console.error("Error generating milestones:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to generate milestones", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
+      const errorResponse = createErrorResponse(error, "Failed to generate milestones", 500);
+      res.status(500).json(errorResponse);
     }
   });
 
   // Generate project ideas
-  app.post('/api/projects/generate-ideas', async (req: any, res) => {
+  app.post('/api/projects/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
 
       if (!subject || !topic || !gradeLevel || !duration || !componentSkillIds?.length) {
         return res.status(400).json({ message: "Missing required fields" });
       }
+
+      // Sanitize AI inputs
+      const sanitizedSubject = sanitizeForPrompt(subject);
+      const sanitizedTopic = sanitizeForPrompt(topic);
+      const sanitizedGradeLevel = sanitizeForPrompt(gradeLevel);
+      const sanitizedDuration = sanitizeForPrompt(duration);
 
       // Validate componentSkillIds is an array of numbers
       if (!Array.isArray(componentSkillIds) || !componentSkillIds.every(id => typeof id === 'number')) {
@@ -409,27 +418,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const ideas = await generateProjectIdeas({
-        subject,
-        topic,
-        gradeLevel,
-        duration,
+        subject: sanitizedSubject,
+        topic: sanitizedTopic,
+        gradeLevel: sanitizedGradeLevel,
+        duration: sanitizedDuration,
         componentSkills
       });
 
       res.json({ ideas });
     } catch (error) {
       console.error("Error generating project ideas:", error);
-      console.error("Error details:", {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        body: req.body
-      });
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to generate project ideas", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
+      const errorResponse = createErrorResponse(error, "Failed to generate project ideas", 500);
+      res.status(500).json(errorResponse);
     }
   });
 
@@ -552,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Milestone routes
-  app.get('/api/projects/:id/milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/projects/:id/milestones', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const milestones = await storage.getMilestonesByProject(projectId);
@@ -568,7 +568,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/milestones/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/milestones/:id', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const milestoneId = parseInt(req.params.id);
       const milestone = await storage.getMilestone(milestoneId);
@@ -584,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/milestones', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/milestones', requireAuth, csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -606,7 +606,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+  app.put('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const milestoneId = parseInt(req.params.id);
       const milestone = await storage.getMilestone(milestoneId);
@@ -628,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+  app.delete('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const milestoneId = parseInt(req.params.id);
       await storage.deleteMilestone(milestoneId);
@@ -645,13 +645,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assessment routes
-  app.post('/api/milestones/:id/generate-assessment', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/milestones/:id/generate-assessment', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-
-      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only teachers can generate assessments" });
-      }
 
       const milestoneId = parseInt(req.params.id);
       const milestone = await storage.getMilestone(milestoneId);
@@ -674,16 +670,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(assessment);
     } catch (error) {
       console.error("Error generating assessment:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to generate assessment", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
+      const errorResponse = createErrorResponse(error, "Failed to generate assessment", 500);
+      res.status(500).json(errorResponse);
     }
   });
 
-  app.get('/api/milestones/:id/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/milestones/:id/assessments', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const milestoneId = parseInt(req.params.id);
       const assessments = await storage.getAssessmentsByMilestone(milestoneId);
@@ -722,7 +714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get individual assessment by ID
-  app.get('/api/assessments/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/assessments/:id', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
       const assessment = await storage.getAssessment(assessmentId);
@@ -739,7 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assessment creation route
-  app.post('/api/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/assessments', requireAuth, csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -1218,13 +1210,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Grading routes
-  app.post('/api/submissions/:id/grade', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/submissions/:id/grade', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
-
-      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only teachers can grade submissions" });
-      }
 
       const submissionId = parseInt(req.params.id);
       const { grades: gradeData, feedback, grade, generateAiFeedback } = req.body;
@@ -1427,7 +1415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate AI feedback for specific question
-  app.post('/api/submissions/:id/generate-question-feedback', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/submissions/:id/generate-question-feedback', requireAuth, validateIntParam('id'), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -1438,13 +1426,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const submissionId = parseInt(req.params.id);
       const { questionId, answer, rubricCriteria, sampleAnswer } = req.body;
 
+      // Sanitize AI inputs
+      const sanitizedAnswer = sanitizeForPrompt(answer || '');
+      const sanitizedRubricCriteria = sanitizeForPrompt(rubricCriteria || '');
+      const sanitizedSampleAnswer = sanitizeForPrompt(sampleAnswer || '');
+
       const submission = await storage.getSubmission(submissionId);
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
       }
 
-      // Generate AI feedback for specific question/answer
-      const feedback = await generateFeedbackForQuestion(questionId, answer, rubricCriteria, sampleAnswer);
+      // Generate AI feedback for specific question/answer with sanitized inputs
+      const feedback = await generateFeedbackForQuestion(questionId, sanitizedAnswer, sanitizedRubricCriteria, sanitizedSampleAnswer);
 
       res.json({ feedback });
     } catch (error) {
@@ -1459,7 +1452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Tutor Chat endpoint
-  app.post('/api/ai-tutor/chat', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai-tutor/chat', requireAuth, csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -1480,16 +1473,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentLevel: currentEvaluation?.selfAssessedLevel
       });
 
-      // Add studentId to conversation history for safety incident tracking
-      const enhancedConversationHistory = conversationHistory.map((msg: any) => ({
-        ...msg,
+      // Sanitize conversation history inputs for AI safety
+      const sanitizedConversationHistory = conversationHistory.map((msg: any) => ({
+        role: msg.role,
+        content: sanitizeForPrompt(msg.content || ''),
+        timestamp: msg.timestamp,
         studentId: req.user?.role === 'student' ? userId : msg.studentId
       }));
 
+      // Sanitize component skill data
+      const sanitizedComponentSkill = {
+        id: componentSkill.id,
+        name: sanitizeForPrompt(componentSkill.name || ''),
+        description: sanitizeForPrompt(componentSkill.description || ''),
+        rubricLevels: Array.isArray(componentSkill.rubricLevels) 
+          ? componentSkill.rubricLevels.map((level: any) => ({
+              level: level.level,
+              description: sanitizeForPrompt(level.description || ''),
+              criteria: sanitizeForPrompt(level.criteria || '')
+            }))
+          : []
+      };
+
       // Generate AI tutor response
       const tutorResponse = await generateTutorResponse(
-        componentSkill,
-        enhancedConversationHistory,
+        sanitizedComponentSkill,
+        sanitizedConversationHistory,
         currentEvaluation
       );
 
@@ -1572,7 +1581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Self-evaluation routes
-  app.post('/api/self-evaluations', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/self-evaluations', requireAuth, csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -1594,13 +1603,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Component skill not found" });
       }
 
-      // Generate AI feedback and safety check
+      // Sanitize inputs for AI safety and generate feedback
+      const sanitizedJustification = sanitizeForPrompt(data.justification || '');
+      const sanitizedExamples = sanitizeForPrompt(data.examples || '');
+      
       const aiAnalysis = await generateSelfEvaluationFeedback(
         componentSkill.name,
         componentSkill.rubricLevels,
         data.selfAssessedLevel!,
-        data.justification!,
-        data.examples || ""
+        sanitizedJustification,
+        sanitizedExamples
       );
 
       // Create self-evaluation with AI feedback

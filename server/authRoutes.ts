@@ -3,10 +3,15 @@ import { AuthService, type AuthenticatedRequest, requireAuth } from './auth';
 import { storage } from './storage';
 import { registerSchema, loginSchema } from '@shared/schema';
 import cookieParser from 'cookie-parser';
+import { authLimiter, createErrorResponse } from './middleware/security';
 
 export function setupAuthRoutes(app: Express) {
   // Add cookie parser middleware
   app.use(cookieParser());
+  
+  // Apply auth-specific rate limiting
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
 
   // Register route
   app.post('/api/auth/register', async (req, res) => {
@@ -46,7 +51,8 @@ export function setupAuthRoutes(app: Express) {
       res.status(201).json(userWithoutPassword);
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(400).json({ message: 'Registration failed' });
+      const errorResponse = createErrorResponse(error, 'Registration failed', 400);
+      res.status(400).json(errorResponse);
     }
   });
 
@@ -85,7 +91,8 @@ export function setupAuthRoutes(app: Express) {
       res.json(userWithoutPassword);
     } catch (error) {
       console.error('Login error:', error);
-      res.status(401).json({ message: 'Login failed' });
+      const errorResponse = createErrorResponse(error, 'Login failed', 401);
+      res.status(401).json(errorResponse);
     }
   });
 
@@ -179,8 +186,8 @@ export function setupAuthRoutes(app: Express) {
       // Hash the new password
       const hashedPassword = await AuthService.hashPassword(newPassword);
       
-      // Update the user's password
-      await storage.updateUserPassword(userId, hashedPassword);
+      // Update the user's password using updateUser method
+      await storage.updateUser(userId, { password: hashedPassword });
 
       res.json({ message: 'Password reset successfully' });
     } catch (error) {

@@ -2,10 +2,21 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testDatabaseConnection } from "./db";
+import { securityHeaders, apiLimiter } from "./middleware/security";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Configure trust proxy for proper IP detection (needed for rate limiting)
+app.set('trust proxy', 1);
+
+// Apply security headers first
+app.use(securityHeaders);
+
+// Apply rate limiting to all API routes
+app.use('/api', apiLimiter);
+
+app.use(express.json({ limit: '10mb' })); // Add size limit
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
