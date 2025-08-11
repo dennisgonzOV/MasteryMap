@@ -791,12 +791,18 @@ export class DatabaseStorage implements IStorage {
         const lastScore = totalScores[0] || 0;
         const secondLastScore = totalScores[1];
 
-        // Determine progress direction
+        // Determine progress direction with percentage-based threshold
         let progressDirection: 'improving' | 'declining' | 'stable' = 'stable';
         if (totalScores.length > 1 && secondLastScore !== undefined) {
-          if (lastScore > secondLastScore + 5) { // 5-point threshold for improvement
+          // Calculate dynamic threshold based on score range (10% of range, minimum 1 point)
+          const minScore = Math.min(...totalScores);
+          const maxScore = Math.max(...totalScores);
+          const scoreRange = maxScore - minScore || 100; // Default to 100 if all scores are identical
+          const threshold = Math.max(1, Math.round(scoreRange * 0.1)); // 10% threshold, minimum 1 point
+          
+          if (lastScore > secondLastScore + threshold) {
             progressDirection = 'improving';
-          } else if (lastScore < secondLastScore - 5) { // 5-point threshold for decline
+          } else if (lastScore < secondLastScore - threshold) {
             progressDirection = 'declining';
           }
         }

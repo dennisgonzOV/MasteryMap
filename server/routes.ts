@@ -104,10 +104,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // and awarded around the time of grading (within 1 day)
           const earnedCredentials = [];
           if (submissionGrades.length > 0) {
-            const componentSkillIds = submissionGrades.map(g => g.componentSkillId);
+            // Filter out null componentSkillIds to prevent database query failures
+            const componentSkillIds = submissionGrades
+              .map(g => g.componentSkillId)
+              .filter((id): id is number => id !== null);
             const gradeDate = submissionGrades[0].gradedAt;
 
-            if (gradeDate) {
+            if (gradeDate && componentSkillIds.length > 0) {
               const dayBefore = new Date(gradeDate.getTime() - 24 * 60 * 60 * 1000);
               const dayAfter = new Date(gradeDate.getTime() + 24 * 60 * 60 * 1000);
 
@@ -2933,10 +2936,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // and awarded around the time of grading (within 1 day)
           const earnedCredentials = [];
           if (submissionGrades.length > 0) {
-            const componentSkillIds = submissionGrades.map(g => g.componentSkillId);
+            // Filter out null componentSkillIds to prevent database query failures
+            const componentSkillIds = submissionGrades
+              .map(g => g.componentSkillId)
+              .filter((id): id is number => id !== null);
             const gradeDate = submissionGrades[0].gradedAt;
 
-            if (gradeDate) {
+            if (gradeDate && componentSkillIds.length > 0) {
               const dayBefore = new Date(gradeDate.getTime() - 24 * 60 * 60 * 1000);
               const dayAfter = new Date(gradeDate.getTime() + 24 * 60 * 60 * 1000);
 

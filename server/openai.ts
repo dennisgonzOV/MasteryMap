@@ -346,12 +346,22 @@ Respond with JSON in this format:
     const todayValidation = new Date();
     const projectDueValidation = new Date(projectDueDate);
 
+    // Critical validation: Ensure project due date is in the future
+    if (projectDueValidation <= todayValidation) {
+      throw new Error("Project due date must be in the future");
+    }
+
     const validatedMilestones = milestones.map((milestone: any, index: number) => {
       let milestoneDate = new Date(milestone.dueDate);
 
       // If milestone date is invalid, before today, or after project due date, fix it
       if (isNaN(milestoneDate.getTime()) || milestoneDate < todayValidation || milestoneDate > projectDueValidation) {
         const totalDays = Math.ceil((projectDueValidation.getTime() - todayValidation.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Ensure we have minimum time for proper milestone spacing
+        if (totalDays <= 0) {
+          throw new Error("Invalid date calculation: project due date must be after today");
+        }
 
         // Ensure minimum 3 days between milestones and reasonable distribution
         const minimumDaysBetween = 3;
