@@ -1,8 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuthRoutes } from "./authRoutes";
-import { requireAuth, requireRole, type AuthenticatedRequest } from "./auth";
+import { authRouter, requireAuth, requireRole, type AuthenticatedRequest } from "./domains/auth";
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
@@ -65,7 +64,7 @@ type AuthRequest = AuthenticatedRequest;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes
-  setupAuthRoutes(app);
+  app.use('/api/auth', authRouter);
 
   // Student assessment submissions
   app.get("/api/student/assessment-submissions/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthRequest, res) => {
