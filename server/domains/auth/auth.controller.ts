@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { AuthService, type JWTPayload } from './auth.service';
 import { authStorage } from './auth.storage';
 import { registerSchema, loginSchema, type User } from '../../../shared/schema';
-import cookieParser from 'cookie-parser';
 import { authLimiter, createErrorResponse } from '../../middleware/security';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -58,7 +57,7 @@ export const createAuthRouter = () => {
 
   // Apply cookie parser middleware
   router.use(cookieParser());
-  
+
   // Apply auth-specific rate limiting
   router.use('/login', authLimiter);
   router.use('/register', authLimiter);
@@ -67,7 +66,7 @@ export const createAuthRouter = () => {
   router.post('/register', async (req, res) => {
     try {
       const userData = registerSchema.parse(req.body);
-      
+
       const { user, accessToken, refreshToken } = await AuthService.registerUser(userData);
 
       // Set cookies
@@ -87,7 +86,7 @@ export const createAuthRouter = () => {
   router.post('/login', async (req, res) => {
     try {
       const { email, password } = loginSchema.parse(req.body);
-      
+
       const { user, accessToken, refreshToken } = await AuthService.loginUser(email, password);
 
       // Set cookies
@@ -110,7 +109,7 @@ export const createAuthRouter = () => {
       if (refreshToken) {
         await AuthService.revokeRefreshToken(refreshToken);
       }
-      
+
       AuthService.clearAuthCookies(res);
       res.json({ message: 'Logged out successfully' });
     } catch (error) {
@@ -147,7 +146,7 @@ export const createAuthRouter = () => {
       }
 
       const { userId, newPassword } = req.body;
-      
+
       if (!userId || !newPassword) {
         return res.status(400).json({ message: 'User ID and new password are required' });
       }
@@ -178,7 +177,7 @@ export const createAuthRouter = () => {
       if (!req.user) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
-      
+
       // Return user data (without password)
       const { password: _, ...userWithoutPassword } = req.user;
       res.json(userWithoutPassword);
