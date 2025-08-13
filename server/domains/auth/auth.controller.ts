@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthService, type JWTPayload } from './auth.service';
 import { authStorage } from './auth.storage';
 import { registerSchema, loginSchema, type User } from '../../../shared/schema';
+import cookieParser from 'cookie-parser';
 import { authLimiter, createErrorResponse } from '../../middleware/security';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -54,6 +55,9 @@ export const requireRole = (...roles: string[]) => {
 // Create auth router
 export const createAuthRouter = () => {
   const router = Router();
+
+  // Apply cookie parser middleware
+  router.use(cookieParser());
   
   // Apply auth-specific rate limiting
   router.use('/login', authLimiter);
