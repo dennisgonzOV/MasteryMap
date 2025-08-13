@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testDatabaseConnection } from "./db";
 import { securityHeaders, apiLimiter } from "./middleware/security";
-import cookieParser from "cookie-parser";
+import cookieParser from 'cookie-parser';
 
 const app = express();
 
@@ -16,11 +16,11 @@ app.use(securityHeaders);
 // Apply rate limiting to all API routes
 app.use('/api', apiLimiter);
 
+// Parse cookies globally
+app.use(cookieParser());
+
 app.use(express.json({ limit: '10mb' })); // Add size limit
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
-
-// Use cookie-parser middleware
-app.use(cookieParser());
 
 app.use((req, res, next) => {
   const start = Date.now();
