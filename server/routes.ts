@@ -3,6 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authRouter, requireAuth, requireRole, type AuthenticatedRequest } from "./domains/auth";
 import { 
+  projectsRouter, 
+  milestonesRouter, 
+  projectTeamsRouter, 
+  projectTeamMembersRouter, 
+  schoolsRouter 
+} from "./domains/projects";
+import { 
   validateIntParam, 
   sanitizeForPrompt, 
   createErrorResponse,
@@ -65,6 +72,13 @@ type AuthRequest = AuthenticatedRequest;
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes
   app.use('/api/auth', authRouter);
+
+  // Setup projects domain routes
+  app.use('/api/projects', projectsRouter);
+  app.use('/api/milestones', milestonesRouter);
+  app.use('/api/project-teams', projectTeamsRouter);
+  app.use('/api/project-team-members', projectTeamMembersRouter);
+  app.use('/api/schools', schoolsRouter);
 
   // Student assessment submissions
   app.get("/api/student/assessment-submissions/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthRequest, res) => {
@@ -183,409 +197,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Project routes
-  app.post('/api/projects', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
-    const userId = req.user!.id;
-
-    // Handle date conversion manually
-    const { dueDate, ...bodyData } = req.body;
-
-    // Get teacher's school ID
-    const teacher = await storage.getUser(userId);
-    const teacherSchoolId = teacher?.schoolId;
-
-    const projectData = insertProjectSchema.parse({
-      ...bodyData,
-      teacherId: userId,
-      schoolId: teacherSchoolId,
-      dueDate: dueDate ? new Date(dueDate) : undefined,
-    });
-
-    // Ensure componentSkillIds is properly handled
-    if (!projectData.componentSkillIds || projectData.componentSkillIds.length === 0) {
-      console.warn('Project created without component skills');
-    }
-
-    const project = await storage.createProject(projectData);
-    createSuccessResponse(res, project);
-  }));
-
-  app.get('/api/projects', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
-    const userId = req.user!.id;
-
-    let projects;
-    if (req.user?.role === 'teacher') {
-      projects = await storage.getProjectsByTeacher(userId);
-    } else if (req.user?.role === 'student') {
-      projects = await storage.getProjectsByStudent(userId);
-    } else {
-      return handleAuthorizationError(res, "Access denied");
-    }
-
-    createSuccessResponse(res, projects);
-  }));
-
-  app.get('/api/projects/:id', requireAuth, validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
-    // Project is already validated and attached by middleware
-    const project = (req as any).project;
-    createSuccessResponse(res, project);
-  }));
-
-  app.put('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
-    const projectId = parseInt(req.params.id);
-    const updatedProject = await storage.updateProject(projectId, req.body);
-    createSuccessResponse(res, updatedProject);
-  }));
-
-  app.delete('/api/projects/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
-    const projectId = parseInt(req.params.id);
-    await storage.deleteProject(projectId);
-    createSuccessResponse(res, { message: "Project deleted successfully" });
-  }));
-
-  // Start project
-  app.post('/api/projects/:id/start', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      const project = await storage.getProject(projectId);
-
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Check ownership: admins can start any project, teachers can only start their own
-      if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
-        return res.status(403).json({ message: "Access denied - you can only start your own projects" });
-      }
-
-      // Update project status to active
-      await storage.updateProject(projectId, { status: 'active' });
-      res.json({ message: "Project started successfully" });
-    } catch (error) {
-      console.error("Error starting project:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to start project", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
-    }
-  });
-
-  // AI Milestone generation
-  app.post('/api/projects/:id/generate-milestones', requireAuth, validateIntParam('id'), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
-    try {
-      const userId = req.user!.id;
-
-      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only teachers can generate milestones" });
-      }
-
-      const projectId = parseInt(req.params.id);
-
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      const project = await storage.getProject(projectId);
-
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      const competencies = await storage.getCompetencies();
-      const selectedCompetencies = competencies.filter(c => 
-        (project.componentSkillIds as number[])?.includes(c.id)
-      );
-
-      const milestones = await generateMilestones(project, selectedCompetencies);
-
-      // Save generated milestones to database
-      const savedMilestones = await Promise.all(
-        milestones.map((milestone, index) => 
-          storage.createMilestone({
-            projectId,
-            title: milestone.title,
-            description: milestone.description,
-            dueDate: milestone.dueDate ? new Date(milestone.dueDate) : null,
-            order: index + 1,
-            aiGenerated: true,
-          })
-        )
-      );
-
-      res.json(savedMilestones);
-    } catch (error) {
-      console.error("Error generating milestones:", error);
-      const errorResponse = createErrorResponse(error, "Failed to generate milestones", 500);
-      res.status(500).json(errorResponse);
-    }
-  });
-
-  // Generate project ideas
-  app.post('/api/projects/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
-
-      if (!subject || !topic || !gradeLevel || !duration || !componentSkillIds?.length) {
-        return res.status(400).json({ message: "Missing required fields" });
-      }
-
-      // Sanitize AI inputs
-      const sanitizedSubject = sanitizeForPrompt(subject);
-      const sanitizedTopic = sanitizeForPrompt(topic);
-      const sanitizedGradeLevel = sanitizeForPrompt(gradeLevel);
-      const sanitizedDuration = sanitizeForPrompt(duration);
-
-      // Validate componentSkillIds is an array of numbers
-      if (!Array.isArray(componentSkillIds) || !componentSkillIds.every(id => typeof id === 'number')) {
-        return res.status(400).json({ message: "Invalid component skill IDs format" });
-      }
-
-      // Get component skills details
-      const componentSkills = await storage.getComponentSkillsByIds(componentSkillIds);
-
-      if (!componentSkills || componentSkills.length === 0) {
-        return res.status(400).json({ message: "No valid component skills found for the provided IDs" });
-      }
-
-      const ideas = await generateProjectIdeas({
-        subject: sanitizedSubject,
-        topic: sanitizedTopic,
-        gradeLevel: sanitizedGradeLevel,
-        duration: sanitizedDuration,
-        componentSkills
-      });
-
-      res.json({ ideas });
-    } catch (error) {
-      console.error("Error generating project ideas:", error);
-      const errorResponse = createErrorResponse(error, "Failed to generate project ideas", 500);
-      res.status(500).json(errorResponse);
-    }
-  });
-
-  // AI Milestone and Assessment generation based on component skills
-  app.post('/api/projects/:id/generate-milestones-and-assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const userId = req.user!.id;
-
-      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only teachers can generate milestones and assessments" });
-      }
-
-      const projectId = parseInt(req.params.id);
-      if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
-      }
-
-      const project = await storage.getProject(projectId);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-
-      // Check if user owns this project
-      if (req.user?.role === 'teacher' && project.teacherId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      // Get component skills for the project
-      const componentSkillDetails = await storage.getComponentSkillsWithDetails();
-      const selectedComponentSkills = componentSkillDetails.filter(skill => 
-        project.componentSkillIds?.includes(skill.id)
-      );
-
-      if (!selectedComponentSkills.length) {
-        return res.status(400).json({ message: "No component skills found for this project" });
-      }
-
-      // Get B.E.S.T. standards for the project
-      let selectedBestStandards: any[] = [];
-      // TODO: Re-implement getBestStandards method if needed
-      // if (project.bestStandardIds && project.bestStandardIds.length > 0) {
-      //   const allBestStandards = await storage.getBestStandards();
-      //   selectedBestStandards = allBestStandards.filter(standard => 
-      //     project.bestStandardIds?.includes(standard.id)
-      //   );
-      // }
-
-      // Generate milestones based on component skills and B.E.S.T. standards
-      const milestones = await generateMilestonesFromComponentSkills(
-        project.title,
-        project.description || "",
-        project.dueDate?.toISOString().split('T')[0] || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        selectedComponentSkills,
-        selectedBestStandards
-      );
-
-      // Save generated milestones to database
-      const savedMilestones = await Promise.all(
-        milestones.map((milestone, index) => 
-          storage.createMilestone({
-            projectId,
-            title: milestone.title,
-            description: milestone.description,
-            dueDate: milestone.dueDate ? new Date(milestone.dueDate) : null,
-            order: index + 1,
-            aiGenerated: true,
-          })
-        )
-      );
-
-      // Generate assessments for each milestone
-      const assessmentsWithMilestones = await Promise.all(
-        savedMilestones.map(async (milestone) => {
-          try {
-            const assessment = await generateAssessmentFromComponentSkills(
-              milestone.title,
-              milestone.description || "",
-              milestone.dueDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-              selectedComponentSkills,
-              selectedBestStandards
-            );
-
-            const savedAssessment = await storage.createAssessment({
-              milestoneId: milestone.id,
-              title: assessment.title,
-              description: assessment.description,
-              questions: assessment.questions,
-              dueDate: milestone.dueDate || new Date(),
-              componentSkillIds: project.componentSkillIds || [],
-              aiGenerated: true,
-            });
-
-            return { milestone, assessment: savedAssessment };
-          } catch (error) {
-            console.error(`Error generating assessment for milestone ${milestone.id}:`, error);
-            return { milestone, assessment: null };
-          }
-        })
-      );
-
-      const standardsCount = selectedBestStandards.length;
-      const message = standardsCount > 0 
-        ? `Generated ${savedMilestones.length} milestones and ${assessmentsWithMilestones.filter(item => item.assessment).length} assessments using ${selectedComponentSkills.length} component skills and ${standardsCount} B.E.S.T. standards`
-        : `Generated ${savedMilestones.length} milestones and ${assessmentsWithMilestones.filter(item => item.assessment).length} assessments using ${selectedComponentSkills.length} component skills`;
-
-      res.json({
-        milestones: savedMilestones,
-        assessments: assessmentsWithMilestones.map(item => item.assessment).filter(Boolean),
-        message
-      });
-    } catch (error) {
-      console.error("Error generating milestones and assessments:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to generate milestones and assessments", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
-    }
-  });
-
-  // Milestone routes
-  app.get('/api/projects/:id/milestones', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      const milestones = await storage.getMilestonesByProject(projectId);
-      res.json(milestones);
-    } catch (error) {
-      console.error("Error fetching milestones:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to fetch milestones", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
-    }
-  });
-
-  app.get('/api/milestones/:id', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
-    try {
-      const milestoneId = parseInt(req.params.id);
-      const milestone = await storage.getMilestone(milestoneId);
-
-      if (!milestone) {
-        return res.status(404).json({ message: "Milestone not found" });
-      }
-
-      res.json(milestone);
-    } catch (error) {
-      console.error("Error fetching milestone:", error);
-      res.status(500).json({ message: "Failed to fetch milestone" });
-    }
-  });
-
-  app.post('/api/milestones', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
-    const milestoneData = insertMilestoneSchema.parse(req.body);
-    const milestone = await storage.createMilestone(milestoneData);
-    createSuccessResponse(res, milestone);
-  }));
-
-  app.put('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
-    const milestoneId = parseInt(req.params.id);
-    const milestone = await storage.getMilestone(milestoneId);
-
-    if (!milestone) {
-      return handleEntityNotFound(res, "Milestone");
-    }
-
-    const updatedMilestone = await storage.updateMilestone(milestoneId, req.body);
-    createSuccessResponse(res, updatedMilestone);
-  }));
-
-  app.delete('/api/milestones/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
-    const milestoneId = parseInt(req.params.id);
-    await storage.deleteMilestone(milestoneId);
-    createSuccessResponse(res, { message: "Milestone deleted successfully" });
-  }));
-
-  // Assessment routes
-  app.post('/api/milestones/:id/generate-assessment', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
-    try {
-      const userId = req.user!.id;
-
-      const milestoneId = parseInt(req.params.id);
-      const milestone = await storage.getMilestone(milestoneId);
-
-      if (!milestone) {
-        return res.status(404).json({ message: "Milestone not found" });
-      }
-
-      const competencies = await storage.getCompetencies();
-      const assessmentData = await generateAssessment(milestone, competencies);
-
-      const assessment = await storage.createAssessment({
-        milestoneId,
-        title: assessmentData.title,
-        description: assessmentData.description,
-        questions: assessmentData.questions,
-        aiGenerated: true,
-      });
-
-      res.json(assessment);
-    } catch (error) {
-      console.error("Error generating assessment:", error);
-      const errorResponse = createErrorResponse(error, "Failed to generate assessment", 500);
-      res.status(500).json(errorResponse);
-    }
-  });
-
-  app.get('/api/milestones/:id/assessments', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
-    try {
-      const milestoneId = parseInt(req.params.id);
-      const assessments = await storage.getAssessmentsByMilestone(milestoneId);
-      res.json(assessments);
-    } catch (error) {
-      console.error("Error fetching assessments:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to fetch assessments", 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
-      });
-    }
-  });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Get standalone assessments
   app.get('/api/assessments/standalone', requireAuth, async (req: AuthenticatedRequest, res) => {
@@ -1663,30 +1297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Project assignment routes
-  app.post('/api/projects/:id/assign', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const userId = req.user!.id;
 
-      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Only teachers can assign projects" });
-      }
-
-      const projectId = parseInt(req.params.id);
-      const { studentIds } = req.body;
-
-      const assignments = await Promise.all(
-        studentIds.map((studentId: string) => 
-          storage.assignStudentToProject(projectId, parseInt(studentId))
-        )
-      );
-
-      res.json(assignments);
-    } catch (error) {
-      console.error("Error assigning project:", error);
-      res.status(500).json({ message: "Failed to assign project" });
-    }
-  });
 
   // Competency routes
   app.get('/api/competencies', async (req, res) => {
@@ -1958,117 +1569,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get students by school (for team selection)
-  app.get('/api/schools/:id/students', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const schoolId = parseInt(req.params.id);
-      const students = await storage.getStudentsBySchool(schoolId);
-      res.json(students);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      res.status(500).json({ message: "Failed to fetch students" });
-    }
-  });
 
-  // Project teams routes
-  app.post('/api/project-teams', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
-    try {
-      const team = await storage.createProjectTeam(req.body);
-      res.json(team);
-    } catch (error) {
-      console.error("Error creating project team:", error);
-      res.status(500).json({ message: "Failed to create project team" });
-    }
-  });
 
-  app.get('/api/projects/:id/teams', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const projectId = parseInt(req.params.id);
-      const teams = await storage.getProjectTeams(projectId);
-      res.json(teams);
-    } catch (error) {
-      console.error("Error fetching project teams:", error);
-      res.status(500).json({ message: "Failed to fetch project teams" });
-    }
-  });
 
-  app.post('/api/project-team-members', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
-    try {
-      const member = await storage.addTeamMember(req.body);      res.json(member);
-    } catch (error) {
-      console.error("Error adding team member:", error);
-      res.status(500).json({ message: "Failed to add team member" });
-    }
-  });
 
-  // Get team members
-  app.get('/api/project-teams/:teamId/members', requireAuth, async (req, res) => {
-    const teamId = parseInt(req.params.teamId);
 
-    try {
-      const members = await db.select({
-        id: projectTeamMembers.id,
-        teamId: projectTeamMembers.teamId,
-        studentId: projectTeamMembers.studentId,
-        role: projectTeamMembers.role,
-        joinedAt: projectTeamMembers.joinedAt,
-        studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
-        student: {
-          id: usersTable.id,
-          firstName: usersTable.firstName,
-          lastName: usersTable.lastName,
-          email: usersTable.email
-        }
-      })
-        .from(projectTeamMembers)
-        .innerJoin(usersTable, eq(projectTeamMembers.studentId, usersTable.id))
-        .where(eq(projectTeamMembers.teamId, teamId));
 
-      res.json(members);
-    } catch (error) {
-      console.error('Error fetching team members:', error);
-      res.status(500).json({ message: 'Failed to fetch team members' });
-    }
-  });
 
-  app.delete('/api/project-team-members/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
-    try {
-      const memberId = parseInt(req.params.id);
-      await storage.removeTeamMember(memberId);
-      res.json({ message: "Team member removed successfully" });
-    } catch (error) {
-      console.error("Error removing team member:", error);
-      res.status(500).json({ message: "Failed to remove team member" });
-    }
-  });
 
-  app.delete('/api/project-teams/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
-    try {
-      const teamId = parseInt(req.params.id);
-      const team = await storage.getProjectTeam(teamId);
 
-      if (!team) {
-        return res.status(404).json({ message: "Team not found" });
-      }
 
-      // Check if user owns the project this team belongs to
-      const project = await storage.getProject(team.projectId!);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
 
-      // Check ownership: admins can delete any team, teachers can only delete teams from their own projects
-      if (req.user?.role === 'teacher' && project.teacherId !== req.user.id) {
-        return res.status(403).json({ message: "Access denied - you can only delete teams from your own projects" });
-      }
 
-      await storage.deleteProjectTeam(teamId);
-      res.json({ message: "Team deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting team:", error);
-      res.status(500).json({ message: "Failed to delete team" });
-    }
-  });
+
 
   // Get users from admin's school for password reset
   app.get("/api/admin/school-users", requireAuth, async (req, res) => {
