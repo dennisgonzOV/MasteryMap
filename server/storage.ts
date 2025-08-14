@@ -106,11 +106,6 @@ export interface IStorage {
   getSubmissionsByAssessment(assessmentId: number): Promise<Submission[]>;
   updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission>;
 
-  // Credential operations
-  createCredential(credential: InsertCredential): Promise<Credential>;
-  getCredentialsByStudent(studentId: number): Promise<Credential[]>;
-  updateCredential(id: number, updates: Partial<InsertCredential>): Promise<Credential>;
-
   // Portfolio operations
   createPortfolioArtifact(artifact: InsertPortfolioArtifact): Promise<PortfolioArtifact>;
   getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]>;
@@ -532,32 +527,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(submissions.id, id))
       .returning();
     return updatedSubmission;
-  }
-
-  // Credential operations
-  async createCredential(credential: InsertCredential): Promise<Credential> {
-    const [newCredential] = await db
-      .insert(credentials)
-      .values(credential)
-      .returning();
-    return newCredential;
-  }
-
-  async getCredentialsByStudent(studentId: number): Promise<Credential[]> {
-    return await db
-      .select()
-      .from(credentials)
-      .where(eq(credentials.studentId, studentId))
-      .orderBy(desc(credentials.awardedAt));
-  }
-
-  async updateCredential(id: number, updates: Partial<InsertCredential>): Promise<Credential> {
-    const [updatedCredential] = await db
-      .update(credentials)
-      .set(updates)
-      .where(eq(credentials.id, id))
-      .returning();
-    return updatedCredential;
   }
 
   // Portfolio operations

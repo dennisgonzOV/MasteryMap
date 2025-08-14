@@ -8,6 +8,31 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Credentials Domain Modularization (August 2025)
+
+**Completed**: Successfully extracted credentials functionality into a modular domain structure under `server/domains/credentials/`:
+
+- **Architecture**: Implemented domain-driven design pattern for credentials module following established patterns
+- **File Structure**: Created complete domain structure with controller, service, and storage layers
+- **Route Migration**: Moved 3 credential routes from main routes.ts to dedicated controller:
+  - `GET /api/credentials/student` - Student credential retrieval
+  - `GET /api/credentials/teacher-stats` - Teacher credential statistics
+  - `POST /api/credentials` - Credential awarding functionality
+- **Storage Extraction**: Moved 3 credential database functions from main storage to domain:
+  - `createCredential()` - Create new credentials
+  - `getCredentialsByStudent()` - Retrieve student credentials
+  - `updateCredential()` - Update existing credentials
+- **Service Layer**: Added business logic separation for credential operations
+- **Integration**: Updated main routes.ts to use new `/api/credentials` router
+
+**Files Created**:
+- `server/domains/credentials/credentials.controller.ts` - Route handlers and Express router
+- `server/domains/credentials/credentials.service.ts` - Business logic layer
+- `server/domains/credentials/credentials.storage.ts` - Database operations
+- `server/domains/credentials/index.ts` - Domain exports
+
+**Benefits**: Continued domain-driven architecture consistency, improved code organization, and easier maintenance for credential-related functionality.
+
 ### Assessment Domain Restructuring (January 2025)
 
 **Completed**: Successfully restructured the codebase by moving all assessment-related functionality into a modular domain structure under `server/domains/assessments/`:
