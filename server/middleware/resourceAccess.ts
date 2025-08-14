@@ -1,6 +1,7 @@
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../auth';
-import { storage } from '../storage';
+import { projectsStorage } from '../domains/projects/projects.storage';
+import { assessmentStorage } from '../domains/assessments/assessments.storage';
 import { handleEntityNotFound, handleAuthorizationError, handleRouteError } from '../utils/routeHelpers';
 
 /**

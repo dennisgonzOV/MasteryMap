@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { createServer } from "http";
+import { setupRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testDatabaseConnection } from "./db";
 import { securityHeaders, apiLimiter } from "./middleware/security";
@@ -63,7 +64,8 @@ app.use((req, res, next) => {
       process.exit(1);
     }
 
-    const server = await registerRoutes(app);
+    setupRoutes(app);
+    const server = createServer(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;

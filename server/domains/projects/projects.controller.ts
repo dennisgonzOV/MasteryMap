@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { projectsService } from './projects.service';
 import { projectsStorage } from './projects.storage';
-import { storage } from "../../storage";
+import { competencyStorage } from "../competencies/competencies.storage";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../auth";
 import { 
   validateIntParam, 
@@ -27,7 +27,7 @@ import {
   users,
   projectTeamMembers
 } from "../../../shared/schema";
-import { generateMilestones, generateAssessment, generateMilestonesFromComponentSkills, generateAssessmentFromComponentSkills, generateProjectIdeas } from "../../openai";
+import { aiService } from "../ai/ai.service";
 import { z } from "zod";
 import { db } from "../../db";
 import { eq, sql } from "drizzle-orm";

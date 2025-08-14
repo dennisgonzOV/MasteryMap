@@ -30,8 +30,7 @@ import {
 } from "../../../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "../../db";
-import { generateFeedback, generateFeedbackForQuestion, generateComponentSkillGrades, generateQuestionGrade } from "../../openai";
-import { generateSelfEvaluationFeedback, generateAssessmentQuestions, generateTutorResponse } from "../../services/openai";
+import { aiService } from "../ai/ai.service";
 
 export class AssessmentController {
   constructor(private service: AssessmentService = assessmentService) {}

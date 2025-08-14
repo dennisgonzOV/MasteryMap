@@ -11,7 +11,7 @@ import {
   type InsertMilestone,
   type InsertProjectTeam
 } from "../../../shared/schema";
-import { generateMilestones, generateAssessment, generateMilestonesFromComponentSkills, generateAssessmentFromComponentSkills, generateProjectIdeas } from "../../openai";
+import { aiService } from "../ai/ai.service";
 import { sanitizeForPrompt } from "../../middleware/security";
 
 export class ProjectsService {
@@ -310,7 +310,7 @@ export class ProjectsService {
     // Get component skills details
     const componentSkills = await this.storage.getComponentSkillsByIds(componentSkillIds);
 
-    const ideas = await generateProjectIdeas({
+    const ideas = await aiService.generateProjectIdeas({
       subject: sanitizedSubject,
       topic: sanitizedTopic,
       gradeLevel: sanitizedGradeLevel,
@@ -335,7 +335,7 @@ export class ProjectsService {
       (project.componentSkillIds as number[])?.includes(c.id)
     );
 
-    const milestones = await generateMilestones(project, selectedCompetencies);
+    const milestones = await aiService.generateProjectMilestones(project);
 
     // Save generated milestones to database
     const savedMilestones = await Promise.all(
@@ -377,7 +377,7 @@ export class ProjectsService {
       throw new Error("No matching component skills found");
     }
 
-    const milestones = await generateMilestonesFromComponentSkills(
+    const milestones = await aiService.generateMilestonesFromComponentSkills(
       project.title,
       project.description,
       project.dueDate ? project.dueDate.toISOString() : new Date().toISOString(),
@@ -397,7 +397,7 @@ export class ProjectsService {
         });
 
         // Generate assessment for this milestone
-        const assessment = await generateAssessmentFromComponentSkills(
+        const assessment = await aiService.generateAssessmentFromComponentSkills(
           savedMilestone.title,
           savedMilestone.description,
           savedMilestone.dueDate ? savedMilestone.dueDate.toISOString() : new Date().toISOString(),

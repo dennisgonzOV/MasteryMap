@@ -16,8 +16,7 @@ import {
   wrapRoute
 } from '../../utils/routeHelpers';
 import { validateIdParam } from '../../middleware/routeValidation';
-import { generateFeedback, generateFeedbackForQuestion, generateComponentSkillGrades, generateQuestionGrade } from "../../openai";
-import { generateSelfEvaluationFeedback, generateAssessmentQuestions, generateTutorResponse } from "../../services/openai";
+import { aiService } from "../ai/ai.service";
 
 export class SubmissionController {
   constructor(private service: AssessmentService = assessmentService) {}
@@ -193,7 +192,7 @@ export class SubmissionController {
           return res.status(400).json({ message: "Question and response cannot be empty" });
         }
 
-        const feedback = await generateFeedbackForQuestion(
+        const feedback = await aiService.generateFeedbackForQuestion(
           sanitizedQuestion,
           sanitizedResponse,
           rubricLevel
