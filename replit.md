@@ -7,6 +7,26 @@ MasteryMap is an AI-powered Project-Based Learning (PBL) management system for e
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+
+### Assessment Domain Restructuring (January 2025)
+
+**Completed**: Successfully restructured the codebase by moving all assessment-related functionality into a modular domain structure under `server/domains/assessments/`:
+
+- **Architecture**: Implemented domain-driven design pattern for assessments module
+- **File Structure**: Created separate controllers for assessments, submissions, and self-evaluations
+- **Storage Layer**: Moved all assessment-related database functions to dedicated storage module
+- **Service Layer**: Added business logic orchestration between controllers and storage
+- **Route Management**: Cleaned up main routes.ts file by removing duplicated assessment routes
+- **Domain Integration**: Updated main server to properly register assessment domain routers
+
+**Files Affected**:
+- `server/domains/assessments/` - New domain directory structure
+- `server/routes.ts` - Cleaned up and modularized
+- `server/storage.ts` - Assessment functions moved to domain storage
+- `server/index.ts` - Updated to register assessment domain routes
+
+**Benefits**: Improved code organization, better separation of concerns, easier maintenance, and cleaner architecture following domain-driven design principles.
+
 - **2025-08-13**: **COMPLETED** - Projects Domain Modularization (Major Architecture Refactoring)
   - **PROJECTS DOMAIN EXTRACTED**: Successfully moved all project-related functionality from monolithic routes.ts into domain structure
   - **CREATED COMPLETE DOMAIN**: `server/domains/projects/` with controller, service, and storage layers following auth domain pattern
