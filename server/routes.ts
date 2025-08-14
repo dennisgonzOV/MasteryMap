@@ -15,6 +15,7 @@ import {
   selfEvaluationsRouter 
 } from "./domains/assessments";
 import { credentialsRouter } from "./domains/credentials";
+import { portfolioRouter } from "./domains/portfolio";
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
@@ -94,38 +95,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup credentials domain routes
   app.use('/api/credentials', credentialsRouter);
 
-  // Portfolio routes
-  app.get('/api/portfolio/artifacts', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const userId = req.user!.id;
-      const artifacts = await storage.getPortfolioArtifactsByStudent(userId);
-      res.json(artifacts);
-    } catch (error) {
-      console.error("Error fetching portfolio artifacts:", error);
-      res.status(500).json({ message: "Failed to fetch portfolio artifacts" });
-    }
-  });
-
-  app.post('/api/portfolio/artifacts', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const userId = req.user!.id;
-
-      if (req.user?.role !== 'student') {
-        return res.status(403).json({ message: "Only students can create portfolio artifacts" });
-      }
-
-      const artifactData = insertPortfolioArtifactSchema.parse({
-        ...req.body,
-        studentId: userId,
-      });
-
-      const artifact = await storage.createPortfolioArtifact(artifactData);
-      res.json(artifact);
-    } catch (error) {
-      console.error("Error creating portfolio artifact:", error);
-      res.status(500).json({ message: "Failed to create portfolio artifact" });
-    }
-  });
+  // Setup portfolio domain routes
+  app.use('/api/portfolio', portfolioRouter);
 
   // Competency routes
   app.get('/api/competencies', requireAuth, async (req: AuthenticatedRequest, res) => {

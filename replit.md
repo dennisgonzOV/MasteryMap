@@ -8,6 +8,30 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Portfolio Domain Modularization (August 2025)
+
+**Completed**: Successfully extracted portfolio functionality into a modular domain structure under `server/domains/portfolio/`:
+
+- **Architecture**: Implemented domain-driven design pattern for portfolio module following established patterns
+- **File Structure**: Created complete domain structure with controller, service, and storage layers
+- **Route Migration**: Moved 2 portfolio routes from main routes.ts to dedicated controller:
+  - `GET /api/portfolio/artifacts` - Student portfolio artifact retrieval
+  - `POST /api/portfolio/artifacts` - Portfolio artifact creation (students only)
+- **Storage Extraction**: Moved 3 portfolio database functions from main storage to domain:
+  - `createPortfolioArtifact()` - Create new portfolio artifacts
+  - `getPortfolioArtifactsByStudent()` - Retrieve student portfolio artifacts
+  - `updatePortfolioArtifact()` - Update existing portfolio artifacts
+- **Service Layer**: Added business logic separation for portfolio operations
+- **Integration**: Updated main routes.ts to use new `/api/portfolio` router
+
+**Files Created**:
+- `server/domains/portfolio/portfolio.controller.ts` - Route handlers and Express router
+- `server/domains/portfolio/portfolio.service.ts` - Business logic layer
+- `server/domains/portfolio/portfolio.storage.ts` - Database operations
+- `server/domains/portfolio/index.ts` - Domain exports
+
+**Benefits**: Continued domain-driven architecture consistency, improved code organization, and easier maintenance for portfolio-related functionality.
+
 ### Credentials Domain Modularization (August 2025)
 
 **Completed**: Successfully extracted credentials functionality into a modular domain structure under `server/domains/credentials/`:

@@ -106,11 +106,6 @@ export interface IStorage {
   getSubmissionsByAssessment(assessmentId: number): Promise<Submission[]>;
   updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission>;
 
-  // Portfolio operations
-  createPortfolioArtifact(artifact: InsertPortfolioArtifact): Promise<PortfolioArtifact>;
-  getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]>;
-  updatePortfolioArtifact(id: number, updates: Partial<InsertPortfolioArtifact>): Promise<PortfolioArtifact>;
-
   // 3-Level Hierarchy operations
   getLearnerOutcomes(): Promise<LearnerOutcome[]>;
   getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
@@ -527,32 +522,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(submissions.id, id))
       .returning();
     return updatedSubmission;
-  }
-
-  // Portfolio operations
-  async createPortfolioArtifact(artifact: InsertPortfolioArtifact): Promise<PortfolioArtifact> {
-    const [newArtifact] = await db
-      .insert(portfolioArtifacts)
-      .values(artifact)
-      .returning();
-    return newArtifact;
-  }
-
-  async getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]> {
-    return await db
-      .select()
-      .from(portfolioArtifacts)
-      .where(eq(portfolioArtifacts.studentId, studentId))
-      .orderBy(desc(portfolioArtifacts.createdAt));
-  }
-
-  async updatePortfolioArtifact(id: number, updates: Partial<InsertPortfolioArtifact>): Promise<PortfolioArtifact> {
-    const [updatedArtifact] = await db
-      .update(portfolioArtifacts)
-      .set(updates)
-      .where(eq(portfolioArtifacts.id, id))
-      .returning();
-    return updatedArtifact;
   }
 
   // Competency operations
