@@ -5,6 +5,9 @@ import {
   projectTeamMembers,
   projectAssignments,
   users,
+  credentials,
+  grades,
+  submissions,
   type Project,
   type Milestone,
   type ProjectTeam,
@@ -266,6 +269,102 @@ export class ProjectsStorage implements IProjectsStorage {
       eq(users.schoolId, schoolId),
       eq(users.role, 'student')
     )).orderBy(asc(users.firstName), asc(users.lastName));
+  }
+
+  async getSchoolStudentsProgress(teacherId: number): Promise<any[]> {
+    // Get the teacher's school ID first
+    const teacher = await db.select({ schoolId: users.schoolId })
+      .from(users)
+      .where(eq(users.id, teacherId))
+      .limit(1);
+
+    if (!teacher.length || !teacher[0].schoolId) {
+      return [];
+    }
+
+    // Get all students in the same school
+    const students = await db.select()
+      .from(users)
+      .where(and(
+        eq(users.schoolId, teacher[0].schoolId),
+        eq(users.role, 'student')
+      ))
+      .orderBy(asc(users.firstName), asc(users.lastName));
+
+    // For each student, get their progress data
+    const studentsProgress = await Promise.all(
+      students.map(async (student) => {
+        const projects = await this.getStudentProjects(student.id);
+        const credentials = await this.getStudentCredentials(student.id);
+        const competencyProgress = await this.getStudentCompetencyProgress(student.id);
+
+        // Calculate credential counts
+        const stickers = credentials.filter(c => c.type === 'sticker').length;
+        const badges = credentials.filter(c => c.type === 'badge').length;
+        const plaques = credentials.filter(c => c.type === 'plaque').length;
+        const totalCredentials = credentials.length;
+
+        return {
+          id: student.id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          grade: 'N/A', // Grade is not stored in the users table
+          projects,
+          credentials,
+          competencyProgress,
+          totalCredentials,
+          stickers,
+          badges,
+          plaques
+        };
+      })
+    );
+
+    return studentsProgress;
+  }
+
+  async getStudentProjects(studentId: number): Promise<any[]> {
+    // Get projects assigned to the student
+    return await db.select({
+      projectId: projects.id,
+      projectTitle: projects.title,
+      projectDescription: projects.description,
+      projectStatus: projects.status,
+      teacherName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`
+    })
+      .from(projectAssignments)
+      .innerJoin(projects, eq(projectAssignments.projectId, projects.id))
+      .innerJoin(users, eq(projects.teacherId, users.id))
+      .where(eq(projectAssignments.studentId, studentId));
+  }
+
+  async getStudentCredentials(studentId: number): Promise<any[]> {
+    // Get credentials earned by the student
+    return await db.select({
+      id: credentials.id,
+      title: credentials.title,
+      description: credentials.description,
+      type: credentials.type,
+      awardedAt: credentials.awardedAt
+    })
+      .from(credentials)
+      .where(eq(credentials.studentId, studentId))
+      .orderBy(desc(credentials.awardedAt));
+  }
+
+  async getStudentCompetencyProgress(studentId: number): Promise<any[]> {
+    // Get competency progress from grades (which contain the actual scores)
+    return await db.select({
+      componentSkillId: grades.componentSkillId,
+      componentSkillName: sql<string>`'Component Skill'`, // This would need to be joined with componentSkills table
+      averageScore: sql<number>`AVG(CAST(${grades.score} AS DECIMAL))`,
+      submissionCount: sql<number>`COUNT(DISTINCT ${grades.submissionId})`
+    })
+      .from(grades)
+      .innerJoin(submissions, eq(grades.submissionId, submissions.id))
+      .where(eq(submissions.studentId, studentId))
+      .groupBy(grades.componentSkillId);
   }
 
   async getProjectTeam(teamId: number): Promise<ProjectTeam | undefined> {

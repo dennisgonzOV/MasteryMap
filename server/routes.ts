@@ -10,6 +10,7 @@ import { aiRouter } from "./domains/ai";
 import { competenciesRouter } from "./domains/competencies";
 import { notificationsRouter } from "./domains/notifications";
 import { safetyIncidentsRouter } from "./domains/safety-incidents";
+
 import { requireAuth, type AuthenticatedRequest } from "./domains/auth";
 
 export function setupRoutes(app: Express) {
@@ -29,6 +30,7 @@ export function setupRoutes(app: Express) {
   app.use("/api/competencies", competenciesRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/safety-incidents", safetyIncidentsRouter);
+
 
   // Additional student-specific routes
   app.use('/api', assessmentsRouter);

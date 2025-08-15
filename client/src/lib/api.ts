@@ -86,5 +86,5 @@ export const api = {
   getStudentDeadlines: () =>
     fetch("/api/deadlines/student", { credentials: "include" }).then(res => res.json()),
   getSchoolStudentsProgress: () =>
-    fetch("/api/teacher/school-students-progress", { credentials: "include" }).then(res => res.json()),
+    fetch("/api/schools/students-progress", { credentials: "include" }).then(res => res.json()),
 };

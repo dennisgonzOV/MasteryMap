@@ -487,4 +487,12 @@ schoolsRouter.get('/:id/students', requireAuth, async (req: AuthenticatedRequest
   }
 });
 
+// Get school students progress for teacher dashboard
+schoolsRouter.get('/students-progress', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  const teacherId = req.user!.id;
+  
+  const studentsProgress = await projectsService.getSchoolStudentsProgress(teacherId);
+  createSuccessResponse(res, studentsProgress);
+}));
+
 export default router;

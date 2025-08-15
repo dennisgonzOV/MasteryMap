@@ -286,6 +286,10 @@ export class ProjectsService {
     return this.storage.getStudentsBySchool(schoolId);
   }
 
+  async getSchoolStudentsProgress(teacherId: number): Promise<any[]> {
+    return this.storage.getSchoolStudentsProgress(teacherId);
+  }
+
   // AI-powered operations
   async generateProjectIdeas(ideaParams: {
     subject: string;
