@@ -5,7 +5,6 @@ import {
   validateIntParam, 
   sanitizeForPrompt, 
   createErrorResponse,
-  csrfProtection,
   aiLimiter
 } from '../../middleware/security';
 

@@ -5,7 +5,6 @@ import {
   validateIntParam, 
   sanitizeForPrompt, 
   createErrorResponse,
-  csrfProtection,
   aiLimiter
 } from '../../middleware/security';
 import { 
@@ -77,7 +76,7 @@ export class SubmissionController {
     });
 
     // Grade submission route
-    router.post('/:id/grade', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
+    router.post('/:id/grade', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
         const { grades: gradeUpdates } = req.body;
@@ -155,7 +154,7 @@ export class SubmissionController {
     });
 
     // Generate question feedback using AI
-    router.post('/:id/generate-question-feedback', requireAuth, validateIntParam('id'), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
+    router.post('/:id/generate-question-feedback', requireAuth, validateIntParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
         const { questionIndex, rubricLevel } = req.body;

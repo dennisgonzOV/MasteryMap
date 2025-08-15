@@ -1,5 +1,4 @@
 import rateLimit from 'express-rate-limit';
-import csrf from 'csurf';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 
@@ -41,14 +40,8 @@ export const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// CSRF protection configuration
-export const csrfProtection = csrf({
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict'
-  }
-});
+// Note: CSRF protection removed as it was not being used in the application
+// JWT-based auth with HTTP-only cookies provides sufficient protection
 
 // Security headers configuration
 export const securityHeaders = helmet({

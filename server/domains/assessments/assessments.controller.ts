@@ -5,7 +5,6 @@ import {
   validateIntParam, 
   sanitizeForPrompt, 
   createErrorResponse,
-  csrfProtection,
   aiLimiter
 } from '../../middleware/security';
 import { 
@@ -196,7 +195,7 @@ export class AssessmentController {
     });
 
     // Assessment creation route
-    router.post('/', requireAuth, csrfProtection, async (req: AuthenticatedRequest, res) => {
+    router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user!.id;
 

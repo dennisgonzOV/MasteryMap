@@ -7,7 +7,6 @@ import {
   validateIntParam, 
   sanitizeForPrompt, 
   createErrorResponse,
-  csrfProtection,
   aiLimiter
 } from "../../middleware/security";
 import { 
@@ -35,7 +34,7 @@ import { eq, sql } from "drizzle-orm";
 const router = Router();
 
 // Project CRUD routes
-router.post('/', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.post('/', requireAuth, requireRole(['teacher', 'admin']), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
 
   // Get teacher's school ID
@@ -60,7 +59,7 @@ router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess(), wrapRou
   createSuccessResponse(res, project);
 }));
 
-router.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -69,7 +68,7 @@ router.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdPar
   createSuccessResponse(res, updatedProject);
 }));
 
-router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -79,7 +78,7 @@ router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateId
 }));
 
 // Project management routes
-router.post('/:id/start', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), csrfProtection, async (req: AuthenticatedRequest, res) => {
+router.post('/:id/start', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -119,7 +118,7 @@ router.post('/:id/assign', requireAuth, async (req: AuthenticatedRequest, res) =
 });
 
 // AI-powered routes
-router.post('/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
 
@@ -155,7 +154,7 @@ router.post('/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), c
   }
 });
 
-router.post('/:id/generate-milestones', requireAuth, validateIntParam('id'), csrfProtection, aiLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/:id/generate-milestones', requireAuth, validateIntParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -277,7 +276,7 @@ milestonesRouter.get('/:id', requireAuth, validateIntParam('id'), async (req: Au
   }
 });
 
-milestonesRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
   const userRole = req.user!.role;
 
@@ -285,7 +284,7 @@ milestonesRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), csrfP
   createSuccessResponse(res, milestone);
 }));
 
-milestonesRouter.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const milestoneId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -294,7 +293,7 @@ milestonesRouter.put('/:id', requireAuth, requireRole(['teacher', 'admin']), val
   createSuccessResponse(res, updatedMilestone);
 }));
 
-milestonesRouter.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), csrfProtection, wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const milestoneId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
