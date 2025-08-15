@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
-// import QRCode from "qrcode"; // Removed due to dependency cleanup
+import QRCode from "qrcode";
 import Navigation from "@/components/navigation";
 import CredentialBadge from "@/components/credential-badge";
 import { CompetencyProgress } from "@/components/competency-progress";
@@ -76,7 +76,6 @@ export default function StudentPortfolio() {
     if (isAuthenticated && user) {
       const generateQRCode = async () => {
         try {
-          const QRCode = await import('qrcode');
           const portfolioUrl = `${window.location.origin}/portfolio/student/${user.id}`;
           const dataUrl = await QRCode.toDataURL(portfolioUrl, {
             width: 200,
