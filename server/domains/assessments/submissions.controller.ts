@@ -115,6 +115,11 @@ export class SubmissionController {
           })
         );
 
+        // Update submission with gradedAt timestamp to mark it as completed
+        await this.service.updateSubmission(submissionId, {
+          gradedAt: new Date()
+        });
+
         res.json({
           message: "Submission graded successfully",
           grades: createdGrades,
