@@ -194,6 +194,10 @@ export abstract class BaseAIService {
       }
 
       // Try to extract JSON from the content
+      if (!response?.content || typeof response.content !== 'string') {
+        return null;
+      }
+      
       const jsonStart = response.content.indexOf('{');
       const jsonEnd = response.content.lastIndexOf('}');
       

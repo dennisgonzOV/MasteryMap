@@ -20,7 +20,7 @@ export default function ProgressBar({
   color = 'blue',
   className
 }: ProgressBarProps) {
-  const percentage = Math.round((value / max) * 100);
+  const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
 
   const getColorClasses = (color: string) => {
     switch (color) {

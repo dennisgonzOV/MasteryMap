@@ -334,6 +334,16 @@ export default function CreateAssessmentModal({
         ]
       };
 
+      // Validate selectedTypes is not empty to prevent infinite loop
+      if (selectedTypes.length === 0) {
+        toast({
+          title: "Error",
+          description: "Please select at least one question type before generating.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Generate questions based on selected types and count
       const generatedQuestions = [];
       const questionsPerType = Math.ceil(aiQuestionCount / selectedTypes.length);

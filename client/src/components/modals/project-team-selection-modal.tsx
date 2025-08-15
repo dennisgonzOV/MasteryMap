@@ -105,9 +105,9 @@ export default function ProjectTeamSelectionModal({
       if (!teamResponse.ok) throw new Error('Failed to create team');
       const team = await teamResponse.json();
 
-      // Add team members
-      for (const studentId of selectedStudents) {
-        await fetch('/api/project-team-members', {
+      // Add team members in parallel
+      const memberPromises = selectedStudents.map(studentId =>
+        fetch('/api/project-team-members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -115,27 +115,38 @@ export default function ProjectTeamSelectionModal({
             studentId,
             role: 'member'
           })
-        });
-      }
+        })
+      );
+      
+      await Promise.all(memberPromises);
 
       // Assign all milestones to team members
       const milestonesResponse = await fetch(`/api/projects/${projectId}/milestones`);
       if (milestonesResponse.ok) {
         const milestones = await milestonesResponse.json();
         
+        // Collect all assignments first, then make parallel API calls
+        const assignments = [];
         for (const milestone of milestones) {
           for (const studentId of selectedStudents) {
-            await fetch('/api/project-assignments', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                projectId,
-                studentId,
-                teamId: team.id
-              })
+            assignments.push({
+              projectId,
+              studentId,
+              teamId: team.id
             });
           }
         }
+
+        // Make all assignment API calls in parallel
+        const assignmentPromises = assignments.map(assignment =>
+          fetch('/api/project-assignments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(assignment)
+          })
+        );
+        
+        await Promise.all(assignmentPromises);
       }
 
       toast({

@@ -49,16 +49,16 @@ export function checkResourceAccess(options: ResourceAccessOptions) {
       try {
         switch (resourceType) {
           case 'project':
-            resource = await storage.getProject(resourceId);
+            resource = await projectsStorage.getProject(resourceId);
             break;
           case 'milestone':
-            resource = await storage.getMilestone(resourceId);
+            resource = await projectsStorage.getMilestone(resourceId);
             break;
           case 'assessment':
-            resource = await storage.getAssessment(resourceId);
+            resource = await assessmentStorage.getAssessment(resourceId);
             break;
           case 'submission':
-            resource = await storage.getSubmission(resourceId);
+            resource = await assessmentStorage.getSubmission(resourceId);
             break;
           default:
             return res.status(400).json({ message: 'Invalid resource type' });

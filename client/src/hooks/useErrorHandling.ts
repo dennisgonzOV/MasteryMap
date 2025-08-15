@@ -112,7 +112,12 @@ export function useAuthErrorHandling(isLoading: boolean, isAuthenticated: boolea
 
   // Redirect logic for authentication
   useEffect(() => {
-    if (!isLoading && (errors.isAuthError || (!isAuthenticated && !errors.hasError))) {
+    const shouldRedirectToLogin = !isLoading && (
+      errors.isAuthError || 
+      (!isAuthenticated && !errors.hasError)
+    );
+
+    if (shouldRedirectToLogin) {
       setLocation("/login");
     }
   }, [isAuthenticated, isLoading, errors.isAuthError, errors.hasError, setLocation]);
