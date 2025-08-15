@@ -293,22 +293,7 @@ router.get('/milestones/:id', requireAuth, validateIdParam, async (req: Authenti
   }
 });
 
-// Get assessments for a specific milestone
-router.get('/milestones/:id/assessments', requireAuth, validateIdParam, async (req: AuthenticatedRequest, res) => {
-  try {
-    const milestoneId = parseInt(req.params.id);
-    const assessments = await storage.getAssessmentsByMilestone(milestoneId);
-    res.json(assessments);
-  } catch (error) {
-    console.error("Error fetching milestone assessments:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    res.status(500).json({ 
-      message: "Failed to fetch milestone assessments", 
-      error: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? error : undefined
-    });
-  }
-});
+
 
 // Team management routes  
 router.post('/:id/teams', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
@@ -339,6 +324,26 @@ router.get('/:id/teams', requireAuth, async (req: AuthenticatedRequest, res) => 
 
 // Additional routes that should be mounted at different paths but related to projects
 export const milestonesRouter = Router();
+
+// Test route to verify the router is working
+milestonesRouter.get('/test', (req, res) => {
+  res.json({ message: "Milestones router is working" });
+});
+
+milestonesRouter.get('/:id/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const milestoneId = parseInt(req.params.id);
+    
+    // Import the assessment service
+    const { assessmentService } = await import('../assessments');
+    const assessments = await assessmentService.getAssessmentsByMilestone(milestoneId);
+    
+    res.json(assessments);
+  } catch (error) {
+    console.error("Error fetching assessments for milestone:", error);
+    res.status(500).json({ message: "Failed to fetch assessments for milestone" });
+  }
+});
 
 milestonesRouter.get('/:id', requireAuth, validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
