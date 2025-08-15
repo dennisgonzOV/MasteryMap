@@ -299,13 +299,13 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
     retry: false,
   });
 
-  // Fetch student submissions to check completion status
+  // Fetch student assessment submissions to check completion status
   const { data: studentSubmissions = [] } = useQuery({
-    queryKey: ["/api/submissions/student"],
-    enabled: !!user?.id,
+    queryKey: ["/api/student/assessment-submissions", (user as any)?.id],
+    enabled: !!(user as any)?.id,
     queryFn: async () => {
-      const response = await fetch(`/api/submissions/student`);
-      if (!response.ok) throw new Error('Failed to fetch submissions');
+      const response = await fetch(`/api/student/assessment-submissions/${(user as any).id}`);
+      if (!response.ok) throw new Error('Failed to fetch assessment submissions');
       return response.json();
     },
     // Add polling to automatically refresh submissions data every 30 seconds
@@ -581,6 +581,8 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
     sub.assessmentId === assessment.id
   );
 
+
+
   const getStatusBadge = (submission) => {
     if (!submission) {
       return <Badge className="bg-gray-100 text-gray-800">Not Started</Badge>;
@@ -648,6 +650,17 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
 
       {isExpanded && submission && (
         <div className="mt-3 pt-3 border-t border-gray-200">
+          {/* Submission Info */}
+          <div className="mb-3">
+            <h6 className="text-sm font-medium text-gray-700 mb-2">Submission Details</h6>
+            <div className="text-xs text-gray-600 space-y-1">
+              <p>Submitted: {new Date(submission.submittedAt).toLocaleString()}</p>
+              {submission.feedback && (
+                <p>Teacher Feedback: {submission.feedback}</p>
+              )}
+            </div>
+          </div>
+
           {/* Earned Credentials - Only show for graded assessments */}
           {submission.status === 'graded' && 
            submission.earnedCredentials && 
@@ -708,6 +721,43 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                     ... and {submission.questions.length - 2} more questions
                   </p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Show all questions if expanded */}
+          {isExpanded && submission.questions && submission.questions.length > 2 && (
+            <div className="mt-3">
+              <h6 className="text-sm font-medium text-gray-700 mb-2">All Questions & Responses</h6>
+              <div className="space-y-2">
+                {submission.questions.slice(2).map((question, index) => (
+                  <div key={question.id} className="bg-gray-50 p-2 rounded text-xs">
+                    <p className="font-medium text-gray-900 mb-1">
+                      Q{index + 3}: {question.text}
+                    </p>
+                    <p className="text-gray-600">
+                      {(() => {
+                        if (Array.isArray(submission.responses)) {
+                          const response = submission.responses.find(r => r.questionId === question.id);
+                          return response?.answer || "No answer provided";
+                        } else if (submission.responses && typeof submission.responses === 'object') {
+                          return submission.responses[question.id] || "No answer provided";
+                        }
+                        return "No answer provided";
+                      })()}
+                    </p>
+                    {submission.status === 'graded' && 
+                     submission.questionGrades && 
+                     submission.questionGrades[question.id] && (
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Score:</span>
+                        <Badge className={`text-xs ${getScoreBadge(submission.questionGrades[question.id].score)}`}>
+                          {submission.questionGrades[question.id].score}%
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
