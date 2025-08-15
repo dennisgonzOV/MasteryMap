@@ -4,10 +4,11 @@ import {
   grades,
   selfEvaluations,
   users,
+  componentSkills,
+  competencies,
   type Assessment,
   type Submission,
   type Grade,
-  type SelfEvaluation,
   InsertAssessment,
   InsertSubmission,
 } from "../../../shared/schema";
@@ -53,6 +54,19 @@ export interface IAssessmentStorage {
 
   // Self-evaluation operations
   getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]>;
+
+  // Student competency progress
+  getStudentCompetencyProgress(studentId: number): Promise<Array<{
+    competencyId: number;
+    competencyName: string;
+    componentSkillId: number;
+    componentSkillName: string;
+    averageScore: number;
+    totalScores: number[];
+    lastScore: number;
+    lastUpdated: string;
+    progressDirection: 'improving' | 'declining' | 'stable';
+  }>>;
 }
 
 export class AssessmentStorage implements IAssessmentStorage {
@@ -264,6 +278,124 @@ export class AssessmentStorage implements IAssessmentStorage {
       .from(selfEvaluations)
       .where(eq(selfEvaluations.assessmentId, assessmentId))
       .orderBy(desc(selfEvaluations.submittedAt));
+  }
+
+  // Student competency progress
+  async getStudentCompetencyProgress(studentId: number): Promise<Array<{
+    competencyId: number;
+    competencyName: string;
+    componentSkillId: number;
+    componentSkillName: string;
+    averageScore: number;
+    totalScores: number[];
+    lastScore: number;
+    lastUpdated: string;
+    progressDirection: 'improving' | 'declining' | 'stable';
+  }>> {
+    try {
+      // Get all grades for the student with related component skills and competencies
+      // Use separate queries to avoid Drizzle ORM field selection issues
+      const allGrades = await db.select().from(grades);
+      const allSubmissions = await db.select().from(submissions).where(eq(submissions.studentId, studentId));
+      const allComponentSkills = await db.select().from(componentSkills);
+      const allCompetencies = await db.select().from(competencies);
+
+      // Filter grades for this student's submissions
+      const submissionIds = allSubmissions.map(s => s.id);
+      const studentGradesRaw = allGrades.filter(g => g.submissionId && submissionIds.includes(g.submissionId));
+
+      // Create lookup maps
+      const skillMap = new Map(allComponentSkills.map(s => [s.id, s]));
+      const competencyMap = new Map(allCompetencies.map(c => [c.id, c]));
+
+      // Enrich grades with related data
+      const studentGrades = studentGradesRaw.map(grade => {
+        const skill = skillMap.get(grade.componentSkillId || 0);
+        const competency = skill?.competencyId ? competencyMap.get(skill.competencyId) : null;
+
+        return {
+          gradeId: grade.id,
+          score: grade.score,
+          gradedAt: grade.gradedAt,
+          componentSkillId: grade.componentSkillId,
+          componentSkillName: skill?.name || 'Unknown Skill',
+          competencyId: competency?.id || 0,
+          competencyName: competency?.name || 'Unknown Competency',
+          submissionId: grade.submissionId,
+        };
+      }).sort((a, b) => new Date(b.gradedAt || 0).getTime() - new Date(a.gradedAt || 0).getTime());
+
+      // Group by competency and component skill
+      const progressMap = new Map<string, {
+        competencyId: number;
+        competencyName: string;
+        componentSkillId: number;
+        componentSkillName: string;
+        scores: { score: number; date: Date }[];
+      }>();
+
+      studentGrades.forEach(grade => {
+        const key = `${grade.competencyId}-${grade.componentSkillId}`;
+        const score = Number(grade.score) || 0;
+
+        if (!progressMap.has(key)) {
+          progressMap.set(key, {
+            competencyId: grade.competencyId || 0,
+            competencyName: grade.competencyName,
+            componentSkillId: grade.componentSkillId || 0,
+            componentSkillName: grade.componentSkillName,
+            scores: [],
+          });
+        }
+
+        progressMap.get(key)!.scores.push({
+          score,
+          date: grade.gradedAt || new Date(),
+        });
+      });
+
+      // Calculate progress metrics for each competency/component skill
+      const results = Array.from(progressMap.values()).map(item => {
+        // Sort scores by date (most recent first)
+        item.scores.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const totalScores = item.scores.map(s => s.score);
+        const averageScore = totalScores.length > 0 ? 
+          Math.round(totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length) : 0;
+
+        const lastScore = totalScores[0] || 0;
+        const secondLastScore = totalScores[1];
+
+        // Determine progress direction
+        let progressDirection: 'improving' | 'declining' | 'stable' = 'stable';
+        if (totalScores.length > 1 && secondLastScore !== undefined) {
+          if (lastScore > secondLastScore + 5) { // 5-point threshold for improvement
+            progressDirection = 'improving';
+          } else if (lastScore < secondLastScore - 5) { // 5-point threshold for decline
+            progressDirection = 'declining';
+          }
+        }
+
+        const lastUpdated = item.scores[0]?.date?.toISOString() || new Date().toISOString();
+
+        return {
+          competencyId: item.competencyId,
+          competencyName: item.competencyName,
+          componentSkillId: item.componentSkillId,
+          componentSkillName: item.componentSkillName,
+          averageScore,
+          totalScores,
+          lastScore,
+          lastUpdated,
+          progressDirection,
+        };
+      });
+
+      return results.sort((a, b) => a.competencyName.localeCompare(b.competencyName));
+    } catch (error) {
+      console.error("Error fetching student competency progress:", error);
+      return [];
+    }
   }
 }
 
