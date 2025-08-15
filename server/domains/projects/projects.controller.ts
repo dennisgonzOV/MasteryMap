@@ -39,7 +39,7 @@ router.post('/', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (
 
   // Get teacher's school ID
   const teacher = await projectsStorage.getUser(userId);
-  const teacherSchoolId = teacher?.schoolId;
+  const teacherSchoolId = teacher?.schoolId ?? null;
 
   const project = await projectsService.createProject(req.body, userId, teacherSchoolId);
   createSuccessResponse(res, project);

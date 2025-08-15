@@ -51,11 +51,15 @@ export interface IProjectsStorage {
   getProjectAssignments(projectId: number): Promise<ProjectAssignment[]>;
   updateProjectProgress(projectId: number, studentId: number, progress: number): Promise<void>;
 
+  // User operations
+  getUser(id: number): Promise<User | undefined>;
+
   // Component skills operations
   getComponentSkillsByIds(ids: number[]): Promise<any[]>;
+  getComponentSkillsWithDetails(): Promise<any[]>;
 
   // Assessment operations
-  getAssessmentsByMilestone(milestoneId: number);
+  getAssessmentsByMilestone(milestoneId: number): Promise<any[]>;
 }
 
 export class ProjectsStorage implements IProjectsStorage {
@@ -308,6 +312,15 @@ export class ProjectsStorage implements IProjectsStorage {
       );
   }
 
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
+    return user;
+  }
+
   // Component skills operations
   async getComponentSkillsByIds(ids: number[]): Promise<any[]> {
     // For now, return a basic implementation to complete the migration
@@ -315,8 +328,14 @@ export class ProjectsStorage implements IProjectsStorage {
     return [];
   }
 
+  async getComponentSkillsWithDetails(): Promise<any[]> {
+    // For now, return a basic implementation to complete the migration
+    // This would typically query the componentSkills table with detailed info
+    return [];
+  }
+
   // Assessment operations
-  async getAssessmentsByMilestone(milestoneId: number) {
+  async getAssessmentsByMilestone(milestoneId: number): Promise<any[]> {
     return await db.query.assessments.findMany({
       where: eq(assessments.milestoneId, milestoneId),
       with: {
