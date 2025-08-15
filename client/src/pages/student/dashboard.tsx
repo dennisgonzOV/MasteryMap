@@ -613,7 +613,7 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
       setIsExpanded(!isExpanded);
     } else {
       // If no submission, navigate to take the assessment
-      setLocation(`/student/take-assessment/${assessment.id}`);
+      setLocation(`/student/assessments/${assessment.id}`);
     }
   };
 
@@ -688,52 +688,10 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
             <div>
               <h6 className="text-sm font-medium text-gray-700 mb-2">Questions & Your Responses</h6>
               <div className="space-y-2">
-                {submission.questions.slice(0, 2).map((question, index) => (
+                {submission.questions.map((question, index) => (
                   <div key={question.id} className="bg-gray-50 p-2 rounded text-xs">
                     <p className="font-medium text-gray-900 mb-1">
                       Q{index + 1}: {question.text}
-                    </p>
-                    <p className="text-gray-600">
-                      {(() => {
-                        if (Array.isArray(submission.responses)) {
-                          const response = submission.responses.find(r => r.questionId === question.id);
-                          return response?.answer || "No answer provided";
-                        } else if (submission.responses && typeof submission.responses === 'object') {
-                          return submission.responses[question.id] || "No answer provided";
-                        }
-                        return "No answer provided";
-                      })()}
-                    </p>
-                    {submission.status === 'graded' && 
-                     submission.questionGrades && 
-                     submission.questionGrades[question.id] && (
-                      <div className="mt-1 flex items-center justify-between">
-                        <span className="text-xs text-gray-600">Score:</span>
-                        <Badge className={`text-xs ${getScoreBadge(submission.questionGrades[question.id].score)}`}>
-                          {submission.questionGrades[question.id].score}%
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {submission.questions.length > 2 && (
-                  <p className="text-xs text-gray-500 text-center">
-                    ... and {submission.questions.length - 2} more questions
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Show all questions if expanded */}
-          {isExpanded && submission.questions && submission.questions.length > 2 && (
-            <div className="mt-3">
-              <h6 className="text-sm font-medium text-gray-700 mb-2">All Questions & Responses</h6>
-              <div className="space-y-2">
-                {submission.questions.slice(2).map((question, index) => (
-                  <div key={question.id} className="bg-gray-50 p-2 rounded text-xs">
-                    <p className="font-medium text-gray-900 mb-1">
-                      Q{index + 3}: {question.text}
                     </p>
                     <p className="text-gray-600">
                       {(() => {
