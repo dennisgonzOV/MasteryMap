@@ -51,6 +51,24 @@ export class PortfolioController {
       }
     });
 
+    // Generate QR code for portfolio sharing
+    router.get('/qr-code', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user!.id;
+        const portfolioUrl = `${req.protocol}://${req.get('host')}/portfolio/student/${userId}`;
+        
+        // For now, return the URL without generating QR code since library is not installed
+        res.json({
+          portfolioUrl,
+          qrCodeUrl: null,
+          message: "QR code generation requires qrcode library installation"
+        });
+      } catch (error) {
+        console.error("Error generating QR code:", error);
+        res.status(500).json({ message: "Failed to generate QR code" });
+      }
+    });
+
     return router;
   }
 }

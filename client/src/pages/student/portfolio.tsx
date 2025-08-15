@@ -43,6 +43,7 @@ export default function StudentPortfolio() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+  const [qrCodeError, setQrCodeError] = useState<string>("");
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -73,22 +74,27 @@ export default function StudentPortfolio() {
   // Generate QR code for portfolio sharing
   useEffect(() => {
     if (isAuthenticated && user) {
-      // TODO: Re-implement QR code generation if needed
-      // const portfolioUrl = `${window.location.origin}/portfolio/student/${user.id}`;
-      // QRCode.toDataURL(portfolioUrl, {
-      //   width: 200,
-      //   margin: 2,
-      //   color: {
-      //     dark: '#1F2937', // Dark gray
-      //     light: '#FFFFFF', // White
-      //   },
-      // })
-      //   .then((dataUrl) => {
-      //     setQrCodeDataUrl(dataUrl);
-      //   })
-      //   .catch((error) => {
-      //     console.error('Error generating QR code:', error);
-      //   });
+      // Try to get QR code from server endpoint
+      const fetchQRCode = async () => {
+        try {
+          const response = await fetch('/api/portfolio/qr-code', {
+            credentials: 'include'
+          });
+          const data = await response.json();
+          
+          if (data.qrCodeUrl) {
+            setQrCodeDataUrl(data.qrCodeUrl);
+            setQrCodeError("");
+          } else {
+            setQrCodeError(data.message || "QR code generation unavailable");
+          }
+        } catch (error) {
+          console.error('Error fetching QR code:', error);
+          setQrCodeError("QR code generation unavailable - server error");
+        }
+      };
+
+      fetchQRCode();
     }
   }, [isAuthenticated, user]);
 
@@ -468,6 +474,11 @@ export default function StudentPortfolio() {
                         alt="Portfolio QR Code"
                         className="w-20 h-20"
                       />
+                    ) : qrCodeError ? (
+                      <div className="flex flex-col items-center justify-center w-20 h-20 text-center">
+                        <QrCode className="h-8 w-8 text-gray-400 mb-1" />
+                        <span className="text-xs text-gray-500">QR Code Unavailable</span>
+                      </div>
                     ) : (
                       <div className="animate-pulse w-20 h-20 bg-gray-200 rounded"></div>
                     )}
@@ -487,6 +498,11 @@ export default function StudentPortfolio() {
                     >
                       Copy Link
                     </Button>
+                    {qrCodeError && (
+                      <p className="text-xs text-gray-500 text-center">
+                        Install qrcode library to enable QR codes
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
