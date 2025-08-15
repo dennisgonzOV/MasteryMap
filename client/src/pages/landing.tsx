@@ -44,14 +44,7 @@ export default function Landing() {
             Empower educators and students with AI-driven project management, 
             competency-based assessments, and digital portfolio creation.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center fade-in" style={{ animationDelay: "0.4s" }}>
-            <Button 
-              variant="outline"
-              className="border-2 border-white text-blue-600 bg-white hover:bg-gray-50 hover:text-blue-700 px-8 py-3 rounded-full font-semibold"
-            >
-              Learn More
-            </Button>
-          </div>
+
         </div>
       </section>
 
