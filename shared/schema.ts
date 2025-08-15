@@ -439,6 +439,9 @@ export type InsertAssessment = typeof assessments.$inferInsert;
 export type Assessment = typeof assessments.$inferSelect;
 export type InsertSubmission = typeof submissions.$inferInsert;
 export type Submission = typeof submissions.$inferSelect;
+export type SubmissionWithAssessment = Submission & {
+  assessment?: Assessment | null;
+};
 export type InsertCredential = typeof credentials.$inferInsert;
 export type Credential = typeof credentials.$inferSelect;
 export type InsertPortfolioArtifact = typeof portfolioArtifacts.$inferInsert;

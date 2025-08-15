@@ -2,6 +2,7 @@ import { assessmentStorage, type IAssessmentStorage } from './assessments.storag
 import { 
   type Assessment, 
   type Submission, 
+  type SubmissionWithAssessment,
   type Grade,
   InsertAssessment,
   InsertSubmission,
@@ -128,7 +129,7 @@ export class AssessmentService {
     return await this.storage.getSubmission(id);
   }
 
-  async getSubmissionsByStudent(studentId: number): Promise<Submission[]> {
+  async getSubmissionsByStudent(studentId: number): Promise<SubmissionWithAssessment[]> {
     return await this.storage.getSubmissionsByStudent(studentId);
   }
 

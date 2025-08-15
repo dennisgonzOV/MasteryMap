@@ -8,6 +8,7 @@ import {
   competencies,
   type Assessment,
   type Submission,
+  type SubmissionWithAssessment,
   type Grade,
   InsertAssessment,
   InsertSubmission,
@@ -44,7 +45,7 @@ export interface IAssessmentStorage {
   // Submission operations
   createSubmission(submission: InsertSubmission): Promise<Submission>;
   getSubmission(id: number): Promise<Submission | undefined>;
-  getSubmissionsByStudent(studentId: number): Promise<Submission[]>;
+  getSubmissionsByStudent(studentId: number): Promise<SubmissionWithAssessment[]>;
   getSubmissionsByAssessment(assessmentId: number): Promise<any[]>;
   updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission>;
 
@@ -221,12 +222,58 @@ export class AssessmentStorage implements IAssessmentStorage {
     return submission;
   }
 
-  async getSubmissionsByStudent(studentId: number): Promise<Submission[]> {
-    return await db
-      .select()
+  async getSubmissionsByStudent(studentId: number): Promise<SubmissionWithAssessment[]> {
+    const submissionsWithAssessments = await db
+      .select({
+        id: submissions.id,
+        assessmentId: submissions.assessmentId,
+        studentId: submissions.studentId,
+        responses: submissions.responses,
+        artifacts: submissions.artifacts,
+        submittedAt: submissions.submittedAt,
+        gradedAt: submissions.gradedAt,
+        feedback: submissions.feedback,
+        aiGeneratedFeedback: submissions.aiGeneratedFeedback,
+        isSelfEvaluation: submissions.isSelfEvaluation,
+        selfEvaluationData: submissions.selfEvaluationData,
+        // Assessment data
+        assessment: {
+          id: assessments.id,
+          milestoneId: assessments.milestoneId,
+          title: assessments.title,
+          description: assessments.description,
+          questions: assessments.questions,
+          rubricId: assessments.rubricId,
+          componentSkillIds: assessments.componentSkillIds,
+          dueDate: assessments.dueDate,
+          aiGenerated: assessments.aiGenerated,
+          assessmentType: assessments.assessmentType,
+          allowSelfEvaluation: assessments.allowSelfEvaluation,
+          shareCode: assessments.shareCode,
+          shareCodeExpiresAt: assessments.shareCodeExpiresAt,
+          createdAt: assessments.createdAt,
+        }
+      })
       .from(submissions)
+      .leftJoin(assessments, eq(submissions.assessmentId, assessments.id))
       .where(eq(submissions.studentId, studentId))
       .orderBy(desc(submissions.submittedAt));
+
+    // Transform the data to match the expected format
+    return submissionsWithAssessments.map(row => ({
+      id: row.id,
+      assessmentId: row.assessmentId,
+      studentId: row.studentId,
+      responses: row.responses,
+      artifacts: row.artifacts,
+      submittedAt: row.submittedAt,
+      gradedAt: row.gradedAt,
+      feedback: row.feedback,
+      aiGeneratedFeedback: row.aiGeneratedFeedback,
+      isSelfEvaluation: row.isSelfEvaluation,
+      selfEvaluationData: row.selfEvaluationData,
+      assessment: row.assessment
+    }));
   }
 
   async getSubmissionsByAssessment(assessmentId: number): Promise<any[]> {
