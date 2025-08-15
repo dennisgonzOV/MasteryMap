@@ -27,18 +27,18 @@ import {
   projectTeamMembers
 } from "../../../shared/schema";
 import { aiService } from "../ai/ai.service";
-import { z } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "../../db";
 import { eq, sql } from "drizzle-orm";
 
 const router = Router();
 
 // Project CRUD routes
-router.post('/', requireAuth, requireRole(['teacher', 'admin']), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.post('/', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
 
   // Get teacher's school ID
-  const teacher = await storage.getUser(userId);
+  const teacher = await projectsStorage.getUser(userId);
   const teacherSchoolId = teacher?.schoolId;
 
   const project = await projectsService.createProject(req.body, userId, teacherSchoolId);
@@ -88,7 +88,7 @@ router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess({
   createSuccessResponse(res, project);
 }));
 
-router.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.put('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -97,7 +97,7 @@ router.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdPar
   createSuccessResponse(res, updatedProject);
 }));
 
-router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -107,7 +107,7 @@ router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateId
 }));
 
 // Project management routes
-router.post('/:id/start', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+router.post('/:id/start', requireAuth, requireRole('teacher', 'admin'), validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -147,7 +147,7 @@ router.post('/:id/assign', requireAuth, async (req: AuthenticatedRequest, res) =
 });
 
 // AI-powered routes
-router.post('/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), aiLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/generate-ideas', requireAuth, requireRole('teacher', 'admin'), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
 
@@ -161,7 +161,7 @@ router.post('/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), a
     }
 
     // Get component skills details
-    const componentSkills = await storage.getComponentSkillsByIds(componentSkillIds);
+    const componentSkills = await projectsStorage.getComponentSkillsByIds(componentSkillIds);
 
     if (!componentSkills || componentSkills.length === 0) {
       return res.status(400).json({ message: "No valid component skills found for the provided IDs" });
@@ -183,7 +183,7 @@ router.post('/generate-ideas', requireAuth, requireRole(['teacher', 'admin']), a
   }
 });
 
-router.post('/:id/generate-milestones', requireAuth, validateIntParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/:id/generate-milestones', requireAuth, validateIdParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -198,7 +198,7 @@ router.post('/:id/generate-milestones', requireAuth, validateIntParam('id'), aiL
       return res.status(400).json({ message: "Invalid project ID" });
     }
 
-    const competencies = await storage.getCompetencies();
+    const competencies = await competencyStorage.getCompetencies();
     const savedMilestones = await projectsService.generateMilestonesForProject(projectId, userId, userRole, competencies);
 
     res.json(savedMilestones);
@@ -223,13 +223,13 @@ router.post('/:id/generate-milestones-and-assessments', requireAuth, async (req:
       return res.status(400).json({ message: "Invalid project ID" });
     }
 
-    const componentSkillDetails = await storage.getComponentSkillsWithDetails();
+    const componentSkillDetails = await projectsStorage.getComponentSkillsWithDetails();
     const result = await projectsService.generateMilestonesAndAssessmentsForProject(projectId, userId, userRole, componentSkillDetails);
 
     res.json({
-      milestones: result.map(item => item.milestone),
-      assessments: result.map(item => item.assessment).filter(Boolean),
-      message: `Generated ${result.length} milestones and ${result.filter(item => item.assessment).length} assessments`
+      milestones: result.map((item: any) => item.milestone),
+      assessments: result.map((item: any) => item.assessment).filter(Boolean),
+      message: `Generated ${result.length} milestones and ${result.filter((item: any) => item.assessment).length} assessments`
     });
   } catch (error) {
     console.error("Error generating milestones and assessments:", error);
@@ -243,7 +243,7 @@ router.post('/:id/generate-milestones-and-assessments', requireAuth, async (req:
 });
 
 // Milestone routes
-router.get('/:id/milestones', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+router.get('/:id/milestones', requireAuth, validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -272,10 +272,10 @@ router.get('/:id/milestones', requireAuth, validateIntParam('id'), async (req: A
 });
 
 // Get milestone by ID
-router.get('/milestones/:id', requireAuth, validateIdParam, async (req: AuthenticatedRequest, res) => {
+router.get('/milestones/:id', requireAuth, validateIdParam(), async (req: AuthenticatedRequest, res) => {
   try {
     const milestoneId = parseInt(req.params.id);
-    const milestone = await storage.getMilestone(milestoneId);
+    const milestone = await projectsStorage.getMilestone(milestoneId);
 
     if (!milestone) {
       return res.status(404).json({ message: "Milestone not found" });
@@ -296,7 +296,7 @@ router.get('/milestones/:id', requireAuth, validateIdParam, async (req: Authenti
 
 
 // Team management routes  
-router.post('/:id/teams', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+router.post('/:id/teams', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -361,7 +361,7 @@ milestonesRouter.get('/:id', requireAuth, validateIdParam('id'), async (req: Aut
   }
 });
 
-milestonesRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.post('/', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
   const userRole = req.user!.role;
 
@@ -369,7 +369,7 @@ milestonesRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), wrapR
   createSuccessResponse(res, milestone);
 }));
 
-milestonesRouter.put('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.put('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const milestoneId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -378,7 +378,7 @@ milestonesRouter.put('/:id', requireAuth, requireRole(['teacher', 'admin']), val
   createSuccessResponse(res, updatedMilestone);
 }));
 
-milestonesRouter.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.delete('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const milestoneId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -389,7 +389,7 @@ milestonesRouter.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), 
 
 export const projectTeamsRouter = Router();
 
-projectTeamsRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+projectTeamsRouter.post('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -402,7 +402,7 @@ projectTeamsRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), asy
   }
 });
 
-projectTeamsRouter.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+projectTeamsRouter.delete('/:id', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
   try {
     const teamId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -447,7 +447,7 @@ projectTeamsRouter.get('/:teamId/members', requireAuth, async (req, res) => {
 
 export const projectTeamMembersRouter = Router();
 
-projectTeamMembersRouter.post('/', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+projectTeamMembersRouter.post('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -460,7 +460,7 @@ projectTeamMembersRouter.post('/', requireAuth, requireRole(['teacher', 'admin']
   }
 });
 
-projectTeamMembersRouter.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+projectTeamMembersRouter.delete('/:id', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
   try {
     const memberId = parseInt(req.params.id);
     const userId = req.user!.id;
