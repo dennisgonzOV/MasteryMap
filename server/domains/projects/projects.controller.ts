@@ -53,9 +53,38 @@ router.get('/', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) =>
   createSuccessResponse(res, projects);
 }));
 
-router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  // Project is already validated and attached by middleware
+router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess({
+  allowedRoles: ['teacher', 'admin', 'student'],
+  customAccessCheck: (user, project) => {
+    // Teachers and admins can access any project they own or any project
+    if (user.role === 'teacher') {
+      return project.teacherId === user.id;
+    }
+    if (user.role === 'admin') {
+      return true;
+    }
+    // Students can only access projects they're assigned to
+    if (user.role === 'student') {
+      // We need to check if the student is assigned to this project
+      // This will be handled in the storage layer
+      return true; // Allow the request to proceed, storage will validate assignment
+    }
+    return false;
+  }
+}), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const project = (req as any).project;
+  const userId = req.user!.id;
+  const userRole = req.user!.role;
+  
+  // For students, verify they're actually assigned to this project
+  if (userRole === 'student') {
+    const studentProjects = await projectsService.getProjectsByUser(userId, userRole);
+    const hasAccess = studentProjects.some(p => p.id === project.id);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "You don't have access to this project" });
+    }
+  }
+  
   createSuccessResponse(res, project);
 }));
 
@@ -217,6 +246,18 @@ router.post('/:id/generate-milestones-and-assessments', requireAuth, async (req:
 router.get('/:id/milestones', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
     const projectId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+    
+    // For students, verify they have access to this project
+    if (userRole === 'student') {
+      const studentProjects = await projectsService.getProjectsByUser(userId, userRole);
+      const hasAccess = studentProjects.some(p => p.id === projectId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "You don't have access to this project" });
+      }
+    }
+    
     const milestones = await projectsService.getMilestonesByProject(projectId);
     res.json(milestones);
   } catch (error) {
