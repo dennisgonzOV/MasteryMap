@@ -59,24 +59,11 @@ export const createAuthRouter = () => {
   router.use('/login', authLimiter);
   router.use('/register', authLimiter);
 
-  // Register route
+  // Register route - DISABLED
   router.post('/register', async (req, res) => {
-    try {
-      const userData = registerSchema.parse(req.body);
-      
-      const { user, accessToken, refreshToken } = await AuthService.registerUser(userData);
-
-      // Set cookies
-      AuthService.setAuthCookies(res, accessToken, refreshToken);
-
-      // Return user data (without password)
-      const { password: _, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
-    } catch (error) {
-      console.error('Registration error:', error);
-      const errorResponse = createErrorResponse(error, 'Registration failed', 400);
-      res.status(400).json(errorResponse);
-    }
+    res.status(403).json({ 
+      message: 'Registration is currently disabled. Please contact your administrator for account access.' 
+    });
   });
 
   // Login route

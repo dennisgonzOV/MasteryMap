@@ -28,12 +28,6 @@ export default function Landing() {
               >
                 Sign In
               </Button>
-              <Button 
-                onClick={() => window.location.href = '/register'}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full btn-primary"
-              >
-                Get Started
-              </Button>
             </div>
           </div>
         </div>
@@ -51,13 +45,6 @@ export default function Landing() {
             competency-based assessments, and digital portfolio creation.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center fade-in" style={{ animationDelay: "0.4s" }}>
-            <Button 
-              onClick={() => window.location.href = '/register'}
-              className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-3 rounded-full font-semibold btn-primary"
-            >
-              Get Started
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
             <Button 
               variant="outline"
               className="border-2 border-white text-blue-600 bg-white hover:bg-gray-50 hover:text-blue-700 px-8 py-3 rounded-full font-semibold"
@@ -205,14 +192,13 @@ export default function Landing() {
             Ready to Transform Your Classroom?
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            Join thousands of educators revolutionizing learning with project-based education
+            Contact your administrator to get started with project-based education
           </p>
           <Button 
-            onClick={() => window.location.href = '/register'}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold btn-primary text-lg"
+            variant="outline"
+            className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-3 rounded-full font-semibold text-lg"
           >
-            Get Started Today
-            <ArrowRight className="ml-2 h-5 w-5" />
+            Contact Administrator
           </Button>
         </div>
       </section>

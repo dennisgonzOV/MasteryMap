@@ -108,10 +108,9 @@ export default function Login() {
             </form>
           </Form>
           <div className="mt-4 text-center text-sm">
-            Don't have an account?{' '}
-            <Link href="/register" className="text-blue-600 hover:underline">
-              Sign up
-            </Link>
+            <p className="text-gray-600">
+              Need an account? Contact your administrator for access.
+            </p>
           </div>
         </CardContent>
       </Card>
