@@ -31,4 +31,7 @@ export function setupRoutes(app: Express) {
 
   // Additional student-specific routes
   app.use('/api', assessmentsRouter);
+  
+  // Students routes (for competency progress)
+  app.use('/api/students', assessmentsRouter);
 }

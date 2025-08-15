@@ -62,6 +62,29 @@ export class AssessmentController {
       }
     });
 
+    // General student competency progress route (what the frontend is actually calling)
+    router.get("/students/competency-progress", requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        if (!req.user) {
+          return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        const { role, id: userId } = req.user;
+        const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : userId;
+
+        // Only allow students to view their own progress, or teachers/admins
+        if (role === 'student' && userId !== studentId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // For now, return empty array until competency progress is implemented
+        res.json([]);
+      } catch (error) {
+        console.error("Error fetching competency progress:", error);
+        res.status(500).json({ error: "Failed to fetch competency progress" });
+      }
+    });
+
     // Student deadlines route
     router.get("/deadlines/student", requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
