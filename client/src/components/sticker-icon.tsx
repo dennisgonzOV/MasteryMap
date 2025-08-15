@@ -16,6 +16,13 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
       className: className
     };
 
+    // SVG animation constants for better maintainability
+    const PARTICLE_COUNT = 8;
+    const ANGLE_STEP = 45; // 360 / 8 = 45 degrees per particle
+    const ANGLE_OFFSET = 22.5; // Half of angle step for staggered positioning
+    const BASE_RADIUS = 6;
+    const RADIUS_VARIATION = 1.5;
+
     switch (level) {
       case 'red':
         // Emerging - Dynamic growing tree with animated elements
@@ -56,9 +63,9 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
             
             {/* Floating growth particles around the tree */}
             <g transform="translate(12,12)" filter={`url(#redPulse${size})`}>
-              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
-                const angle = i * 45 + (i % 2 * 22.5);
-                const radius = 6 + (i % 3) * 1.5;
+              {Array.from({ length: PARTICLE_COUNT }, (_, i) => i).map((i) => {
+                const angle = i * ANGLE_STEP + (i % 2 * ANGLE_OFFSET);
+                const radius = BASE_RADIUS + (i % 3) * RADIUS_VARIATION;
                 const x = Math.cos(angle * Math.PI / 180) * radius;
                 const y = Math.sin(angle * Math.PI / 180) * radius;
                 return (
@@ -408,6 +415,7 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         );
       
       default:
+        console.warn(`Unknown sticker level: ${level}, falling back to default green sticker`);
         return (
           <svg {...commonProps}>
             <circle cx="12" cy="12" r="10" fill="#e2e8f0" stroke="#a0aec0" strokeWidth="1"/>

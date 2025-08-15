@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ComponentErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Users, Calendar, ArrowRight } from "lucide-react";
@@ -44,8 +45,9 @@ export default function ProjectCard({
   };
 
   return (
-    <Card className="card-hover apple-shadow border-0 overflow-hidden">
-      <CardContent className="p-6">
+    <ComponentErrorBoundary componentName="Project Card" showError={true}>
+      <Card className="card-hover apple-shadow border-0 overflow-hidden">
+        <CardContent className="p-6">
         {/* Project Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
@@ -96,7 +98,8 @@ export default function ProjectCard({
           {userRole === 'teacher' ? 'Manage Project' : 'View Project'}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </ComponentErrorBoundary>
   );
 }

@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
+import { useAuthErrorHandling, useQueryErrorHandling } from "@/hooks/useErrorHandling";
+import { FullscreenLoader } from "@/components/ui/loading-spinner";
 import Navigation from "@/components/navigation";
 import ProjectCard from "@/components/project-card";
 import CredentialBadge from "@/components/credential-badge";
@@ -37,33 +39,8 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('assessments'); // Default to assessments tab
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Handle network errors
-  useEffect(() => {
-    if (isNetworkError) {
-      toast({
-        title: "Connection Error",
-        description: "Unable to connect to the server. Please check your internet connection and try again.",
-        variant: "destructive",
-      });
-    }
-  }, [isNetworkError, toast]);
-
-  // Redirect to login if authentication error
-  useEffect(() => {
-    if (!isLoading && isAuthError) {
-      toast({
-        title: "Session Expired",
-        description: "Your session has expired. Please log in again.",
-        variant: "destructive",
-      });
-      setLocation("/login");
-      return;
-    }
-    if (!isLoading && !isAuthenticated && !isNetworkError) {
-      setLocation("/login");
-      return;
-    }
-  }, [isAuthenticated, isLoading, isAuthError, isNetworkError, setLocation, toast]);
+  // Use centralized error handling
+  useAuthErrorHandling(isLoading, isAuthenticated, { isNetworkError, isAuthError, hasError });
 
   // Fetch student projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
@@ -86,38 +63,16 @@ export default function StudentDashboard() {
     retry: false,
   });
 
-  // Handle unauthorized errors
-  useEffect(() => {
-    if (projectsError && isUnauthorizedError(projectsError as Error)) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-    }
-  }, [projectsError, setLocation]);
+  // Handle query errors
+  useQueryErrorHandling(projectsError as Error);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="flex items-center space-x-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-lg text-gray-700">Loading...</span>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader text="Loading..." />;
   }
 
   // Show loading while checking authentication
   if (!isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="flex items-center space-x-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-lg text-gray-700">Authenticating...</span>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader text="Authenticating..." />;
   }
 
   if (user?.role !== 'student') {
