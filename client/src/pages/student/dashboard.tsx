@@ -45,21 +45,21 @@ export default function StudentDashboard() {
   // Fetch student projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
     queryKey: ["/api/projects"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
   // Fetch student credentials
   const { data: credentials = [], isLoading: credentialsLoading } = useQuery({
     queryKey: ["/api/credentials/student"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
   // Fetch portfolio artifacts
   const { data: artifacts = [] } = useQuery({
     queryKey: ["/api/portfolio/artifacts"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
@@ -75,7 +75,7 @@ export default function StudentDashboard() {
     return <FullscreenLoader text="Authenticating..." />;
   }
 
-  if (user?.role !== 'student') {
+  if ((user as any)?.role !== 'student') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="text-center">
@@ -88,20 +88,20 @@ export default function StudentDashboard() {
 
   // Use real competency progress data from API
   const { data: competencyProgress = [] } = useQuery({
-    queryKey: ["/api/competency-progress/student", user?.id],
-    enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
+    queryKey: ["/api/competency-progress/student", (user as any)?.id],
+    enabled: isAuthenticated && (user as any)?.role === 'student' && !!(user as any)?.id,
     retry: false,
   });
 
   // Fetch upcoming deadlines
   const { data: upcomingDeadlines = [] } = useQuery({
     queryKey: ["/api/deadlines/student"],
-    enabled: isAuthenticated && user?.role === 'student',
+    enabled: isAuthenticated && (user as any)?.role === 'student',
     retry: false,
   });
 
-  const recentCredentials = credentials.slice(0, 3);
-  const activeProjects = projects.filter(p => p.status === 'active');
+  const recentCredentials = (credentials as any[]).slice(0, 3);
+  const activeProjects = (projects as any[]).filter((p: any) => p.status === 'active');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -114,7 +114,7 @@ export default function StudentDashboard() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Welcome back, {user.firstName}!
+                  Welcome back, {(user as any).firstName}!
                 </h1>
                 <p className="text-gray-600">
                   Continue your learning journey and track your progress across all projects.
@@ -215,22 +215,22 @@ function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
   // Fetch student's projects to determine active/completed project IDs
   const { data: projects = [] } = useQuery({
     queryKey: ["/api/projects"],
-    enabled: !!user?.id && user?.role === 'student',
+    enabled: !!(user as any)?.id && (user as any)?.role === 'student',
     retry: false,
   });
 
   // Fetch student's assessment submissions
   const { data: submissions = [], isLoading } = useQuery({
-    queryKey: ["/api/student/assessment-submissions", user?.id],
-    queryFn: () => api.getStudentAssessmentSubmissions(user!.id),
-    enabled: !!user?.id,
+    queryKey: ["/api/student/assessment-submissions", (user as any)?.id],
+    queryFn: () => api.getStudentAssessmentSubmissions((user as any).id),
+    enabled: !!(user as any)?.id,
     retry: false,
   });
 
   // Get project IDs for active and completed projects the student is part of
-  const eligibleProjectIds = projects
-    .filter(project => project.status === 'active' || project.status === 'completed')
-    .map(project => project.id);
+  const eligibleProjectIds = (projects as any[])
+    .filter((project: any) => project.status === 'active' || project.status === 'completed')
+    .map((project: any) => project.id);
 
   // Filter submissions to show only standalone assessments (not linked to any project/milestone)
   const filteredSubmissions = submissions.filter((submission) => {
@@ -314,9 +314,9 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
     refetchIntervalInBackground: true,
   });
 
-  // Fetch milestones for all student projects
-  const { data: projectMilestones = {} } = useQuery({
-    queryKey: ["/api/projects/milestones", projects.map(p => p.id)],
+  // Fetch milestones and their assessments for all student projects
+  const { data: projectMilestonesWithAssessments = {} } = useQuery({
+    queryKey: ["/api/projects/milestones-with-assessments", projects.map(p => p.id)],
     enabled: !!user?.id && projects.length > 0,
     queryFn: async () => {
       const milestonesData: Record<number, any[]> = {};
@@ -325,22 +325,36 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
           const response = await fetch(`/api/projects/${project.id}/milestones`);
           if (response.ok) {
             const milestones = await response.json();
-            // Add completion status to each milestone
-            const milestonesWithStatus = milestones.map((milestone: any) => {
-              const milestoneSubmissions = studentSubmissions.filter((submission: any) => {
-                return submission.assessment?.milestoneId === milestone.id;
-              });
+            // Add completion status and assessments to each milestone
+            const milestonesWithStatusAndAssessments = await Promise.all(
+              milestones.map(async (milestone: any) => {
+                const milestoneSubmissions = studentSubmissions.filter((submission: any) => {
+                  return submission.assessment?.milestoneId === milestone.id;
+                });
 
-              const hasGradedSubmissions = milestoneSubmissions.some((submission: any) => 
-                submission.gradedAt || submission.feedback
-              );
+                const hasGradedSubmissions = milestoneSubmissions.some((submission: any) => 
+                  submission.gradedAt || submission.feedback
+                );
 
-              return {
-                ...milestone,
-                isCompleted: hasGradedSubmissions || milestone.status === 'completed'
-              };
-            });
-            milestonesData[project.id] = milestonesWithStatus;
+                // Fetch assessments for this milestone
+                let milestoneAssessments = [];
+                try {
+                  const assessmentsResponse = await fetch(`/api/milestones/${milestone.id}/assessments`);
+                  if (assessmentsResponse.ok) {
+                    milestoneAssessments = await assessmentsResponse.json();
+                  }
+                } catch (error) {
+                  console.error(`Error fetching assessments for milestone ${milestone.id}:`, error);
+                }
+
+                return {
+                  ...milestone,
+                  isCompleted: hasGradedSubmissions || milestone.status === 'completed',
+                  assessments: milestoneAssessments
+                };
+              })
+            );
+            milestonesData[project.id] = milestonesWithStatusAndAssessments;
           } else {
             milestonesData[project.id] = [];
           }
@@ -363,14 +377,18 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
-    const projectMilestonesList = projectMilestones[project.id] || [];
+    const projectMilestonesList = projectMilestonesWithAssessments[project.id] || [];
     
     return (
       project.title.toLowerCase().includes(query) ||
       project.description.toLowerCase().includes(query) ||
       projectMilestonesList.some(milestone => 
         milestone.title.toLowerCase().includes(query) ||
-        milestone.description.toLowerCase().includes(query)
+        milestone.description.toLowerCase().includes(query) ||
+        milestone.assessments.some((assessment: any) => 
+          assessment.title.toLowerCase().includes(query) ||
+          assessment.description.toLowerCase().includes(query)
+        )
       )
     );
   });
@@ -407,8 +425,9 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
         <ProjectMilestoneCard 
           key={project.id} 
           project={project} 
-          milestones={projectMilestones[project.id] || []}
-          searchQuery={searchQuery} 
+          milestones={projectMilestonesWithAssessments[project.id] || []}
+          searchQuery={searchQuery}
+          studentSubmissions={studentSubmissions}
         />
       ))}
     </div>
@@ -416,7 +435,7 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
 }
 
 // Project Milestone Card Component
-function ProjectMilestoneCard({ project, milestones = [], searchQuery }) {
+function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSubmissions = [] }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const getStatusBadge = (status: string) => {
@@ -518,6 +537,22 @@ function ProjectMilestoneCard({ project, milestones = [], searchQuery }) {
                       </ul>
                     </div>
                   )}
+
+                  {milestone.assessments && milestone.assessments.length > 0 && (
+                    <div className="mt-4">
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Assessments:</h5>
+                      <div className="space-y-3">
+                        {milestone.assessments.map((assessment, idx) => (
+                          <AssessmentCard 
+                            key={assessment.id} 
+                            assessment={assessment} 
+                            milestone={milestone}
+                            studentSubmissions={studentSubmissions}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
@@ -533,6 +568,154 @@ function ProjectMilestoneCard({ project, milestones = [], searchQuery }) {
         </CardContent>
       )}
     </Card>
+  );
+}
+
+// Assessment Card Component for Project Milestones
+function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [, setLocation] = useLocation();
+
+  // Find submission for this assessment
+  const submission = studentSubmissions.find((sub: any) => 
+    sub.assessmentId === assessment.id
+  );
+
+  const getStatusBadge = (submission) => {
+    if (!submission) {
+      return <Badge className="bg-gray-100 text-gray-800">Not Started</Badge>;
+    }
+    // Check if graded (has grades or explicit graded status)
+    if (submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) {
+      return <Badge className="bg-green-100 text-green-800">Graded</Badge>;
+    }
+    // Check if submitted (has submittedAt timestamp)
+    if (submission.submittedAt) {
+      return <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>;
+    }
+    // Otherwise it's a draft
+    return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
+  };
+
+  const getScoreBadge = (score: number) => {
+    if (score >= 90) return 'bg-green-100 text-green-800';
+    if (score >= 80) return 'bg-blue-100 text-blue-800';
+    if (score >= 70) return 'bg-yellow-100 text-yellow-800';
+    if (score >= 60) return 'bg-orange-100 text-orange-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  const handleViewAssessment = () => {
+    if (submission) {
+      // If there's a submission, expand to show details instead of navigating
+      setIsExpanded(!isExpanded);
+    } else {
+      // If no submission, navigate to take the assessment
+      setLocation(`/student/take-assessment/${assessment.id}`);
+    }
+  };
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1">
+          <h6 className="font-medium text-gray-900 mb-1">{assessment.title}</h6>
+          <p className="text-sm text-gray-600 mb-2">{assessment.description}</p>
+          <div className="flex items-center text-xs text-gray-500 space-x-4">
+            <div className="flex items-center">
+              <Clock className="h-3 w-3 mr-1" />
+              Due: {new Date(assessment.dueDate).toLocaleDateString()}
+            </div>
+            {assessment.xqRubricLevel && (
+              <div className="flex items-center">
+                <Target className="h-3 w-3 mr-1" />
+                Level: {assessment.xqRubricLevel}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center space-x-2 ml-4">
+          {getStatusBadge(submission)}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleViewAssessment}
+          >
+            {submission ? (isExpanded ? 'Hide Details' : 'View Details') : 'Take Assessment'}
+          </Button>
+        </div>
+      </div>
+
+      {isExpanded && submission && (
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          {/* Earned Credentials - Only show for graded assessments */}
+          {submission.status === 'graded' && 
+           submission.earnedCredentials && 
+           submission.earnedCredentials.length > 0 && (
+            <div className="mb-3">
+              <h6 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <Star className="h-4 w-4 text-yellow-500 mr-1" />
+                Stickers & Credentials Earned
+              </h6>
+              <div className="flex flex-wrap gap-2">
+                {submission.earnedCredentials.map((credential) => (
+                  <div key={credential.id} className="flex items-center space-x-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-200">
+                    {credential.type === 'sticker' && <Star className="h-3 w-3 text-yellow-500" />}
+                    {credential.type === 'badge' && <Award className="h-3 w-3 text-blue-500" />}
+                    {credential.type === 'plaque' && <Trophy className="h-3 w-3 text-purple-500" />}
+                    <span className="text-xs font-medium">{credential.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Questions and Responses */}
+          {submission.questions && submission.questions.length > 0 && (
+            <div>
+              <h6 className="text-sm font-medium text-gray-700 mb-2">Questions & Your Responses</h6>
+              <div className="space-y-2">
+                {submission.questions.slice(0, 2).map((question, index) => (
+                  <div key={question.id} className="bg-gray-50 p-2 rounded text-xs">
+                    <p className="font-medium text-gray-900 mb-1">
+                      Q{index + 1}: {question.text}
+                    </p>
+                    <p className="text-gray-600">
+                      {(() => {
+                        if (Array.isArray(submission.responses)) {
+                          const response = submission.responses.find(r => r.questionId === question.id);
+                          return response?.answer || "No answer provided";
+                        } else if (submission.responses && typeof submission.responses === 'object') {
+                          return submission.responses[question.id] || "No answer provided";
+                        }
+                        return "No answer provided";
+                      })()}
+                    </p>
+                    {submission.status === 'graded' && 
+                     submission.questionGrades && 
+                     submission.questionGrades[question.id] && (
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Score:</span>
+                        <Badge className={`text-xs ${getScoreBadge(submission.questionGrades[question.id].score)}`}>
+                          {submission.questionGrades[question.id].score}%
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {submission.questions.length > 2 && (
+                  <p className="text-xs text-gray-500 text-center">
+                    ... and {submission.questions.length - 2} more questions
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+
+    </div>
   );
 }
 
