@@ -1354,6 +1354,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Updating submission " + submissionId + " with grade: " + finalGrade + ", feedback length: " + (finalFeedback?.length || 0));
       const updatedSubmission = await storage.updateSubmission(submissionId, updateData);
 
+
+
       // Award stickers for component skill grades
       let awardedStickers: any[] = [];
       if (savedGrades.length > 0) {

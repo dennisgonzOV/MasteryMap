@@ -63,6 +63,10 @@ export default function StudentProjects() {
       if (!response.ok) throw new Error('Failed to fetch submissions');
       return response.json();
     },
+    // Add polling to automatically refresh submissions data every 30 seconds
+    // This ensures students see updated completion status when teachers grade their submissions
+    refetchInterval: 30000, // 30 seconds
+    refetchIntervalInBackground: true,
   });
 
   // Fetch milestones for all student projects

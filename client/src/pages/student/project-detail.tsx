@@ -82,7 +82,7 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   });
 
   // Fetch student submissions to check completion status
-  const { data: studentSubmissions = [] } = useQuery({
+  const { data: studentSubmissions = [], refetch: refetchSubmissions } = useQuery({
     queryKey: ["/api/submissions/student"],
     enabled: isAuthenticated,
     queryFn: async () => {
@@ -90,6 +90,10 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
       if (!response.ok) throw new Error('Failed to fetch submissions');
       return response.json();
     },
+    // Add polling to automatically refresh submissions data every 30 seconds
+    // This ensures students see updated completion status when teachers grade their submissions
+    refetchInterval: 30000, // 30 seconds
+    refetchIntervalInBackground: true,
   });
 
   // Enhanced milestone status calculation with submission tracking
@@ -213,13 +217,24 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                     {project.status}
                   </Badge>
                   {project.dueDate && (
-                    <div className="flex items-center space-x-1 text-sm text-gray-600">
+                    <div className="flex items-center space-x-3 text-sm text-gray-600">
                       <Calendar className="h-4 w-4" />
                       <span>Due {format(new Date(project.dueDate), 'MMM d, yyyy')}</span>
                     </div>
                   )}
                 </div>
               </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchSubmissions()}
+                className="flex items-center space-x-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                <span>Refresh Status</span>
+              </Button>
             </div>
           </div>
 
@@ -310,6 +325,10 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                     <Target className="h-5 w-5" />
                     <span>Project Milestones</span>
                   </CardTitle>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Milestone completion status updates automatically when your teacher grades your submissions. 
+                    Use the "Refresh Status" button if you don't see recent updates.
+                  </p>
                 </CardHeader>
                 <CardContent>
                   {milestonesLoading ? (
