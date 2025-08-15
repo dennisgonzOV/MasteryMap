@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { assessmentService, type AssessmentService } from './assessments.service';
+import { assessmentStorage } from './assessments.storage';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
 import { 
   validateIntParam, 
