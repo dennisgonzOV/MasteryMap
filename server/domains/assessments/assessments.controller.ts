@@ -54,8 +54,8 @@ export class AssessmentController {
           return res.status(403).json({ message: "Access denied" });
         }
 
-        // For now, return empty array until competency progress is implemented
-        res.json([]);
+        const progress = await assessmentStorage.getStudentCompetencyProgress(studentId);
+        res.json(progress);
       } catch (error) {
         console.error("Error fetching competency progress:", error);
         res.status(500).json({ error: "Failed to fetch competency progress" });
@@ -77,8 +77,8 @@ export class AssessmentController {
           return res.status(403).json({ message: "Access denied" });
         }
 
-        // For now, return empty array until competency progress is implemented
-        res.json([]);
+        const progress = await assessmentStorage.getStudentCompetencyProgress(studentId);
+        res.json(progress);
       } catch (error) {
         console.error("Error fetching competency progress:", error);
         res.status(500).json({ error: "Failed to fetch competency progress" });

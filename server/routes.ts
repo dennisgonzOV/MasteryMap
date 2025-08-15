@@ -32,36 +32,7 @@ export function setupRoutes(app: Express) {
 
   // Additional student-specific routes
   app.use('/api', assessmentsRouter);
-  
+
   // Students routes (for competency progress)
   app.use('/api/students', assessmentsRouter);
-
-  // Student competency progress endpoint (restore from original routes)
-  app.get('/api/students/competency-progress', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const userId = req.user!.id;
-
-      // Students can only view their own progress
-      if (req.user?.role !== 'student' && req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      // For students, get their own progress. For teachers/admins, allow studentId query param
-      let studentId = userId;
-      if (req.user.role === 'teacher' || req.user.role === 'admin') {
-        const queryStudentId = req.query.studentId;
-        if (queryStudentId) {
-          studentId = parseInt(queryStudentId as string);
-        }
-      }
-
-      // Import storage here to avoid circular dependency
-      const { storage } = await import('./storage');
-      const progress = await storage.getStudentCompetencyProgress(studentId);
-      res.json(progress);
-    } catch (error) {
-      console.error("Error fetching competency progress:", error);
-      res.status(500).json({ message: "Failed to fetch competency progress" });
-    }
-  });
 }
