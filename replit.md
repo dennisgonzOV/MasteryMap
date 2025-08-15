@@ -6,6 +6,211 @@ MasteryMap is an AI-powered Project-Based Learning (PBL) management system for e
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Primary User Workflows
+
+### Authentication & Authorization Flow
+**Execution Path**: 
+- Frontend: Login/Register forms → useAuth hook → React Query
+- Backend: POST /api/auth/login|register → AuthService.loginUser() → AuthStorage.getUser() → PostgreSQL users table
+- Response: JWT tokens set as HTTP-only cookies → User data returned → Frontend state updated
+
+**Status**: ✅ COMPLETE - Fully implemented with role-based access control
+
+### TEACHER WORKFLOWS
+
+#### 1. Project Creation & Management
+**Primary Flow**:
+- UI: TeacherProjects page → Create Project form
+- Backend: POST /api/projects → ProjectsService.createProject() → ProjectsStorage → projects table
+- Features: Component skills mapping, B.E.S.T. standards integration, school association
+
+**Status**: ✅ COMPLETE
+
+#### 2. AI-Powered Content Generation
+**2a. Project Ideas Generation**:
+- UI: Generate Ideas form (subject, topic, grade level, duration, component skills)
+- Backend: POST /api/projects/generate-ideas → AI Service → OpenAI GPT-4 → Structured project suggestions
+- **Status**: ✅ COMPLETE
+
+**2b. Milestone Generation**:
+- UI: Project detail → Generate Milestones button
+- Backend: POST /api/projects/:id/generate-milestones → AI Service → Database save
+- **Status**: ✅ COMPLETE
+
+**2c. Assessment Generation**:
+- UI: Project detail → Generate Assessments button
+- Backend: POST /api/projects/:id/generate-milestones-and-assessments → Combined AI generation
+- **Status**: ✅ COMPLETE
+
+#### 3. Assessment Management
+**3a. Assessment Creation**:
+- UI: TeacherAssessments → Create Assessment form
+- Backend: POST /api/assessments → AssessmentService.createAssessment() → assessments table
+- Features: Question builder, rubric mapping, share code generation
+
+**3b. Assessment Sharing**:
+- UI: Assessment details → Generate Share Code
+- Backend: POST /api/assessments/:id/generate-share-code → 5-character code → shareCode field
+- **Status**: ✅ COMPLETE
+
+**3c. Grading Workflow**:
+- UI: Assessment submissions → Individual submission review
+- Backend: POST /api/submissions/:id/grade → Grade creation → Credential awarding
+- Features: AI-powered feedback generation, rubric-based scoring
+- **Status**: ✅ COMPLETE
+
+#### 4. Team Management
+**4a. Team Creation**:
+- UI: Project teams section → Create team form
+- Backend: POST /api/project-teams → ProjectsService.createProjectTeam()
+- **Status**: ✅ COMPLETE
+
+**4b. Student Assignment**:
+- UI: Team management → Add students to teams
+- Backend: POST /api/project-team-members → Team member assignment
+- **Status**: ✅ COMPLETE
+
+### STUDENT WORKFLOWS
+
+#### 1. Project Discovery & Enrollment
+**Execution Path**:
+- UI: StudentDashboard → Active projects display
+- Backend: GET /api/projects → Projects filtered by student assignments
+- Database: project_assignments table joins projects, users tables
+- **Status**: ✅ COMPLETE
+
+#### 2. Assessment Taking Flow
+**2a. Code Entry**:
+- UI: EnterCode page → 5-character assessment code input
+- Backend: GET /api/assessments/by-code/:code → Assessment retrieval
+- Redirect: → TakeAssessment page with assessment ID
+
+**2b. Assessment Submission**:
+- UI: TakeAssessment → Question responses → Submit button
+- Backend: POST /api/submissions → SubmissionService.createSubmission()
+- Database: submissions table with responses JSON
+- **Status**: ✅ COMPLETE
+
+#### 3. Progress Tracking
+**3a. Milestone Progress**:
+- UI: StudentProjectDetail → Milestone list with completion status
+- Backend: GET /api/projects/:id/milestones → Milestone data with assessment links
+- **Status**: ✅ COMPLETE
+
+**3b. Credential Viewing**:
+- UI: StudentDashboard → Credentials section
+- Backend: GET /api/credentials/student → Student's earned credentials
+- **Status**: ✅ COMPLETE
+
+#### 4. Portfolio Management
+**4a. Artifact Creation**:
+- UI: StudentPortfolio → Add artifact form
+- Backend: POST /api/portfolio/artifacts → Portfolio artifact creation
+- Features: File uploads, tagging, public/private settings
+- **Status**: ✅ COMPLETE
+
+### ADMIN WORKFLOWS
+
+#### 1. School Management
+**Execution Path**:
+- UI: AdminDashboard → School administration
+- Backend: GET /api/schools → School data retrieval
+- Features: Student listings per school, teacher assignments
+- **Status**: ✅ COMPLETE
+
+#### 2. Password Reset
+**Execution Path**:
+- UI: AdminPasswordReset → User selection → New password
+- Backend: POST /api/auth/admin-reset-password → Password update
+- **Status**: ✅ COMPLETE
+
+### COMPETENCY TRACKING SYSTEM
+
+#### 3-Level Hierarchy Integration
+**Architecture**: Learner Outcomes → Competencies → Component Skills
+- UI: Competency mapping in projects and assessments
+- Backend: Component skills linked to assessments and projects
+- Database: learner_outcomes, competencies, component_skills tables
+- **Status**: ✅ COMPLETE
+
+#### Credential Awarding
+**Automatic Flow**:
+- Trigger: Submission grading with "proficient" or "applying" rubric levels
+- Process: POST /api/credentials → Credential creation based on component skills
+- Types: Stickers (component skills), Badges (competencies), Plaques (subject areas)
+- **Status**: ✅ COMPLETE
+
+## INCOMPLETE/BROKEN WORKFLOWS IDENTIFIED
+
+### 1. Self-Evaluation System
+**Current Status**: ⚠️ PARTIALLY IMPLEMENTED
+- Database schema exists (self_evaluations table)
+- Backend routes present in assessments domain
+- Frontend implementation missing
+
+**Implementation Plan**:
+- Create self-evaluation UI components
+- Integrate with assessment taking flow
+- Add teacher review workflow for self-evaluations
+
+### 2. Safety Incident Reporting
+**Current Status**: ⚠️ DATABASE ONLY
+- Database schema exists (safety_incidents table)
+- Backend domain created but minimal functionality
+- No frontend implementation
+
+**Implementation Plan**:
+- Create incident reporting UI
+- Add teacher notification system
+- Implement incident resolution workflow
+
+### 3. Notification System
+**Current Status**: ⚠️ BACKEND ONLY
+- Database schema exists (notifications table)
+- Backend domain with basic CRUD operations
+- No frontend notification UI
+
+**Implementation Plan**:
+- Create notification display components
+- Add real-time notification delivery
+- Integrate with assessment and project events
+
+### 4. Advanced Portfolio Features
+**Current Status**: ⚠️ BASIC IMPLEMENTATION
+- Basic artifact creation exists
+- Missing: Public portfolio sharing, QR codes, advanced filtering
+
+**Implementation Plan**:
+- Implement QR code generation for portfolios
+- Create public portfolio viewing pages
+- Add advanced search and filtering
+
+### 5. Team Collaboration Features
+**Current Status**: ⚠️ BASIC STRUCTURE
+- Team creation and member assignment implemented
+- Missing: Team communication, shared workspaces, collaborative assessments
+
+**Implementation Plan**:
+- Add team chat/communication features
+- Implement collaborative assessment submission
+- Create team progress tracking
+
+## TECHNICAL DEBT & OPTIMIZATION OPPORTUNITIES
+
+1. **LSP Diagnostics**: 26 diagnostics across 3 controller files need resolution
+2. **Error Handling**: Some routes lack comprehensive error handling
+3. **Performance**: Large data queries could benefit from pagination
+4. **Testing**: Limited test coverage for domain services
+5. **Documentation**: API documentation could be enhanced
+
+## ARCHITECTURE STRENGTHS
+
+1. **Domain-Driven Design**: Clean separation of concerns across 8 domains
+2. **Security**: Comprehensive CSRF protection, rate limiting, input sanitization
+3. **AI Integration**: Robust OpenAI service with proper error handling
+4. **Type Safety**: Full TypeScript implementation with Zod validation
+5. **Database Design**: Well-structured PostgreSQL schema with proper relationships
+
 ## Recent Changes
 
 ### Complete Domain-Driven Architecture Migration (August 2025)
