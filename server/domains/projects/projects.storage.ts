@@ -17,6 +17,7 @@ import {
 } from "../../../shared/schema";
 import { db } from "../../db";
 import { eq, and, desc, asc, ne, inArray } from "drizzle-orm";
+import { assessments } from "../../../shared/schema";
 
 // Projects storage interface
 export interface IProjectsStorage {
@@ -49,9 +50,12 @@ export interface IProjectsStorage {
   assignStudentToProject(projectId: number, studentId: number): Promise<ProjectAssignment>;
   getProjectAssignments(projectId: number): Promise<ProjectAssignment[]>;
   updateProjectProgress(projectId: number, studentId: number, progress: number): Promise<void>;
-  
+
   // Component skills operations
   getComponentSkillsByIds(ids: number[]): Promise<any[]>;
+
+  // Assessment operations
+  getAssessmentsByMilestone(milestoneId: number);
 }
 
 export class ProjectsStorage implements IProjectsStorage {
@@ -309,6 +313,16 @@ export class ProjectsStorage implements IProjectsStorage {
     // For now, return a basic implementation to complete the migration
     // This would typically query the componentSkills table
     return [];
+  }
+
+  // Assessment operations
+  async getAssessmentsByMilestone(milestoneId: number) {
+    return await db.query.assessments.findMany({
+      where: eq(assessments.milestoneId, milestoneId),
+      with: {
+        milestone: true
+      }
+    });
   }
 }
 

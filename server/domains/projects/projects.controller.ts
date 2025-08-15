@@ -27,7 +27,7 @@ import {
   projectTeamMembers
 } from "../../../shared/schema";
 import { aiService } from "../ai/ai.service";
-import { z } from "zod";
+import { z } from "drizzle-orm";
 import { db } from "../../db";
 import { eq, sql } from "drizzle-orm";
 
@@ -75,7 +75,7 @@ router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess({
   const project = (req as any).project;
   const userId = req.user!.id;
   const userRole = req.user!.role;
-  
+
   // For students, verify they're actually assigned to this project
   if (userRole === 'student') {
     const studentProjects = await projectsService.getProjectsByUser(userId, userRole);
@@ -84,7 +84,7 @@ router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess({
       return res.status(403).json({ message: "You don't have access to this project" });
     }
   }
-  
+
   createSuccessResponse(res, project);
 }));
 
@@ -248,7 +248,7 @@ router.get('/:id/milestones', requireAuth, validateIntParam('id'), async (req: A
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
     const userRole = req.user!.role;
-    
+
     // For students, verify they have access to this project
     if (userRole === 'student') {
       const studentProjects = await projectsService.getProjectsByUser(userId, userRole);
@@ -257,7 +257,7 @@ router.get('/:id/milestones', requireAuth, validateIntParam('id'), async (req: A
         return res.status(403).json({ message: "You don't have access to this project" });
       }
     }
-    
+
     const milestones = await projectsService.getMilestonesByProject(projectId);
     res.json(milestones);
   } catch (error) {
@@ -265,6 +265,45 @@ router.get('/:id/milestones', requireAuth, validateIntParam('id'), async (req: A
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     res.status(500).json({ 
       message: "Failed to fetch milestones", 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+// Get milestone by ID
+router.get('/milestones/:id', requireAuth, validateIdParam, async (req: AuthenticatedRequest, res) => {
+  try {
+    const milestoneId = parseInt(req.params.id);
+    const milestone = await storage.getMilestone(milestoneId);
+
+    if (!milestone) {
+      return res.status(404).json({ message: "Milestone not found" });
+    }
+
+    res.json(milestone);
+  } catch (error) {
+    console.error("Error fetching milestone:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    res.status(500).json({ 
+      message: "Failed to fetch milestone", 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
+});
+
+// Get assessments for a specific milestone
+router.get('/milestones/:id/assessments', requireAuth, validateIdParam, async (req: AuthenticatedRequest, res) => {
+  try {
+    const milestoneId = parseInt(req.params.id);
+    const assessments = await storage.getAssessmentsByMilestone(milestoneId);
+    res.json(assessments);
+  } catch (error) {
+    console.error("Error fetching milestone assessments:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    res.status(500).json({ 
+      message: "Failed to fetch milestone assessments", 
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
@@ -301,7 +340,7 @@ router.get('/:id/teams', requireAuth, async (req: AuthenticatedRequest, res) => 
 // Additional routes that should be mounted at different paths but related to projects
 export const milestonesRouter = Router();
 
-milestonesRouter.get('/:id', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+milestonesRouter.get('/:id', requireAuth, validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
     const milestoneId = parseInt(req.params.id);
     const milestone = await projectsService.getMilestone(milestoneId);
