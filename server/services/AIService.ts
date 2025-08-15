@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { sanitizeForPrompt } from "../middleware/security";
+import { AIServiceError, parseAIServiceError, createErrorContext } from "../utils/errorTypes";
 
 /**
  * Base AI service class to eliminate duplication across AI integrations
@@ -79,12 +80,12 @@ export abstract class BaseAIService {
         top_p: options.topP,
         frequency_penalty: options.frequencyPenalty,
         presence_penalty: options.presencePenalty,
-        stream: options.stream || false,
-      });
+        stream: false, // Always disable streaming for type safety
+      }) as OpenAI.Chat.Completions.ChatCompletion;
 
       const choice = completion.choices[0];
       if (!choice || !choice.message?.content) {
-        throw new Error('No valid response generated');
+        throw new AIServiceError('No valid response generated', 'OpenAI', undefined, 'generateResponse');
       }
 
       return {
@@ -98,8 +99,19 @@ export abstract class BaseAIService {
         finishReason: choice.finish_reason || undefined,
       };
     } catch (error) {
-      console.error('AI generation error:', error);
-      throw new Error(`AI generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const context = createErrorContext('generateResponse', undefined, {
+        model: this.config.model,
+        messageCount: messages.length
+      });
+      
+      console.error('AI generation error:', {
+        context,
+        error: error instanceof Error ? error.message : error,
+        model: this.config.model,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw parseAIServiceError(error, context);
     }
   }
 
@@ -295,7 +307,7 @@ export class EducationalAIService extends BaseAIService {
   /**
    * Generate project milestones
    */
-  async generateMilestones(project: any, componentSkills: any[]): Promise<any[]> {
+  async generateMilestones(project: any, componentSkills: any[], options: AIGenerationOptions = {}): Promise<any[]> {
     const template: AIPromptTemplate = {
       system: `You are an educational expert who creates engaging project-based learning milestones. 
                Create realistic, achievable milestones that build upon each other and align with the specified competencies.`,
@@ -317,14 +329,19 @@ export class EducationalAIService extends BaseAIService {
       }
     };
 
-    const response = await this.generateFromTemplate(template, options);
-    return this.extractJSON(response) || [];
+    try {
+      const response = await this.generateFromTemplate(template, options);
+      return this.extractJSON(response) || [];
+    } catch (error) {
+      const context = createErrorContext('generateMilestones', undefined, { projectTitle: project.title });
+      throw parseAIServiceError(error, context);
+    }
   }
 
   /**
    * Generate assessment questions
    */
-  async generateAssessment(milestone: any, componentSkills: any[]): Promise<any> {
+  async generateAssessment(milestone: any, componentSkills: any[], options: AIGenerationOptions = {}): Promise<any> {
     const template: AIPromptTemplate = {
       system: `You are an educational assessment expert. Create engaging, competency-based assessment questions 
                that evaluate student understanding and application of the specified component skills.`,
@@ -344,8 +361,13 @@ export class EducationalAIService extends BaseAIService {
       }
     };
 
-    const response = await this.generateFromTemplate(template, options);
-    return this.extractJSON(response) || {};
+    try {
+      const response = await this.generateFromTemplate(template, options);
+      return this.extractJSON(response) || {};
+    } catch (error) {
+      const context = createErrorContext('generateAssessment', undefined, { milestoneTitle: milestone.title });
+      throw parseAIServiceError(error, context);
+    }
   }
 
   /**
@@ -354,7 +376,8 @@ export class EducationalAIService extends BaseAIService {
   async generateFeedback(
     submission: any,
     componentSkill: any,
-    rubricLevel: string
+    rubricLevel: string,
+    options: AIGenerationOptions = {}
   ): Promise<string> {
     const template: AIPromptTemplate = {
       system: `You are a supportive teacher providing constructive feedback to help students improve their skills.
@@ -378,8 +401,16 @@ export class EducationalAIService extends BaseAIService {
       }
     };
 
-    const response = await this.generateFromTemplate(template, options);
-    return response.content;
+    try {
+      const response = await this.generateFromTemplate(template, options);
+      return response.content;
+    } catch (error) {
+      const context = createErrorContext('generateFeedback', undefined, { 
+        skillName: componentSkill.name,
+        level: rubricLevel 
+      });
+      throw parseAIServiceError(error, context);
+    }
   }
 
   /**
@@ -388,7 +419,8 @@ export class EducationalAIService extends BaseAIService {
   async generateTutorResponse(
     conversation: AIMessage[],
     componentSkill: any,
-    context: any = {}
+    context: any = {},
+    options: AIGenerationOptions = {}
   ): Promise<string> {
     const messages: AIMessage[] = [
       {
@@ -406,13 +438,21 @@ export class EducationalAIService extends BaseAIService {
       ...conversation
     ];
 
-    const response = await this.generateResponse(messages, {
-      temperature: 0.8,
-      maxTokens: 300,
-      ...options
-    });
+    try {
+      const response = await this.generateResponse(messages, {
+        temperature: 0.8,
+        maxTokens: 300,
+        ...options
+      });
 
-    return response.content;
+      return response.content;
+    } catch (error) {
+      const context = createErrorContext('generateTutorResponse', undefined, { 
+        skillName: componentSkill.name,
+        messageCount: conversation.length 
+      });
+      throw parseAIServiceError(error, context);
+    }
   }
 
   /**

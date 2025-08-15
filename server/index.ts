@@ -4,6 +4,7 @@ import { setupRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testDatabaseConnection } from "./db";
 import { securityHeaders, apiLimiter } from "./middleware/security";
+import { errorHandler, notFoundHandler, handleUncaughtExceptions } from "./middleware/errorHandler";
 import cookieParser from 'cookie-parser';
 
 const app = express();
@@ -53,6 +54,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Set up uncaught exception handlers
+handleUncaughtExceptions();
+
 (async () => {
   try {
     // Test database connection first
@@ -65,15 +69,14 @@ app.use((req, res, next) => {
     }
 
     setupRoutes(app);
+    
+    // Add 404 handler for unmatched API routes
+    app.use('/api/*', notFoundHandler);
+    
+    // Global error handler
+    app.use(errorHandler);
+    
     const server = createServer(app);
-
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-
-      res.status(status).json({ message });
-      console.error("Error occurred:", err);
-    });
 
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route

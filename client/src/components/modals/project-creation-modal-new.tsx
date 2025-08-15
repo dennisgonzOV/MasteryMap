@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ModalErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -334,9 +335,10 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create New Project</DialogTitle>
-        </DialogHeader>
+        <ModalErrorBoundary>
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+          </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 pb-6">
           <div className="space-y-4">
@@ -580,6 +582,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
             </Button>
           </div>
         </form>
+        </ModalErrorBoundary>
       </DialogContent>
     </Dialog>
   );

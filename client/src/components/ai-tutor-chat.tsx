@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { ComponentErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -240,9 +241,10 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
   const isReadyToComplete = selfEvaluation.selfAssessedLevel && studentMessageCount >= 2;
 
   return (
-    <div className="space-y-4">
-      {/* Step Progress Indicator */}
-      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+    <ComponentErrorBoundary componentName="AI Tutor Chat" showError={false}>
+      <div className="space-y-4">
+        {/* Step Progress Indicator */}
+        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -462,6 +464,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
             )}
           </Button>
       </div>
-    </div>
+      </div>
+    </ComponentErrorBoundary>
   );
 }

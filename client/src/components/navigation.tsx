@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { NavigationErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { 
   User, 
@@ -29,6 +30,20 @@ export default function Navigation() {
   if (!isAuthenticated) {
     return null;
   }
+
+  return (
+    <NavigationErrorBoundary>
+      <NavigationContent 
+        user={user}
+        location={location}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={setMobileMenuOpen}
+      />
+    </NavigationErrorBoundary>
+  );
+}
+
+function NavigationContent({ user, location, mobileMenuOpen, setMobileMenuOpen }: any) {
 
   const getNavigationItems = () => {
     if (user?.role === 'teacher') {

@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import type { AuthenticatedRequest } from '../auth';
+import type { AuthenticatedRequest } from '../domains/auth';
 
 /**
  * Standardized error response utility to eliminate duplicated error handling
