@@ -28,4 +28,7 @@ export function setupRoutes(app: Express) {
   app.use("/api/competencies", competenciesRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/safety-incidents", safetyIncidentsRouter);
+
+  // Additional student-specific routes
+  app.use('/api', assessmentsRouter);
 }

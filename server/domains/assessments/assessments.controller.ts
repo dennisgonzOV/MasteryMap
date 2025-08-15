@@ -38,6 +38,45 @@ export class AssessmentController {
   createRouter(): Router {
     const router = Router();
 
+    // Student competency progress route  
+    router.get("/competency-progress/student/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthenticatedRequest, res) => {
+      try {
+        const studentId = parseInt(req.params.studentId);
+        
+        if (!req.user) {
+          return res.status(401).json({ message: "User not authenticated" });
+        }
+        
+        const { role, id: userId } = req.user;
+
+        // Only allow students to view their own progress, or teachers/admins
+        if (role === 'student' && userId !== studentId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // For now, return empty array until competency progress is implemented
+        res.json([]);
+      } catch (error) {
+        console.error("Error fetching competency progress:", error);
+        res.status(500).json({ error: "Failed to fetch competency progress" });
+      }
+    });
+
+    // Student deadlines route
+    router.get("/deadlines/student", requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        if (!req.user) {
+          return res.status(401).json({ message: "User not authenticated" });
+        }
+
+        // For now, return empty array until deadlines are implemented
+        res.json([]);
+      } catch (error) {
+        console.error("Error fetching student deadlines:", error);
+        res.status(500).json({ error: "Failed to fetch student deadlines" });
+      }
+    });
+
     // Student assessment submissions
     router.get("/student/assessment-submissions/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthenticatedRequest, res) => {
       try {
