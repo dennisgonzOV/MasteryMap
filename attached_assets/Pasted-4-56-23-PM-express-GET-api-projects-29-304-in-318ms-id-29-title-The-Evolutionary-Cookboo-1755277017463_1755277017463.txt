@@ -1,0 +1,73 @@
+4:56:23 PM [express] GET /api/projects/29 304 in 318ms :: {"id":29,"title":"The Evolutionary Cookboo…
+❌ ERROR: {
+  level: 'ERROR',
+  timestamp: '2025-08-15T16:56:25.417Z',
+  errorId: 'err_1755276985417_wkm1e8ptq',
+  request: {
+    method: 'GET',
+    path: '/api/milestones/72/assessments',
+    query: {},
+    params: {},
+    ip: '10.83.2.4',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15',
+    referer: undefined,
+    userId: undefined
+  },
+  error: {
+    name: 'AppError',
+    message: 'Route GET / not found',
+    stack: 'AppError: Route GET / not found\n' +
+      '    at notFoundHandler (/home/runner/workspace/server/middleware/errorHandler.ts:133:17)\n' +
+      '    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9\n' +
+      '    at param (/home/runner/workspace/node_modules/express/lib/router/index.js:365:14)\n' +
+      '    at param (/home/runner/workspace/node_modules/express/lib/router/index.js:376:14)\n' +
+      '    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:421:3)\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:646:15\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:265:14)\n' +
+      '    at Function.handle (/home/runner/workspace/node_modules/express/lib/router/index.js:175:3)\n' +
+      '    at router (/home/runner/workspace/node_modules/express/lib/router/index.js:47:12)\n' +
+      '    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9\n' +
+      '    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:646:15\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:265:14)\n' +
+      '    at Function.handle (/home/runner/workspace/node_modules/express/lib/router/index.js:175:3)\n' +
+      '    at router (/home/runner/workspace/node_modules/express/lib/router/index.js:47:12)\n' +
+      '    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9\n' +
+      '    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)\n' +
+      '    at <anonymous> (/home/runner/workspace/server/index.ts:54:3)\n' +
+      '    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9\n' +
+      '    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)\n' +
+      '    at urlencodedParser (/home/runner/workspace/node_modules/body-parser/lib/types/urlencoded.js:94:7)\n' +
+      '    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9\n' +
+      '    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)\n' +
+      '    at jsonParser (/home/runner/workspace/node_modules/body-parser/lib/types/json.js:113:7)\n' +
+      '    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9\n' +
+      '    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)\n' +
+      '    at cookieParser (/home/runner/workspace/node_modules/cookie-parser/index.js:71:5)\n' +
+      '    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)\n' +
+      '    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)\n' +
+      '    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9\n' +
+      '    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)\n' +
+      '    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)',
+    isOperational: true
+  }
+}
+4:56:25 PM [express] GET /api/milestones/72/assessments 404 in 10ms :: {"code":"NOT_FOUND","message"…
