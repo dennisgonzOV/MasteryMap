@@ -70,12 +70,6 @@ handleUncaughtExceptions();
 
     setupRoutes(app);
     
-    // Add 404 handler for unmatched API routes
-    app.use('/api/*', notFoundHandler);
-    
-    // Global error handler
-    app.use(errorHandler);
-    
     const server = createServer(app);
 
     // importantly only setup vite in development and after
@@ -86,6 +80,12 @@ handleUncaughtExceptions();
     } else {
       serveStatic(app);
     }
+    
+    // Add 404 handler for unmatched API routes AFTER Vite/static setup
+    app.use('/api/*', notFoundHandler);
+    
+    // Global error handler
+    app.use(errorHandler);
 
     // ALWAYS serve the app on port 5000
     // this serves both the API and the client.
