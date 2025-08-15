@@ -57,11 +57,20 @@ export class PortfolioController {
         const userId = req.user!.id;
         const portfolioUrl = `${req.protocol}://${req.get('host')}/portfolio/student/${userId}`;
         
-        // For now, return the URL without generating QR code since library is not installed
+        // Generate QR code using the installed library
+        const QRCode = await import('qrcode');
+        const qrCodeDataUrl = await QRCode.toDataURL(portfolioUrl, {
+          width: 200,
+          margin: 2,
+          color: {
+            dark: '#1F2937', // Dark gray
+            light: '#FFFFFF', // White
+          },
+        });
+        
         res.json({
           portfolioUrl,
-          qrCodeUrl: null,
-          message: "QR code generation requires qrcode library installation"
+          qrCodeUrl: qrCodeDataUrl
         });
       } catch (error) {
         console.error("Error generating QR code:", error);

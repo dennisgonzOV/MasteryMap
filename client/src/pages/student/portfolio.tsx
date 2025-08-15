@@ -74,27 +74,27 @@ export default function StudentPortfolio() {
   // Generate QR code for portfolio sharing
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Try to get QR code from server endpoint
-      const fetchQRCode = async () => {
+      const generateQRCode = async () => {
         try {
-          const response = await fetch('/api/portfolio/qr-code', {
-            credentials: 'include'
+          const QRCode = await import('qrcode');
+          const portfolioUrl = `${window.location.origin}/portfolio/student/${user.id}`;
+          const dataUrl = await QRCode.toDataURL(portfolioUrl, {
+            width: 200,
+            margin: 2,
+            color: {
+              dark: '#1F2937', // Dark gray
+              light: '#FFFFFF', // White
+            },
           });
-          const data = await response.json();
-          
-          if (data.qrCodeUrl) {
-            setQrCodeDataUrl(data.qrCodeUrl);
-            setQrCodeError("");
-          } else {
-            setQrCodeError(data.message || "QR code generation unavailable");
-          }
+          setQrCodeDataUrl(dataUrl);
+          setQrCodeError("");
         } catch (error) {
-          console.error('Error fetching QR code:', error);
-          setQrCodeError("QR code generation unavailable - server error");
+          console.error('Error generating QR code:', error);
+          setQrCodeError("QR code generation unavailable");
         }
       };
 
-      fetchQRCode();
+      generateQRCode();
     }
   }, [isAuthenticated, user]);
 
@@ -498,11 +498,7 @@ export default function StudentPortfolio() {
                     >
                       Copy Link
                     </Button>
-                    {qrCodeError && (
-                      <p className="text-xs text-gray-500 text-center">
-                        Install qrcode library to enable QR codes
-                      </p>
-                    )}
+
                   </div>
                 </div>
               </div>
