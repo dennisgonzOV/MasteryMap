@@ -21,44 +21,33 @@ export class CompetencyController {
 
         const { search, subject, grade } = req.query;
 
-        // More lenient parameter validation - only validate if parameters are actually strings
-        if (search !== undefined && search !== null && typeof search !== 'string') {
-          console.error('Invalid search parameter type:', typeof search, search);
-          return res.status(400).json({ message: "Invalid search parameter" });
-        }
-
-        if (subject !== undefined && subject !== null && typeof subject !== 'string') {
-          console.error('Invalid subject parameter type:', typeof subject, subject);
-          return res.status(400).json({ message: "Invalid subject parameter" });
-        }
-
-        if (grade !== undefined && grade !== null && typeof grade !== 'string') {
-          console.error('Invalid grade parameter type:', typeof grade, grade);
-          return res.status(400).json({ message: "Invalid grade parameter" });
-        }
+        // Convert query parameters to strings and validate
+        const searchParam = search ? String(search).trim() : '';
+        const subjectParam = subject ? String(subject).trim() : '';
+        const gradeParam = grade ? String(grade).trim() : '';
 
         // Handle search query
-        if (search && search.trim()) {
-          console.log('Searching B.E.S.T. standards with term:', search);
-          const bestStandards = await this.service.searchBestStandards(search);
+        if (searchParam) {
+          console.log('Searching B.E.S.T. standards with term:', searchParam);
+          const bestStandards = await this.service.searchBestStandards(searchParam);
           console.log('Search results count:', bestStandards.length);
           res.json(bestStandards);
           return;
         }
 
         // Handle subject filter
-        if (subject && subject !== 'all' && subject.trim()) {
-          console.log('Filtering B.E.S.T. standards by subject:', subject);
-          const bestStandards = await this.service.getBestStandardsBySubject(subject);
+        if (subjectParam && subjectParam !== 'all') {
+          console.log('Filtering B.E.S.T. standards by subject:', subjectParam);
+          const bestStandards = await this.service.getBestStandardsBySubject(subjectParam);
           console.log('Subject filter results count:', bestStandards.length);
           res.json(bestStandards);
           return;
         }
 
         // Handle grade filter
-        if (grade && grade !== 'all' && grade.trim()) {
-          console.log('Filtering B.E.S.T. standards by grade:', grade);
-          const bestStandards = await this.service.getBestStandardsByGrade(grade);
+        if (gradeParam && gradeParam !== 'all') {
+          console.log('Filtering B.E.S.T. standards by grade:', gradeParam);
+          const bestStandards = await this.service.getBestStandardsByGrade(gradeParam);
           console.log('Grade filter results count:', bestStandards.length);
           res.json(bestStandards);
           return;

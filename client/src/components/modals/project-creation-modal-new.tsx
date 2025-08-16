@@ -104,9 +104,9 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   // Fetch B.E.S.T. Standards based on search/filter criteria
   const { data: bestStandards = [], isLoading: isLoadingStandards, error: standardsError } = useQuery({
     queryKey: ['/api/best-standards', {
-      search: standardsSearchTerm || undefined,
-      subject: selectedSubject || undefined,
-      grade: selectedGrade || undefined
+      search: standardsSearchTerm?.trim() || undefined,
+      subject: (selectedSubject && selectedSubject !== 'all') ? selectedSubject : undefined,
+      grade: (selectedGrade && selectedGrade !== 'all') ? selectedGrade : undefined
     }],
     enabled: isOpen,
     retry: (failureCount, error) => {
