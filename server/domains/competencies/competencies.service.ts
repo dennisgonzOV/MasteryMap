@@ -2,7 +2,8 @@ import { competencyStorage, type ICompetencyStorage } from './competencies.stora
 import { 
   type Competency,
   type ComponentSkill,
-  type BestStandard
+  type BestStandard,
+  type LearnerOutcome
 } from "../../../shared/schema";
 
 export interface ICompetencyService {
@@ -11,6 +12,16 @@ export interface ICompetencyService {
   getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]>;
   getAllBestStandards(): Promise<BestStandard[]>;
   getBestStandardsByCompetency(competencyId: number): Promise<BestStandard[]>;
+  getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
+  getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
+  searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
+  
+  // 3-Level Hierarchy operations
+  getLearnerOutcomes(): Promise<LearnerOutcome[]>;
+  getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
+  getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
+  getComponentSkillsWithDetails(): Promise<any[]>;
+  getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
 }
 
 export class CompetencyService implements ICompetencyService {
@@ -34,6 +45,39 @@ export class CompetencyService implements ICompetencyService {
 
   async getBestStandardsByCompetency(competencyId: number): Promise<BestStandard[]> {
     return await this.storage.getBestStandardsByCompetency(competencyId);
+  }
+
+  async getBestStandardsBySubject(subject: string): Promise<BestStandard[]> {
+    return await this.storage.getBestStandardsBySubject(subject);
+  }
+
+  async getBestStandardsByGrade(grade: string): Promise<BestStandard[]> {
+    return await this.storage.getBestStandardsByGrade(grade);
+  }
+
+  async searchBestStandards(searchTerm: string): Promise<BestStandard[]> {
+    return await this.storage.searchBestStandards(searchTerm);
+  }
+
+  // 3-Level Hierarchy operations
+  async getLearnerOutcomes(): Promise<LearnerOutcome[]> {
+    return await this.storage.getLearnerOutcomes();
+  }
+
+  async getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>> {
+    return await this.storage.getLearnerOutcomesWithCompetencies();
+  }
+
+  async getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]> {
+    return await this.storage.getCompetenciesByLearnerOutcome(learnerOutcomeId);
+  }
+
+  async getComponentSkillsWithDetails(): Promise<any[]> {
+    return await this.storage.getComponentSkillsWithDetails();
+  }
+
+  async getComponentSkillsByIds(skillIds: number[]): Promise<any[]> {
+    return await this.storage.getComponentSkillsByIds(skillIds);
   }
 }
 

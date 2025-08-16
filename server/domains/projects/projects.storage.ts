@@ -21,6 +21,7 @@ import {
 import { db } from "../../db";
 import { eq, and, desc, asc, ne, inArray, sql } from "drizzle-orm";
 import { assessments } from "../../../shared/schema";
+import { competencyStorage } from "../competencies/competencies.storage";
 
 // Projects storage interface
 export interface IProjectsStorage {
@@ -422,15 +423,11 @@ export class ProjectsStorage implements IProjectsStorage {
 
   // Component skills operations
   async getComponentSkillsByIds(ids: number[]): Promise<any[]> {
-    // For now, return a basic implementation to complete the migration
-    // This would typically query the componentSkills table
-    return [];
+    return await competencyStorage.getComponentSkillsByIds(ids);
   }
 
   async getComponentSkillsWithDetails(): Promise<any[]> {
-    // For now, return a basic implementation to complete the migration
-    // This would typically query the componentSkills table with detailed info
-    return [];
+    return await competencyStorage.getComponentSkillsWithDetails();
   }
 
   // Assessment operations

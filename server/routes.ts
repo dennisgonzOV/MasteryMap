@@ -32,6 +32,10 @@ export function setupRoutes(app: Express) {
   app.use("/api/safety-incidents", safetyIncidentsRouter);
   app.use("/api/teacher", assessmentsRouter);
 
+  // Map learner-outcomes-hierarchy routes to competencies router
+  app.use("/api/learner-outcomes-hierarchy", competenciesRouter);
+  app.use("/api/learner-outcomes", competenciesRouter);
+  app.use("/api/competencies-hierarchy", competenciesRouter);
 
   // Additional student-specific routes
   app.use('/api', assessmentsRouter);
