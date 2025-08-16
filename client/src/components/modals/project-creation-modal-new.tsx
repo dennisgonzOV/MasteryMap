@@ -78,6 +78,26 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   const { data: hierarchyData = [], isLoading, error } = useQuery<LearnerOutcome[]>({
     queryKey: ['/api/learner-outcomes-hierarchy/complete'],
     enabled: isOpen,
+    queryFn: async () => {
+      console.log('Custom queryFn: Making request to /api/learner-outcomes-hierarchy/complete');
+      const response = await fetch('/api/learner-outcomes-hierarchy/complete', {
+        credentials: 'include',
+      });
+      console.log('Custom queryFn: Response status:', response.status);
+      console.log('Custom queryFn: Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const text = await response.text();
+        console.log('Custom queryFn: Error response text:', text);
+        throw new Error(`${response.status}: ${text}`);
+      }
+      
+      const data = await response.json();
+      console.log('Custom queryFn: Success data:', data);
+      console.log('Custom queryFn: Data type:', typeof data);
+      console.log('Custom queryFn: Is array:', Array.isArray(data));
+      return data;
+    },
   });
 
   // Debug logging
