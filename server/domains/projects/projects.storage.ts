@@ -19,7 +19,7 @@ import {
   type InsertProjectTeam,
 } from "../../../shared/schema";
 import { db } from "../../db";
-import { eq, and, desc, asc, ne, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, ne, inArray, sql } from "drizzle-orm";
 import { assessments } from "../../../shared/schema";
 
 // Projects storage interface
