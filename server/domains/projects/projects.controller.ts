@@ -495,4 +495,40 @@ schoolsRouter.get('/students-progress', requireAuth, requireRole('teacher', 'adm
   createSuccessResponse(res, studentsProgress);
 }));
 
+// Teacher dashboard routes
+const teacherRouter = Router();
+
+// Teacher dashboard stats
+teacherRouter.get('/dashboard-stats', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  const teacherId = req.user!.id;
+  
+  const stats = await projectsService.getTeacherDashboardStats(teacherId);
+  createSuccessResponse(res, stats);
+}));
+
+// Teacher projects overview
+teacherRouter.get('/projects', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  const teacherId = req.user!.id;
+  
+  const projects = await projectsService.getTeacherProjects(teacherId);
+  createSuccessResponse(res, projects);
+}));
+
+// Teacher pending tasks
+teacherRouter.get('/pending-tasks', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  const teacherId = req.user!.id;
+  
+  const tasks = await projectsService.getTeacherPendingTasks(teacherId);
+  createSuccessResponse(res, tasks);
+}));
+
+// Teacher current milestones
+teacherRouter.get('/current-milestones', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  const teacherId = req.user!.id;
+  
+  const milestones = await projectsService.getTeacherCurrentMilestones(teacherId);
+  createSuccessResponse(res, milestones);
+}));
+
+export { teacherRouter };
 export default router;

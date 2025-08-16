@@ -1,8 +1,8 @@
 import type { Express } from "express";
 
 // Import all domain routers
-import { authRouter } from "./domains/auth";
-import { projectsRouter, milestonesRouter, projectTeamsRouter, projectTeamMembersRouter, schoolsRouter } from "./domains/projects";
+import { authRouter, adminRouter, analyticsRouter } from "./domains/auth";
+import { projectsRouter, milestonesRouter, projectTeamsRouter, projectTeamMembersRouter, schoolsRouter, teacherRouter } from "./domains/projects";
 import { assessmentsRouter, submissionsRouter, selfEvaluationsRouter } from "./domains/assessments";
 import { credentialsRouter } from "./domains/credentials";
 import { portfolioRouter } from "./domains/portfolio";
@@ -10,6 +10,7 @@ import { aiRouter } from "./domains/ai";
 import { competenciesRouter } from "./domains/competencies";
 import { notificationsRouter } from "./domains/notifications";
 import { safetyIncidentsRouter } from "./domains/safety-incidents";
+
 
 import { requireAuth, type AuthenticatedRequest } from "./domains/auth";
 
@@ -27,10 +28,13 @@ export function setupRoutes(app: Express) {
   app.use("/api/credentials", credentialsRouter);
   app.use("/api/portfolio", portfolioRouter);
   app.use("/api/ai", aiRouter);
+  app.use("/api/ai-tutor", aiRouter); // Add the legacy path for AI tutor chat
   app.use("/api/competencies", competenciesRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/safety-incidents", safetyIncidentsRouter);
-  app.use("/api/teacher", assessmentsRouter);
+  app.use("/api/teacher", teacherRouter);
+  app.use("/api/admin", adminRouter);
+  app.use("/api/analytics", analyticsRouter);
 
   // Map learner-outcomes-hierarchy routes to competencies router
   app.use("/api/learner-outcomes-hierarchy", competenciesRouter);

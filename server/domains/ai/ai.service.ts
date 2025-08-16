@@ -223,51 +223,101 @@ Return as JSON array:
   }
 
   async generateTutorResponse(
-    studentQuestion: string,
-    context: string,
-    conversationHistory: any[] = []
-  ): Promise<string> {
+    componentSkill: any,
+    conversationHistory: any[] = [],
+    currentEvaluation?: any
+  ): Promise<{
+    response: string;
+    suggestedEvaluation?: any;
+    shouldTerminate?: boolean;
+    safetyFlag?: string;
+  }> {
     try {
       const historyText = conversationHistory
         .map(msg => `${msg.role}: ${msg.content}`)
         .join('\n');
 
-      const prompt = `You are an AI tutor helping a student with their learning. Provide helpful, encouraging guidance.
+      const currentLevel = currentEvaluation?.selfAssessedLevel || 'unknown';
+      const skillName = componentSkill.name || 'this skill';
+      const rubricLevels = componentSkill.rubricLevels || {};
 
-Context: ${context}
+      const prompt = `You are an AI tutor helping a student develop their competency in "${skillName}".
+
+COMPONENT SKILL: ${skillName}
+CURRENT LEVEL: ${currentLevel}
+
+RUBRIC LEVELS:
+${Object.entries(rubricLevels)
+  .map(([level, description]) => `${level.toUpperCase()}: ${description}`)
+  .join("\n")}
 
 Previous conversation:
 ${historyText}
 
-Student question: ${studentQuestion}
+IMPORTANT SAFETY CHECK:
+First, analyze the student's messages for any concerning content including:
+- References to homicide, murder, or harming others
+- Suicidal ideation or self-harm
+- Violence or threats
+- Inappropriate or dangerous content
 
-Provide a helpful response that:
-1. Directly addresses their question
-2. Offers clear explanations
-3. Suggests next steps or resources
-4. Maintains an encouraging tone
-5. Keeps the response focused and concise (2-3 paragraphs max)`;
+If ANY concerning content is detected, immediately flag it and provide a safety response.
+
+TASKS:
+1. Safety Analysis: Check for risky content
+2. Educational Response: Provide helpful guidance to progress their skill
+3. Suggested Evaluation: Suggest their current level based on the conversation
+4. Continue/Terminate: Determine if the conversation should continue
+
+Respond in JSON format:
+{
+  "response": "Your helpful educational response",
+  "suggestedEvaluation": {
+    "selfAssessedLevel": "emerging|developing|proficient|applying",
+    "confidence": 0.8
+  },
+  "shouldTerminate": false,
+  "safetyFlag": null
+}
+
+If safety concerns are detected:
+{
+  "response": "I'm concerned about what you've shared. Please talk to a trusted adult or counselor.",
+  "safetyFlag": "homicidal_ideation|suicidal_ideation|inappropriate_language",
+  "shouldTerminate": true
+}`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are a supportive AI tutor focused on helping students learn and grow. Provide clear, encouraging, and educational responses."
+            content: "You are a safety-aware educational AI tutor. Always prioritize student safety and provide constructive learning guidance."
           },
           {
             role: "user",
             content: prompt
           }
         ],
+        response_format: { type: "json_object" },
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 800,
       });
 
-      return response.choices[0].message.content || "I'm here to help! Can you provide more details about what you're working on?";
+      const result = JSON.parse(response.choices[0].message.content || "{}");
+
+      return {
+        response: result.response || "I'm here to help you develop this skill!",
+        suggestedEvaluation: result.suggestedEvaluation,
+        shouldTerminate: result.shouldTerminate || false,
+        safetyFlag: result.safetyFlag || undefined
+      };
     } catch (error) {
       console.error("Error generating tutor response:", error);
-      throw new Error("Failed to generate tutor response");
+      return {
+        response: "I'm here to help you develop this skill! Can you tell me more about what you're working on?",
+        shouldTerminate: false
+      };
     }
   }
 

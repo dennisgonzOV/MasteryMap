@@ -53,6 +53,20 @@ export class SafetyIncidentController {
       }
     });
 
+    // Resolve safety incident (teachers and admins)
+    router.put('/:id/resolve', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+      try {
+        const incidentId = parseInt(req.params.id);
+        const userId = req.user!.id;
+
+        await this.service.resolveSafetyIncident(incidentId, userId);
+        res.json({ message: "Safety incident marked as resolved" });
+      } catch (error) {
+        console.error("Error resolving safety incident:", error);
+        res.status(500).json({ message: "Failed to resolve safety incident" });
+      }
+    });
+
     return router;
   }
 }

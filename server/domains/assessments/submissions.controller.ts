@@ -79,57 +79,156 @@ export class SubmissionController {
     router.post('/:id/grade', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
-        const { grades: gradeUpdates } = req.body;
+        const { grades: gradeData, feedback, grade, generateAiFeedback } = req.body;
 
-        if (!gradeUpdates || !Array.isArray(gradeUpdates)) {
-          return res.status(400).json({ message: "Grades array is required" });
+        console.log("Starting grading for submission " + submissionId + ", generateAiFeedback: " + generateAiFeedback);
+
+        // Save grades - support both detailed component skill grading and simple overall grading
+        // Check for existing grades and update them instead of creating duplicates
+        let savedGrades: any[] = [];
+        if (gradeData && Array.isArray(gradeData)) {
+          savedGrades = await Promise.all(
+            gradeData.map(async (gradeItem: any) => {
+              // Check if grade already exists for this submission and component skill
+              const existingGrades = await this.service.getExistingGrade(submissionId, gradeItem.componentSkillId);
+
+              if (existingGrades) {
+                // Update existing grade
+                const updatedGrade = await this.service.updateGrade(existingGrades.id, {
+                  rubricLevel: gradeItem.rubricLevel,
+                  score: gradeItem.score?.toString() || "0",
+                  feedback: gradeItem.feedback,
+                  gradedBy: req.user!.id,
+                });
+                return updatedGrade;
+              } else {
+                // Create new grade if none exists
+                return this.service.createGrade({
+                  submissionId,
+                  componentSkillId: gradeItem.componentSkillId,
+                  rubricLevel: gradeItem.rubricLevel,
+                  score: gradeItem.score,
+                  feedback: gradeItem.feedback,
+                  gradedBy: req.user!.id,
+                });
+              }
+            })
+          );
         }
 
+        // Get submission and assessment data
         const submission = await this.service.getSubmission(submissionId);
         if (!submission) {
           return res.status(404).json({ message: "Submission not found" });
         }
 
-        const gradedBy = req.user!.id;
+        const assessment = await this.service.getAssessment(submission.assessmentId);
+        if (!assessment) {
+          return res.status(404).json({ message: "Assessment not found" });
+        }
 
-        // Create or update grades for each component skill
-        const createdGrades = await Promise.all(
-          gradeUpdates.map(async (gradeUpdate: any) => {
-            const { componentSkillId, score, rubricLevel, feedback } = gradeUpdate;
+        // Generate AI feedback and grade if requested
+        let finalFeedback = feedback;
+        let finalGrade = grade;
 
-            if (!componentSkillId) {
-              throw new Error("Component skill ID is required for grading");
+        if (generateAiFeedback) {
+          console.log("Generating AI feedback for submission " + submissionId);
+
+          try {
+            // If no component skill grades were provided, generate them using AI
+            if (!gradeData || gradeData.length === 0) {
+              // Get component skills for this assessment
+              const componentSkillIds = (assessment.componentSkillIds as number[]) || [];
+              if (componentSkillIds.length > 0) {
+                // Fetch component skills with their rubric levels
+                const componentSkills = await Promise.all(
+                  componentSkillIds.map(id => this.service.getComponentSkill(id))
+                );
+                const validSkills = componentSkills.filter(skill => skill !== undefined);
+
+                if (validSkills.length > 0) {
+                  console.log("Generating component skill grades for " + validSkills.length + " skills");
+
+                  // Generate AI-based component skill grades
+                  const aiSkillGrades = await this.service.generateComponentSkillGrades(
+                    submission,
+                    assessment,
+                    validSkills as any[]
+                  );
+
+                  console.log("Successfully generated AI component skill grades:", aiSkillGrades.map(g => 
+                    `${g.componentSkillId}: ${g.rubricLevel} (${g.score})`
+                  ).join(', '));
+
+                  // Save the AI-generated component skill grades
+                  savedGrades = await Promise.all(
+                    aiSkillGrades.map(gradeItem => 
+                      this.service.createGrade({
+                        submissionId,
+                        componentSkillId: gradeItem.componentSkillId,
+                        rubricLevel: gradeItem.rubricLevel,
+                        score: gradeItem.score?.toString() || "0",
+                        feedback: gradeItem.feedback,
+                        gradedBy: req.user!.id,
+                      })
+                    )
+                  );
+                }
+              }
             }
 
-            // Create the grade record
-            const grade = await this.service.createGrade({
-              submissionId,
-              componentSkillId,
-              score: score?.toString() || "0",
-              rubricLevel: rubricLevel || "emerging",
-              feedback: feedback || "",
-              gradedBy,
-            });
+            // Generate comprehensive AI feedback based on the component skill grades
+            finalFeedback = await this.service.generateStudentFeedback(submission, savedGrades);
+            console.log("Generated AI feedback: " + (finalFeedback?.substring(0, 100) || "") + "...");
 
-            return grade;
-          })
-        );
+          } catch (aiError) {
+            console.error("Error generating AI feedback:", aiError);
+            finalFeedback = "AI feedback generation failed. Please provide manual feedback.";
+          }
+        }
 
-        // Update submission with gradedAt timestamp to mark it as completed
-        await this.service.updateSubmission(submissionId, {
-          gradedAt: new Date()
-        });
+        // Update submission with feedback and grade
+        const updateData: any = {
+          gradedAt: new Date(),
+        };
 
-        res.json({
-          message: "Submission graded successfully",
-          grades: createdGrades,
+        if (finalFeedback !== undefined) {
+          updateData.feedback = finalFeedback;
+        }
+
+        if (finalGrade !== undefined) {
+          updateData.grade = finalGrade;
+        }
+
+        if (generateAiFeedback) {
+          updateData.aiGeneratedFeedback = true;
+        }
+
+        console.log("Updating submission " + submissionId + " with grade: " + finalGrade + ", feedback length: " + (finalFeedback?.length || 0));
+        const updatedSubmission = await this.service.updateSubmission(submissionId, updateData);
+
+        // Award stickers for component skill grades
+        let awardedStickers: any[] = [];
+        if (savedGrades.length > 0) {
+          const submission = await this.service.getSubmission(submissionId);
+          if (submission) {
+            awardedStickers = await this.service.awardStickersForGrades(submission.studentId, savedGrades);
+          }
+        }
+
+        res.json({ 
+          grades: savedGrades, 
+          feedback: finalFeedback,
+          submission: updatedSubmission,
+          stickersAwarded: awardedStickers
         });
       } catch (error) {
         console.error("Error grading submission:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        res.status(500).json({
-          message: "Failed to grade submission",
+        res.status(500).json({ 
+          message: "Failed to grade submission", 
           error: errorMessage,
+          context: "Submission ID: " + req.params.id,
           details: process.env.NODE_ENV === 'development' ? error : undefined
         });
       }

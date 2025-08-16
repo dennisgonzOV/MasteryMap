@@ -286,9 +286,7 @@ export class ProjectsService {
     return this.storage.getStudentsBySchool(schoolId);
   }
 
-  async getSchoolStudentsProgress(teacherId: number): Promise<any[]> {
-    return this.storage.getSchoolStudentsProgress(teacherId);
-  }
+
 
   // AI-powered operations
   async generateProjectIdeas(ideaParams: {
@@ -416,6 +414,27 @@ export class ProjectsService {
     );
 
     return savedMilestones;
+  }
+
+  // Teacher dashboard methods
+  async getTeacherDashboardStats(teacherId: number) {
+    return await this.storage.getTeacherDashboardStats(teacherId);
+  }
+
+  async getTeacherProjects(teacherId: number) {
+    return await this.storage.getTeacherProjects(teacherId);
+  }
+
+  async getTeacherPendingTasks(teacherId: number) {
+    return await this.storage.getTeacherPendingTasks(teacherId);
+  }
+
+  async getTeacherCurrentMilestones(teacherId: number) {
+    return await this.storage.getTeacherCurrentMilestones(teacherId);
+  }
+
+  async getSchoolStudentsProgress(teacherId: number) {
+    return await this.storage.getSchoolStudentsProgress(teacherId);
   }
 }
 

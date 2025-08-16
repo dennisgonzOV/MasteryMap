@@ -1,13 +1,16 @@
 import {
   users,
   authTokens,
+  projects,
+  assessments,
+  credentials,
   type User,
   type AuthToken,
   type InsertAuthToken,
   UpsertUser,
 } from "../../../shared/schema";
 import { db } from "../../db";
-import { eq } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 // Interface for auth-specific storage operations
 export interface IAuthStorage {
@@ -22,6 +25,10 @@ export interface IAuthStorage {
   getAuthToken(token: string): Promise<AuthToken | undefined>;
   deleteAuthToken(token: string): Promise<void>;
   deleteAuthTokensByUserId(userId: number): Promise<void>;
+
+  // Admin operations
+  getUsersBySchool(schoolId: number, excludeUserId: number): Promise<User[]>;
+  getAnalyticsDashboard(): Promise<any>;
 }
 
 export class AuthStorage implements IAuthStorage {
@@ -70,6 +77,46 @@ export class AuthStorage implements IAuthStorage {
 
   async deleteAuthTokensByUserId(userId: number): Promise<void> {
     await db.delete(authTokens).where(eq(authTokens.userId, userId));
+  }
+
+  // Admin operations
+  async getUsersBySchool(schoolId: number, excludeUserId: number): Promise<User[]> {
+    return await db.select()
+      .from(users)
+      .where(and(
+        eq(users.schoolId, schoolId),
+        ne(users.id, excludeUserId)
+      ));
+  }
+
+  async getAnalyticsDashboard(): Promise<any> {
+    // Get analytics data
+    const [allUsers, allProjects, allAssessments, allCredentials] = await Promise.all([
+      db.select().from(users),
+      db.select().from(projects),
+      db.select().from(assessments),
+      db.select().from(credentials)
+    ]);
+
+    const analyticsData = {
+      totalUsers: allUsers.length,
+      activeUsers: allUsers.filter(u => {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        return u.updatedAt ? new Date(u.updatedAt) > oneMonthAgo : false;
+      }).length,
+      totalProjects: allProjects.length,
+      activeProjects: allProjects.filter(p => p.status === 'active').length,
+      totalAssessments: allAssessments.length,
+      gradedAssessments: allAssessments.length, // Simplified since we don't have a graded field
+      totalCredentials: allCredentials.length,
+      recentActivity: [], // Could be implemented with activity tracking
+      userGrowth: [], // Would need historical data
+      projectStats: [], // Would need completion tracking
+      competencyProgress: [] // Would need progress tracking
+    };
+
+    return analyticsData;
   }
 }
 

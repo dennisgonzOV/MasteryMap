@@ -93,8 +93,33 @@ export class AssessmentController {
           return res.status(401).json({ message: "User not authenticated" });
         }
 
-        // For now, return empty array until deadlines are implemented
-        res.json([]);
+        if (req.user?.role !== 'student') {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        const studentId = req.user.id;
+
+        // Get student's assigned projects
+        const assignments = await this.service.getProjectAssignmentsByStudent(studentId);
+        const projectIds = assignments.map(a => a.projectId);
+
+        const upcomingDeadlines = projectIds.length > 0
+          ? await this.service.getUpcomingDeadlines(projectIds)
+          : [];
+
+        const deadlines = upcomingDeadlines.map((deadline) => {
+          const daysUntil = Math.ceil((new Date(deadline.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+          return {
+            id: deadline.milestoneId,
+            title: deadline.title,
+            project: deadline.projectTitle,
+            dueDate: daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : "In " + daysUntil + " days",
+            priority: daysUntil <= 1 ? 'high' as const : daysUntil <= 3 ? 'medium' as const : 'low' as const
+          };
+        });
+
+        res.json(deadlines);
       } catch (error) {
         console.error("Error fetching student deadlines:", error);
         res.status(500).json({ error: "Failed to fetch student deadlines" });
@@ -442,6 +467,45 @@ export class AssessmentController {
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
         res.status(500).json({ 
           message: "Failed to delete assessment", 
+          error: errorMessage,
+          details: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+      }
+    });
+
+    // Generate assessment for milestone
+    router.post('/milestones/:id/generate-assessment', requireAuth, requireRole(['teacher', 'admin']), aiLimiter, async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user!.id;
+
+        if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+          return res.status(403).json({ message: "Only teachers can generate assessments" });
+        }
+
+        const milestoneId = parseInt(req.params.id);
+        const milestone = await this.service.getMilestone(milestoneId);
+
+        if (!milestone) {
+          return res.status(404).json({ message: "Milestone not found" });
+        }
+
+        const competencies = await this.service.getCompetencies();
+        const assessmentData = await this.service.generateAssessment(milestone);
+
+        const assessment = await this.service.createAssessment({
+          milestoneId,
+          title: assessmentData.title,
+          description: assessmentData.description,
+          questions: assessmentData.questions,
+          aiGenerated: true,
+        });
+
+        res.json(assessment);
+      } catch (error) {
+        console.error("Error generating assessment:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+        res.status(500).json({ 
+          message: "Failed to generate assessment", 
           error: errorMessage,
           details: process.env.NODE_ENV === 'development' ? error : undefined
         });
