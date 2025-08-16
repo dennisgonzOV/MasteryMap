@@ -10,6 +10,7 @@ import {
   type Submission,
   type SubmissionWithAssessment,
   type Grade,
+  type SelfEvaluation,
   InsertAssessment,
   InsertSubmission,
 } from "../../../shared/schema";
@@ -442,6 +443,175 @@ export class AssessmentStorage implements IAssessmentStorage {
     } catch (error) {
       console.error("Error fetching student competency progress:", error);
       return [];
+    }
+  }
+
+  // Teacher-specific methods for school skills tracking
+  async getSchoolComponentSkillsProgress(teacherId: number): Promise<any[]> {
+    try {
+      // Get teacher's school ID
+      const teacher = await db.select().from(users).where(eq(users.id, teacherId)).limit(1);
+      const teacherSchoolId = teacher[0]?.schoolId;
+
+      if (!teacherSchoolId) {
+        return [];
+      }
+
+      // Get all students in the teacher's school
+      const schoolStudents = await db.select().from(users).where(eq(users.schoolId, teacherSchoolId));
+
+      if (schoolStudents.length === 0) {
+        return [];
+      }
+
+      const studentIds = schoolStudents.map(s => s.id);
+
+      // Get all grades for students in this school
+      const allGrades = await db.select().from(grades);
+      const allSubmissions = await db.select().from(submissions).where(sql`${submissions.studentId} IN (${studentIds.join(',')})`);
+      const allComponentSkills = await db.select().from(componentSkills);
+      const allCompetencies = await db.select().from(competencies);
+
+      // Create lookup maps
+      const skillMap = new Map(allComponentSkills.map(s => [s.id, s]));
+      const competencyMap = new Map(allCompetencies.map(c => [c.id, c]));
+
+      // Filter grades for students in this school
+      const submissionIds = allSubmissions.map(s => s.id);
+      const schoolGrades = allGrades.filter(g => g.submissionId && submissionIds.includes(g.submissionId));
+
+      // Group grades by component skill
+      const skillProgressMap = new Map<number, {
+        grades: typeof schoolGrades;
+        skill: typeof allComponentSkills[0];
+        competency: typeof allCompetencies[0] | undefined;
+      }>();
+
+      schoolGrades.forEach(grade => {
+        const skill = skillMap.get(grade.componentSkillId || 0);
+        if (!skill) return;
+
+        const competency = skill.competencyId ? competencyMap.get(skill.competencyId) : undefined;
+
+        if (!skillProgressMap.has(skill.id)) {
+          skillProgressMap.set(skill.id, {
+            grades: [],
+            skill,
+            competency
+          });
+        }
+
+        skillProgressMap.get(skill.id)!.grades.push(grade);
+      });
+
+      // Calculate progress for each skill
+      const skillsProgress: any[] = [];
+
+      for (const [skillId, data] of Array.from(skillProgressMap.entries())) {
+        const { grades: skillGrades, skill, competency } = data;
+        
+        if (skillGrades.length === 0) continue;
+
+        const scores = skillGrades.map((g: any) => g.score || 0);
+        const averageScore = scores.reduce((a: number, b: number) => a + b, 0) / scores.length;
+
+        const rubricDistribution = {
+          emerging: skillGrades.filter((g: any) => g.rubricLevel === 'emerging').length,
+          developing: skillGrades.filter((g: any) => g.rubricLevel === 'developing').length,
+          proficient: skillGrades.filter((g: any) => g.rubricLevel === 'proficient').length,
+          applying: skillGrades.filter((g: any) => g.rubricLevel === 'applying').length
+        };
+
+        const strugglingStudents = skillGrades.filter((g: any) => (g.score || 0) < 2.5).length;
+        const excellingStudents = skillGrades.filter((g: any) => (g.score || 0) >= 3.5).length;
+        const passRate = (rubricDistribution.proficient + rubricDistribution.applying) / skillGrades.length * 100;
+
+        // Calculate trend (simplified)
+        const recentGrades = skillGrades
+          .sort((a: any, b: any) => new Date(b.gradedAt || 0).getTime() - new Date(a.gradedAt || 0).getTime())
+          .slice(0, Math.floor(skillGrades.length / 2));
+        
+        const olderGrades = skillGrades
+          .sort((a: any, b: any) => new Date(b.gradedAt || 0).getTime() - new Date(a.gradedAt || 0).getTime())
+          .slice(Math.floor(skillGrades.length / 2));
+
+        let trend: 'improving' | 'declining' | 'stable' = 'stable';
+        if (recentGrades.length > 0 && olderGrades.length > 0) {
+          const recentAvg = recentGrades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / recentGrades.length;
+          const olderAvg = olderGrades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / olderGrades.length;
+          
+          if (recentAvg > olderAvg + 0.5) trend = 'improving';
+          else if (recentAvg < olderAvg - 0.5) trend = 'declining';
+        }
+
+        const lastAssessmentDate = skillGrades
+          .sort((a: any, b: any) => new Date(b.gradedAt || 0).getTime() - new Date(a.gradedAt || 0).getTime())[0]?.gradedAt || new Date().toISOString();
+
+        skillsProgress.push({
+          id: skill.id,
+          name: skill.name,
+          competencyId: competency?.id || 0,
+          competencyName: competency?.name || 'Unknown Competency',
+          learnerOutcomeName: 'XQ Learner Outcome',
+          averageScore: Math.round(averageScore * 100) / 100,
+          studentsAssessed: skillGrades.length,
+          totalStudents: schoolStudents.length,
+          passRate: Math.round(passRate * 100) / 100,
+          strugglingStudents,
+          excellingStudents,
+          rubricDistribution,
+          trend,
+          lastAssessmentDate
+        });
+      }
+
+      return skillsProgress;
+    } catch (error) {
+      console.error('Error getting school component skills progress:', error);
+      return [];
+    }
+  }
+
+  async getSchoolSkillsStats(teacherId: number): Promise<any> {
+    try {
+      const skillsProgress = await this.getSchoolComponentSkillsProgress(teacherId);
+      
+      if (skillsProgress.length === 0) {
+        return {
+          totalSkillsAssessed: 0,
+          averageSchoolScore: 0,
+          skillsNeedingAttention: 0,
+          excellentPerformance: 0,
+          studentsAssessed: 0,
+          totalStudents: 0
+        };
+      }
+
+      const totalSkillsAssessed = skillsProgress.length;
+      const averageSchoolScore = skillsProgress.reduce((sum, skill) => sum + skill.averageScore, 0) / totalSkillsAssessed;
+      const skillsNeedingAttention = skillsProgress.filter(skill => skill.averageScore < 2.5).length;
+      const excellentPerformance = skillsProgress.filter(skill => skill.averageScore >= 3.5).length;
+      const studentsAssessed = Math.max(...skillsProgress.map(skill => skill.studentsAssessed), 0);
+      const totalStudents = Math.max(...skillsProgress.map(skill => skill.totalStudents), 0);
+
+      return {
+        totalSkillsAssessed,
+        averageSchoolScore: Math.round(averageSchoolScore * 100) / 100,
+        skillsNeedingAttention,
+        excellentPerformance,
+        studentsAssessed,
+        totalStudents
+      };
+    } catch (error) {
+      console.error('Error getting school skills stats:', error);
+      return {
+        totalSkillsAssessed: 0,
+        averageSchoolScore: 0,
+        skillsNeedingAttention: 0,
+        excellentPerformance: 0,
+        studentsAssessed: 0,
+        totalStudents: 0
+      };
     }
   }
 }

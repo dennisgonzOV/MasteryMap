@@ -520,6 +520,29 @@ export class AssessmentController {
       }
     });
 
+    // Teacher-specific routes for school skills tracking
+    router.get('/teacher/school-component-skills-progress', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+      try {
+        const teacherId = req.user!.id;
+        const skillsProgress = await this.service.getSchoolComponentSkillsProgress(teacherId);
+        res.json(skillsProgress);
+      } catch (error) {
+        console.error("Error fetching school component skills progress:", error);
+        res.status(500).json({ message: "Failed to fetch school component skills progress" });
+      }
+    });
+
+    router.get('/teacher/school-skills-stats', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+      try {
+        const teacherId = req.user!.id;
+        const stats = await this.service.getSchoolSkillsStats(teacherId);
+        res.json(stats);
+      } catch (error) {
+        console.error("Error fetching school skills stats:", error);
+        res.status(500).json({ message: "Failed to fetch school skills stats" });
+      }
+    });
+
     return router;
   }
 }

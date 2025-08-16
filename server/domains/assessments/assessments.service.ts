@@ -173,6 +173,15 @@ export class AssessmentService {
   async getSelfEvaluationsByAssessment(assessmentId: number): Promise<any[]> {
     return await this.storage.getSelfEvaluationsByAssessment(assessmentId);
   }
+
+  // Teacher-specific methods for school skills tracking
+  async getSchoolComponentSkillsProgress(teacherId: number): Promise<any[]> {
+    return await this.storage.getSchoolComponentSkillsProgress(teacherId);
+  }
+
+  async getSchoolSkillsStats(teacherId: number): Promise<any> {
+    return await this.storage.getSchoolSkillsStats(teacherId);
+  }
 }
 
 export const assessmentService = new AssessmentService();
