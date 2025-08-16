@@ -80,6 +80,21 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     enabled: isOpen,
   });
 
+  // Debug logging
+  useEffect(() => {
+    if (isOpen) {
+      console.log('Modal opened - hierarchyData:', hierarchyData);
+      console.log('Modal opened - isLoading:', isLoading);
+      console.log('Modal opened - error:', error);
+      console.log('Modal opened - hierarchyData length:', hierarchyData?.length);
+      if (hierarchyData && hierarchyData.length > 0) {
+        console.log('First outcome:', hierarchyData[0]);
+        console.log('First outcome competencies:', hierarchyData[0]?.competencies);
+        console.log('First competency skills:', hierarchyData[0]?.competencies?.[0]?.componentSkills);
+      }
+    }
+  }, [isOpen, hierarchyData, isLoading, error]);
+
   // Fetch B.E.S.T. Standards metadata for filters
   const { data: standardsMetadata } = useQuery({
     queryKey: ['/api/best-standards/metadata'],
@@ -404,10 +419,18 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                   <div className="flex items-center justify-center h-48">
                     <div className="text-muted-foreground">Loading competency framework...</div>
                   </div>
+                ) : error ? (
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-red-500">Error loading component skills: {error.message}</div>
+                  </div>
+                ) : !hierarchyData || hierarchyData.length === 0 ? (
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-muted-foreground">No component skills found. Please check your database.</div>
+                  </div>
                 ) : (
                   <div className="max-h-[400px] overflow-y-auto border rounded-md p-4">
                     <div className="space-y-2">
-                        {hierarchyData?.map((outcome: LearnerOutcome) => (
+                        {hierarchyData.map((outcome: LearnerOutcome) => (
                           <div key={outcome.id} className="border border-gray-200 rounded-lg">
                             {/* Learner Outcome Header */}
                             <div
@@ -426,7 +449,8 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                             {/* Competencies */}
                             {expandedOutcomes.has(outcome.id) && (
                               <div className="border-t border-gray-200">
-                                {outcome.competencies.map((competency: Competency) => (
+                                {outcome.competencies && outcome.competencies.length > 0 ? (
+                                  outcome.competencies.map((competency: Competency) => (
                                   <div key={competency.id} className="border-b border-gray-100 last:border-b-0">
                                     {/* Competency Header */}
                                     <div className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100">
@@ -453,7 +477,8 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                                     {/* Component Skills */}
                                     {expandedCompetencies.has(competency.id) && (
                                       <div className="pl-6 pr-3 pb-2">
-                                        {competency.componentSkills.map((skill: ComponentSkill) => (
+                                        {competency.componentSkills && competency.componentSkills.length > 0 ? (
+                                          competency.componentSkills.map((skill: ComponentSkill) => (
                                           <div key={skill.id} className="flex items-center gap-2 py-2">
                                             <Checkbox
                                               checked={selectedSkills.has(skill.id)}
@@ -464,11 +489,21 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                                               <CheckCircle className="h-4 w-4 text-green-600" />
                                             )}
                                           </div>
-                                        ))}
+                                        ))
+                                        ) : (
+                                          <div className="text-sm text-gray-500 py-2">
+                                            No component skills found for this competency
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
-                                ))}
+                                  ))
+                                ) : (
+                                  <div className="text-sm text-gray-500 py-4 text-center">
+                                    No competencies found for this learner outcome
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
