@@ -391,14 +391,7 @@ export default function ProjectIdeasModal({
                                 <div className="text-muted-foreground">Loading competency framework...</div>
                               </div>
                             ) : (
-                              <>
-                                <div className="mb-2 p-2 bg-blue-50 rounded text-xs">
-                                  <strong>Debug:</strong> {hierarchyData?.length || 0} outcomes, 
-                                  {hierarchyData?.reduce((sum, outcome) => sum + (outcome.competencies?.length || 0), 0) || 0} competencies, 
-                                  {hierarchyData?.reduce((sum, outcome) => 
-                                    sum + (outcome.competencies?.reduce((compSum, comp) => compSum + (comp.componentSkills?.length || 0), 0) || 0), 0) || 0} skills
-                                </div>
-                                <ScrollArea className="h-64 border rounded-md p-4">
+                              <ScrollArea className="h-64 border rounded-md p-4">
                                 <div className="space-y-2">
                                   {hierarchyData?.map((outcome: LearnerOutcome) => (
                                     <div key={outcome.id} className="border border-gray-200 rounded-lg">
