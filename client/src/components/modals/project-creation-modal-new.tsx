@@ -86,7 +86,13 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       console.log('Modal opened - hierarchyData:', hierarchyData);
       console.log('Modal opened - isLoading:', isLoading);
       console.log('Modal opened - error:', error);
+      console.log('Modal opened - error details:', error?.message);
       console.log('Modal opened - hierarchyData length:', hierarchyData?.length);
+      if (error) {
+        console.log('Error object:', error);
+        console.log('Error message:', error.message);
+        console.log('Error cause:', error.cause);
+      }
       if (hierarchyData && hierarchyData.length > 0) {
         console.log('First outcome:', hierarchyData[0]);
         console.log('First outcome competencies:', hierarchyData[0]?.competencies);
