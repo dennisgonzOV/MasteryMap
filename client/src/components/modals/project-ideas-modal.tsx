@@ -121,6 +121,10 @@ export default function ProjectIdeasModal({
     enabled: isOpen,
   });
 
+  // Debug logging
+  console.log('Project Ideas Modal - hierarchyData:', hierarchyData);
+  console.log('Project Ideas Modal - isLoading:', isLoading);
+
   const form = useForm<ProjectIdeaForm>({
     resolver: zodResolver(projectIdeaSchema),
     defaultValues: {
@@ -381,13 +385,20 @@ export default function ProjectIdeasModal({
                           <p className="text-sm text-gray-600 mb-3">
                             Choose the specific component skills students will develop in this project
                           </p>
-                          <FormControl>
+                                                    <FormControl>
                             {isLoading ? (
                               <div className="flex items-center justify-center h-32 border rounded-md">
                                 <div className="text-muted-foreground">Loading competency framework...</div>
                               </div>
                             ) : (
-                              <ScrollArea className="h-64 border rounded-md p-4">
+                              <>
+                                <div className="mb-2 p-2 bg-blue-50 rounded text-xs">
+                                  <strong>Debug:</strong> {hierarchyData?.length || 0} outcomes, 
+                                  {hierarchyData?.reduce((sum, outcome) => sum + (outcome.competencies?.length || 0), 0) || 0} competencies, 
+                                  {hierarchyData?.reduce((sum, outcome) => 
+                                    sum + (outcome.competencies?.reduce((compSum, comp) => compSum + (comp.componentSkills?.length || 0), 0) || 0), 0) || 0} skills
+                                </div>
+                                <ScrollArea className="h-64 border rounded-md p-4">
                                 <div className="space-y-2">
                                   {hierarchyData?.map((outcome: LearnerOutcome) => (
                                     <div key={outcome.id} className="border border-gray-200 rounded-lg">
@@ -414,7 +425,10 @@ export default function ProjectIdeasModal({
                                               <div className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100">
                                                 <div
                                                   className="flex items-center gap-2 flex-1 cursor-pointer"
-                                                  onClick={() => toggleCompetencyExpansion(competency.id)}
+                                                  onClick={() => {
+                                                    console.log('Toggling competency:', competency.name, 'Skills count:', competency.componentSkills?.length);
+                                                    toggleCompetencyExpansion(competency.id);
+                                                  }}
                                                 >
                                                   {expandedCompetencies.has(competency.id) ? (
                                                     <ChevronDown className="h-4 w-4" />
@@ -423,7 +437,7 @@ export default function ProjectIdeasModal({
                                                   )}
                                                   <span className="font-medium">{competency.name}</span>
                                                   <span className="text-sm text-gray-600">
-                                                    ({competency.componentSkills.length} skills)
+                                                    ({competency.componentSkills?.length || 0} skills)
                                                   </span>
                                                 </div>
                                                 <Checkbox
@@ -434,19 +448,28 @@ export default function ProjectIdeasModal({
 
                                               {/* Component Skills */}
                                               {expandedCompetencies.has(competency.id) && (
-                                                <div className="pl-6 pr-3 pb-2">
-                                                  {competency.componentSkills.map((skill: ComponentSkill) => (
-                                                    <div key={skill.id} className="flex items-center gap-2 py-2">
-                                                      <Checkbox
-                                                        checked={selectedSkills.has(skill.id)}
-                                                        onCheckedChange={() => toggleSkillSelection(skill.id)}
-                                                      />
-                                                      <span className="text-sm">{skill.name}</span>
-                                                      {selectedSkills.has(skill.id) && (
-                                                        <CheckCircle className="h-4 w-4 text-green-600" />
-                                                      )}
+                                                <div className="pl-6 pr-3 pb-2 bg-yellow-50 border-l-2 border-yellow-200">
+                                                  <div className="text-xs text-yellow-700 mb-2 font-medium">
+                                                    Component Skills ({competency.componentSkills?.length || 0}):
+                                                  </div>
+                                                  {competency.componentSkills && competency.componentSkills.length > 0 ? (
+                                                    competency.componentSkills.map((skill: ComponentSkill) => (
+                                                      <div key={skill.id} className="flex items-center gap-2 py-2 bg-white rounded px-2 mb-1">
+                                                        <Checkbox
+                                                          checked={selectedSkills.has(skill.id)}
+                                                          onCheckedChange={() => toggleSkillSelection(skill.id)}
+                                                        />
+                                                        <span className="text-sm">{skill.name}</span>
+                                                        {selectedSkills.has(skill.id) && (
+                                                          <CheckCircle className="h-4 w-4 text-green-600" />
+                                                        )}
+                                                      </div>
+                                                    ))
+                                                  ) : (
+                                                    <div className="text-sm text-red-500 py-2 bg-red-50 rounded px-2">
+                                                      ⚠️ No component skills found for this competency
                                                     </div>
-                                                  ))}
+                                                  )}
                                                 </div>
                                               )}
                                             </div>
@@ -457,6 +480,7 @@ export default function ProjectIdeasModal({
                                   ))}
                                 </div>
                               </ScrollArea>
+                              </>
                             )}
                           </FormControl>
                           {selectedSkills.size > 0 && (

@@ -102,6 +102,7 @@ export class CompetencyStorage implements ICompetencyStorage {
 
   async getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>> {
     const outcomes = await db.select().from(learnerOutcomes).orderBy(learnerOutcomes.name);
+    console.log('Storage - Found outcomes:', outcomes.length);
 
     const result = [];
     for (const outcome of outcomes) {
@@ -111,6 +112,8 @@ export class CompetencyStorage implements ICompetencyStorage {
         .where(eq(competencies.learnerOutcomeId, outcome.id))
         .orderBy(competencies.name);
 
+      console.log(`Storage - Outcome "${outcome.name}" has ${competenciesData.length} competencies`);
+
       const competenciesWithSkills = [];
       for (const competency of competenciesData) {
         const skills = await db
@@ -118,6 +121,8 @@ export class CompetencyStorage implements ICompetencyStorage {
           .from(componentSkills)
           .where(eq(componentSkills.competencyId, competency.id))
           .orderBy(componentSkills.name);
+
+        console.log(`Storage - Competency "${competency.name}" has ${skills.length} component skills`);
 
         competenciesWithSkills.push({
           ...competency,
@@ -131,6 +136,7 @@ export class CompetencyStorage implements ICompetencyStorage {
       });
     }
 
+    console.log('Storage - Final result has', result.length, 'outcomes');
     return result;
   }
 

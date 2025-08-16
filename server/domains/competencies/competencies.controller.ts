@@ -103,6 +103,10 @@ export class CompetencyController {
     router.get('/learner-outcomes-hierarchy/complete', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         const learnerOutcomes = await this.service.getLearnerOutcomesWithCompetencies();
+        console.log('API Response - Learner Outcomes count:', learnerOutcomes.length);
+        console.log('API Response - First outcome:', learnerOutcomes[0]);
+        console.log('API Response - First outcome competencies count:', learnerOutcomes[0]?.competencies?.length);
+        console.log('API Response - First competency component skills count:', learnerOutcomes[0]?.competencies?.[0]?.componentSkills?.length);
         res.json(learnerOutcomes);
       } catch (error) {
         console.error("Error fetching complete learner outcomes hierarchy:", error);
