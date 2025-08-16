@@ -57,48 +57,72 @@ export class CompetencyController {
     // Get all best standards with optional filtering
     router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
+        console.log('B.E.S.T. Standards request received:', {
+          query: req.query,
+          params: req.params,
+          method: req.method,
+          url: req.url
+        });
+        
         const { search, subject, grade } = req.query;
         
-        // Validate query parameters if they exist
-        if (search !== undefined && typeof search !== 'string') {
+        // More lenient parameter validation - only validate if parameters are actually strings
+        if (search !== undefined && search !== null && typeof search !== 'string') {
+          console.error('Invalid search parameter type:', typeof search, search);
           return res.status(400).json({ message: "Invalid search parameter" });
         }
         
-        if (subject !== undefined && typeof subject !== 'string') {
+        if (subject !== undefined && subject !== null && typeof subject !== 'string') {
+          console.error('Invalid subject parameter type:', typeof subject, subject);
           return res.status(400).json({ message: "Invalid subject parameter" });
         }
         
-        if (grade !== undefined && typeof grade !== 'string') {
+        if (grade !== undefined && grade !== null && typeof grade !== 'string') {
+          console.error('Invalid grade parameter type:', typeof grade, grade);
           return res.status(400).json({ message: "Invalid grade parameter" });
         }
         
         // Handle search query
         if (search && search.trim()) {
+          console.log('Searching B.E.S.T. standards with term:', search);
           const bestStandards = await this.service.searchBestStandards(search);
+          console.log('Search results count:', bestStandards.length);
           res.json(bestStandards);
           return;
         }
         
         // Handle subject filter
         if (subject && subject !== 'all' && subject.trim()) {
+          console.log('Filtering B.E.S.T. standards by subject:', subject);
           const bestStandards = await this.service.getBestStandardsBySubject(subject);
+          console.log('Subject filter results count:', bestStandards.length);
           res.json(bestStandards);
           return;
         }
         
         // Handle grade filter
         if (grade && grade !== 'all' && grade.trim()) {
+          console.log('Filtering B.E.S.T. standards by grade:', grade);
           const bestStandards = await this.service.getBestStandardsByGrade(grade);
+          console.log('Grade filter results count:', bestStandards.length);
           res.json(bestStandards);
           return;
         }
         
         // Default: return all standards
+        console.log('Fetching all B.E.S.T. standards');
         const bestStandards = await this.service.getAllBestStandards();
+        console.log('All standards count:', bestStandards.length);
         res.json(bestStandards);
       } catch (error) {
         console.error("Error fetching best standards:", error);
-        res.status(500).json({ message: "Failed to fetch best standards" });
+        console.error("Error details:", {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          query: req.query,
+          params: req.params
+        });
+        res.status(500).json({ message: "Failed to fetch best standards", error: error instanceof Error ? error.message : 'Unknown error' });
       }
     });
 
