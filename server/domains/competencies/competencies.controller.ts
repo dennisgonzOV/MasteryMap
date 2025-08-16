@@ -59,19 +59,30 @@ export class CompetencyController {
       try {
         const { search, subject, grade } = req.query;
         
+        // Handle search query
         if (search && typeof search === 'string') {
           const bestStandards = await this.service.searchBestStandards(search);
           res.json(bestStandards);
-        } else if (subject && typeof subject === 'string') {
+          return;
+        }
+        
+        // Handle subject filter
+        if (subject && typeof subject === 'string' && subject !== 'all') {
           const bestStandards = await this.service.getBestStandardsBySubject(subject);
           res.json(bestStandards);
-        } else if (grade && typeof grade === 'string') {
+          return;
+        }
+        
+        // Handle grade filter
+        if (grade && typeof grade === 'string' && grade !== 'all') {
           const bestStandards = await this.service.getBestStandardsByGrade(grade);
           res.json(bestStandards);
-        } else {
-          const bestStandards = await this.service.getAllBestStandards();
-          res.json(bestStandards);
+          return;
         }
+        
+        // Default: return all standards
+        const bestStandards = await this.service.getAllBestStandards();
+        res.json(bestStandards);
       } catch (error) {
         console.error("Error fetching best standards:", error);
         res.status(500).json({ message: "Failed to fetch best standards" });
