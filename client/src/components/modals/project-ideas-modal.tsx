@@ -473,7 +473,6 @@ export default function ProjectIdeasModal({
                                   ))}
                                 </div>
                               </ScrollArea>
-                              </>
                             )}
                           </FormControl>
                           {selectedSkills.size > 0 && (
