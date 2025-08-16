@@ -15,23 +15,27 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
   try {
     const accessToken = req.cookies.access_token;
     if (!accessToken) {
+      console.log('RequireAuth: No access token found for', req.path);
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
     const payload = AuthService.verifyAccessToken(accessToken);
     if (!payload) {
+      console.log('RequireAuth: Invalid token for', req.path);
       return res.status(401).json({ message: 'Invalid token' });
     }
 
     const user = await authStorage.getUser(payload.userId);
     if (!user) {
+      console.log('RequireAuth: User not found for', req.path);
       return res.status(401).json({ message: 'User not found' });
     }
 
+    console.log('RequireAuth: Successfully authenticated user', user.id, 'for', req.path);
     req.user = user;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    console.error('Auth middleware error for', req.path, ':', error);
     res.status(401).json({ message: 'Unauthorized' });
   }
 };

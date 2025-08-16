@@ -37,7 +37,11 @@ export function setupRoutes(app: Express) {
   app.use("/api/analytics", analyticsRouter);
 
   // Map learner-outcomes-hierarchy routes to competencies router
-  app.use("/api/learner-outcomes-hierarchy", competenciesRouter);
+  console.log('Setting up learner-outcomes-hierarchy routes');
+  app.use("/api/learner-outcomes-hierarchy", (req, res, next) => {
+    console.log('Learner outcomes hierarchy middleware hit:', req.method, req.path);
+    next();
+  }, competenciesRouter);
   app.use("/api/learner-outcomes", competenciesRouter);
   app.use("/api/competencies-hierarchy", competenciesRouter);
 
