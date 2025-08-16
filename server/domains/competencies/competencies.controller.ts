@@ -59,16 +59,16 @@ export class CompetencyController {
       try {
         const { search, subject, grade } = req.query;
         
-        // Validate query parameters
-        if (search && typeof search !== 'string') {
+        // Validate query parameters if they exist
+        if (search !== undefined && typeof search !== 'string') {
           return res.status(400).json({ message: "Invalid search parameter" });
         }
         
-        if (subject && typeof subject !== 'string') {
+        if (subject !== undefined && typeof subject !== 'string') {
           return res.status(400).json({ message: "Invalid subject parameter" });
         }
         
-        if (grade && typeof grade !== 'string') {
+        if (grade !== undefined && typeof grade !== 'string') {
           return res.status(400).json({ message: "Invalid grade parameter" });
         }
         
