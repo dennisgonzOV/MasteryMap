@@ -96,6 +96,13 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       console.log('Custom queryFn: Success data:', data);
       console.log('Custom queryFn: Data type:', typeof data);
       console.log('Custom queryFn: Is array:', Array.isArray(data));
+      console.log('Custom queryFn: Data keys:', Object.keys(data));
+      
+      // If the data is not an array, ensure we return an array
+      if (!Array.isArray(data)) {
+        console.log('Converting non-array response to array');
+        return [];
+      }
       return data;
     },
   });

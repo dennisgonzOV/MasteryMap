@@ -174,6 +174,9 @@ export class CompetencyController {
         console.log('API Response - First outcome:', learnerOutcomes[0]);
         console.log('API Response - First outcome competencies count:', learnerOutcomes[0]?.competencies?.length);
         console.log('API Response - First competency component skills count:', learnerOutcomes[0]?.competencies?.[0]?.componentSkills?.length);
+        console.log('API Response - About to send JSON:', JSON.stringify(learnerOutcomes).substring(0, 200) + '...');
+        console.log('API Response - Is array:', Array.isArray(learnerOutcomes));
+        console.log('API Response - Type of learnerOutcomes:', typeof learnerOutcomes);
         res.json(learnerOutcomes);
       } catch (error) {
         console.error("Error fetching complete learner outcomes hierarchy:", error);
