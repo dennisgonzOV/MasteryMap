@@ -149,28 +149,7 @@ export class CompetencyController {
       }
     });
 
-    // B.E.S.T. Standards routes
-    router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const { subject, grade, search } = req.query;
-
-        let standards;
-        if (search) {
-          standards = await this.service.searchBestStandards(search as string);
-        } else if (subject) {
-          standards = await this.service.getBestStandardsBySubject(subject as string);
-        } else if (grade) {
-          standards = await this.service.getBestStandardsByGrade(grade as string);
-        } else {
-          standards = await this.service.getAllBestStandards();
-        }
-
-        res.json(standards);
-      } catch (error) {
-        console.error("Error fetching B.E.S.T. standards:", error);
-        res.status(500).json({ message: "Failed to fetch B.E.S.T. standards" });
-      }
-    });
+    
 
     // Get unique subjects and grades from B.E.S.T. standards
     router.get('/best-standards/metadata', requireAuth, async (req: AuthenticatedRequest, res) => {

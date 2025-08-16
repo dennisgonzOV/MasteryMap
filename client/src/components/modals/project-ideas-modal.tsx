@@ -117,7 +117,7 @@ export default function ProjectIdeasModal({
 
   // Fetch the complete 3-level hierarchy
   const { data: hierarchyData = [], isLoading } = useQuery<LearnerOutcome[]>({
-    queryKey: ['/api/learner-outcomes-hierarchy/complete'],
+    queryKey: ['/api/competencies/learner-outcomes-hierarchy/complete'],
     enabled: isOpen,
   });
 
