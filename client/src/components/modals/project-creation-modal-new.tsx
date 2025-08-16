@@ -70,7 +70,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [activeTab, setActiveTab] = useState('skills');
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -103,7 +103,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
   // Fetch B.E.S.T. Standards based on search/filter criteria
   const { data: bestStandards = [], isLoading: isLoadingStandards, error: standardsError } = useQuery({
-    queryKey: ['/api/best-standards', { 
+    queryKey: ['/api/best-standards', {
       search: standardsSearchTerm || undefined,
       subject: selectedSubject || undefined,
       grade: selectedGrade || undefined
@@ -124,12 +124,12 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       setProjectTitle(projectIdea.title);
       setProjectDescription(projectIdea.description);
       setSelectedSkills(new Set(projectIdea.selectedComponentSkillIds));
-      
+
       // Expand all relevant outcomes and competencies that contain the selected skills
       if (hierarchyData && hierarchyData.length > 0) {
         const newExpandedOutcomes = new Set<number>();
         const newExpandedCompetencies = new Set<number>();
-        
+
         hierarchyData.forEach((outcome) => {
           let hasSelectedSkill = false;
           outcome.competencies?.forEach((competency) => {
@@ -148,7 +148,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
             newExpandedOutcomes.add(outcome.id);
           }
         });
-        
+
         setExpandedOutcomes(newExpandedOutcomes);
         setExpandedCompetencies(newExpandedCompetencies);
       }
@@ -165,12 +165,12 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
         body: JSON.stringify(data),
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to create project');
       }
-      
+
       return response.json();
     },
     onSuccess: async (createdProject) => {
@@ -179,7 +179,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
         description: "Project created successfully!",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-      
+
       // Automatically generate milestones and assessments if option is checked
       if (generateMilestones && selectedSkills.size > 0) {
         try {
@@ -188,7 +188,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             toast({
@@ -204,7 +204,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
           console.error('Error generating milestones and assessments:', error);
         }
       }
-      
+
       onSuccess();
       resetForm();
     },
@@ -314,7 +314,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!projectTitle.trim()) {
       toast({
         title: "Error",
@@ -414,13 +414,13 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
             <p className="text-sm text-muted-foreground mb-3">
               Choose the component skills and/or B.E.S.T. standards for this project
             </p>
-            
+
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="skills">Component Skills</TabsTrigger>
                 <TabsTrigger value="standards">B.E.S.T. Standards</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="skills" className="space-y-2">
                   {isLoading ? (
                   <div className="flex items-center justify-center h-48">

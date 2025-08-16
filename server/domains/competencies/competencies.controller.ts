@@ -63,25 +63,25 @@ export class CompetencyController {
           method: req.method,
           url: req.url
         });
-        
+
         const { search, subject, grade } = req.query;
-        
+
         // More lenient parameter validation - only validate if parameters are actually strings
         if (search !== undefined && search !== null && typeof search !== 'string') {
           console.error('Invalid search parameter type:', typeof search, search);
           return res.status(400).json({ message: "Invalid search parameter" });
         }
-        
+
         if (subject !== undefined && subject !== null && typeof subject !== 'string') {
           console.error('Invalid subject parameter type:', typeof subject, subject);
           return res.status(400).json({ message: "Invalid subject parameter" });
         }
-        
+
         if (grade !== undefined && grade !== null && typeof grade !== 'string') {
           console.error('Invalid grade parameter type:', typeof grade, grade);
           return res.status(400).json({ message: "Invalid grade parameter" });
         }
-        
+
         // Handle search query
         if (search && search.trim()) {
           console.log('Searching B.E.S.T. standards with term:', search);
@@ -90,7 +90,7 @@ export class CompetencyController {
           res.json(bestStandards);
           return;
         }
-        
+
         // Handle subject filter
         if (subject && subject !== 'all' && subject.trim()) {
           console.log('Filtering B.E.S.T. standards by subject:', subject);
@@ -99,7 +99,7 @@ export class CompetencyController {
           res.json(bestStandards);
           return;
         }
-        
+
         // Handle grade filter
         if (grade && grade !== 'all' && grade.trim()) {
           console.log('Filtering B.E.S.T. standards by grade:', grade);
@@ -108,7 +108,7 @@ export class CompetencyController {
           res.json(bestStandards);
           return;
         }
-        
+
         // Default: return all standards
         console.log('Fetching all B.E.S.T. standards');
         const bestStandards = await this.service.getAllBestStandards();
@@ -175,7 +175,7 @@ export class CompetencyController {
       }
     });
 
-    
+
 
     // Get competencies by learner outcome
     router.get('/learner-outcomes-hierarchy/:id/competencies', requireAuth, async (req: AuthenticatedRequest, res) => {
@@ -198,24 +198,6 @@ export class CompetencyController {
       } catch (error) {
         console.error("Error fetching component skills by competency:", error);
         res.status(500).json({ message: "Failed to fetch component skills" });
-      }
-    });
-
-    
-
-    // Get unique subjects and grades from B.E.S.T. standards
-    router.get('/best-standards/metadata', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const standards = await this.service.getAllBestStandards();
-
-        const subjects = Array.from(new Set(standards.map(s => s.subject).filter(Boolean))).sort();
-        const grades = Array.from(new Set(standards.map(s => s.grade).filter(Boolean))).sort();
-        const bodyOfKnowledge = Array.from(new Set(standards.map(s => s.bodyOfKnowledge).filter(Boolean))).sort();
-
-        res.json({ subjects, grades, bodyOfKnowledge });
-      } catch (error) {
-        console.error("Error fetching B.E.S.T. standards metadata:", error);
-        res.status(500).json({ message: "Failed to fetch B.E.S.T. standards metadata" });
       }
     });
 
