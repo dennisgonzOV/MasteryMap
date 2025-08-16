@@ -1,4 +1,4 @@
-import { asc, eq, inArray, like, or } from "drizzle-orm";
+import { asc, eq, inArray, like, or, isNotNull } from "drizzle-orm";
 import { db } from "../../db";
 import {
   competencies,
@@ -20,6 +20,7 @@ export interface ICompetencyStorage {
   getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
   getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
   searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
+  getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }>;
 
   // 3-Level Hierarchy operations
   getLearnerOutcomes(): Promise<LearnerOutcome[]>;
@@ -94,6 +95,34 @@ export class CompetencyStorage implements ICompetencyStorage {
         like(bestStandards.subject, `%${searchTerm}%`)
       ))
       .orderBy(asc(bestStandards.benchmarkNumber));
+  }
+
+  async getBestStandardsMetadata() {
+    try {
+      // Get unique subjects
+      const subjectsResult = await db.select({
+        subject: bestStandards.subject
+      })
+      .from(bestStandards)
+      .where(isNotNull(bestStandards.subject))
+      .groupBy(bestStandards.subject);
+
+      // Get unique grades
+      const gradesResult = await db.select({
+        grade: bestStandards.grade
+      })
+      .from(bestStandards)
+      .where(isNotNull(bestStandards.grade))
+      .groupBy(bestStandards.grade);
+
+      return {
+        subjects: subjectsResult.map(r => r.subject).filter(Boolean).sort(),
+        grades: gradesResult.map(r => r.grade).filter(Boolean).sort()
+      };
+    } catch (error) {
+      console.error('Error fetching best standards metadata:', error);
+      return { subjects: [], grades: [] };
+    }
   }
 
   // 3-Level Hierarchy operations

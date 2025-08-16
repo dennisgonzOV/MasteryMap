@@ -9,52 +9,7 @@ export class CompetencyController {
   createRouter(): Router {
     const router = Router();
 
-    // Get all competencies
-    router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const competencies = await this.service.getAllCompetencies();
-        res.json(competencies);
-      } catch (error) {
-        console.error("Error fetching competencies:", error);
-        res.status(500).json({ message: "Failed to fetch competencies" });
-      }
-    });
-
-    // Get all component skills
-    router.get('/component-skills', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const componentSkills = await this.service.getAllComponentSkills();
-        res.json(componentSkills);
-      } catch (error) {
-        console.error("Error fetching component skills:", error);
-        res.status(500).json({ message: "Failed to fetch component skills" });
-      }
-    });
-
-    // Get component skills with details (for assessment creation, etc.)
-    router.get('/component-skills/details', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const componentSkills = await this.service.getComponentSkillsWithDetails();
-        res.json(componentSkills);
-      } catch (error) {
-        console.error("Error fetching component skills details:", error);
-        res.status(500).json({ message: "Failed to fetch component skills details" });
-      }
-    });
-
-    // Get component skills by competency
-    router.get('/component-skills/by-competency/:competencyId', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const competencyId = parseInt(req.params.competencyId);
-        const componentSkills = await this.service.getComponentSkillsByCompetency(competencyId);
-        res.json(componentSkills);
-      } catch (error) {
-        console.error("Error fetching component skills by competency:", error);
-        res.status(500).json({ message: "Failed to fetch component skills" });
-      }
-    });
-
-    // Get all best standards with optional filtering
+    // Get all best standards with optional filtering - MOVED TO TOP TO AVOID ROUTE CONFLICTS
     router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         console.log('B.E.S.T. Standards request received:', {
@@ -126,6 +81,23 @@ export class CompetencyController {
       }
     });
 
+    // Get best standards metadata for filters
+    router.get('/best-standards/metadata', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        console.log('B.E.S.T. Standards metadata request received');
+        const metadata = await this.service.getBestStandardsMetadata();
+        console.log('Metadata result:', metadata);
+        res.json(metadata);
+      } catch (error) {
+        console.error("Error fetching best standards metadata:", error);
+        console.error("Error details:", {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        res.status(500).json({ message: "Failed to fetch best standards metadata", error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    });
+
     // Get best standards by competency
     router.get('/best-standards/by-competency/:competencyId', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
@@ -135,6 +107,51 @@ export class CompetencyController {
       } catch (error) {
         console.error("Error fetching best standards by competency:", error);
         res.status(500).json({ message: "Failed to fetch best standards" });
+      }
+    });
+
+    // Get all competencies
+    router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const competencies = await this.service.getAllCompetencies();
+        res.json(competencies);
+      } catch (error) {
+        console.error("Error fetching competencies:", error);
+        res.status(500).json({ message: "Failed to fetch competencies" });
+      }
+    });
+
+    // Get all component skills
+    router.get('/component-skills', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const componentSkills = await this.service.getAllComponentSkills();
+        res.json(componentSkills);
+      } catch (error) {
+        console.error("Error fetching component skills:", error);
+        res.status(500).json({ message: "Failed to fetch component skills" });
+      }
+    });
+
+    // Get component skills with details (for assessment creation, etc.)
+    router.get('/component-skills/details', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const componentSkills = await this.service.getComponentSkillsWithDetails();
+        res.json(componentSkills);
+      } catch (error) {
+        console.error("Error fetching component skills details:", error);
+        res.status(500).json({ message: "Failed to fetch component skills details" });
+      }
+    });
+
+    // Get component skills by competency
+    router.get('/component-skills/by-competency/:competencyId', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const competencyId = parseInt(req.params.competencyId);
+        const componentSkills = await this.service.getComponentSkillsByCompetency(competencyId);
+        res.json(componentSkills);
+      } catch (error) {
+        console.error("Error fetching component skills by competency:", error);
+        res.status(500).json({ message: "Failed to fetch component skills" });
       }
     });
 
