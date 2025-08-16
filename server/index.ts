@@ -72,10 +72,6 @@ handleUncaughtExceptions();
     
     const server = createServer(app);
 
-    // Add 404 handler for unmatched API routes BEFORE Vite/static setup
-    // This ensures API routes that don't exist return 404 JSON instead of HTML
-    app.use('/api/*', notFoundHandler);
-
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
@@ -84,6 +80,9 @@ handleUncaughtExceptions();
     } else {
       serveStatic(app);
     }
+    
+    // Add 404 handler for unmatched API routes AFTER Vite/static setup
+    app.use('/api/*', notFoundHandler);
     
     // Global error handler
     app.use(errorHandler);
