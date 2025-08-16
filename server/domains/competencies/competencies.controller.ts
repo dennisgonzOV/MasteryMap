@@ -59,22 +59,35 @@ export class CompetencyController {
       try {
         const { search, subject, grade } = req.query;
         
+        // Validate query parameters
+        if (search && typeof search !== 'string') {
+          return res.status(400).json({ message: "Invalid search parameter" });
+        }
+        
+        if (subject && typeof subject !== 'string') {
+          return res.status(400).json({ message: "Invalid subject parameter" });
+        }
+        
+        if (grade && typeof grade !== 'string') {
+          return res.status(400).json({ message: "Invalid grade parameter" });
+        }
+        
         // Handle search query
-        if (search && typeof search === 'string') {
+        if (search && search.trim()) {
           const bestStandards = await this.service.searchBestStandards(search);
           res.json(bestStandards);
           return;
         }
         
         // Handle subject filter
-        if (subject && typeof subject === 'string' && subject !== 'all') {
+        if (subject && subject !== 'all' && subject.trim()) {
           const bestStandards = await this.service.getBestStandardsBySubject(subject);
           res.json(bestStandards);
           return;
         }
         
         // Handle grade filter
-        if (grade && typeof grade === 'string' && grade !== 'all') {
+        if (grade && grade !== 'all' && grade.trim()) {
           const bestStandards = await this.service.getBestStandardsByGrade(grade);
           res.json(bestStandards);
           return;

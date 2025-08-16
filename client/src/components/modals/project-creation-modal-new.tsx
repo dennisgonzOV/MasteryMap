@@ -102,13 +102,20 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   });
 
   // Fetch B.E.S.T. Standards based on search/filter criteria
-  const { data: bestStandards = [], isLoading: isLoadingStandards } = useQuery({
+  const { data: bestStandards = [], isLoading: isLoadingStandards, error: standardsError } = useQuery({
     queryKey: ['/api/best-standards', { 
       search: standardsSearchTerm || undefined,
       subject: selectedSubject || undefined,
       grade: selectedGrade || undefined
     }],
     enabled: isOpen,
+    retry: (failureCount, error) => {
+      // Don't retry on validation errors
+      if (error?.message?.includes('parameter')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   // Populate form when projectIdea is provided
@@ -553,6 +560,10 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                   {isLoadingStandards ? (
                   <div className="flex items-center justify-center h-48">
                     <div className="text-muted-foreground">Loading B.E.S.T. standards...</div>
+                  </div>
+                ) : standardsError ? (
+                  <div className="flex items-center justify-center h-48">
+                    <div className="text-red-500">Error loading B.E.S.T. standards. Please check your search criteria.</div>
                   </div>
                 ) : (
                   <div className="max-h-[350px] overflow-y-auto border rounded-md p-4">
