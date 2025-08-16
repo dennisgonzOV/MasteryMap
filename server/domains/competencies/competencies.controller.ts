@@ -54,11 +54,24 @@ export class CompetencyController {
       }
     });
 
-    // Get all best standards
+    // Get all best standards with optional filtering
     router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
-        const bestStandards = await this.service.getAllBestStandards();
-        res.json(bestStandards);
+        const { search, subject, grade } = req.query;
+        
+        if (search && typeof search === 'string') {
+          const bestStandards = await this.service.searchBestStandards(search);
+          res.json(bestStandards);
+        } else if (subject && typeof subject === 'string') {
+          const bestStandards = await this.service.getBestStandardsBySubject(subject);
+          res.json(bestStandards);
+        } else if (grade && typeof grade === 'string') {
+          const bestStandards = await this.service.getBestStandardsByGrade(grade);
+          res.json(bestStandards);
+        } else {
+          const bestStandards = await this.service.getAllBestStandards();
+          res.json(bestStandards);
+        }
       } catch (error) {
         console.error("Error fetching best standards:", error);
         res.status(500).json({ message: "Failed to fetch best standards" });
@@ -114,16 +127,7 @@ export class CompetencyController {
       }
     });
 
-    // Handle root path for learner-outcomes-hierarchy
-    router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const learnerOutcomes = await this.service.getLearnerOutcomesWithCompetencies();
-        res.json(learnerOutcomes);
-      } catch (error) {
-        console.error("Error fetching learner outcomes hierarchy:", error);
-        res.status(500).json({ message: "Failed to fetch learner outcomes hierarchy" });
-      }
-    });
+    
 
     // Get competencies by learner outcome
     router.get('/learner-outcomes-hierarchy/:id/competencies', requireAuth, async (req: AuthenticatedRequest, res) => {
