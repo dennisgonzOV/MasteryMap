@@ -97,7 +97,7 @@ export class CompetencyStorage implements ICompetencyStorage {
       .orderBy(asc(bestStandards.benchmarkNumber));
   }
 
-  async getBestStandardsMetadata() {
+  async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }> {
     try {
       // Get unique subjects
       const subjectsResult = await db.select({
@@ -116,8 +116,8 @@ export class CompetencyStorage implements ICompetencyStorage {
       .groupBy(bestStandards.grade);
 
       return {
-        subjects: subjectsResult.map(r => r.subject).filter(Boolean).sort(),
-        grades: gradesResult.map(r => r.grade).filter(Boolean).sort()
+        subjects: subjectsResult.map(r => r.subject).filter((s): s is string => Boolean(s)).sort(),
+        grades: gradesResult.map(r => r.grade).filter((g): g is string => Boolean(g)).sort()
       };
     } catch (error) {
       console.error('Error fetching best standards metadata:', error);

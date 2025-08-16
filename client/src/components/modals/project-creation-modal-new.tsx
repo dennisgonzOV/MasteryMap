@@ -97,13 +97,13 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
   // Fetch B.E.S.T. Standards metadata for filters
   const { data: standardsMetadata } = useQuery({
-    queryKey: ['/api/best-standards/metadata'],
+    queryKey: ['/api/competencies/best-standards/metadata'],
     enabled: isOpen,
   });
 
   // Fetch B.E.S.T. Standards based on search/filter criteria
   const { data: bestStandards = [], isLoading: isLoadingStandards, error: standardsError } = useQuery({
-    queryKey: ['/api/best-standards', {
+    queryKey: ['/api/competencies/best-standards', {
       search: standardsSearchTerm?.trim() || undefined,
       subject: (selectedSubject && selectedSubject !== 'all') ? selectedSubject : undefined,
       grade: (selectedGrade && selectedGrade !== 'all') ? selectedGrade : undefined
