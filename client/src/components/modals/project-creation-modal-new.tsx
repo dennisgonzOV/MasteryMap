@@ -93,14 +93,19 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       }
       
       const data = await response.json();
-      console.log('Custom queryFn: Success data:', data);
+      console.log('Custom queryFn: Raw response data:', JSON.stringify(data, null, 2));
       console.log('Custom queryFn: Data type:', typeof data);
       console.log('Custom queryFn: Is array:', Array.isArray(data));
-      console.log('Custom queryFn: Data keys:', Object.keys(data));
       
-      // If the data is not an array, ensure we return an array
-      if (!Array.isArray(data)) {
-        console.log('Converting non-array response to array');
+      if (Array.isArray(data)) {
+        console.log('Custom queryFn: Array length:', data.length);
+        if (data.length > 0) {
+          console.log('Custom queryFn: First item:', JSON.stringify(data[0], null, 2));
+          console.log('Custom queryFn: First item competencies:', data[0].competencies?.length);
+        }
+      } else {
+        console.log('Custom queryFn: Data keys:', Object.keys(data));
+        console.log('Converting non-array response to empty array');
         return [];
       }
       return data;
