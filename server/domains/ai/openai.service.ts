@@ -144,8 +144,18 @@ Return the response as a JSON array of project objects with the following struct
       }
       
       // Parse the cleaned JSON response
-      const ideas = JSON.parse(cleanContent);
-      return Array.isArray(ideas) ? ideas : [ideas];
+      const parsed = JSON.parse(cleanContent);
+      
+      // Handle different response structures
+      if (parsed.projects && Array.isArray(parsed.projects)) {
+        return parsed.projects;
+      } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
+        return parsed.ideas;
+      } else if (Array.isArray(parsed)) {
+        return parsed;
+      } else {
+        return [parsed];
+      }
 
     } catch (error) {
       console.error("Error generating project ideas:", error);

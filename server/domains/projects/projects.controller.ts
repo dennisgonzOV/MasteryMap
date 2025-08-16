@@ -149,9 +149,11 @@ router.post('/:id/assign', requireAuth, async (req: AuthenticatedRequest, res) =
 // AI-powered routes
 router.post('/generate-ideas', requireAuth, requireRole('teacher', 'admin'), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
+    console.log('Generate Ideas Request Body:', req.body);
     const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
 
     if (!subject || !topic || !gradeLevel || !duration || !componentSkillIds?.length) {
+      console.log('Missing required fields:', { subject, topic, gradeLevel, duration, componentSkillIds });
       return res.status(400).json({ message: "Missing required fields" });
     }
 
