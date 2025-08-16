@@ -80,12 +80,6 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     enabled: isOpen,
   });
 
-  // Debug logging
-  console.log('Project Creation Modal - isOpen:', isOpen);
-  console.log('Project Creation Modal - isLoading:', isLoading);
-  console.log('Project Creation Modal - hierarchyData:', hierarchyData);
-  console.log('Project Creation Modal - error:', error);
-
   // Fetch B.E.S.T. Standards metadata for filters
   const { data: standardsMetadata } = useQuery({
     queryKey: ['/api/best-standards/metadata'],

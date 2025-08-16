@@ -1,6 +1,6 @@
 import { asc, eq, inArray, like, or } from "drizzle-orm";
 import { db } from "../../db";
-import { 
+import {
   competencies,
   componentSkills,
   bestStandards,
@@ -20,7 +20,7 @@ export interface ICompetencyStorage {
   getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
   getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
   searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
-  
+
   // 3-Level Hierarchy operations
   getLearnerOutcomes(): Promise<LearnerOutcome[]>;
   getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
@@ -90,7 +90,8 @@ export class CompetencyStorage implements ICompetencyStorage {
       .from(bestStandards)
       .where(or(
         like(bestStandards.description, `%${searchTerm}%`),
-        like(bestStandards.benchmarkNumber, `%${searchTerm}%`)
+        like(bestStandards.benchmarkNumber, `%${searchTerm}%`),
+        like(bestStandards.subject, `%${searchTerm}%`)
       ))
       .orderBy(asc(bestStandards.benchmarkNumber));
   }
