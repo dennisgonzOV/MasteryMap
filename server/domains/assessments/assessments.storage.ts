@@ -153,6 +153,10 @@ export class AssessmentStorage implements IAssessmentStorage {
   }
 
   async deleteAssessment(id: number): Promise<void> {
+    // First delete all related self-evaluations
+    await db.delete(selfEvaluations).where(eq(selfEvaluations.assessmentId, id));
+    
+    // Then delete the assessment
     await db.delete(assessments).where(eq(assessments.id, id));
   }
 
