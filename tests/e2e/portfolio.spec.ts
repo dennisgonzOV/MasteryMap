@@ -5,16 +5,14 @@ test.describe('Digital Portfolio Workflows', () => {
   test.beforeEach(async ({ page }) => {
     // Setup: Register and login student with some achievements
     await page.goto('/register');
-    await page.fill('[name="firstName"]', 'Portfolio');
-    await page.fill('[name="lastName"]', 'Student');
-    await page.fill('[name="email"]', 'e2e-portfolio-student@psi.edu');
+    await page.fill('[name="username"]', 'e2e-portfolio-student');
     await page.fill('[name="password"]', 'Test123!');
     await page.selectOption('[name="role"]', 'student');
     await page.selectOption('[name="schoolId"]', { label: testSchool.name });
     await page.click('button[type="submit"]');
 
     await page.goto('/login');
-    await page.fill('[name="email"]', 'e2e-portfolio-student@psi.edu');
+    await page.fill('[name="username"]', 'e2e-portfolio-student');
     await page.fill('[name="password"]', 'Test123!');
     await page.click('button[type="submit"]');
   });
@@ -63,7 +61,7 @@ test.describe('Digital Portfolio Workflows', () => {
       
       // Should show public portfolio
       await expect(publicPage.locator('h1')).toContainText('Portfolio');
-      await expect(publicPage.locator('.student-name')).toContainText('Portfolio Student');
+      await expect(publicPage.locator('.student-name')).toContainText('e2e-portfolio-student');
       
       // Should be read-only (no edit buttons)
       await expect(publicPage.locator('button:has-text("Edit")')).not.toBeVisible();

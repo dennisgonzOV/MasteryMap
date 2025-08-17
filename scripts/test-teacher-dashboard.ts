@@ -16,31 +16,27 @@ async function testTeacherDashboard() {
     // Check teachers
     const teachers = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'teacher'));
 
     console.log(`\nTeachers: ${teachers.length}`);
     teachers.forEach(teacher => {
-      console.log(`  - ${teacher.firstName} ${teacher.lastName} (ID: ${teacher.id}, SchoolID: ${teacher.schoolId || 'NULL'})`);
+      console.log(`  - ${teacher.username} (ID: ${teacher.id}, SchoolID: ${teacher.schoolId || 'NULL'})`);
     });
 
     // Check students
     const students = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'student'));
 
     console.log(`\nStudents: ${students.length}`);
     students.forEach(student => {
-      console.log(`  - ${student.firstName} ${student.lastName} (ID: ${student.id}, SchoolID: ${student.schoolId || 'NULL'})`);
+      console.log(`  - ${student.username} (ID: ${student.id}, SchoolID: ${student.schoolId || 'NULL'})`);
     });
 
     // Test the specific query that the dashboard uses
@@ -61,11 +57,11 @@ async function testTeacherDashboard() {
         const schoolStudents = await db.select()
           .from(users)
           .where(eq(users.schoolId, teacher[0].schoolId))
-          .orderBy(users.firstName);
+          .orderBy(users.username);
 
         console.log(`Students in same school: ${schoolStudents.length}`);
         schoolStudents.forEach(student => {
-          console.log(`  - ${student.firstName} ${student.lastName} (${student.role})`);
+          console.log(`  - ${student.username} (${student.role})`);
         });
       } else {
         console.log("Teacher has no school ID!");

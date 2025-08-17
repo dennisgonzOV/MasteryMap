@@ -16,9 +16,9 @@ async function updateAdminSchool() {
     console.log("");
 
     console.log("Current admin user:");
-    const admin = await db.select().from(usersTable).where(eq(usersTable.email, "psiadmin@test.com")).limit(1);
+    const admin = await db.select().from(usersTable).where(eq(usersTable.username, "admin")).limit(1);
     if (admin.length > 0) {
-      console.log(`- Email: ${admin[0].email}, Current School ID: ${admin[0].schoolId}`);
+      console.log(`- Username: ${admin[0].username}, Current School ID: ${admin[0].schoolId}`);
     } else {
       console.log("Admin user not found!");
       return;
@@ -41,7 +41,7 @@ async function updateAdminSchool() {
     console.log("Updating admin user's school...");
     await db.update(usersTable)
       .set({ schoolId: psiHighSchool.id })
-      .where(eq(usersTable.email, "psiadmin@test.com"));
+      .where(eq(usersTable.username, "admin"));
     
     console.log("✓ Admin user school updated");
 
@@ -75,9 +75,9 @@ async function updateAdminSchool() {
     });
 
     console.log("\nUpdated admin user:");
-    const updatedAdmin = await db.select().from(usersTable).where(eq(usersTable.email, "psiadmin@test.com")).limit(1);
+    const updatedAdmin = await db.select().from(usersTable).where(eq(usersTable.username, "admin")).limit(1);
     if (updatedAdmin.length > 0) {
-      console.log(`- Email: ${updatedAdmin[0].email}, School ID: ${updatedAdmin[0].schoolId}`);
+      console.log(`- Username: ${updatedAdmin[0].username}, School ID: ${updatedAdmin[0].schoolId}`);
     }
 
     console.log("\n✅ All updates completed successfully!");

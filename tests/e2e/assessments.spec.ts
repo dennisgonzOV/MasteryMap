@@ -17,31 +17,27 @@ test.describe('Assessment Workflows', () => {
 
     // Register and login teacher
     await teacherPage.goto('/register');
-    await teacherPage.fill('[name="firstName"]', 'Assessment');
-    await teacherPage.fill('[name="lastName"]', 'Teacher');
-    await teacherPage.fill('[name="email"]', 'e2e-assessment-teacher@psi.edu');
+    await teacherPage.fill('[name="username"]', 'e2e-assessment-teacher');
     await teacherPage.fill('[name="password"]', 'Test123!');
     await teacherPage.selectOption('[name="role"]', 'teacher');
     await teacherPage.selectOption('[name="schoolId"]', { label: testSchool.name });
     await teacherPage.click('button[type="submit"]');
 
     await teacherPage.goto('/login');
-    await teacherPage.fill('[name="email"]', 'e2e-assessment-teacher@psi.edu');
+    await teacherPage.fill('[name="username"]', 'e2e-assessment-teacher');
     await teacherPage.fill('[name="password"]', 'Test123!');
     await teacherPage.click('button[type="submit"]');
 
     // Register and login student
     await studentPage.goto('/register');
-    await studentPage.fill('[name="firstName"]', 'Assessment');
-    await studentPage.fill('[name="lastName"]', 'Student');
-    await studentPage.fill('[name="email"]', 'e2e-assessment-student@psi.edu');
+    await studentPage.fill('[name="username"]', 'e2e-assessment-student');
     await studentPage.fill('[name="password"]', 'Test123!');
     await studentPage.selectOption('[name="role"]', 'student');
     await studentPage.selectOption('[name="schoolId"]', { label: testSchool.name });
     await studentPage.click('button[type="submit"]');
 
     await studentPage.goto('/login');
-    await studentPage.fill('[name="email"]', 'e2e-assessment-student@psi.edu');
+    await studentPage.fill('[name="username"]', 'e2e-assessment-student');
     await studentPage.fill('[name="password"]', 'Test123!');
     await studentPage.click('button[type="submit"]');
   });

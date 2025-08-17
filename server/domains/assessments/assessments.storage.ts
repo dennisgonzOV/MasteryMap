@@ -285,8 +285,7 @@ export class AssessmentStorage implements IAssessmentStorage {
         studentId: submissions.studentId,
         responses: submissions.responses,
         submittedAt: submissions.submittedAt,
-        studentName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
-        studentEmail: users.email,
+        studentName: users.username,
       })
       .from(submissions)
       .innerJoin(users, eq(submissions.studentId, users.id))

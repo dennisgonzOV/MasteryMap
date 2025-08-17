@@ -428,12 +428,10 @@ projectTeamsRouter.get('/:teamId/members', requireAuth, async (req, res) => {
       studentId: projectTeamMembers.studentId,
       role: projectTeamMembers.role,
       joinedAt: projectTeamMembers.joinedAt,
-      studentName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+      studentName: users.username,
       student: {
         id: users.id,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        email: users.email
+        username: users.username
       }
     })
       .from(projectTeamMembers)

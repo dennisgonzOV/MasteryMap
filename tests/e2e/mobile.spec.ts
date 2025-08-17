@@ -7,16 +7,14 @@ test.describe('Mobile Responsiveness', () => {
   test.beforeEach(async ({ page }) => {
     // Setup: Login as student
     await page.goto('/register');
-    await page.fill('[name="firstName"]', 'Mobile');
-    await page.fill('[name="lastName"]', 'Student');
-    await page.fill('[name="email"]', 'e2e-mobile-student@psi.edu');
+    await page.fill('[name="username"]', 'e2e-mobile-student');
     await page.fill('[name="password"]', 'Test123!');
     await page.selectOption('[name="role"]', 'student');
     await page.selectOption('[name="schoolId"]', { label: testSchool.name });
     await page.click('button[type="submit"]');
 
     await page.goto('/login');
-    await page.fill('[name="email"]', 'e2e-mobile-student@psi.edu');
+    await page.fill('[name="username"]', 'e2e-mobile-student');
     await page.fill('[name="password"]', 'Test123!');
     await page.click('button[type="submit"]');
   });

@@ -39,9 +39,7 @@ describe('MasteryMap Baseline Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({
-          firstName: 'Test',
-          lastName: 'User',
-          email: 'baseline-test@example.com',
+          username: 'baseline-test',
           password: 'TestPassword123!',
           role: 'student',
           schoolId: 1
@@ -55,7 +53,7 @@ describe('MasteryMap Baseline Integration Tests', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: 'nonexistent@example.com',
+          username: 'nonexistent',
           password: 'wrongpassword'
         });
       
@@ -131,7 +129,7 @@ describe('MasteryMap Baseline Integration Tests', () => {
         .post('/api/auth/register')
         .send({
           // Missing required fields
-          email: 'test@example.com'
+          username: 'test'
         });
       
       expect(response.status).toBe(400);
@@ -173,9 +171,7 @@ describe('Pre-Modularization Functionality Check', () => {
     const registerResponse = await request(app)
       .post('/api/auth/register')
       .send({
-        firstName: 'Baseline',
-        lastName: 'Test',
-        email: `baseline-${Date.now()}@example.com`,
+        username: `baseline-${Date.now()}`,
         password: 'SecurePass123!',
         role: 'student',
         schoolId: 1
@@ -188,7 +184,7 @@ describe('Pre-Modularization Functionality Check', () => {
     const loginResponse = await request(app)
       .post('/api/auth/login')
       .send({
-        email: 'test@example.com',
+        username: 'test',
         password: 'wrongpassword'
       });
     

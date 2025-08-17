@@ -22,9 +22,7 @@ interface ProjectTeamSelectionModalProps {
 
 interface Student {
   id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
+  username: string;
 }
 
 export default function ProjectTeamSelectionModal({
@@ -57,8 +55,7 @@ export default function ProjectTeamSelectionModal({
     
     const query = searchQuery.toLowerCase();
     return studentsArray.filter(student => 
-      `${student.firstName} ${student.lastName}`.toLowerCase().includes(query) ||
-      student.email.toLowerCase().includes(query)
+      student.username.toLowerCase().includes(query)
     );
   }, [studentsArray, searchQuery]);
 
@@ -172,7 +169,7 @@ export default function ProjectTeamSelectionModal({
   const getSelectedStudentNames = () => {
     return studentsArray
       .filter((student: Student) => selectedStudents.includes(student.id))
-      .map((student: Student) => `${student.firstName} ${student.lastName}`)
+      .map((student: Student) => student.username)
       .join(', ');
   };
 
@@ -243,10 +240,10 @@ export default function ProjectTeamSelectionModal({
                         />
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">
-                            {student.firstName} {student.lastName}
+                            {student.username}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {student.email}
+                            {student.username}
                           </p>
                         </div>
                       </div>
