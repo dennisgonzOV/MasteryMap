@@ -278,20 +278,24 @@ export class AssessmentStorage implements IAssessmentStorage {
   }
 
   async getSubmissionsByAssessment(assessmentId: number): Promise<any[]> {
-    return await db
+    const result = await db
       .select({
         id: submissions.id,
-        assessmentId: submissions.assessmentId,
         studentId: submissions.studentId,
+        studentName: users.username,
+        studentUsername: users.username,
         responses: submissions.responses,
         submittedAt: submissions.submittedAt,
-        studentName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
-        studentEmail: users.email,
+        grade: submissions.grade,
+        feedback: submissions.feedback,
+        aiGeneratedFeedback: submissions.aiGeneratedFeedback,
       })
       .from(submissions)
       .innerJoin(users, eq(submissions.studentId, users.id))
       .where(eq(submissions.assessmentId, assessmentId))
       .orderBy(desc(submissions.submittedAt));
+
+    return result;
   }
 
   async updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission> {
