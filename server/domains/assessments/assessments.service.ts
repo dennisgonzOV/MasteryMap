@@ -134,26 +134,45 @@ export class AssessmentService {
   }
 
   async getSubmissionsByAssessment(assessmentId: number): Promise<any[]> {
-    const submissions = await this.storage.getSubmissionsByAssessment(assessmentId);
-    const assessment = await this.storage.getAssessment(assessmentId);
+    try {
+      const submissions = await this.storage.getSubmissionsByAssessment(assessmentId);
+      const assessment = await this.storage.getAssessment(assessmentId);
 
-    // Add enhanced data including grades and late status
-    const enhancedSubmissions = await Promise.all(
-      submissions.map(async (submission) => {
-        const grades = await this.storage.getGradesBySubmission(submission.id);
+      if (!submissions || submissions.length === 0) {
+        return [];
+      }
 
-        console.log(`Submission ${submission.id} has ${grades.length} grades:`, grades);
+      // Add enhanced data including grades and late status
+      const enhancedSubmissions = await Promise.all(
+        submissions.map(async (submission) => {
+          try {
+            const grades = await this.storage.getGradesBySubmission(submission.id);
 
-        return {
-          ...submission,
-          answers: submission.responses || {},
-          grades: grades,
-          isLate: assessment?.dueDate ? new Date(submission.submittedAt) > new Date(assessment.dueDate) : false
-        };
-      })
-    );
+            console.log(`Submission ${submission.id} has ${grades.length} grades:`, grades);
 
-    return enhancedSubmissions;
+            return {
+              ...submission,
+              answers: submission.responses || {},
+              grades: grades || [],
+              isLate: assessment?.dueDate ? new Date(submission.submittedAt) > new Date(assessment.dueDate) : false
+            };
+          } catch (error) {
+            console.error(`Error processing submission ${submission.id}:`, error);
+            return {
+              ...submission,
+              answers: submission.responses || {},
+              grades: [],
+              isLate: false
+            };
+          }
+        })
+      );
+
+      return enhancedSubmissions;
+    } catch (error) {
+      console.error("Error in getSubmissionsByAssessment service:", error);
+      throw new Error("Failed to fetch submissions");
+    }
   }
 
   async updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission> {
