@@ -75,7 +75,7 @@ interface Submission {
   id: number;
   studentId: number;
   studentName: string;
-  studentEmail: string;
+  studentUsername: string;
   submittedAt: string;
   responses: Array<{
     questionId: string;
@@ -723,7 +723,7 @@ export default function AssessmentSubmissions() {
 
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{submission.studentName}</h3>
-                          <p className="text-sm text-gray-500">{submission.studentEmail}</p>
+                          <p className="text-sm text-gray-500">{submission.studentUsername}</p>
                           <div className="flex items-center space-x-4 mt-1">
                             <span className="text-xs text-gray-500">
                               Submitted: {format(new Date(submission.submittedAt), 'MMM d, yyyy h:mm a')}

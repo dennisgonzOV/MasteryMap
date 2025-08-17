@@ -29,7 +29,7 @@ async function createAdminUser() {
 
     // Check if admin user already exists
     const existingAdmin = await db.select().from(users)
-      .where(eq(users.email, "psiadmin@test.com"))
+      .where(eq(users.username, "psiadmin"))
       .limit(1);
 
     if (existingAdmin.length > 0) {
@@ -42,27 +42,22 @@ async function createAdminUser() {
 
     // Create the admin user
     const adminUser = await db.insert(users).values({
-      email: "psiadmin@test.com",
+      username: "psiadmin",
       password: hashedPassword,
-      firstName: "Admin",
-      lastName: "User",
       role: "admin",
-      schoolId: schoolId,
-      emailConfirmed: true
+      schoolId: schoolId
     }).returning();
 
     console.log("Created admin user successfully:");
     console.log({
       id: adminUser[0].id,
-      email: adminUser[0].email,
-      firstName: adminUser[0].firstName,
-      lastName: adminUser[0].lastName,
+      username: adminUser[0].username,
       role: adminUser[0].role,
       schoolId: adminUser[0].schoolId
     });
 
     console.log("\nLogin credentials:");
-    console.log("Email: psiadmin@test.com");
+    console.log("Username: psiadmin");
     console.log("Password: test1234");
 
   } catch (error) {

@@ -36,7 +36,7 @@ interface Submission {
   id: number;
   studentId: number;
   studentName: string;
-  studentEmail: string;
+  studentUsername: string;
   submittedAt: string;
   answers: Record<string, string>;
   grade?: number;

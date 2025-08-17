@@ -33,8 +33,7 @@ export default function AdminPasswordReset() {
   // Filter users based on search term and user type
   const filteredUsers = users?.filter((user: any) => {
     const matchesSearch = 
-      `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.username.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesType = userType === 'students' 
       ? user.role === 'student' 
@@ -145,7 +144,7 @@ export default function AdminPasswordReset() {
           <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder={`Search ${userType} by name or email...`}
+                              placeholder={`Search ${userType} by username...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -174,14 +173,14 @@ export default function AdminPasswordReset() {
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">
                             <AvatarFallback>
-                              {user.firstName[0]}{user.lastName[0]}
+                              {user.username[0].toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <h4 className="font-medium text-sm">
-                              {user.firstName} {user.lastName}
+                              {user.username}
                             </h4>
-                            <p className="text-xs text-gray-600">{user.email}</p>
+                            <p className="text-xs text-gray-600">{user.role}</p>
                             {user.grade && (
                               <p className="text-xs text-gray-500">Grade {user.grade}</p>
                             )}
@@ -211,14 +210,14 @@ export default function AdminPasswordReset() {
                     <div className="flex items-center space-x-4 pt-4">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback className="text-lg">
-                          {selectedUser.firstName[0]}{selectedUser.lastName[0]}
+                          {selectedUser.username[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <h2 className="text-xl font-bold">
-                          {selectedUser.firstName} {selectedUser.lastName}
+                          {selectedUser.username}
                         </h2>
-                        <p className="text-gray-600">{selectedUser.email}</p>
+                        <p className="text-gray-600">{selectedUser.role}</p>
                         <p className="text-sm text-gray-500 capitalize">{selectedUser.role}</p>
                         {selectedUser.grade && (
                           <p className="text-sm text-gray-500">Grade {selectedUser.grade}</p>

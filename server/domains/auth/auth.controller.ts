@@ -221,9 +221,7 @@ export const createAdminRouter = () => {
       // Format the response to include only the fields we need
       const formattedUsers = schoolUsers.map(user => ({
         id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        username: user.username,
         role: user.role,
         schoolId: user.schoolId
       }));

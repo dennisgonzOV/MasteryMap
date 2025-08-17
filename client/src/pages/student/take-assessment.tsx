@@ -683,7 +683,7 @@ export default function TakeAssessment() {
           <div className="flex items-center space-x-2">
             <User className="h-4 w-4 text-gray-500" />
             <span className="text-sm text-gray-600">
-              {user?.firstName} {user?.lastName}
+                              {user?.username}
             </span>
           </div>
 

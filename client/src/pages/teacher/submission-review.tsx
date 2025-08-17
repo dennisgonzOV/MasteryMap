@@ -50,7 +50,7 @@ interface Submission {
   assessmentId: number;
   studentId: number;
   studentName: string;
-  studentEmail: string;
+  studentUsername: string;
   submittedAt: string;
   responses: Record<string, string> | { questionId: string; answer: string }[];
   grade?: number;
@@ -381,8 +381,8 @@ export default function SubmissionReview() {
                     <p className="text-gray-900">{submission.studentName}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-700">Email</Label>
-                    <p className="text-gray-900">{submission.studentEmail}</p>
+                                    <Label className="text-sm font-medium text-gray-700">Username</Label>
+                <p className="text-gray-900">{submission.studentUsername}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-700">Submitted</Label>

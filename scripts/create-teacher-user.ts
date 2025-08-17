@@ -42,28 +42,23 @@ async function createTeacherUser() {
 
     // Create the teacher user
     const teacherUser = await db.insert(users).values({
-      username: "DGon393",
+      username: "teacher",
       password: hashedPassword,
-      firstName: "Teacher",
-      lastName: "Sample",
       role: "teacher",
-      schoolId: schoolId,
-      emailConfirmed: true
+      schoolId: schoolId
     }).returning();
 
     console.log("Created teacher user successfully:");
     console.log({
       id: teacherUser[0].id,
       username: teacherUser[0].username,
-      firstName: teacherUser[0].firstName,
-      lastName: teacherUser[0].lastName,
       role: teacherUser[0].role,
       schoolId: teacherUser[0].schoolId
     });
 
     console.log("\nLogin credentials:");
-    console.log("Username: DGon393");
-    console.log("Password: PSIHigh2025");
+    console.log("Username: teacher");
+    console.log("Password: test1234");
 
   } catch (error) {
     console.error("Error creating teacher user:", error);

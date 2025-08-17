@@ -32,22 +32,22 @@ describe('Authentication API', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.user).toBeDefined();
-      expect(response.body.user.email).toBe(testUsers.newTeacher.email);
+      expect(response.body.user.username).toBe(testUsers.newTeacher.username);
       expect(response.body.user.role).toBe('teacher');
       expect(response.body.token).toBeDefined();
     });
 
-    it('should reject registration with invalid email', async () => {
+    it('should reject registration with invalid username', async () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({
           ...testUsers.teacher,
-          email: 'invalid-email',
+          username: 'ab',
           schoolId
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('email');
+      expect(response.body.message).toContain('username');
     });
 
     it('should reject registration with weak password', async () => {
@@ -55,7 +55,7 @@ describe('Authentication API', () => {
         .post('/api/auth/register')
         .send({
           ...testUsers.teacher,
-          email: 'new@test.com',
+          username: 'newuser',
           password: '123',
           schoolId
         });
@@ -78,7 +78,7 @@ describe('Authentication API', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUsers.teacher.email,
+          username: testUsers.teacher.username,
           password: testUsers.teacher.password
         });
 
@@ -92,7 +92,7 @@ describe('Authentication API', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUsers.teacher.email,
+          username: testUsers.teacher.username,
           password: 'wrongpassword'
         });
 
@@ -109,7 +109,7 @@ describe('Authentication API', () => {
       const loginResponse = await request(app)
         .post('/api/auth/login')
         .send({
-          email: testUsers.teacher.email,
+          username: testUsers.teacher.username,
           password: testUsers.teacher.password
         });
       authToken = loginResponse.body.token;
@@ -121,7 +121,7 @@ describe('Authentication API', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.email).toBe(testUsers.teacher.email);
+      expect(response.body.username).toBe(testUsers.teacher.username);
     });
 
     it('should reject access without token', async () => {

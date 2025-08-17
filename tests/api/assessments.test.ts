@@ -28,7 +28,7 @@ describe('Assessments API', () => {
       .post('/api/auth/register')
       .send({
         ...testUsers.teacher,
-        email: 'assessment-teacher@psi.edu',
+        username: 'assessment-teacher',
         schoolId
       });
     teacherToken = teacherResponse.body.token;
@@ -38,7 +38,7 @@ describe('Assessments API', () => {
       .post('/api/auth/register')
       .send({
         ...testUsers.student,
-        email: 'assessment-student@psi.edu',
+        username: 'assessment-student',
         schoolId
       });
     studentToken = studentResponse.body.token;

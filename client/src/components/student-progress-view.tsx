@@ -22,9 +22,7 @@ import { CompetencyProgress } from "@/components/competency-progress";
 
 interface StudentProgress {
   id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
+  username: string;
   grade: string;
   projects: Array<{
     projectId: number;
@@ -64,8 +62,7 @@ export default function StudentProgressView() {
   });
 
   const filteredStudents = studentsProgress.filter((student: StudentProgress) =>
-    `${student.firstName} ${student.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase())
+    student.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getCredentialIcon = (type: string) => {
@@ -104,7 +101,7 @@ export default function StudentProgressView() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
         <Input
-          placeholder="Search students by name or email..."
+          placeholder="Search students by username..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
@@ -133,12 +130,12 @@ export default function StudentProgressView() {
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>
-                          {student.firstName[0]}{student.lastName[0]}
+                          {student.username[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <h4 className="font-medium text-sm">
-                          {student.firstName} {student.lastName}
+                          {student.username}
                         </h4>
                         <p className="text-xs text-gray-600">Grade {student.grade}</p>
                       </div>
@@ -172,14 +169,14 @@ export default function StudentProgressView() {
                     <div className="flex items-center space-x-4 mb-4">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback className="text-lg">
-                          {selectedStudent.firstName[0]}{selectedStudent.lastName[0]}
+                          {selectedStudent.username[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <h2 className="text-xl font-bold">
-                          {selectedStudent.firstName} {selectedStudent.lastName}
+                          {selectedStudent.username}
                         </h2>
-                        <p className="text-gray-600">{selectedStudent.email}</p>
+                        <p className="text-gray-600">Grade {selectedStudent.grade}</p>
                         <p className="text-sm text-gray-500">Grade {selectedStudent.grade}</p>
                       </div>
                     </div>

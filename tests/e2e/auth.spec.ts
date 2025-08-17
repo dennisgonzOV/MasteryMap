@@ -7,9 +7,7 @@ test.describe('Authentication Workflows', () => {
       await page.goto('/register');
 
       // Fill registration form
-      await page.fill('[name="firstName"]', testUsers.newTeacher.firstName);
-      await page.fill('[name="lastName"]', testUsers.newTeacher.lastName);
-      await page.fill('[name="email"]', `e2e-${testUsers.newTeacher.email}`);
+      await page.fill('[name="username"]', `e2e-${testUsers.newTeacher.username}`);
       await page.fill('[name="password"]', testUsers.newTeacher.password);
       
       // Select role and school
@@ -24,20 +22,20 @@ test.describe('Authentication Workflows', () => {
       await expect(page.locator('.toast')).toContainText('Registration successful');
     });
 
-    test('should validate email format', async ({ page }) => {
+    test('should validate username format', async ({ page }) => {
       await page.goto('/register');
 
-      await page.fill('[name="email"]', 'invalid-email');
+      await page.fill('[name="username"]', 'ab');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
 
-      await expect(page.locator('.text-red-500')).toContainText('email');
+      await expect(page.locator('.text-red-500')).toContainText('username');
     });
 
     test('should validate password strength', async ({ page }) => {
       await page.goto('/register');
 
-      await page.fill('[name="email"]', 'test@example.com');
+      await page.fill('[name="username"]', 'testuser');
       await page.fill('[name="password"]', '123');
       await page.click('button[type="submit"]');
 
@@ -49,9 +47,7 @@ test.describe('Authentication Workflows', () => {
     test.beforeEach(async ({ page }) => {
       // Register a user first
       await page.goto('/register');
-      await page.fill('[name="firstName"]', 'Test');
-      await page.fill('[name="lastName"]', 'Teacher');
-      await page.fill('[name="email"]', 'e2e-login-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-login-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.selectOption('[name="role"]', 'teacher');
       await page.selectOption('[name="schoolId"]', { label: testSchool.name });
@@ -61,20 +57,20 @@ test.describe('Authentication Workflows', () => {
     test('should login with valid credentials', async ({ page }) => {
       await page.goto('/login');
 
-      await page.fill('[name="email"]', 'e2e-login-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-login-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
 
       // Should redirect to teacher dashboard
       await expect(page).toHaveURL('/teacher/dashboard');
       await expect(page.locator('h1')).toContainText('Teacher Dashboard');
-      await expect(page.locator('[data-testid="user-name"]')).toContainText('Test Teacher');
+      await expect(page.locator('[data-testid="user-name"]')).toContainText('e2e-login-teacher');
     });
 
     test('should reject invalid credentials', async ({ page }) => {
       await page.goto('/login');
 
-      await page.fill('[name="email"]', 'e2e-login-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-login-teacher');
       await page.fill('[name="password"]', 'wrongpassword');
       await page.click('button[type="submit"]');
 
@@ -92,7 +88,7 @@ test.describe('Authentication Workflows', () => {
     test('should show role-appropriate navigation', async ({ page }) => {
       // Login as teacher
       await page.goto('/login');
-      await page.fill('[name="email"]', 'e2e-login-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-login-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
 
@@ -107,7 +103,7 @@ test.describe('Authentication Workflows', () => {
     test('should maintain session across page refreshes', async ({ page }) => {
       // Login
       await page.goto('/login');
-      await page.fill('[name="email"]', 'e2e-login-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-login-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
 
@@ -122,7 +118,7 @@ test.describe('Authentication Workflows', () => {
     test('should logout successfully', async ({ page }) => {
       // Login first
       await page.goto('/login');
-      await page.fill('[name="email"]', 'e2e-login-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-login-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
 

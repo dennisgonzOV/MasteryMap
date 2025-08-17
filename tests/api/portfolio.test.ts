@@ -25,7 +25,7 @@ describe('Portfolio API', () => {
       .post('/api/auth/register')
       .send({
         ...testUsers.student,
-        email: 'portfolio-student@psi.edu',
+        username: 'portfolio-student',
         schoolId
       });
     studentToken = studentResponse.body.token;

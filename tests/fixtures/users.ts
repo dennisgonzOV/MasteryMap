@@ -1,45 +1,33 @@
 // Test users for integration tests
 export const testUsers = {
   admin: {
-    email: 'admin@psi.edu',
+    username: 'admin',
     password: 'Test123!',
-    firstName: 'Admin',
-    lastName: 'User',
     role: 'admin' as const,
   },
   teacher: {
-    email: 'teacher@psi.edu', 
+    username: 'teacher', 
     password: 'Test123!',
-    firstName: 'Teacher',
-    lastName: 'User',
     role: 'teacher' as const,
   },
   student: {
-    email: 'student@psi.edu',
+    username: 'student',
     password: 'Test123!',
-    firstName: 'Student',
-    lastName: 'User', 
     role: 'student' as const,
   },
   student2: {
-    email: 'student2@psi.edu',
+    username: 'student2',
     password: 'Test123!',
-    firstName: 'Student',
-    lastName: 'Two',
     role: 'student' as const,
   },
   student3: {
-    email: 'student3@psi.edu',
+    username: 'student3',
     password: 'Test123!',
-    firstName: 'Student', 
-    lastName: 'Three',
     role: 'student' as const,
   },
   newTeacher: {
-    email: 'sjohnson@psi.edu',
+    username: 'sjohnson',
     password: 'SecurePass123!',
-    firstName: 'Sarah',
-    lastName: 'Johnson',
     role: 'teacher' as const,
   }
 };

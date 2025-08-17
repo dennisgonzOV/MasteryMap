@@ -26,9 +26,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
     // Get student information
     const student = await db.select({
       id: usersTable.id,
-      firstName: usersTable.firstName,
-      lastName: usersTable.lastName,
-      email: usersTable.email,
+      username: usersTable.username,
       schoolId: usersTable.schoolId
     })
     .from(usersTable)
@@ -59,9 +57,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
         // Get the project teacher through milestone -> project -> teacher
         const projectTeacher = await db.select({
           id: usersTable.id,
-          firstName: usersTable.firstName,
-          lastName: usersTable.lastName,
-          email: usersTable.email
+          username: usersTable.username
         })
         .from(usersTable)
         .innerJoin(projectsTable, eq(projectsTable.teacherId, usersTable.id))
@@ -80,9 +76,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
     if (teachersToNotify.length === 0) {
       teachersToNotify = await db.select({
         id: usersTable.id,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-        email: usersTable.email
+        username: usersTable.username
       })
       .from(usersTable)
       .where(eq(usersTable.schoolId, studentInfo.schoolId!))
@@ -118,7 +112,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
     // Log the incident for record keeping
     console.log("SAFETY INCIDENT NOTIFICATION:", {
       studentId: incident.studentId,
-      studentName: `${studentInfo.firstName} ${studentInfo.lastName}`,
+      studentName: studentInfo.username,
       incidentType: incident.incidentType,
       timestamp: incident.timestamp.toISOString(),
       teachersNotified: teachersToNotify.length,
@@ -146,10 +140,10 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
         title: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal'))
           ? 'URGENT: Safety Incident Reported'
           : 'Safety Incident: Inappropriate Language',
-        message: `Student ${studentInfo.firstName} ${studentInfo.lastName} triggered a safety alert during AI chat interaction.${contextInfo}`,
+        message: `Student ${studentInfo.username} triggered a safety alert during AI chat interaction.${contextInfo}`,
         metadata: {
           studentId: incident.studentId,
-          studentName: `${studentInfo.firstName} ${studentInfo.lastName}`,
+          studentName: studentInfo.username,
           incidentType: incident.incidentType,
           severity: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal')) ? 'critical' : 'high'
         },
@@ -166,8 +160,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
       severity: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal')) ? 'CRITICAL' : 'HIGH',
       student: {
         id: studentInfo.id,
-        name: `${studentInfo.firstName} ${studentInfo.lastName}`,
-        email: studentInfo.email
+        name: studentInfo.username,
       },
       incident: {
         type: incident.incidentType,
@@ -177,8 +170,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
       context: contextInfo,
       teachersNotified: teachersToNotify.map(t => ({
         id: t.id,
-        name: `${t.firstName} ${t.lastName}`,
-        email: t.email
+        name: t.username,
       })),
       actionTaken: 'Conversation terminated, teachers notified'
     };
@@ -199,9 +191,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
 export async function getTeachersBySchool(schoolId: number) {
   return await db.select({
     id: usersTable.id,
-    firstName: usersTable.firstName,
-    lastName: usersTable.lastName,
-    email: usersTable.email
+    username: usersTable.username
   })
   .from(usersTable)
   .where(eq(usersTable.schoolId, schoolId))

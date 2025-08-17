@@ -276,7 +276,7 @@ export class ProjectsStorage implements IProjectsStorage {
     return await db.select().from(users).where(and(
       eq(users.schoolId, schoolId),
       eq(users.role, 'student')
-    )).orderBy(asc(users.firstName), asc(users.lastName));
+    )).orderBy(asc(users.username));
   }
 
 
@@ -456,8 +456,7 @@ export class ProjectsStorage implements IProjectsStorage {
       submissionId: submissions.id,
       assessmentTitle: assessments.title,
       projectTitle: projects.title,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       submittedAt: submissions.submittedAt
     })
       .from(submissions)
@@ -475,10 +474,10 @@ export class ProjectsStorage implements IProjectsStorage {
       id: submission.submissionId,
       type: 'grading' as const,
       title: "Grade " + submission.assessmentTitle,
-      description: "Review submission for " + submission.firstName + " " + submission.lastName,
+      description: "Review submission for " + submission.username,
       priority: index < 3 ? 'high' as const : 'medium' as const,
       dueDate: new Date(Date.now() + (index + 1) * 24 * 60 * 60 * 1000).toISOString(),
-      studentName: submission.firstName + " " + submission.lastName,
+      studentName: submission.username,
       projectTitle: submission.projectTitle
     }));
 
@@ -526,7 +525,7 @@ export class ProjectsStorage implements IProjectsStorage {
     const students = await db.select().from(users).where(and(
       eq(users.schoolId, schoolId),
       eq(users.role, 'student')
-    )).orderBy(asc(users.firstName), asc(users.lastName));
+    )).orderBy(asc(users.username));
 
     // Get detailed progress for each student
     const studentsWithProgress = await Promise.all(
@@ -538,8 +537,7 @@ export class ProjectsStorage implements IProjectsStorage {
             projectTitle: projects.title,
             projectDescription: projects.description,
             projectStatus: projects.status,
-            teacherFirstName: users.firstName,
-            teacherLastName: users.lastName
+            teacherUsername: users.username
           })
             .from(projectAssignments)
             .innerJoin(projects, eq(projectAssignments.projectId, projects.id))
@@ -551,7 +549,7 @@ export class ProjectsStorage implements IProjectsStorage {
             projectTitle: assignment.projectTitle,
             projectDescription: assignment.projectDescription,
             projectStatus: assignment.projectStatus,
-            teacherName: `${assignment.teacherFirstName} ${assignment.teacherLastName}`
+            teacherName: assignment.teacherUsername
           }));
 
           // Get student's credentials

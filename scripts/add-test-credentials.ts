@@ -6,19 +6,16 @@ import { eq } from "drizzle-orm";
 async function addTestCredentials() {
   try {
     // Find the student user
-    const student = await db.select().from(users).where(eq(users.email, "student1@test.com")).limit(1);
+    const student = await db.select().from(users).where(eq(users.username, "student1")).limit(1);
     
     if (!student.length) {
       console.log("Student student1@test.com not found. Creating user first...");
       
       // Create the student user
       const newStudent = await db.insert(users).values({
-        email: "student1@test.com",
+        username: "student1",
         password: "$2b$10$5K9Y4X2QZ8L1M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3", // password: "student123"
-        firstName: "Test",
-        lastName: "Student",
-        role: "student",
-        emailConfirmed: true
+        role: "student"
       }).returning();
       
       console.log("Created student user:", newStudent[0]);
