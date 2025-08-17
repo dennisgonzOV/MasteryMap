@@ -32,13 +32,21 @@ interface ProcessedBestStandard {
 
 async function readAndParseCSV(): Promise<ProcessedBestStandard[]> {
   const csvPath = join(process.cwd(), 'documentation', 'BestStandards.csv');
-  const csvContent = readFileSync(csvPath, 'utf-8');
+  let csvContent = readFileSync(csvPath, 'utf-8');
+  
+  // Remove BOM if present
+  if (csvContent.charCodeAt(0) === 0xFEFF) {
+    csvContent = csvContent.slice(1);
+  }
   
   const records = parse(csvContent, {
     columns: true,
     skip_empty_lines: true,
-    trim: true
+    trim: true,
+    record_delimiter: ['\r\n', '\r', '\n']
   }) as BestStandardsRow[];
+
+  console.log(`🔍 Parsed ${records.length} raw records from CSV`);
 
   // Group records by benchmark number to handle multiple lines per standard
   const groupedRecords = new Map<string, BestStandardsRow[]>();
