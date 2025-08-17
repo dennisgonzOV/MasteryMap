@@ -408,7 +408,7 @@ export class AssessmentStorage implements IAssessmentStorage {
         item.scores.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         const totalScores = item.scores.map(s => s.score);
-        const averageScore = totalScores.length > 0 ? 
+        const averageScore = totalScores.length > 0 ?
           Math.round(totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length) : 0;
 
         const lastScore = totalScores[0] || 0;
@@ -466,9 +466,13 @@ export class AssessmentStorage implements IAssessmentStorage {
 
       const studentIds = schoolStudents.map(s => s.id);
 
+      if (studentIds.length === 0) {
+        return [];
+      }
+
       // Get all grades for students in this school
       const allGrades = await db.select().from(grades);
-      const allSubmissions = await db.select().from(submissions).where(sql`${submissions.studentId} IN (${studentIds.join(',')})`);
+      const allSubmissions = await db.select().from(submissions).where(inArray(submissions.studentId, studentIds));
       const allComponentSkills = await db.select().from(componentSkills);
       const allCompetencies = await db.select().from(competencies);
 
@@ -509,7 +513,7 @@ export class AssessmentStorage implements IAssessmentStorage {
 
       for (const [skillId, data] of Array.from(skillProgressMap.entries())) {
         const { grades: skillGrades, skill, competency } = data;
-        
+
         if (skillGrades.length === 0) continue;
 
         const scores = skillGrades.map((g: any) => g.score || 0);
@@ -530,7 +534,7 @@ export class AssessmentStorage implements IAssessmentStorage {
         const recentGrades = skillGrades
           .sort((a: any, b: any) => new Date(b.gradedAt || 0).getTime() - new Date(a.gradedAt || 0).getTime())
           .slice(0, Math.floor(skillGrades.length / 2));
-        
+
         const olderGrades = skillGrades
           .sort((a: any, b: any) => new Date(b.gradedAt || 0).getTime() - new Date(a.gradedAt || 0).getTime())
           .slice(Math.floor(skillGrades.length / 2));
@@ -539,7 +543,7 @@ export class AssessmentStorage implements IAssessmentStorage {
         if (recentGrades.length > 0 && olderGrades.length > 0) {
           const recentAvg = recentGrades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / recentGrades.length;
           const olderAvg = olderGrades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / olderGrades.length;
-          
+
           if (recentAvg > olderAvg + 0.5) trend = 'improving';
           else if (recentAvg < olderAvg - 0.5) trend = 'declining';
         }
@@ -575,7 +579,7 @@ export class AssessmentStorage implements IAssessmentStorage {
   async getSchoolSkillsStats(teacherId: number): Promise<any> {
     try {
       const skillsProgress = await this.getSchoolComponentSkillsProgress(teacherId);
-      
+
       if (skillsProgress.length === 0) {
         return {
           totalSkillsAssessed: 0,
