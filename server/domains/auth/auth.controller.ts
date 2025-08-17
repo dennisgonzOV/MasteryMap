@@ -44,13 +44,20 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
 export const requireRole = (...roles: string[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
+      console.log('RequireRole: No user found for', req.path);
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
+    console.log(`RequireRole: User ${req.user.id} has role '${req.user.role}' for ${req.path}`);
+    console.log(`RequireRole: Required roles: [${roles.join(', ')}]`);
+    console.log(`RequireRole: User role included: ${roles.includes(req.user.role)}`);
+
     if (!roles.includes(req.user.role)) {
+      console.log(`RequireRole: Access denied - user role '${req.user.role}' not in allowed roles [${roles.join(', ')}]`);
       return res.status(403).json({ message: 'Forbidden' });
     }
 
+    console.log(`RequireRole: Access granted for user ${req.user.id} with role '${req.user.role}'`);
     next();
   };
 };

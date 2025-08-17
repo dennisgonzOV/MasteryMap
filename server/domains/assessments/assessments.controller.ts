@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { assessmentService, type AssessmentService } from './assessments.service';
 import { assessmentStorage } from './assessments.storage';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
+import { projectsService } from '../projects/projects.service';
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
@@ -451,12 +452,12 @@ export class AssessmentController {
     });
 
     // Assessment deletion route
-    router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+    router.delete('/:id', requireAuth, requireRole('teacher', 'admin'), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const assessmentId = parseInt(req.params.id);
         const userId = req.user!.id;
 
-        console.log(`User ${userId} (role: ${req.user?.role}) attempting to delete assessment ${assessmentId}`);
+        console.log(`DELETE Assessment: User ${userId} (role: ${req.user?.role}) attempting to delete assessment ${assessmentId}`);
 
         // Check if assessment exists first
         const assessment = await this.service.getAssessment(assessmentId);
@@ -468,11 +469,14 @@ export class AssessmentController {
         if (req.user?.role === 'teacher') {
           // If assessment has a milestoneId, check if the teacher owns the project
           if (assessment.milestoneId) {
-            const milestone = await this.service.getMilestone(assessment.milestoneId);
-            if (milestone?.project?.teacherId && milestone.project.teacherId !== userId) {
-              return res.status(403).json({ 
-                message: "Access denied - you can only delete assessments from your own projects" 
-              });
+            const milestone = await projectsService.getMilestone(assessment.milestoneId);
+            if (milestone?.projectId) {
+              const project = await projectsService.getProject(milestone.projectId);
+              if (project?.teacherId && project.teacherId !== userId) {
+                return res.status(403).json({ 
+                  message: "Access denied - you can only delete assessments from your own projects" 
+                });
+              }
             }
           }
           // For standalone assessments, we could add a teacherId field or allow all teachers
