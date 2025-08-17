@@ -248,7 +248,9 @@ export default function TeacherAssessments() {
         method: 'DELETE',
       });
       if (!response.ok) {
-        throw new Error('Failed to delete assessment');
+        // Try to get the error message from the response
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to delete assessment');
       }
       return response.json();
     },
@@ -257,7 +259,8 @@ export default function TeacherAssessments() {
         title: "Assessment deleted",
         description: "Assessment has been successfully deleted.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/assessments/standalone"] });
+      // Invalidate the main assessments query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
     },
     onError: (error: any) => {
       toast({
