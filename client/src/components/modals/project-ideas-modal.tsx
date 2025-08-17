@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -32,10 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Lightbulb, 
-  Loader2, 
-  Sparkles, 
+import {
+  Lightbulb,
+  Loader2,
+  Sparkles,
   Plus,
   Clock,
   Target,
@@ -103,10 +102,10 @@ interface ProjectIdeasModalProps {
   onSelectIdea?: (idea: ProjectIdea & { selectedComponentSkillIds: number[] }) => void;
 }
 
-export default function ProjectIdeasModal({ 
-  isOpen, 
-  onClose, 
-  onSelectIdea 
+export default function ProjectIdeasModal({
+  isOpen,
+  onClose,
+  onSelectIdea
 }: ProjectIdeasModalProps) {
   const { toast } = useToast();
   const [generatedIdeas, setGeneratedIdeas] = useState<ProjectIdea[]>([]);
@@ -141,7 +140,7 @@ export default function ProjectIdeasModal({
       const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/projects/generate-ideas', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
@@ -200,10 +199,10 @@ export default function ProjectIdeasModal({
       }
       return newSet;
     });
-    
+
     // Update form value
     const currentSkills = form.getValues("componentSkillIds");
-    const newSkills = selectedSkills.has(skillId) 
+    const newSkills = selectedSkills.has(skillId)
       ? currentSkills.filter(id => id !== skillId)
       : [...currentSkills, skillId];
     form.setValue("componentSkillIds", newSkills);
@@ -219,7 +218,7 @@ export default function ProjectIdeasModal({
     const allSelected = isCompetencyFullySelected(competency);
     const currentSkills = form.getValues("componentSkillIds");
     let newSkills = [...currentSkills];
-    
+
     setSelectedSkills(prev => {
       const newSet = new Set(prev);
       competency.componentSkills.forEach(skill => {
@@ -235,7 +234,7 @@ export default function ProjectIdeasModal({
       });
       return newSet;
     });
-    
+
     form.setValue("componentSkillIds", newSkills);
   };
 
@@ -302,9 +301,9 @@ export default function ProjectIdeasModal({
                         <FormItem>
                           <FormLabel>Subject Area *</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., Science, History, Mathematics, English" 
-                              {...field} 
+                            <Input
+                              placeholder="e.g., Science, History, Mathematics, English"
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -319,9 +318,9 @@ export default function ProjectIdeasModal({
                         <FormItem>
                           <FormLabel>Topic or Theme *</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., Climate Change, Ancient Civilizations, Space Exploration" 
-                              {...field} 
+                            <Input
+                              placeholder="e.g., Climate Change, Ancient Civilizations, Space Exploration"
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -385,7 +384,7 @@ export default function ProjectIdeasModal({
                           <p className="text-sm text-gray-600 mb-3">
                             Choose the specific component skills students will develop in this project
                           </p>
-                                                    <FormControl>
+                          <FormControl>
                             {isLoading ? (
                               <div className="flex items-center justify-center h-32 border rounded-md">
                                 <div className="text-muted-foreground">Loading competency framework...</div>
@@ -487,8 +486,8 @@ export default function ProjectIdeasModal({
                       )}
                     />
 
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="w-full bg-blue-600 hover:bg-blue-700"
                       disabled={generateIdeasMutation.isPending || selectedSkills.size === 0}
                     >

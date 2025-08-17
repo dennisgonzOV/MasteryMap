@@ -149,7 +149,7 @@ export default function CreateAssessmentModal({
 
   // Fetch the complete hierarchy
   const { data: hierarchy = [], isLoading: hierarchyLoading } = useQuery({
-    queryKey: ["/api/learner-outcomes-hierarchy/complete"],
+    queryKey: ["/api/competencies/learner-outcomes-hierarchy/complete"],
     enabled: open,
   });
 

@@ -76,11 +76,11 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
   // Fetch the complete 3-level hierarchy
   const { data: hierarchyData = [], isLoading, error } = useQuery<LearnerOutcome[]>({
-    queryKey: ['/api/learner-outcomes-hierarchy/complete'],
+    queryKey: ['/api/competencies/learner-outcomes-hierarchy/complete'],
     enabled: isOpen,
     queryFn: async () => {
       console.log('Custom queryFn: Making request to /api/learner-outcomes-hierarchy/complete');
-      const response = await fetch('/api/learner-outcomes-hierarchy/complete', {
+      const response = await fetch('/api/competencies/learner-outcomes-hierarchy/complete', {
         credentials: 'include',
       });
       console.log('Custom queryFn: Response status:', response.status);
