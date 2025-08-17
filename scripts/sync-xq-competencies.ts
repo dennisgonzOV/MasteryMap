@@ -38,13 +38,21 @@ interface ProcessedData {
 
 async function readAndParseCSV(): Promise<ProcessedData[]> {
   const csvPath = join(process.cwd(), 'documentation', 'XQ_Competency_Rubric.csv');
-  const csvContent = readFileSync(csvPath, 'utf-8');
+  let csvContent = readFileSync(csvPath, 'utf-8');
+  
+  // Remove BOM if present
+  if (csvContent.charCodeAt(0) === 0xFEFF) {
+    csvContent = csvContent.slice(1);
+  }
   
   const records = parse(csvContent, {
     columns: true,
     skip_empty_lines: true,
-    trim: true
+    trim: true,
+    record_delimiter: ['\r\n', '\r', '\n']
   }) as XQCompetencyRow[];
+
+  console.log(`🔍 Parsed ${records.length} raw records from CSV`);
 
   return records.map(record => ({
     learnerOutcome: record['Learner Outcome'].trim(),
