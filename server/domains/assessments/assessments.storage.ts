@@ -156,7 +156,10 @@ export class AssessmentStorage implements IAssessmentStorage {
     // First delete all related self-evaluations
     await db.delete(selfEvaluations).where(eq(selfEvaluations.assessmentId, id));
     
-    // Then delete the assessment
+    // Then delete all related submissions
+    await db.delete(submissions).where(eq(submissions.assessmentId, id));
+    
+    // Finally delete the assessment
     await db.delete(assessments).where(eq(assessments.id, id));
   }
 
