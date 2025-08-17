@@ -429,16 +429,27 @@ projectTeamsRouter.get('/:teamId/members', requireAuth, async (req, res) => {
       role: projectTeamMembers.role,
       joinedAt: projectTeamMembers.joinedAt,
       studentName: users.username,
-      student: {
-        id: users.id,
-        username: users.username
-      }
+      studentUsername: users.username
     })
       .from(projectTeamMembers)
       .innerJoin(users, eq(projectTeamMembers.studentId, users.id))
       .where(eq(projectTeamMembers.teamId, teamId));
 
-    res.json(members);
+    // Transform the result to include the nested student object
+    const transformedMembers = members.map(member => ({
+      id: member.id,
+      teamId: member.teamId,
+      studentId: member.studentId,
+      role: member.role,
+      joinedAt: member.joinedAt,
+      studentName: member.studentName,
+      student: {
+        id: member.studentId,
+        username: member.studentUsername
+      }
+    }));
+
+    res.json(transformedMembers);
   } catch (error) {
     console.error('Error fetching team members:', error);
     res.status(500).json({ message: 'Failed to fetch team members' });
