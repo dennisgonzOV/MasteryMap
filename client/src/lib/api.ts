@@ -23,7 +23,7 @@ export const api = {
   },
   getProject: (id: number) => fetch(`/api/projects/${id}`, { credentials: "include" }).then(res => res.json()),
   generateMilestones: async (projectId: number) => {
-    console.log('API generateMilestones called with projectId:', projectId);
+  
     const response = await apiRequest(`/api/projects/${projectId}/generate-milestones`, "POST");
     return response.json();
   },

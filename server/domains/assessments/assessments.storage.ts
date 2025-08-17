@@ -76,11 +76,11 @@ export class AssessmentStorage implements IAssessmentStorage {
   // Assessment operations
   async createAssessment(data: InsertAssessment): Promise<Assessment> {
     // Generate a unique share code
-    let shareCode: string;
+    let shareCode: string = '';
     let attempts = 0;
     const maxAttempts = 10;
 
-    do {
+    while (attempts < maxAttempts) {
       shareCode = generateRandomCode();
       attempts++;
 
@@ -94,11 +94,11 @@ export class AssessmentStorage implements IAssessmentStorage {
       if (!existing) {
         break;
       }
+    }
 
-      if (attempts >= maxAttempts) {
-        throw new Error('Unable to generate unique share code');
-      }
-    } while (true);
+    if (attempts >= maxAttempts) {
+      throw new Error('Unable to generate unique share code after maximum attempts');
+    }
 
     // Calculate expiration date (7 days from now)
     const expiresAt = new Date();
@@ -170,8 +170,8 @@ export class AssessmentStorage implements IAssessmentStorage {
     let attempts = 0;
     const maxAttempts = 10;
 
-    // Try to generate a unique code
-    do {
+    // Try to generate a unique code with explicit loop condition
+    while (attempts < maxAttempts) {
       shareCode = generateRandomCode();
       attempts++;
 
@@ -183,21 +183,17 @@ export class AssessmentStorage implements IAssessmentStorage {
         .limit(1);
 
       if (!existing) {
-        break;
+        // Update the assessment with the new share code
+        await db
+          .update(assessments)
+          .set({ shareCode })
+          .where(eq(assessments.id, assessmentId));
+
+        return shareCode;
       }
+    }
 
-      if (attempts >= maxAttempts) {
-        throw new Error('Unable to generate unique share code');
-      }
-    } while (true);
-
-    // Update the assessment with the new share code
-    await db
-      .update(assessments)
-      .set({ shareCode })
-      .where(eq(assessments.id, assessmentId));
-
-    return shareCode;
+    throw new Error('Unable to generate unique share code after maximum attempts');
   }
 
   async getAssessmentByShareCode(shareCode: string): Promise<Assessment | undefined> {

@@ -60,38 +60,24 @@ export class AIController {
           });
 
           // Create safety incident and notify teachers
-          const studentId = req.user?.role === 'student' ? userId : userId; // For now, assume the user triggering is the student
+          const studentId = userId; // Simplified - both branches were returning userId
           const latestMessage = conversationHistory.filter((msg: any) => msg.role === 'student').pop()?.content || '';
 
           try {
             // Import the notification service
             const { notificationService } = await import('../notifications');
 
-            // Map safety flags to incident types
-            let incidentType: 'homicidal_ideation' | 'suicidal_ideation' | 'inappropriate_language' | 'homicidal_ideation_fallback' | 'suicidal_ideation_fallback' | 'inappropriate_language_fallback';
+            // Map safety flags to incident types using a mapping object
+            const safetyFlagMapping: Record<string, string> = {
+              'homicidal_ideation': 'homicidal_ideation',
+              'suicidal_ideation': 'suicidal_ideation',
+              'inappropriate_language': 'inappropriate_language',
+              'homicidal_ideation_fallback': 'homicidal_ideation_fallback',
+              'suicidal_ideation_fallback': 'suicidal_ideation_fallback',
+              'inappropriate_language_fallback': 'inappropriate_language_fallback'
+            };
 
-            switch (tutorResponse.safetyFlag) {
-              case 'homicidal_ideation':
-                incidentType = 'homicidal_ideation';
-                break;
-              case 'suicidal_ideation':
-                incidentType = 'suicidal_ideation';
-                break;
-              case 'inappropriate_language':
-                incidentType = 'inappropriate_language';
-                break;
-              case 'homicidal_ideation_fallback':
-                incidentType = 'homicidal_ideation_fallback';
-                break;
-              case 'suicidal_ideation_fallback':
-                incidentType = 'suicidal_ideation_fallback';
-                break;
-              case 'inappropriate_language_fallback':
-                incidentType = 'inappropriate_language_fallback';
-                break;
-              default:
-                incidentType = 'inappropriate_language';
-            }
+            const incidentType = safetyFlagMapping[tutorResponse.safetyFlag] || 'inappropriate_language';
 
             await notificationService.notifyTeacherOfSafetyIncident({
               studentId: studentId,

@@ -2,24 +2,18 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import Navigation from '@/components/navigation';
-import ProgressTracker from '@/components/progress-tracker';
-import ProjectManagementModal from '@/components/modals/project-management-modal';
 import StudentProgressView from '@/components/student-progress-view';
 import { useAuth } from '@/hooks/useAuth';
-import type { User, Project } from '@shared/schema';
+import type { User } from '@shared/schema';
 import { 
   BookOpen, 
   Users, 
   FileText, 
   Award,
-  Calendar,
   Clock,
   TrendingUp,
-  AlertTriangle,
   CheckCircle,
   Plus,
   Eye
@@ -57,8 +51,6 @@ interface PendingTask {
 export default function EnhancedTeacherDashboard() {
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
-  const [showProjectManagement, setShowProjectManagement] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [showStudentProgress, setShowStudentProgress] = useState(false);
 
   // Fetch real dashboard stats
@@ -74,26 +66,7 @@ export default function EnhancedTeacherDashboard() {
     retry: false,
   });
 
-  // Fetch teacher's projects
-  const { data: projects = [] } = useQuery<ProjectOverview[]>({
-    queryKey: ["/api/teacher/projects"],
-    enabled: isAuthenticated && (user as User)?.role === 'teacher',
-    retry: false,
-  });
 
-  // Fetch pending tasks
-  const { data: pendingTasks = [] } = useQuery<PendingTask[]>({
-    queryKey: ["/api/teacher/pending-tasks"],
-    enabled: isAuthenticated && (user as User)?.role === 'teacher',
-    retry: false,
-  });
-
-  // Fetch current project milestones
-  const { data: milestones = [] } = useQuery<any[]>({
-    queryKey: ["/api/teacher/current-milestones"],
-    enabled: isAuthenticated && (user as User)?.role === 'teacher',
-    retry: false,
-  });
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -410,17 +383,7 @@ export default function EnhancedTeacherDashboard() {
         </Tabs>
       </main>
 
-      {/* Project Management Modal */}
-      {selectedProjectId && (
-        <ProjectManagementModal
-          projectId={selectedProjectId}
-          isOpen={showProjectManagement}
-          onClose={() => {
-            setShowProjectManagement(false);
-            setSelectedProjectId(null);
-          }}
-        />
-      )}
+
 
       {/* Student Progress Modal */}
       {showStudentProgress && (

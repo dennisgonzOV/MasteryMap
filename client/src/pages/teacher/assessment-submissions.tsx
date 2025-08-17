@@ -159,11 +159,7 @@ export default function AssessmentSubmissions() {
       });
       if (!response.ok) throw new Error('Failed to fetch submissions');
       const data = await response.json();
-      console.log('Fetched submissions with grades:', data.map((s: any) => ({
-        id: s.id,
-        studentName: s.studentName,
-        grades: s.grades
-      })));
+
       return data;
     },
     enabled: !!id
@@ -187,12 +183,7 @@ export default function AssessmentSubmissions() {
   const initializeGradingData = React.useCallback(() => {
     if (!submissions.length || !relevantSkills.length || isGradingDataInitialized) return;
 
-    console.log("Initializing grading data for assessment", id);
-    console.log("Submissions with grades:", submissions.map(s => ({ 
-      id: s.id, 
-      gradesCount: s.grades?.length || 0,
-      grades: s.grades 
-    })));
+
 
     const initialData: typeof gradingData = {};
 
@@ -202,7 +193,7 @@ export default function AssessmentSubmissions() {
 
       // Always prioritize existing grades from database
       if (submission.grades && submission.grades.length > 0) {
-        console.log(`Loading grades for submission ${submission.id}:`, submission.grades);
+
         submission.grades.forEach(grade => {
           // Handle both string and number score values
           const score = typeof grade.score === 'string' ? parseInt(grade.score) : grade.score;
@@ -211,14 +202,10 @@ export default function AssessmentSubmissions() {
             feedback: grade.feedback,
             score: score || 1
           };
-          console.log(`Loaded grade for submission ${submission.id}, skill ${grade.componentSkillId}:`, {
-            rubricLevel: grade.rubricLevel,
-            feedback: grade.feedback,
-            score: score || 1
-          });
+
         });
       } else {
-        console.log(`No grades found for submission ${submission.id}`);
+
 
         // Only then check sessionStorage for unsaved manual input
         try {
@@ -230,7 +217,7 @@ export default function AssessmentSubmissions() {
                 const skillIdNum = parseInt(skillId);
                 if (savedData[submission.id][skillIdNum]) {
                   initialData[submission.id][skillIdNum] = savedData[submission.id][skillIdNum];
-                  console.log(`Restored unsaved manual input for submission ${submission.id}, skill ${skillId}:`, savedData[submission.id][skillIdNum]);
+
                 }
               });
             }
@@ -241,7 +228,7 @@ export default function AssessmentSubmissions() {
       }
     });
 
-    console.log("Final initialized grading data:", initialData);
+
     setGradingData(initialData);
     setIsGradingDataInitialized(true);
   }, [submissions, relevantSkills, isGradingDataInitialized, id]);
@@ -324,30 +311,57 @@ export default function AssessmentSubmissions() {
       );
       const total = ungradedSubmissions.length;
 
+      const results = [];
       for (let i = 0; i < ungradedSubmissions.length; i++) {
         const submission = ungradedSubmissions[i];
         try {
-          await fetch(`/api/submissions/${submission.id}/grade`, {
+          const response = await fetch(`/api/submissions/${submission.id}/grade`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ generateAiFeedback: true }),
           });
+          
+          if (response.ok) {
+            results.push({ submissionId: submission.id, success: true });
+          } else {
+            results.push({ submissionId: submission.id, success: false, error: `HTTP ${response.status}` });
+          }
         } catch (error) {
           console.error(`Failed to grade submission ${submission.id}:`, error);
+          results.push({ 
+            submissionId: submission.id, 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
         }
+        
+        // Update progress atomically
         setBulkGradingProgress(((i + 1) / total) * 100);
       }
 
-      setIsBulkGrading(false);
-      return { success: true };
+      return results;
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Bulk AI grading completed" });
+    onSuccess: (results) => {
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+      
+      if (failureCount > 0) {
+        toast({ 
+          title: "Bulk Grading Completed", 
+          description: `${successCount} submissions graded successfully, ${failureCount} failed`,
+          variant: failureCount > successCount ? "destructive" : "default"
+        });
+      } else {
+        toast({ title: "Success", description: "All submissions graded successfully" });
+      }
       refetchSubmissions();
     },
     onError: () => {
       toast({ title: "Error", description: "Bulk grading failed", variant: "destructive" });
+    },
+    onSettled: () => {
       setIsBulkGrading(false);
+      setBulkGradingProgress(0);
     },
   });
 
@@ -367,7 +381,7 @@ export default function AssessmentSubmissions() {
     feedback: string;
     score: number;
   }) => {
-    console.log(`Updating grading data for submission ${submissionId}, skill ${skillId}:`, data);
+
 
     setGradingData(prev => {
       const newData = {
@@ -382,7 +396,7 @@ export default function AssessmentSubmissions() {
       try {
         const storageKey = `gradingData_${id}`;
         sessionStorage.setItem(storageKey, JSON.stringify(newData));
-        console.log(`Saved grading data to sessionStorage with key: ${storageKey}`);
+
       } catch (error) {
         console.error('Failed to save grading data to sessionStorage:', error);
       }
@@ -407,7 +421,7 @@ export default function AssessmentSubmissions() {
   React.useEffect(() => {
     if (gradeMutation.isSuccess && gradeMutation.variables?.submissionId) {
       const submissionId = gradeMutation.variables.submissionId;
-      console.log(`Grade mutation successful for submission ${submissionId}, cleaning up sessionStorage`);
+
 
       try {
         const storageKey = `gradingData_${id}`;
@@ -417,7 +431,7 @@ export default function AssessmentSubmissions() {
           if (savedData[submissionId]) {
             delete savedData[submissionId];
             sessionStorage.setItem(storageKey, JSON.stringify(savedData));
-            console.log(`Cleaned up sessionStorage for submission ${submissionId}`);
+
           }
         }
       } catch (error) {
@@ -440,11 +454,11 @@ export default function AssessmentSubmissions() {
 
   const getSubmissionStats = () => {
     const total = submissions.length;
-    const graded = submissions.filter(sub => 
+    const graded = submissions.filter((sub: any) => 
       sub.grades?.length || (sub.grade !== undefined && sub.grade !== null)
     ).length;
     const ungraded = total - graded;
-    const aiGraded = submissions.filter(sub => sub.aiGeneratedFeedback).length;
+    const aiGraded = submissions.filter((sub: any) => sub.aiGeneratedFeedback).length;
 
     return { total, graded, ungraded, aiGraded };
   };

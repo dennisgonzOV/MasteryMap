@@ -91,7 +91,7 @@ export default function TeacherProjects() {
             statsData[project.id] = { studentCount: 0, progress: 0 };
           }
         } catch (error) {
-          console.error(`Error fetching stats for project ${project.id}:`, error);
+    
           statsData[project.id] = { studentCount: 0, progress: 0 };
         }
       }

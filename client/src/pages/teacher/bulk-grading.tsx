@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,21 @@ export default function BulkGrading() {
   const [gradingProgress, setGradingProgress] = useState(0);
   const [isGrading, setIsGrading] = useState(false);
   const [gradedSubmissions, setGradedSubmissions] = useState<number[]>([]);
+
+  // Add atomic state management for grading progress
+  const updateGradingProgress = useCallback((completedCount: number, totalCount: number) => {
+    const progress = (completedCount / totalCount) * 100;
+    setGradingProgress(progress);
+  }, []);
+
+  const addGradedSubmission = useCallback((submissionId: number) => {
+    setGradedSubmissions(prev => {
+      if (!prev.includes(submissionId)) {
+        return [...prev, submissionId];
+      }
+      return prev;
+    });
+  }, []);
 
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
@@ -143,41 +158,26 @@ export default function BulkGrading() {
     const processBatch = async (batch: Submission[]) => {
       const promises = batch.map(async (submission) => {
         try {
-          const result = await gradeSubmissionWithRetry(submission).catch((error) => {
-            // Catch any unhandled promise rejections from gradeSubmissionWithRetry
-            console.error(`Unhandled promise rejection for submission ${submission.id}:`, error);
-            return {
-              success: false,
-              error: error instanceof Error ? error.message : 'Unhandled promise rejection'
-            };
-          });
+          const result = await gradeSubmissionWithRetry(submission);
           
           // Update UI atomically after each completion
           completedCount++;
-          const progress = (completedCount / submissionsQueue.length) * 100;
-          
-          // Use functional state updates to avoid race conditions
-          setGradingProgress(progress);
+          updateGradingProgress(completedCount, submissionsQueue.length);
           
           if (result.success) {
-            setGradedSubmissions(prev => {
-              if (!prev.includes(submission.id)) {
-                return [...prev, submission.id];
-              }
-              return prev;
-            });
+            addGradedSubmission(submission.id);
           }
           
           return { submission, ...result };
         } catch (error) {
-          // Final safety net for any errors in the promise handler itself
-          console.error(`Critical error in promise handler for submission ${submission.id}:`, error);
+          // Handle any errors in the promise handler
+          console.error(`Error processing submission ${submission.id}:`, error);
           completedCount++;
-          setGradingProgress((completedCount / submissionsQueue.length) * 100);
+          updateGradingProgress(completedCount, submissionsQueue.length);
           return {
             submission,
             success: false,
-            error: error instanceof Error ? error.message : 'Critical error'
+            error: error instanceof Error ? error.message : 'Unknown error'
           };
         }
       });
@@ -235,7 +235,7 @@ export default function BulkGrading() {
     if (!submissions.length) return;
 
     setIsGrading(true);
-    setGradingProgress(0);
+    updateGradingProgress(0, submissions.length);
     setGradedSubmissions([]);
 
     // Add global unhandled promise rejection handler for this operation
@@ -301,7 +301,7 @@ export default function BulkGrading() {
       // Clean up global promise rejection handler
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       setIsGrading(false);
-      setGradingProgress(0);
+      updateGradingProgress(0, submissions.length); // Reset progress to 0 after grading
     }
   };
 

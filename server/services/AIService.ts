@@ -104,7 +104,7 @@ export abstract class BaseAIService {
         messageCount: messages.length
       });
       
-      console.error('AI generation error:', {
+  
         context,
         error: error instanceof Error ? error.message : error,
         model: this.config.model,

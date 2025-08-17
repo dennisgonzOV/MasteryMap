@@ -288,6 +288,19 @@ function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
   );
 }
 
+// Helper functions for search filtering
+const matchesSearch = (text: string, query: string): boolean => 
+  text.toLowerCase().includes(query);
+
+const assessmentMatches = (assessment: any, query: string): boolean =>
+  matchesSearch(assessment.title, query) || 
+  matchesSearch(assessment.description, query);
+
+const milestoneMatches = (milestone: any, query: string): boolean =>
+  matchesSearch(milestone.title, query) ||
+  matchesSearch(milestone.description, query) ||
+  milestone.assessments.some((assessment: any) => assessmentMatches(assessment, query));
+
 // Project Milestones Tab Component
 function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
   const { user } = useAuth();
@@ -383,12 +396,7 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
       project.title.toLowerCase().includes(query) ||
       project.description.toLowerCase().includes(query) ||
       projectMilestonesList.some(milestone => 
-        milestone.title.toLowerCase().includes(query) ||
-        milestone.description.toLowerCase().includes(query) ||
-        milestone.assessments.some((assessment: any) => 
-          assessment.title.toLowerCase().includes(query) ||
-          assessment.description.toLowerCase().includes(query)
-        )
+        milestoneMatches(milestone, query)
       )
     );
   });
@@ -463,10 +471,7 @@ function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSu
   const filteredMilestones = milestones.filter(milestone => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
-    return (
-      milestone.title.toLowerCase().includes(query) ||
-      milestone.description.toLowerCase().includes(query)
-    );
+    return milestoneMatches(milestone, query);
   });
 
   return (

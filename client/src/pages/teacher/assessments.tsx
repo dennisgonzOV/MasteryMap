@@ -97,7 +97,7 @@ export default function TeacherAssessments() {
             const projectMilestones = await api.getMilestones(project.id);
             allMilestones.push(...projectMilestones);
           } catch (error) {
-            console.warn(`Failed to fetch milestones for project ${project.id}:`, error);
+      
           }
         }
         return allMilestones;
@@ -128,7 +128,7 @@ export default function TeacherAssessments() {
           const submissions = await response.json();
           return submissions.map((s: any) => ({ ...s, assessmentId: assessment.id }));
         } catch (error) {
-          console.warn(`Failed to fetch submissions for assessment ${assessment.id}:`, error);
+    
           return [];
         }
       });
@@ -638,7 +638,7 @@ export default function TeacherAssessments() {
         open={showCreateAssessment}
         onOpenChange={setShowCreateAssessment}
         onAssessmentCreated={(assessmentId) => {
-          console.log('Assessment created:', assessmentId);
+      
           refetchAssessments();
         }}
       />

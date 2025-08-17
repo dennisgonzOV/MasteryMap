@@ -153,7 +153,7 @@ export default function TeacherDashboard() {
         isOpen={showCreateProject}
         onClose={() => setShowCreateProject(false)}
         onSuccess={() => {
-          console.log('Project created successfully');
+      
           setShowCreateProject(false);
         }}
       />

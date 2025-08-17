@@ -100,7 +100,7 @@ export default function StudentProjects() {
             milestonesData[project.id] = [];
           }
         } catch (error) {
-          console.error(`Error fetching milestones for project ${project.id}:`, error);
+    
           milestonesData[project.id] = [];
         }
       }

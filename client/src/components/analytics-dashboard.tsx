@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,35 +57,8 @@ interface AnalyticsDashboardProps {
 }
 
 export default function AnalyticsDashboard({ timeRange, onTimeRangeChange }: AnalyticsDashboardProps) {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load real analytics data from API
-  useEffect(() => {
-    const fetchAnalyticsData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/analytics/dashboard');
-        if (response.ok) {
-          const analyticsData = await response.json();
-          setData(analyticsData);
-        } else {
-          console.error('Failed to fetch analytics data');
-          setData(null);
-        }
-      } catch (error) {
-        console.error('Error fetching analytics data:', error);
-        setData(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAnalyticsData();
-  }, [timeRange]);
-
-  // Fallback data structure if needed
-  const fallbackData: AnalyticsData = {
+  // Mock data for demonstration
+  const data: AnalyticsData = {
     totalUsers: 0,
     activeUsers: 0,
     totalProjects: 0,
@@ -116,15 +89,6 @@ export default function AnalyticsDashboard({ timeRange, onTimeRangeChange }: Ana
     ]
   };
 
-  useEffect(() => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setData(mockAnalyticsData);
-      setIsLoading(false);
-    }, 1000);
-  }, [timeRange]);
-
   const exportData = () => {
     // In a real app, this would generate and download CSV
     const csvData = [
@@ -138,30 +102,11 @@ export default function AnalyticsDashboard({ timeRange, onTimeRangeChange }: Ana
       ['Total Credentials', data?.totalCredentials || 0]
     ];
     
-    console.log('Exporting CSV data:', csvData);
+
     alert('CSV export functionality would be implemented here');
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-6 bg-gray-200 rounded"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
-  if (!data) return null;
 
   return (
     <div className="space-y-6">

@@ -177,12 +177,6 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
 
     console.log("DETAILED SAFETY REPORT:", JSON.stringify(incidentReport, null, 2));
 
-    // TODO: Implement actual notification mechanisms:
-    // - Username-based notifications using a service like SendGrid or AWS SES
-    // - In-app notification system with database storage
-    // - SMS alerts for critical incidents
-    // - Integration with school management systems
-
   } catch (error) {
     console.error("Error notifying teachers of safety incident:", error);
   }

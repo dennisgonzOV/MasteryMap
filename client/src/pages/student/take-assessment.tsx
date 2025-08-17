@@ -60,6 +60,34 @@ interface SelfEvaluationData {
   examples: string;
 }
 
+// Utility function for parsing question options
+const parseQuestionOptions = (options: any): { options: string[], hasError: boolean } => {
+  try {
+    let parsedOptions = options;
+    
+    if (typeof options === 'string') {
+      const parsed = JSON.parse(options);
+      parsedOptions = Array.isArray(parsed) ? parsed : [];
+    }
+    
+    if (!Array.isArray(parsedOptions)) {
+      return { options: [], hasError: true };
+    }
+    
+    const validOptions = parsedOptions.filter(
+      (option: any) => typeof option === 'string' && option.trim().length > 0
+    );
+    
+    return { 
+      options: validOptions, 
+      hasError: validOptions.length === 0 
+    };
+  } catch (error) {
+
+    return { options: [], hasError: true };
+  }
+};
+
 export default function TakeAssessment() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
@@ -209,8 +237,7 @@ export default function TakeAssessment() {
   // Debug logging to see what data we have
   useEffect(() => {
     if (assessmentComponentSkills.length > 0) {
-      console.log('Assessment component skills:', assessmentComponentSkills);
-      console.log('First skill structure:', assessmentComponentSkills[0]);
+      
     }
   }, [assessmentComponentSkills]);
 
@@ -247,7 +274,7 @@ export default function TakeAssessment() {
       await submitSelfEvaluationMutation.mutateAsync(currentEval);
       // Success handling is done in the mutation's onSuccess callback
     } catch (error) {
-      console.error('Error submitting self-evaluation:', error);
+  
     } finally {
       setIsProcessingAIAnalysis(false);
     }
@@ -577,38 +604,9 @@ export default function TakeAssessment() {
             {currentQuestion.type === 'multiple-choice' && (
               <div className="space-y-3">
                 {(() => {
-                  // Parse options if they're stored as JSON string
-                  let options = currentQuestion.options;
-                  let hasParsingError = false;
+                  const { options, hasError } = parseQuestionOptions(currentQuestion.options);
 
-                  if (typeof options === 'string') {
-                    try {
-                      const parsed = JSON.parse(options);
-                      if (Array.isArray(parsed)) {
-                        options = parsed;
-                      } else {
-                        hasParsingError = true;
-                        options = [];
-                      }
-                    } catch (e) {
-                      console.error('Failed to parse options for question:', currentQuestion.id, 'Options:', options, 'Error:', e);
-                      hasParsingError = true;
-                      options = [];
-                    }
-                  }
-
-                  // Ensure options is an array and has valid string elements
-                  if (!Array.isArray(options)) {
-                    hasParsingError = true;
-                    options = [];
-                  } else {
-                    // Filter out any non-string or empty options
-                    options = options.filter((option: any) => 
-                      typeof option === 'string' && option.trim().length > 0
-                    );
-                  }
-
-                  if (hasParsingError || options.length === 0) {
+                  if (hasError || options.length === 0) {
                     return (
                       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex items-center space-x-2 mb-2">
