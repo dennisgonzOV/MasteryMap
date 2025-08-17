@@ -269,23 +269,26 @@ export class AssessmentStorage implements IAssessmentStorage {
   async getSubmissionsByAssessment(assessmentId: number): Promise<any[]> {
     try {
       const result = await db
-        .select({
-          id: submissions.id,
-          studentId: submissions.studentId,
-          studentName: users.username,
-          studentUsername: users.username,
-          responses: submissions.responses,
-          submittedAt: submissions.submittedAt,
-          grade: submissions.grade,
-          feedback: submissions.feedback,
-          aiGeneratedFeedback: submissions.aiGeneratedFeedback,
-        })
+        .select()
         .from(submissions)
         .innerJoin(users, eq(submissions.studentId, users.id))
         .where(eq(submissions.assessmentId, assessmentId))
         .orderBy(desc(submissions.submittedAt));
 
-      return result || [];
+      // Transform the result to match expected format
+      const transformedResult = result.map(row => ({
+        id: row.submissions.id,
+        studentId: row.submissions.studentId,
+        studentName: row.users.username,
+        studentUsername: row.users.username,
+        responses: row.submissions.responses,
+        submittedAt: row.submissions.submittedAt,
+        grade: row.submissions.grade,
+        feedback: row.submissions.feedback,
+        aiGeneratedFeedback: row.submissions.aiGeneratedFeedback,
+      }));
+
+      return transformedResult || [];
     } catch (error) {
       console.error("Error in getSubmissionsByAssessment storage:", error);
       return [];
