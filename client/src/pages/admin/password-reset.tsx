@@ -181,9 +181,6 @@ export default function AdminPasswordReset() {
                               {user.username}
                             </h4>
                             <p className="text-xs text-gray-600">{user.role}</p>
-                            {user.grade && (
-                              <p className="text-xs text-gray-500">Grade {user.grade}</p>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -219,9 +216,6 @@ export default function AdminPasswordReset() {
                         </h2>
                         <p className="text-gray-600">{selectedUser.role}</p>
                         <p className="text-sm text-gray-500 capitalize">{selectedUser.role}</p>
-                        {selectedUser.grade && (
-                          <p className="text-sm text-gray-500">Grade {selectedUser.grade}</p>
-                        )}
                       </div>
                     </div>
                   </CardHeader>

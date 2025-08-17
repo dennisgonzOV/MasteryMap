@@ -140,11 +140,11 @@ test.describe('Mobile Responsiveness', () => {
       await expect(page.locator('form')).toBeVisible();
       
       // Input fields should be touch-friendly
-      const emailInput = page.locator('[name="email"]');
+      const usernameInput = page.locator('[name="username"]');
       const passwordInput = page.locator('[name="password"]');
       
-      await emailInput.tap();
-      await expect(emailInput).toBeFocused();
+      await usernameInput.tap();
+      await expect(usernameInput).toBeFocused();
       
       await passwordInput.tap();
       await expect(passwordInput).toBeFocused();

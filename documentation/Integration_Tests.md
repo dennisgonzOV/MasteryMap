@@ -7,18 +7,20 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## Test Environment Setup
 
 ### Prerequisites
+
 - **Database**: PostgreSQL with Neon Database connection
-- **Test Users**: Create accounts for each role
-  - Admin: `admin@psi.edu` / `Test123!`
-  - Teacher: `teacher@psi.edu` / `Test123!`
-  - Student: `student@psi.edu` / `Test123!`
-  - Additional Students: `student2@psi.edu`, `student3@psi.edu` (for team testing)
+  - **Test Users**: Create accounts for each role
+    - Admin: `admin` / `Test123!`
+    - Teacher: `teacher` / `Test123!`
+    - Student: `student` / `Test123!`
+    - Additional Students: `student2`, `student3` (for team testing)
 - **School**: PSI High School (default school in system)
-- **Environment Variables**: 
+- **Environment Variables**:
   - `OPENAI_API_KEY` configured for AI features
   - `DATABASE_URL` connected to test database
 
 ### Browser Requirements
+
 - Modern browsers: Chrome, Firefox, Safari, Edge
 - JavaScript enabled
 - Cookies enabled for session management
@@ -28,14 +30,16 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 1. Authentication & Registration Workflows
 
 ### Test 1.1: New Teacher Registration
+
 **Scenario**: A new teacher joins the school and creates an account
 
 **User Actions**:
+
 1. Open browser to application homepage
 2. Click "Get Started" or navigate to `/register`
 3. Fill registration form:
    - Name: "Sarah Johnson"
-   - Email: "sjohnson@psi.edu"
+   - Username: "sjohnson"
    - Password: "SecurePass123!"
    - Role: Select "Teacher"
    - School: Select "PSI High School"
@@ -44,7 +48,8 @@ This document provides comprehensive end-to-end integration tests that simulate 
 6. Click "Login" button
 
 **Expected Results**:
-- ✅ Registration form validates email format and password strength
+
+- ✅ Registration form validates username format and password strength
 - ✅ User redirected to login page with success message
 - ✅ Login successful with new credentials
 - ✅ Teacher dashboard displays with welcome message
@@ -52,15 +57,18 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - ✅ User associated with PSI High School in database
 
 ### Test 1.2: Student Registration and First Login
+
 **Scenario**: A new student registers and accesses their dashboard
 
 **User Actions**:
+
 1. Navigate to `/register`
 2. Complete registration as student role
 3. Login with new credentials
 4. Explore student dashboard
 
 **Expected Results**:
+
 - ✅ Student dashboard shows "Join Assessment" card prominently
 - ✅ Empty project list with message "No projects assigned yet"
 - ✅ Portfolio section accessible but empty
@@ -71,9 +79,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 2. Project Management Workflows
 
 ### Test 2.1: Create Project with AI-Generated Milestones
+
 **Scenario**: Teacher creates a comprehensive project with XQ competencies
 
 **User Actions**:
+
 1. Login as teacher
 2. Click "Projects" in navigation
 3. Click "Create New Project" button
@@ -95,6 +105,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 13. Click "Confirm and Create"
 
 **Expected Results**:
+
 - ✅ Component skills selection tree displays all 80 XQ skills
 - ✅ AI generates 3-5 milestones with appropriate dates
 - ✅ Each milestone has descriptive title and requirements
@@ -103,25 +114,28 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - ✅ Project status shows as "Active"
 
 ### Test 2.2: Create and Manage Project Teams
+
 **Scenario**: Teacher creates teams and assigns students to project
 
 **User Actions**:
+
 1. From project list, click on "Climate Change Solutions Research"
 2. Click "Manage Project" button
 3. In team management section, click "Create Team"
 4. Enter team name: "Green Innovators"
 5. From available students list, select:
-   - student@psi.edu
-   - student2@psi.edu
+   - student
+   - student2
 6. Click "Add to Team"
 7. Click "Create Team"
-8. Create second team "Eco Warriors" with student3@psi.edu
+8. Create second team "Eco Warriors" with student3
 9. Click "Edit Team" on "Green Innovators"
-10. Remove student2@psi.edu
-11. Add student3@psi.edu
+10. Remove student2
+11. Add student3
 12. Save changes
 
 **Expected Results**:
+
 - ✅ Student roster shows only students from PSI High School
 - ✅ Teams created successfully with selected members
 - ✅ Team member counts update correctly
@@ -134,9 +148,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 3. Assessment Creation and Sharing
 
 ### Test 3.1: Create Standalone Assessment with AI Questions
+
 **Scenario**: Teacher creates an assessment with 5-letter share code
 
 **User Actions**:
+
 1. Navigate to "Assessments" page
 2. Click "Create Assessment"
 3. Fill assessment details:
@@ -157,6 +173,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 10. Note the 5-letter code displayed (e.g., "KLMNO")
 
 **Expected Results**:
+
 - ✅ AI generates relevant questions based on selected skills
 - ✅ Questions include mix of types (multiple choice, short answer)
 - ✅ 5-letter code displays prominently in green box
@@ -165,9 +182,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - ✅ "Copy Code" button works correctly
 
 ### Test 3.2: Student Joins Assessment via Code
+
 **Scenario**: Student uses 5-letter code to access assessment
 
 **User Actions**:
+
 1. Login as student
 2. On dashboard, click "Join Assessment" card
 3. Enter code "KLMNO" (from Test 3.1)
@@ -175,6 +194,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 5. Start assessment
 
 **Expected Results**:
+
 - ✅ Code entry page has clear instructions
 - ✅ Invalid code shows error "Assessment not found"
 - ✅ Valid code immediately opens assessment
@@ -187,9 +207,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 4. Assessment Taking Workflow
 
 ### Test 4.1: Complete Multi-Question Assessment
+
 **Scenario**: Student completes assessment with various question types
 
 **User Actions**:
+
 1. Continue from Test 3.2 (assessment open)
 2. Read first question (open-ended)
 3. Type detailed answer about greenhouse effect
@@ -205,6 +227,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 13. Confirm submission in modal
 
 **Expected Results**:
+
 - ✅ Progress bar updates with each question (25%, 50%, 75%, 100%)
 - ✅ Previous/Next navigation works correctly
 - ✅ Answers persist when navigating between questions
@@ -218,9 +241,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 5. Grading and Feedback Workflow
 
 ### Test 5.1: Grade Submissions with AI Feedback
+
 **Scenario**: Teacher grades student work using XQ rubrics and AI assistance
 
 **User Actions**:
+
 1. Login as teacher
 2. Navigate to "Assessments"
 3. Click on "Climate Science Quiz"
@@ -239,6 +264,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 11. Return to submissions list
 
 **Expected Results**:
+
 - ✅ Submission list shows all students who completed
 - ✅ Grading interface displays question and student answer
 - ✅ XQ rubric levels clearly labeled (Emerging → Developing → Proficient → Applying)
@@ -248,9 +274,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - ✅ Submissions list shows graded status
 
 ### Test 5.2: Student Views Grades and Feedback
+
 **Scenario**: Student reviews their graded assessment
 
 **User Actions**:
+
 1. Login as student
 2. Navigate to "My Assessments"
 3. Find "Climate Science Quiz" marked as "Graded"
@@ -259,6 +287,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 6. Check total score and rubric levels
 
 **Expected Results**:
+
 - ✅ Overall score displays prominently
 - ✅ Each question shows points earned
 - ✅ Rubric level visible for each question
@@ -271,9 +300,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 6. Project Progress and Milestone Tracking
 
 ### Test 6.1: Student Views Project Timeline
+
 **Scenario**: Student tracks project progress and milestones
 
 **User Actions**:
+
 1. Login as student (assigned to project)
 2. Click "Projects" in navigation
 3. Click on "Climate Change Solutions Research"
@@ -285,6 +316,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 9. Check team members list
 
 **Expected Results**:
+
 - ✅ Project page shows visual timeline
 - ✅ Milestones display with due dates
 - ✅ Progress indicators show completion status
@@ -298,9 +330,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 7. Digital Portfolio Management
 
 ### Test 7.1: Portfolio Generation and QR Sharing
+
 **Scenario**: Student's portfolio updates automatically and shares publicly
 
 **User Actions**:
+
 1. Login as student with completed assessments
 2. Navigate to "Portfolio"
 3. View artifacts section
@@ -311,6 +345,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 8. Scan QR code with mobile device
 
 **Expected Results**:
+
 - ✅ Portfolio shows all completed assessments as artifacts
 - ✅ Graded assessments appear with scores
 - ✅ Earned credentials (badges/stickers) display
@@ -325,9 +360,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 8. Credential and Achievement System
 
 ### Test 8.1: Earn Credentials Through Performance
+
 **Scenario**: Student earns credentials based on assessment performance
 
 **User Actions**:
+
 1. Complete assessment with high scores (Proficient/Applying)
 2. Teacher grades with high rubric levels
 3. Student checks notifications
@@ -336,6 +373,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 6. Click credential for details
 
 **Expected Results**:
+
 - ✅ Notification appears for credential earned
 - ✅ Credential shows in portfolio
 - ✅ Credential type matches performance (Sticker/Badge/Plaque)
@@ -348,9 +386,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 9. Analytics and Reporting
 
 ### Test 9.1: Teacher Analytics Dashboard
+
 **Scenario**: Teacher reviews class progress and performance
 
 **User Actions**:
+
 1. Login as teacher
 2. Navigate to "Analytics"
 3. View class overview metrics
@@ -361,6 +401,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 8. Download CSV report
 
 **Expected Results**:
+
 - ✅ Dashboard shows key metrics (students, projects, assessments)
 - ✅ Progress charts display correctly
 - ✅ Skill mastery levels show distribution
@@ -370,9 +411,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - ✅ Charts are interactive and responsive
 
 ### Test 9.2: Admin System-Wide Analytics
+
 **Scenario**: Admin reviews school-wide performance metrics
 
 **User Actions**:
+
 1. Login as admin
 2. Access admin dashboard
 3. View system statistics
@@ -381,6 +424,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 6. Export comprehensive report
 
 **Expected Results**:
+
 - ✅ Total users by role displayed
 - ✅ Active projects count accurate
 - ✅ Assessment metrics calculate correctly
@@ -393,15 +437,18 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 10. Error Handling and Edge Cases
 
 ### Test 10.1: Invalid Assessment Code
+
 **Scenario**: Student enters wrong or expired code
 
 **User Actions**:
+
 1. As student, click "Join Assessment"
 2. Enter invalid code "ZZZZZ"
 3. Try expired code (if available)
 4. Enter code with lowercase "abcde"
 
 **Expected Results**:
+
 - ✅ Clear error: "Invalid assessment code"
 - ✅ Error for expired: "This assessment code has expired"
 - ✅ System accepts uppercase or lowercase
@@ -409,15 +456,18 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - ✅ No system errors or crashes
 
 ### Test 10.2: Concurrent Access Handling
+
 **Scenario**: Multiple users access same resources
 
 **User Actions**:
+
 1. Teacher1 opens project for editing
 2. Teacher2 tries to edit same project
 3. Multiple students submit assessment simultaneously
 4. Teacher grades while student checks results
 
 **Expected Results**:
+
 - ✅ Last save wins without data corruption
 - ✅ All submissions recorded correctly
 - ✅ No lost data or system errors
@@ -428,9 +478,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 11. Mobile Responsiveness
 
 ### Test 11.1: Mobile Student Experience
+
 **Scenario**: Student completes assessment on mobile device
 
 **User Actions**:
+
 1. Open application on mobile browser
 2. Login as student
 3. Enter assessment code
@@ -438,6 +490,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 5. View portfolio on mobile
 
 **Expected Results**:
+
 - ✅ Login form adapts to mobile screen
 - ✅ Navigation becomes mobile menu
 - ✅ Assessment questions readable
@@ -450,9 +503,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 12. Performance Benchmarks
 
 ### Test 12.1: Load Time Validation
+
 **Scenario**: Verify acceptable performance across features
 
 **Measurements**:
+
 - Initial page load: < 3 seconds
 - Login authentication: < 2 seconds
 - Dashboard rendering: < 2 seconds
@@ -462,15 +517,18 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - Portfolio generation: < 2 seconds
 
 ### Test 12.2: Stress Testing
+
 **Scenario**: System handles multiple concurrent users
 
 **Setup**:
+
 - 50 concurrent student logins
 - 20 simultaneous assessment submissions
 - 10 teachers grading simultaneously
 - 5 AI generation requests
 
 **Expected Results**:
+
 - ✅ All operations complete successfully
 - ✅ No timeout errors
 - ✅ Response times remain acceptable
@@ -481,13 +539,16 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 13. Cross-Browser Compatibility
 
 ### Test 13.1: Browser Feature Matrix
+
 **Browsers to Test**:
+
 - Chrome (latest)
 - Firefox (latest)
 - Safari (latest)
 - Edge (latest)
 
 **Features to Verify**:
+
 - ✅ Authentication flow
 - ✅ Component skill selection tree
 - ✅ Assessment taking interface
@@ -502,9 +563,11 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## 14. Accessibility Compliance
 
 ### Test 14.1: Keyboard Navigation
+
 **Scenario**: Navigate application without mouse
 
 **User Actions**:
+
 1. Use Tab key to navigate
 2. Use Enter to activate buttons
 3. Use Space for checkboxes
@@ -512,6 +575,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 5. Use Escape to close modals
 
 **Expected Results**:
+
 - ✅ All interactive elements reachable
 - ✅ Focus indicators visible
 - ✅ Logical tab order
@@ -519,11 +583,13 @@ This document provides comprehensive end-to-end integration tests that simulate 
 - ✅ Modal focus trapped correctly
 
 ### Test 14.2: Screen Reader Testing
+
 **Scenario**: Use with screen reader software
 
 **Tools**: NVDA, JAWS, or VoiceOver
 
 **Expected Results**:
+
 - ✅ All content announced properly
 - ✅ Form labels read correctly
 - ✅ Error messages announced
@@ -534,30 +600,31 @@ This document provides comprehensive end-to-end integration tests that simulate 
 
 ## Test Execution Log
 
-| Test ID | Test Name | Priority | Last Executed | Status | Issues Found | Notes |
-|---------|-----------|----------|---------------|---------|--------------|-------|
-| 1.1 | Teacher Registration | High | - | ⏳ | - | - |
-| 1.2 | Student Registration | High | - | ⏳ | - | - |
-| 2.1 | Project Creation | High | - | ⏳ | - | - |
-| 2.2 | Team Management | High | - | ⏳ | - | - |
-| 3.1 | Assessment Creation | High | - | ⏳ | - | - |
-| 3.2 | Join via Code | High | - | ⏳ | - | - |
-| 4.1 | Take Assessment | High | - | ⏳ | - | - |
-| 5.1 | Grade with AI | High | - | ⏳ | - | - |
-| 5.2 | View Grades | High | - | ⏳ | - | - |
-| 6.1 | Project Timeline | Medium | - | ⏳ | - | - |
-| 7.1 | Portfolio & QR | High | - | ⏳ | - | - |
-| 8.1 | Earn Credentials | Medium | - | ⏳ | - | - |
-| 9.1 | Teacher Analytics | Medium | - | ⏳ | - | - |
-| 9.2 | Admin Analytics | Medium | - | ⏳ | - | - |
-| 10.1 | Error Handling | High | - | ⏳ | - | - |
-| 10.2 | Concurrent Access | High | - | ⏳ | - | - |
-| 11.1 | Mobile Experience | High | - | ⏳ | - | - |
-| 12.1 | Performance | Medium | - | ⏳ | - | - |
-| 13.1 | Cross-Browser | Medium | - | ⏳ | - | - |
-| 14.1 | Accessibility | High | - | ⏳ | - | - |
+| Test ID | Test Name            | Priority | Last Executed | Status | Issues Found | Notes |
+| ------- | -------------------- | -------- | ------------- | ------ | ------------ | ----- |
+| 1.1     | Teacher Registration | High     | -             | ⏳     | -            | -     |
+| 1.2     | Student Registration | High     | -             | ⏳     | -            | -     |
+| 2.1     | Project Creation     | High     | -             | ⏳     | -            | -     |
+| 2.2     | Team Management      | High     | -             | ⏳     | -            | -     |
+| 3.1     | Assessment Creation  | High     | -             | ⏳     | -            | -     |
+| 3.2     | Join via Code        | High     | -             | ⏳     | -            | -     |
+| 4.1     | Take Assessment      | High     | -             | ⏳     | -            | -     |
+| 5.1     | Grade with AI        | High     | -             | ⏳     | -            | -     |
+| 5.2     | View Grades          | High     | -             | ⏳     | -            | -     |
+| 6.1     | Project Timeline     | Medium   | -             | ⏳     | -            | -     |
+| 7.1     | Portfolio & QR       | High     | -             | ⏳     | -            | -     |
+| 8.1     | Earn Credentials     | Medium   | -             | ⏳     | -            | -     |
+| 9.1     | Teacher Analytics    | Medium   | -             | ⏳     | -            | -     |
+| 9.2     | Admin Analytics      | Medium   | -             | ⏳     | -            | -     |
+| 10.1    | Error Handling       | High     | -             | ⏳     | -            | -     |
+| 10.2    | Concurrent Access    | High     | -             | ⏳     | -            | -     |
+| 11.1    | Mobile Experience    | High     | -             | ⏳     | -            | -     |
+| 12.1    | Performance          | Medium   | -             | ⏳     | -            | -     |
+| 13.1    | Cross-Browser        | Medium   | -             | ⏳     | -            | -     |
+| 14.1    | Accessibility        | High     | -             | ⏳     | -            | -     |
 
 **Status Legend**:
+
 - ⏳ Pending
 - ✅ Passed
 - ❌ Failed
@@ -569,6 +636,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 ## Automation Recommendations
 
 ### Tools for Future Automation:
+
 1. **Cypress** - Modern E2E testing with great debugging
 2. **Playwright** - Cross-browser automation by Microsoft
 3. **Selenium Grid** - For parallel cross-browser testing
@@ -577,6 +645,7 @@ This document provides comprehensive end-to-end integration tests that simulate 
 6. **axe-core** - For automated accessibility testing
 
 ### Priority Automation Targets:
+
 1. Authentication flows (high reuse)
 2. Assessment code entry (critical feature)
 3. Basic CRUD operations
@@ -613,9 +682,9 @@ Additional Notes:
 
 ---
 
-*Document Version: 2.0*
-*Last Updated: July 27, 2025*
-*Next Review: Monthly or after major releases*
+_Document Version: 2.0_
+_Last Updated: July 27, 2025_
+_Next Review: Monthly or after major releases_
 
 ## Notes for Testers
 

@@ -138,10 +138,7 @@ export const createErrorResponse = (error: any, message: string, statusCode: num
 };
 
 // Validation middleware for common patterns
-export const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) && email.length <= 255;
-};
+// Note: Email validation removed - system now uses username-based authentication
 
 export const validatePassword = (password: string): { valid: boolean; message?: string } => {
   if (!password || typeof password !== 'string') {

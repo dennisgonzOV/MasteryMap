@@ -139,7 +139,7 @@ test.describe('Analytics and Reporting', () => {
     test('should show assessment completion rates', async ({ page }) => {
       // Login as teacher
       await page.goto('/login');
-      await page.fill('[name="email"]', 'e2e-analytics-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-analytics-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
       
@@ -156,7 +156,7 @@ test.describe('Analytics and Reporting', () => {
     test('should display interactive charts', async ({ page }) => {
       // Login as teacher
       await page.goto('/login');
-      await page.fill('[name="email"]', 'e2e-analytics-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-analytics-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
       

@@ -2363,8 +2363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         submissionId: submissionsTable.id,
         assessmentTitle: assessmentsTable.title,
         projectTitle: projectsTable.title,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
+        username: usersTable.username,
         submittedAt: submissionsTable.submittedAt
       })
         .from(submissionsTable)

@@ -31,10 +31,10 @@ export const testAssessment = {
 export const testTeams = [
   {
     name: 'Green Innovators',
-    members: ['student@psi.edu', 'student2@psi.edu']
+    members: ['student', 'student2']
   },
   {
     name: 'Eco Warriors', 
-    members: ['student3@psi.edu']
+    members: ['student3']
   }
 ];

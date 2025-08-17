@@ -116,7 +116,7 @@ export const credentialTypeSchema = z.enum(CREDENTIAL_TYPES);
 /**
  * Common validation patterns
  */
-export const emailSchema = z.string().email();
+// Note: emailSchema removed - system now uses username-based authentication
 export const passwordSchema = z.string().min(8);
 export const positiveIntSchema = z.number().int().positive();
 export const nonNegativeIntSchema = z.number().int().min(0);

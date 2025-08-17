@@ -28,7 +28,7 @@ describe('Projects API', () => {
       .post('/api/auth/register')
       .send({
         ...testUsers.teacher,
-        email: 'project-teacher@psi.edu',
+        username: 'project-teacher',
         schoolId
       });
     teacherToken = teacherResponse.body.token;
@@ -40,10 +40,10 @@ describe('Projects API', () => {
         .post('/api/auth/register')
         .send({
           ...studentUser,
-          email: `project-${studentUser.email}`,
+          username: `project-${studentUser.username}`,
           schoolId
         });
-      if (studentUser.email === testUsers.student.email) {
+      if (studentUser.username === testUsers.student.username) {
         studentToken = studentResponse.body.token;
       }
       studentIds.push(studentResponse.body.user.id);
