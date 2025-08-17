@@ -451,9 +451,34 @@ export class AssessmentController {
     });
 
     // Assessment deletion route
-    router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    router.delete('/:id', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const assessmentId = parseInt(req.params.id);
+        const userId = req.user!.id;
+
+        console.log(`User ${userId} (role: ${req.user?.role}) attempting to delete assessment ${assessmentId}`);
+
+        // Check if assessment exists first
+        const assessment = await this.service.getAssessment(assessmentId);
+        if (!assessment) {
+          return res.status(404).json({ message: "Assessment not found" });
+        }
+
+        // For teachers, check if they own the assessment (if it's linked to a milestone they created)
+        if (req.user?.role === 'teacher') {
+          // If assessment has a milestoneId, check if the teacher owns the project
+          if (assessment.milestoneId) {
+            const milestone = await this.service.getMilestone(assessment.milestoneId);
+            if (milestone?.project?.teacherId && milestone.project.teacherId !== userId) {
+              return res.status(403).json({ 
+                message: "Access denied - you can only delete assessments from your own projects" 
+              });
+            }
+          }
+          // For standalone assessments, we could add a teacherId field or allow all teachers
+          // For now, allow teachers to delete any standalone assessment
+        }
+
         await this.service.deleteAssessment(assessmentId);
         res.json({ message: "Assessment deleted successfully" });
       } catch (error) {
@@ -575,6 +600,20 @@ export class AssessmentController {
       } catch (error) {
         console.error("Error fetching submissions:", error);
         res.status(500).json({ message: "Failed to fetch submissions" });
+      }
+    });
+
+    // Debug route to check current user info
+    router.get('/debug/user-info', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        res.json({
+          userId: req.user?.id,
+          role: req.user?.role,
+          username: req.user?.username,
+          schoolId: req.user?.schoolId
+        });
+      } catch (error) {
+        res.status(500).json({ message: "Failed to get user info" });
       }
     });
 
