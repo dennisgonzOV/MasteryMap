@@ -48,6 +48,7 @@ export interface IProjectsStorage {
   addTeamMember(teamMember: Omit<ProjectTeamMember, 'id' | 'joinedAt'>): Promise<ProjectTeamMember>;
   removeTeamMember(memberId: number): Promise<void>;
   getTeamMembers(teamId: number): Promise<ProjectTeamMember[]>;
+  getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined>;
   getStudentsBySchool(schoolId: number): Promise<User[]>;
 
   // Assignment operations
@@ -270,6 +271,18 @@ export class ProjectsStorage implements IProjectsStorage {
       joinedAt: projectTeamMembers.joinedAt,
     }).from(projectTeamMembers)
     .where(eq(projectTeamMembers.teamId, teamId));
+  }
+
+  async getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined> {
+    const [member] = await db.select({
+      id: projectTeamMembers.id,
+      teamId: projectTeamMembers.teamId,
+      studentId: projectTeamMembers.studentId,
+      role: projectTeamMembers.role,
+      joinedAt: projectTeamMembers.joinedAt,
+    }).from(projectTeamMembers)
+    .where(eq(projectTeamMembers.id, memberId));
+    return member;
   }
 
   async getStudentsBySchool(schoolId: number): Promise<User[]> {

@@ -254,14 +254,13 @@ export class ProjectsService {
   }
 
   async removeTeamMember(memberId: number, userId: number, userRole: string): Promise<void> {
-    // Get the team member to find the team
-    const members = await this.storage.getTeamMembers(memberId);
-    if (members.length === 0) {
+    // Get the specific team member to find the team
+    const teamMember = await this.storage.getTeamMember(memberId);
+    if (!teamMember) {
       throw new Error("Team member not found");
     }
 
-    const teamId = members[0].teamId;
-    const team = await this.storage.getProjectTeam(teamId);
+    const team = await this.storage.getProjectTeam(teamMember.teamId);
     if (!team) {
       throw new Error("Team not found");
     }
