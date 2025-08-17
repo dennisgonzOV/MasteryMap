@@ -317,8 +317,7 @@ export class AssessmentController {
         // Get submissions for this assessment
         const submissionResults = await db.select({
           id: submissionsTable.id,
-          studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
-          studentEmail: usersTable.email,
+          studentName: usersTable.username,
           submittedAt: submissionsTable.submittedAt,
           feedback: submissionsTable.feedback
         })
@@ -328,10 +327,9 @@ export class AssessmentController {
 
         // Create CSV content
         const csvData = [
-          ['Student Name', 'Email', 'Submitted At', 'Feedback'],
+          ['Student Username', 'Submitted At', 'Feedback'],
           ...submissionResults.map((sub: any) => [
             sub.studentName,
-            sub.studentEmail,
             sub.submittedAt || '',
             (sub.feedback || '').replace(/,/g, ';') // Replace commas to avoid CSV issues
           ])
@@ -361,8 +359,7 @@ export class AssessmentController {
         // Get detailed submissions for this assessment
         const detailedSubmissions = await db.select({
           id: submissionsTable.id,
-          studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
-          studentEmail: usersTable.email,
+          studentName: usersTable.username,
           responses: submissionsTable.responses,
           submittedAt: submissionsTable.submittedAt,
           feedback: submissionsTable.feedback
@@ -373,10 +370,9 @@ export class AssessmentController {
 
         // Create CSV content
         const csvData = [
-          ['Student Name', 'Email', 'Responses', 'Submitted At', 'Feedback'],
+          ['Student Username', 'Responses', 'Submitted At', 'Feedback'],
           ...detailedSubmissions.map((sub: any) => [
             sub.studentName,
-            sub.studentEmail,
             JSON.stringify(sub.responses || {}).replace(/,/g, ';'),
             sub.submittedAt || '',
             (sub.feedback || '').replace(/,/g, ';')
@@ -407,8 +403,7 @@ export class AssessmentController {
         // Get detailed submissions with question breakdown
         const detailedResults = await db.select({
           id: submissionsTable.id,
-          studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
-          studentEmail: usersTable.email,
+          studentName: usersTable.username,
           responses: submissionsTable.responses,
           submittedAt: submissionsTable.submittedAt,
           feedback: submissionsTable.feedback
@@ -420,7 +415,7 @@ export class AssessmentController {
         const questions = (assessment[0].questions as any[]) || [];
 
         // Create detailed CSV with question breakdown
-        const headers = ['Student Name', 'Email', 'Submitted At'];
+        const headers = ['Student Username', 'Submitted At'];
         questions.forEach((q: any, index: number) => {
           headers.push(`Q${index + 1}: ${(q.text || '').substring(0, 50)}...`);
         });
@@ -431,7 +426,6 @@ export class AssessmentController {
         detailedResults.forEach((sub: any) => {
           const row = [
             sub.studentName,
-            sub.studentEmail,
             sub.submittedAt || ''
           ];
 

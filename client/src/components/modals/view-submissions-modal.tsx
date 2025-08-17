@@ -31,7 +31,7 @@ interface SubmissionWithDetails {
   }>;
   submittedAt: string;
   studentName: string;
-  studentEmail: string;
+  studentUsername: string;
   status?: 'graded' | 'pending' | 'late';
   grade?: {
     score: string;
@@ -193,7 +193,7 @@ export default function ViewSubmissionsModal({
                         <User className="h-5 w-5 text-gray-500" />
                         <div>
                           <h3 className="font-medium text-gray-900">{submission.studentName}</h3>
-                          <p className="text-sm text-gray-500">{submission.studentEmail}</p>
+                          <p className="text-sm text-gray-500">{submission.studentUsername}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">

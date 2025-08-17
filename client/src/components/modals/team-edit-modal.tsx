@@ -96,9 +96,7 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
   const currentMemberIds = teamMembers.map((member: any) => member.studentId);
   const availableStudents = allStudents.filter((student: any) => 
     !currentMemberIds.includes(student.id) &&
-    (student.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     student.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     student.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+    student.username?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAddStudent = (studentId: number) => {
@@ -154,13 +152,10 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">
-                              {member.student?.firstName && member.student?.lastName 
-                                ? `${member.student.firstName} ${member.student.lastName}`
-                                : member.studentName || member.student?.email || 'Unknown Student'
-                              }
+                              {member.student?.username || member.studentName || 'Unknown Student'}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {member.student?.email || 'No email available'}
+                              {member.student?.username || 'No username available'}
                             </p>
                           </div>
                         </div>
@@ -219,9 +214,9 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">
-                              {student.firstName} {student.lastName}
+                              {student.username}
                             </p>
-                            <p className="text-sm text-gray-500">{student.email}</p>
+                            <p className="text-sm text-gray-500">{student.username}</p>
                           </div>
                         </div>
                         <Button

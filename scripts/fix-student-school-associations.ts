@@ -32,32 +32,28 @@ async function fixStudentSchoolAssociations() {
     // Get all students without school associations
     const studentsWithoutSchool = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'student'));
 
     console.log(`Found ${studentsWithoutSchool.length} students:`);
     studentsWithoutSchool.forEach(student => {
-      console.log(`  ID: ${student.id}, Name: ${student.firstName} ${student.lastName}, Email: ${student.email}, SchoolID: ${student.schoolId || 'NULL'}`);
+      console.log(`  ID: ${student.id}, Username: ${student.username}, SchoolID: ${student.schoolId || 'NULL'}`);
     });
     console.log();
 
     // Get all teachers
     const allTeachers = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'teacher'));
 
     console.log(`Found ${allTeachers.length} teachers:`);
     allTeachers.forEach(teacher => {
-      console.log(`  ID: ${teacher.id}, Name: ${teacher.firstName} ${teacher.lastName}, Email: ${teacher.email}, SchoolID: ${teacher.schoolId || 'NULL'}`);
+      console.log(`  ID: ${teacher.id}, Username: ${teacher.username}, SchoolID: ${teacher.schoolId || 'NULL'}`);
     });
     console.log();
 
@@ -68,7 +64,7 @@ async function fixStudentSchoolAssociations() {
         await db.update(users)
           .set({ schoolId: defaultSchoolId })
           .where(eq(users.id, student.id));
-        console.log(`Updated student ${student.firstName} ${student.lastName} to school ID ${defaultSchoolId}`);
+        console.log(`Updated student ${student.username} to school ID ${defaultSchoolId}`);
         updatedStudents++;
       }
     }
@@ -80,7 +76,7 @@ async function fixStudentSchoolAssociations() {
         await db.update(users)
           .set({ schoolId: defaultSchoolId })
           .where(eq(users.id, teacher.id));
-        console.log(`Updated teacher ${teacher.firstName} ${teacher.lastName} to school ID ${defaultSchoolId}`);
+        console.log(`Updated teacher ${teacher.username} to school ID ${defaultSchoolId}`);
         updatedTeachers++;
       }
     }
@@ -94,18 +90,14 @@ async function fixStudentSchoolAssociations() {
     console.log(`\nVerifying fix...`);
     const studentsAfterFix = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'student'));
 
     const teachersAfterFix = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'teacher'));

@@ -65,7 +65,7 @@ function generateRandomCode(): string {
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: UpsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<UpsertUser>): Promise<User>;
 
@@ -190,8 +190,8 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
 
@@ -598,8 +598,7 @@ export class DatabaseStorage implements IStorage {
         studentId: submissions.studentId,
         responses: submissions.responses,
         submittedAt: submissions.submittedAt,
-        studentName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
-        studentEmail: users.email,
+        studentName: users.username,
       })
       .from(submissions)
       .innerJoin(users, eq(submissions.studentId, users.id))
@@ -1088,7 +1087,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).where(and(
       eq(users.schoolId,schoolId),
       eq(users.role, 'student')
-    )).orderBy(asc(users.firstName), asc(users.lastName));
+    )).orderBy(asc(users.username));
   }
 
   async getProjectTeam(teamId: number): Promise<ProjectTeam | undefined> {

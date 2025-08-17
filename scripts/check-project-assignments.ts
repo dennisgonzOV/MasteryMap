@@ -20,7 +20,7 @@ async function checkProjectAssignments() {
     // Check if test students have any assignments
     for (const student of students) {
       const studentAssignments = assignments.filter(a => a.studentId === student.id);
-      console.log(`Student ${student.firstName} ${student.lastName} (ID: ${student.id}) has ${studentAssignments.length} assignments`);
+      console.log(`Student ${student.username} (ID: ${student.id}) has ${studentAssignments.length} assignments`);
     }
 
     // If no assignments exist, create some test assignments
@@ -34,7 +34,7 @@ async function checkProjectAssignments() {
             projectId: allProjects[i].id,
             studentId: student.id
           });
-          console.log(`Assigned project "${allProjects[i].title}" to student ${student.firstName} ${student.lastName}`);
+          console.log(`Assigned project "${allProjects[i].title}" to student ${student.username}`);
         }
       }
     }

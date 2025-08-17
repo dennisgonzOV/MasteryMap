@@ -17,32 +17,28 @@ async function checkStudents() {
     // Get all students
     const allStudents = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'student'));
 
     console.log(`Found ${allStudents.length} students:`);
     allStudents.forEach(student => {
-      console.log(`  ID: ${student.id}, Name: ${student.firstName} ${student.lastName}, Email: ${student.email}, SchoolID: ${student.schoolId || 'NULL'}`);
+      console.log(`  ID: ${student.id}, Username: ${student.username}, SchoolID: ${student.schoolId || 'NULL'}`);
     });
     console.log();
 
     // Get all teachers
     const allTeachers = await db.select({
       id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
+      username: users.username,
       role: users.role,
       schoolId: users.schoolId
     }).from(users).where(eq(users.role, 'teacher'));
 
     console.log(`Found ${allTeachers.length} teachers:`);
     allTeachers.forEach(teacher => {
-      console.log(`  ID: ${teacher.id}, Name: ${teacher.firstName} ${teacher.lastName}, Email: ${teacher.email}, SchoolID: ${teacher.schoolId || 'NULL'}`);
+      console.log(`  ID: ${teacher.id}, Username: ${teacher.username}, SchoolID: ${teacher.schoolId || 'NULL'}`);
     });
 
   } catch (error) {

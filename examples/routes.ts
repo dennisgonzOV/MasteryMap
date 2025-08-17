@@ -785,8 +785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get submissions for this assessment
       const submissionResults = await db.select({
         id: submissionsTable.id,
-        studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
-        studentEmail: usersTable.email,
+        studentName: usersTable.username,
         submittedAt: submissionsTable.submittedAt,
         feedback: submissionsTable.feedback
       })
@@ -796,10 +795,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create CSV content
       const csvData = [
-        ['Student Name', 'Email', 'Submitted At', 'Feedback'],
+        ['Student Username', 'Submitted At', 'Feedback'],
         ...submissionResults.map((sub: any) => [
           sub.studentName,
-          sub.studentEmail,
           sub.submittedAt || '',
           (sub.feedback || '').replace(/,/g, ';') // Replace commas to avoid CSV issues
         ])
@@ -829,8 +827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get detailed submissions for this assessment
       const detailedSubmissions = await db.select({
         id: submissionsTable.id,
-        studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
-        studentEmail: usersTable.email,
+        studentName: usersTable.username,
         responses: submissionsTable.responses,
         submittedAt: submissionsTable.submittedAt,
         feedback: submissionsTable.feedback
@@ -841,10 +838,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create CSV content
       const csvData = [
-        ['Student Name', 'Email', 'Responses', 'Submitted At', 'Feedback'],
+        ['Student Username', 'Responses', 'Submitted At', 'Feedback'],
         ...detailedSubmissions.map((sub: any) => [
           sub.studentName,
-          sub.studentEmail,
           JSON.stringify(sub.responses || {}).replace(/,/g, ';'),
           sub.submittedAt || '',
           (sub.feedback || '').replace(/,/g, ';')
@@ -875,8 +871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get detailed submissions with question breakdown
       const detailedResults = await db.select({
         id: submissionsTable.id,
-        studentName: sql`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
-        studentEmail: usersTable.email,
+        studentName: usersTable.username,
         responses: submissionsTable.responses,
         submittedAt: submissionsTable.submittedAt,
         feedback: submissionsTable.feedback
@@ -888,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const questions = (assessment[0].questions as any[]) || [];
 
       // Create detailed CSV with question breakdown
-      const headers = ['Student Name', 'Email', 'Submitted At'];
+              const headers = ['Student Username', 'Submitted At'];
       questions.forEach((q: any, index: number) => {
         headers.push(`Q${index + 1}: ${(q.text || '').substring(0, 50)}...`);
       });
@@ -899,7 +894,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       detailedResults.forEach((sub: any) => {
         const row = [
           sub.studentName,
-          sub.studentEmail,
           sub.submittedAt || ''
         ];
 
@@ -1941,7 +1935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Admins can see all incidents
         incidents = await db.select({
           id: safetyIncidentsTable.id,
-          studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
+          studentName: usersTable.username,
           incidentType: safetyIncidentsTable.incidentType,
           message: safetyIncidentsTable.message,
           severity: safetyIncidentsTable.severity,
@@ -1960,7 +1954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         incidents = await db.select({
           id: safetyIncidentsTable.id,
-          studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
+          studentName: usersTable.username,
           incidentType: safetyIncidentsTable.incidentType,
           message: safetyIncidentsTable.message,
           severity: safetyIncidentsTable.severity,
@@ -2112,12 +2106,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: projectTeamMembers.studentId,
         role: projectTeamMembers.role,
         joinedAt: projectTeamMembers.joinedAt,
-        studentName: sql<string>`CONCAT(${usersTable.firstName}, ' ', ${usersTable.lastName})`,
+        studentName: usersTable.username,
         student: {
           id: usersTable.id,
-          firstName: usersTable.firstName,
-          lastName: usersTable.lastName,
-          email: usersTable.email
+          username: usersTable.username
         }
       })
         .from(projectTeamMembers)
@@ -2199,11 +2191,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the response to include only the fields we need
       const formattedUsers = schoolUsers.map(user => ({
         id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        username: user.username,
         role: user.role,
-        // grade: user.grade || null, // Removed since grade doesn't exist on user
         schoolId: user.schoolId
       }));
 
@@ -2393,10 +2382,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: submission.submissionId,
         type: 'grading' as const,
         title: "Grade " + submission.assessmentTitle,
-        description: "Review submission for " + submission.firstName + " " + submission.lastName,
+        description: "Review submission for " + submission.username,
         priority: index < 3 ? 'high' as const : 'medium' as const,
         dueDate: new Date(Date.now() + (index + 1) * 24 * 60 * 60 * 1000).toISOString(),
-        studentName: submission.firstName + " " + submission.lastName,
+        studentName: submission.username,
         projectTitle: submission.projectTitle
       }));
 
@@ -2474,8 +2463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               projectTitle: projectsTable.title,
               projectDescription: projectsTable.description,
               projectStatus: projectsTable.status,
-              teacherFirstName: usersTable.firstName,
-              teacherLastName: usersTable.lastName
+              teacherUsername: usersTable.username
             })
               .from(projectAssignments)
               .innerJoin(projectsTable, eq(projectAssignments.projectId, projectsTable.id))
@@ -2487,10 +2475,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               projectTitle: assignment.projectTitle,
               projectDescription: assignment.projectDescription,
               projectStatus: assignment.projectStatus,
-              teacherName: `${assignment.teacherFirstName} ${assignment.teacherLastName}`
+              teacherName: assignment.teacherUsername
             }));
 
-            console.log(`Student ${student.id} (${student.firstName} ${student.lastName}) has ${studentAssignments.length} project assignments:`, processedAssignments);
+            console.log(`Student ${student.id} (${student.username}) has ${studentAssignments.length} project assignments:`, processedAssignments);
 
             // Get student's credentials
             const studentCredentials = await db.select()

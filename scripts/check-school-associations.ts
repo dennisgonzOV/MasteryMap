@@ -18,13 +18,13 @@ async function checkSchoolAssociations() {
     // Check users
     const users = await db.select({
       id: usersTable.id,
-      email: usersTable.email,
+      username: usersTable.username,
       role: usersTable.role
     }).from(usersTable);
     
     console.log(`📊 Found ${users.length} users:`);
     users.forEach(user => {
-      console.log(`  - ${user.email} (${user.role})`);
+      console.log(`  - ${user.username} (${user.role})`);
     });
     console.log("");
 
@@ -67,7 +67,7 @@ async function checkSchoolAssociations() {
     submissions.forEach(submission => {
       const student = users.find(u => u.id === submission.studentId);
       const assessment = assessments.find(a => a.id === submission.assessmentId);
-      console.log(`  - Student: ${student?.email} | Assessment: ${assessment?.title} | Date: ${submission.submittedAt}`);
+      console.log(`  - Student: ${student?.username} | Assessment: ${assessment?.title} | Date: ${submission.submittedAt}`);
     });
     console.log("");
 
@@ -86,7 +86,7 @@ async function checkSchoolAssociations() {
     grades.forEach(grade => {
       const student = users.find(u => u.id === grade.studentId);
       const skill = componentSkills.find(s => s.id === grade.componentSkillId);
-      console.log(`  - Student: ${student?.email} | Skill: ${skill?.name} | Score: ${grade.score} | Level: ${grade.rubricLevel}`);
+      console.log(`  - Student: ${student?.username} | Skill: ${skill?.name} | Score: ${grade.score} | Level: ${grade.rubricLevel}`);
     });
     console.log("");
 
@@ -96,7 +96,7 @@ async function checkSchoolAssociations() {
     
     // Check what data each teacher should see
     for (const teacher of teachers) {
-      console.log(`\n🔍 Checking data for teacher: ${teacher.email}`);
+      console.log(`\n🔍 Checking data for teacher: ${teacher.username}`);
       
       // Get grades for students (in a real school system, this would be filtered by school/class)
       const teacherVisibleGrades = grades; // For now, teachers can see all grades

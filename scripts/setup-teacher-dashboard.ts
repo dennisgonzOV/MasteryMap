@@ -32,13 +32,10 @@ async function setupTeacherDashboard() {
     if (!teacher.length) {
       console.log("Creating teacher user...");
       const newTeacher = await db.insert(users).values({
-        email: "teacher@test.com",
+        username: "teacher",
         password: "$2b$10$5K9Y4X2QZ8L1M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3", // password: "teacher123"
-        firstName: "Test",
-        lastName: "Teacher",
         role: "teacher",
-        schoolId: schoolId,
-        emailConfirmed: true
+        schoolId: schoolId
       }).returning();
       teacher = newTeacher;
       console.log("Created teacher:", teacher[0]);
@@ -58,55 +55,40 @@ async function setupTeacherDashboard() {
       console.log("Creating sample students...");
       const sampleStudents = [
         {
-          email: "student1@test.com",
+          username: "alice",
           password: "$2b$10$5K9Y4X2QZ8L1M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3",
-          firstName: "Alice",
-          lastName: "Johnson",
           role: "student" as const,
-          schoolId: schoolId,
-          emailConfirmed: true
+          schoolId: schoolId
         },
         {
-          email: "student2@test.com",
+          username: "bob",
           password: "$2b$10$5K9Y4X2QZ8L1M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3",
-          firstName: "Bob",
-          lastName: "Smith",
           role: "student" as const,
-          schoolId: schoolId,
-          emailConfirmed: true
+          schoolId: schoolId
         },
         {
-          email: "student3@test.com",
+          username: "carol",
           password: "$2b$10$5K9Y4X2QZ8L1M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3",
-          firstName: "Carol",
-          lastName: "Davis",
           role: "student" as const,
-          schoolId: schoolId,
-          emailConfirmed: true
+          schoolId: schoolId
         },
         {
-          email: "student4@test.com",
+          username: "david",
           password: "$2b$10$5K9Y4X2QZ8L1M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3",
-          firstName: "David",
-          lastName: "Wilson",
           role: "student" as const,
-          schoolId: schoolId,
-          emailConfirmed: true
+          schoolId: schoolId
         },
         {
-          email: "student5@test.com",
+          username: "emma",
           password: "$2b$10$5K9Y4X2QZ8L1M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D0E1F2G3",
-          firstName: "Emma",
-          lastName: "Brown",
           role: "student" as const,
-          schoolId: schoolId,
-          emailConfirmed: true
+          schoolId: schoolId
         }
       ];
 
       for (const studentData of sampleStudents) {
         const newStudent = await db.insert(users).values(studentData).returning();
-        console.log(`Created student: ${newStudent[0].firstName} ${newStudent[0].lastName}`);
+        console.log(`Created student: ${newStudent[0].username}`);
       }
       
       students = await db.select().from(users).where(eq(users.role, 'student'));
@@ -116,7 +98,7 @@ async function setupTeacherDashboard() {
       for (const student of students) {
         if (!student.schoolId) {
           await db.update(users).set({ schoolId }).where(eq(users.id, student.id));
-          console.log(`Updated student ${student.firstName} ${student.lastName} school association`);
+          console.log(`Updated student ${student.username} school association`);
         }
       }
     }
@@ -240,14 +222,14 @@ async function setupTeacherDashboard() {
           approvedBy: teacher[0].id
         });
 
-        console.log(`Added credentials for ${student.firstName} ${student.lastName}`);
+        console.log(`Added credentials for ${student.username}`);
       }
     }
 
     console.log("\n✅ Teacher dashboard setup completed!");
     console.log("\nLogin credentials:");
-    console.log("Teacher: teacher@test.com / teacher123");
-    console.log("Students: student1@test.com / student123 (and similar for student2-5)");
+    console.log("Teacher: teacher / teacher123");
+    console.log("Students: alice / student123, bob / student123, carol / student123, david / student123, emma / student123");
     console.log("\nThe teacher dashboard should now show students in the Student Progress Overview card.");
 
   } catch (error) {

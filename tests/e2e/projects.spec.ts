@@ -6,9 +6,7 @@ test.describe('Project Management Workflows', () => {
   test.beforeEach(async ({ page }) => {
     // Setup: Login as teacher
     await page.goto('/register');
-    await page.fill('[name="firstName"]', 'E2E');
-    await page.fill('[name="lastName"]', 'Teacher');
-    await page.fill('[name="email"]', 'e2e-project-teacher@psi.edu');
+    await page.fill('[name="username"]', 'e2e-project-teacher');
     await page.fill('[name="password"]', 'Test123!');
     await page.selectOption('[name="role"]', 'teacher');
     await page.selectOption('[name="schoolId"]', { label: testSchool.name });
@@ -16,7 +14,7 @@ test.describe('Project Management Workflows', () => {
 
     // Login
     await page.goto('/login');
-    await page.fill('[name="email"]', 'e2e-project-teacher@psi.edu');
+    await page.fill('[name="username"]', 'e2e-project-teacher');
     await page.fill('[name="password"]', 'Test123!');
     await page.click('button[type="submit"]');
   });

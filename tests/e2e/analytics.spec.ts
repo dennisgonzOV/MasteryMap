@@ -6,16 +6,14 @@ test.describe('Analytics and Reporting', () => {
     test.beforeEach(async ({ page }) => {
       // Setup: Login as teacher
       await page.goto('/register');
-      await page.fill('[name="firstName"]', 'Analytics');
-      await page.fill('[name="lastName"]', 'Teacher');
-      await page.fill('[name="email"]', 'e2e-analytics-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-analytics-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.selectOption('[name="role"]', 'teacher');
       await page.selectOption('[name="schoolId"]', { label: testSchool.name });
       await page.click('button[type="submit"]');
 
       await page.goto('/login');
-      await page.fill('[name="email"]', 'e2e-analytics-teacher@psi.edu');
+      await page.fill('[name="username"]', 'e2e-analytics-teacher');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
     });
@@ -82,16 +80,14 @@ test.describe('Analytics and Reporting', () => {
     test.beforeEach(async ({ page }) => {
       // Setup: Login as admin
       await page.goto('/register');
-      await page.fill('[name="firstName"]', 'Analytics');
-      await page.fill('[name="lastName"]', 'Admin');
-      await page.fill('[name="email"]', 'e2e-analytics-admin@psi.edu');
+      await page.fill('[name="username"]', 'e2e-analytics-admin');
       await page.fill('[name="password"]', 'Test123!');
       await page.selectOption('[name="role"]', 'admin');
       await page.selectOption('[name="schoolId"]', { label: testSchool.name });
       await page.click('button[type="submit"]');
 
       await page.goto('/login');
-      await page.fill('[name="email"]', 'e2e-analytics-admin@psi.edu');
+      await page.fill('[name="username"]', 'e2e-analytics-admin');
       await page.fill('[name="password"]', 'Test123!');
       await page.click('button[type="submit"]');
     });
