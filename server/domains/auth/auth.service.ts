@@ -10,7 +10,7 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secre
 
 export interface JWTPayload {
   userId: number;
-  email: string;
+  username: string;
   role: string;
 }
 
@@ -104,7 +104,7 @@ export class AuthService {
   // Business logic methods
   static async registerUser(userData: UpsertUser): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     // Check if user already exists
-    const existingUser = await authStorage.getUserByEmail(userData.email);
+    const existingUser = await authStorage.getUserByUsername(userData.username);
     if (existingUser) {
       throw new Error('User already exists');
     }
@@ -121,7 +121,7 @@ export class AuthService {
     // Generate tokens
     const tokens = this.generateTokens({
       userId: user.id,
-      email: user.email,
+      username: user.username,
       role: user.role,
     });
 
@@ -131,9 +131,9 @@ export class AuthService {
     return { user, ...tokens };
   }
 
-  static async loginUser(email: string, password: string): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+  static async loginUser(username: string, password: string): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     // Find user
-    const user = await authStorage.getUserByEmail(email);
+    const user = await authStorage.getUserByUsername(username);
     if (!user) {
       throw new Error('Invalid credentials');
     }
@@ -147,7 +147,7 @@ export class AuthService {
     // Generate tokens
     const tokens = this.generateTokens({
       userId: user.id,
-      email: user.email,
+      username: user.username,
       role: user.role,
     });
 
@@ -179,7 +179,7 @@ export class AuthService {
     // Generate new tokens
     const tokens = this.generateTokens({
       userId: user.id,
-      email: user.email,
+      username: user.username,
       role: user.role,
     });
 

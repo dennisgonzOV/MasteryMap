@@ -43,8 +43,9 @@ export const schools = pgTable("schools", {
 // User storage table with authentication support
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  email: varchar("email").unique().notNull(),
-  password: varchar("password").notNull(),
+  username: varchar("username", { length: 255 }).notNull().unique(),
+  email: varchar("email", { length: 255 }),
+  password: varchar("password", { length: 255 }).notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -529,13 +530,18 @@ export const registerSchema = createInsertSchema(users).omit({
   updatedAt: true,
   emailConfirmed: true,
 }).extend({
-  password: createInsertSchema(users).shape.password.min(8),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
+  email: z.string().email('Please enter a valid email address').optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  role: z.enum(['admin', 'teacher', 'student']).default('student'),
   schoolId: z.number().int().positive().optional(),
 });
 
-export const loginSchema = createInsertSchema(users).pick({
-  email: true,
-  password: true,
+export const loginSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
