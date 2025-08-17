@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
 // Import all domain routers
-import { authRouter, adminRouter, analyticsRouter } from "./domains/auth";
+import { authRouter, adminRouter, analyticsRouter, requireAuth } from "./domains/auth";
 import { projectsRouter, milestonesRouter, projectTeamsRouter, projectTeamMembersRouter, schoolsRouter, teacherRouter } from "./domains/projects";
-import { assessmentsRouter, submissionsRouter, selfEvaluationsRouter } from "./domains/assessments";
+import { assessmentsRouter, submissionsRouter, selfEvaluationsRouter, assessmentStorage } from "./domains/assessments";
 import { credentialsRouter } from "./domains/credentials";
 import { portfolioRouter } from "./domains/portfolio";
 import { aiRouter } from "./domains/ai";
@@ -11,8 +11,10 @@ import { competenciesRouter } from "./domains/competencies";
 import { notificationsRouter } from "./domains/notifications";
 import { safetyIncidentsRouter } from "./domains/safety-incidents";
 
+import { db } from './db';
+import { users as usersTable } from '../shared/schema';
+import { eq } from 'drizzle-orm';
 
-import { requireAuth, type AuthenticatedRequest } from "./domains/auth";
 
 export function setupRoutes(app: Express) {
   // Mount all domain routers
@@ -48,6 +50,46 @@ export function setupRoutes(app: Express) {
   app.use("/api/teacher", teacherRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/analytics", analyticsRouter);
+
+  // School-wide component skills tracking for teachers
+  app.get("/api/teacher/school-component-skills-progress", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacher = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id)).limit(1);
+      if (!teacher.length || !teacher[0].schoolId) {
+        return res.status(400).json({ message: "Teacher school not found" });
+      }
+
+      const skillsProgress = await assessmentStorage.getSchoolComponentSkillsProgress(req.user.id);
+      res.json(skillsProgress);
+    } catch (error) {
+      console.error('School component skills progress error:', error);
+      res.status(500).json({ message: "Failed to fetch school component skills progress" });
+    }
+  });
+
+  // School-wide skills statistics
+  app.get("/api/teacher/school-skills-stats", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const teacher = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id)).limit(1);
+      if (!teacher.length || !teacher[0].schoolId) {
+        return res.status(400).json({ message: "Teacher school not found" });
+      }
+
+      const stats = await assessmentStorage.getSchoolSkillsStats(req.user.id);
+      res.json(stats);
+    } catch (error) {
+      console.error('School skills stats error:', error);
+      res.status(500).json({ message: "Failed to fetch school skills statistics" });
+    }
+  });
 
   // Additional student-specific routes
   app.use('/api', assessmentsRouter);
