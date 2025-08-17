@@ -135,6 +135,12 @@ export class AssessmentService {
 
   async getSubmissionsByAssessment(assessmentId: number): Promise<any[]> {
     try {
+      // Validate input
+      if (!assessmentId || isNaN(assessmentId)) {
+        console.error("Invalid assessmentId:", assessmentId);
+        return [];
+      }
+
       const submissions = await this.storage.getSubmissionsByAssessment(assessmentId);
       const assessment = await this.storage.getAssessment(assessmentId);
 
@@ -146,21 +152,29 @@ export class AssessmentService {
       const enhancedSubmissions = await Promise.all(
         submissions.map(async (submission) => {
           try {
+            // Ensure submission has required properties
+            if (!submission || !submission.id) {
+              console.error("Invalid submission object:", submission);
+              return null;
+            }
+
             const grades = await this.storage.getGradesBySubmission(submission.id);
 
-            console.log(`Submission ${submission.id} has ${grades.length} grades:`, grades);
+            console.log(`Submission ${submission.id} has ${grades?.length || 0} grades:`, grades);
 
             return {
               ...submission,
               answers: submission.responses || {},
               grades: grades || [],
-              isLate: assessment?.dueDate ? new Date(submission.submittedAt) > new Date(assessment.dueDate) : false
+              isLate: assessment?.dueDate && submission.submittedAt 
+                ? new Date(submission.submittedAt) > new Date(assessment.dueDate) 
+                : false
             };
           } catch (error) {
-            console.error(`Error processing submission ${submission.id}:`, error);
+            console.error(`Error processing submission ${submission?.id}:`, error);
             return {
               ...submission,
-              answers: submission.responses || {},
+              answers: submission?.responses || {},
               grades: [],
               isLate: false
             };
@@ -168,10 +182,11 @@ export class AssessmentService {
         })
       );
 
-      return enhancedSubmissions;
+      // Filter out null submissions
+      return enhancedSubmissions.filter(submission => submission !== null);
     } catch (error) {
       console.error("Error in getSubmissionsByAssessment service:", error);
-      throw new Error("Failed to fetch submissions");
+      return []; // Return empty array instead of throwing
     }
   }
 
