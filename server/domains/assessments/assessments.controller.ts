@@ -296,6 +296,30 @@ export class AssessmentController {
         res.json(assessment);
       } catch (error) {
         console.error("Error creating assessment:", error);
+        
+        // Handle validation errors with appropriate status codes
+        if (error instanceof Error) {
+          const errorMessage = error.message;
+          
+          // Check for specific validation errors
+          if (errorMessage.includes("must have at least one question") || 
+              errorMessage.includes("must have non-empty text") ||
+              errorMessage.includes("Teacher assessments must have")) {
+            return res.status(400).json({ 
+              message: "Validation Error",
+              error: errorMessage
+            });
+          }
+          
+          // Check for Zod validation errors
+          if (errorMessage.includes("Teacher assessments must have at least one question with non-empty text")) {
+            return res.status(400).json({ 
+              message: "Validation Error",
+              error: "Teacher assessments must have at least one question with non-empty text"
+            });
+          }
+        }
+        
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
         res.status(500).json({ 
           message: "Failed to create assessment", 
@@ -481,6 +505,14 @@ export class AssessmentController {
           }
           // For standalone assessments, we could add a teacherId field or allow all teachers
           // For now, allow teachers to delete any standalone assessment
+        }
+
+        // Check if assessment has submissions - if so, prevent deletion
+        const hasSubmissions = await this.service.hasSubmissions(assessmentId);
+        if (hasSubmissions) {
+          return res.status(400).json({ 
+            message: "Cannot delete assessment - it has existing submissions. Please review and grade all submissions before deleting." 
+          });
         }
 
         await this.service.deleteAssessment(assessmentId);

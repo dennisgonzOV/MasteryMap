@@ -18,6 +18,19 @@ export class AssessmentService {
     // Handle date conversion manually
     const { dueDate, ...bodyData } = data;
 
+    // Additional validation for teacher assessments
+    if (bodyData.assessmentType === "teacher") {
+      if (!bodyData.questions || !Array.isArray(bodyData.questions) || bodyData.questions.length === 0) {
+        throw new Error("Teacher assessments must have at least one question");
+      }
+      
+      // Check for questions with empty text
+      const emptyQuestions = bodyData.questions.filter((q: any) => !q.text || q.text.trim().length === 0);
+      if (emptyQuestions.length > 0) {
+        throw new Error("All questions in teacher assessments must have non-empty text");
+      }
+    }
+
     // Ensure questions have proper IDs
     if (bodyData.questions && Array.isArray(bodyData.questions)) {
       bodyData.questions = bodyData.questions.map((question: any, index: number) => ({
@@ -63,6 +76,10 @@ export class AssessmentService {
 
   async deleteAssessment(id: number): Promise<void> {
     return await this.storage.deleteAssessment(id);
+  }
+
+  async hasSubmissions(assessmentId: number): Promise<boolean> {
+    return await this.storage.hasSubmissions(assessmentId);
   }
 
   // Share code business logic

@@ -49,6 +49,7 @@ export interface IAssessmentStorage {
   getSubmissionsByStudent(studentId: number): Promise<SubmissionWithAssessment[]>;
   getSubmissionsByAssessment(assessmentId: number): Promise<any[]>;
   updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission>;
+  hasSubmissions(assessmentId: number): Promise<boolean>;
 
   // Grade operations
   createGrade(grade: Omit<Grade, "id" | "gradedAt">): Promise<Grade>;
@@ -290,7 +291,6 @@ export class AssessmentStorage implements IAssessmentStorage {
         studentUsername: row.users.username,
         responses: row.submissions.responses,
         submittedAt: row.submissions.submittedAt,
-        grade: row.submissions.grade,
         feedback: row.submissions.feedback,
         aiGeneratedFeedback: row.submissions.aiGeneratedFeedback,
       }));
@@ -309,6 +309,15 @@ export class AssessmentStorage implements IAssessmentStorage {
       .where(eq(submissions.id, id))
       .returning();
     return updatedSubmission;
+  }
+
+  async hasSubmissions(assessmentId: number): Promise<boolean> {
+    const [submission] = await db
+      .select()
+      .from(submissions)
+      .where(eq(submissions.assessmentId, assessmentId))
+      .limit(1);
+    return !!submission;
   }
 
   // Grade operations

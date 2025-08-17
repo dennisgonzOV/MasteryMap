@@ -91,6 +91,61 @@ describe('Assessments API', () => {
 
       expect(response.status).toBe(403);
     });
+
+    it('should reject teacher assessment creation without questions', async () => {
+      const assessmentWithoutQuestions = {
+        ...testAssessment,
+        questions: []
+      };
+
+      const response = await request(app)
+        .post('/api/assessments')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send(assessmentWithoutQuestions);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Validation Error');
+      expect(response.body.error).toContain('must have at least one question');
+    });
+
+    it('should reject teacher assessment creation with empty question text', async () => {
+      const assessmentWithEmptyQuestions = {
+        ...testAssessment,
+        questions: [
+          {
+            text: '',
+            type: 'open-ended',
+            rubricCriteria: ''
+          }
+        ]
+      };
+
+      const response = await request(app)
+        .post('/api/assessments')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send(assessmentWithEmptyQuestions);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Validation Error');
+      expect(response.body.error).toContain('must have non-empty text');
+    });
+
+    it('should allow self-evaluation assessment creation without questions', async () => {
+      const selfEvaluationAssessment = {
+        ...testAssessment,
+        assessmentType: 'self-evaluation',
+        questions: []
+      };
+
+      const response = await request(app)
+        .post('/api/assessments')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send(selfEvaluationAssessment);
+
+      expect(response.status).toBe(200);
+      expect(response.body.assessmentType).toBe('self-evaluation');
+      expect(response.body.questions).toEqual([]);
+    });
   });
 
   describe('Assessment Share Codes', () => {
@@ -262,6 +317,47 @@ describe('Assessments API', () => {
       expect(response.body.totalSubmissions).toBeDefined();
       expect(response.body.averageScore).toBeDefined();
       expect(response.body.completionRate).toBeDefined();
+    });
+  });
+
+  describe('Assessment Deletion', () => {
+    it('should prevent deletion of assessment with submissions', async () => {
+      const response = await request(app)
+        .delete(`/api/assessments/${assessmentId}`)
+        .set('Authorization', `Bearer ${teacherToken}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Cannot delete assessment');
+      expect(response.body.message).toContain('existing submissions');
+    });
+
+    it('should allow deletion of assessment without submissions', async () => {
+      // Create a new assessment without submissions
+      const newAssessmentResponse = await request(app)
+        .post('/api/assessments')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({
+          ...testAssessment,
+          title: 'Test Assessment for Deletion',
+          componentSkillIds: [testAssessment.componentSkillIds[0]]
+        });
+
+      const newAssessmentId = newAssessmentResponse.body.id;
+
+      const response = await request(app)
+        .delete(`/api/assessments/${newAssessmentId}`)
+        .set('Authorization', `Bearer ${teacherToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toContain('deleted successfully');
+    });
+
+    it('should reject deletion by non-teacher', async () => {
+      const response = await request(app)
+        .delete(`/api/assessments/${assessmentId}`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(response.status).toBe(403);
     });
   });
 });

@@ -493,6 +493,19 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   dueDate: z.coerce.date().optional(),
   shareCode: z.string().length(5).optional(),
   shareCodeExpiresAt: z.coerce.date().optional(),
+}).refine((data) => {
+  // For teacher assessments, questions are required and must have non-empty text
+  if (data.assessmentType === "teacher") {
+    return data.questions && 
+           Array.isArray(data.questions) && 
+           data.questions.length > 0 && 
+           data.questions.every((q: any) => q.text && q.text.trim().length > 0);
+  }
+  // For self-evaluation assessments, questions are optional
+  return true;
+}, {
+  message: "Teacher assessments must have at least one question with non-empty text",
+  path: ["questions"]
 });
 
 export const insertSelfEvaluationSchema = createInsertSchema(selfEvaluations).omit({
