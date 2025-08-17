@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { NavigationErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { 
-  User, 
   Menu,
   X,
   BookOpen,
@@ -14,13 +13,6 @@ import {
   Users,
   Settings
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Navigation() {
   const { user, isAuthenticated } = useAuth();
@@ -114,46 +106,22 @@ function NavigationContent({ user, location, mobileMenuOpen, setMobileMenuOpen }
 
           {/* Right side items */}
           <div className="flex items-center space-x-4">
-            {/* User Profile */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.profileImageUrl || ""} alt={user?.firstName || ""} />
-                    <AvatarFallback>
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                    {user?.firstName} {user?.lastName}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={async () => {
-                    try {
-                      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-                      window.location.href = '/';
-                    } catch (error) {
-                      console.error('Logout error:', error);
-                      window.location.href = '/';
-                    }
-                  }}
-                  className="text-red-600"
-                >
-                  <span>Sign Out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Sign Out Button */}
+            <Button 
+              variant="outline" 
+              onClick={async () => {
+                try {
+                  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                  window.location.href = '/';
+                } catch (error) {
+                  console.error('Logout error:', error);
+                  window.location.href = '/';
+                }
+              }}
+              className="text-red-600 border-red-300 hover:bg-red-50"
+            >
+              Sign Out
+            </Button>
 
             {/* Mobile menu button */}
             <Button
