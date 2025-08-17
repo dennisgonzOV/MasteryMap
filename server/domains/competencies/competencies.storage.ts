@@ -1,4 +1,4 @@
-import { asc, eq, inArray, like, or, isNotNull } from "drizzle-orm";
+import { asc, eq, inArray, like, or, isNotNull, and } from "drizzle-orm";
 import { db } from "../../db";
 import {
   competencies,
@@ -20,6 +20,7 @@ export interface ICompetencyStorage {
   getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
   getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
   searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
+  getBestStandardsWithFilters(filters: { search?: string; subject?: string; grade?: string }): Promise<BestStandard[]>;
   getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }>;
 
   // 3-Level Hierarchy operations
@@ -95,6 +96,41 @@ export class CompetencyStorage implements ICompetencyStorage {
         like(bestStandards.subject, `%${searchTerm}%`)
       ))
       .orderBy(asc(bestStandards.benchmarkNumber));
+  }
+
+  async getBestStandardsWithFilters(filters: {
+    search?: string;
+    subject?: string;
+    grade?: string;
+  }): Promise<BestStandard[]> {
+    const conditions = [];
+
+    // Add search condition
+    if (filters.search && filters.search.trim()) {
+      conditions.push(or(
+        like(bestStandards.description, `%${filters.search.trim()}%`),
+        like(bestStandards.benchmarkNumber, `%${filters.search.trim()}%`),
+        like(bestStandards.subject, `%${filters.search.trim()}%`)
+      ));
+    }
+
+    // Add subject condition
+    if (filters.subject && filters.subject !== 'all') {
+      conditions.push(eq(bestStandards.subject, filters.subject));
+    }
+
+    // Add grade condition
+    if (filters.grade && filters.grade !== 'all') {
+      conditions.push(eq(bestStandards.grade, filters.grade));
+    }
+
+    let query = db.select().from(bestStandards);
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return await query.orderBy(asc(bestStandards.benchmarkNumber));
   }
 
   async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }> {

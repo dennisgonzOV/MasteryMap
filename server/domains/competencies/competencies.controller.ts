@@ -26,37 +26,16 @@ export class CompetencyController {
         const subjectParam = subject ? String(subject).trim() : '';
         const gradeParam = grade ? String(grade).trim() : '';
 
-        // Handle search query
-        if (searchParam) {
-          console.log('Searching B.E.S.T. standards with term:', searchParam);
-          const bestStandards = await this.service.searchBestStandards(searchParam);
-          console.log('Search results count:', bestStandards.length);
-          res.json(bestStandards);
-          return;
-        }
+        console.log('Filter parameters:', { searchParam, subjectParam, gradeParam });
 
-        // Handle subject filter
-        if (subjectParam && subjectParam !== 'all') {
-          console.log('Filtering B.E.S.T. standards by subject:', subjectParam);
-          const bestStandards = await this.service.getBestStandardsBySubject(subjectParam);
-          console.log('Subject filter results count:', bestStandards.length);
-          res.json(bestStandards);
-          return;
-        }
+        // Use the new efficient method that handles all filters at the database level
+        const bestStandards = await this.service.getBestStandardsWithFilters({
+          search: searchParam || undefined,
+          subject: subjectParam || undefined,
+          grade: gradeParam || undefined
+        });
 
-        // Handle grade filter
-        if (gradeParam && gradeParam !== 'all') {
-          console.log('Filtering B.E.S.T. standards by grade:', gradeParam);
-          const bestStandards = await this.service.getBestStandardsByGrade(gradeParam);
-          console.log('Grade filter results count:', bestStandards.length);
-          res.json(bestStandards);
-          return;
-        }
-
-        // Default: return all standards
-        console.log('Fetching all B.E.S.T. standards');
-        const bestStandards = await this.service.getAllBestStandards();
-        console.log('All standards count:', bestStandards.length);
+        console.log('Final filtered standards count:', bestStandards.length);
         res.json(bestStandards);
       } catch (error) {
         console.error("Error fetching best standards:", error);
