@@ -37,17 +37,11 @@ async function exportTables(sourceDb: DatabaseConfig, outputFile: string) {
   
   const tableArgs = TABLES_TO_REPLICATE.map(table => `--table=${table}`).join(' ');
   
-  // Fixed: Remove --on-conflict-do-nothing from pg_dump (that's a psql option)
-  const dumpCommand = `PGPASSWORD="${dbConfig.password}" pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.database} ${tableArgs} --data-only --inserts --no-owner --no-privileges`;
+  const dumpCommand = `PGPASSWORD="${dbConfig.password}" pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.database} ${tableArgs} --data-only --inserts --no-owner --no-privileges > ${outputFile}`;
   
   try {
     console.log('Running export command...');
-    execSync(dumpCommand, { stdio: 'pipe' });
-    
-    // Write the output to file
-    const output = execSync(dumpCommand, { encoding: 'utf8' });
-    writeFileSync(outputFile, output);
-    
+    execSync(dumpCommand, { stdio: 'inherit' });
     console.log(`✅ Successfully exported tables to ${outputFile}`);
   } catch (error: any) {
     console.error(`❌ Error exporting tables:`, error.message);
@@ -60,7 +54,6 @@ async function importTables(targetDb: DatabaseConfig, inputFile: string) {
   
   console.log(`🔄 Importing tables to ${targetDb.name} database...`);
   
-  // Add ON_ERROR_STOP to fail fast on errors
   const importCommand = `PGPASSWORD="${dbConfig.password}" psql -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.database} -v ON_ERROR_STOP=1 -f ${inputFile}`;
   
   try {
@@ -153,6 +146,4 @@ async function replicateTables() {
 }
 
 // Run the replication
-if (import.meta.url === `file://${process.argv[1]}`) {
-  replicateTables();
-}
+replicateTables().catch(console.error);
