@@ -1,6 +1,4 @@
 
-#!/usr/bin/env tsx
-
 import { config } from 'dotenv';
 import { execSync } from 'child_process';
 import { writeFileSync, unlinkSync, existsSync } from 'fs';
