@@ -4,8 +4,8 @@ config();
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { users, schools } from '../shared/schema';
-import { AuthService } from '../server/domains/auth/auth.service';
+import { users, schools } from '../shared/schema.js';
+import { AuthService } from '../server/domains/auth/auth.service.js';
 import { eq } from 'drizzle-orm';
 
 const productionUsers = [
