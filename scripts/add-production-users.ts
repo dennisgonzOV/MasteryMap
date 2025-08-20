@@ -28,8 +28,18 @@ const productionUsers = [
 async function addProductionUsers() {
   console.log('🚀 Starting to add production users to PRODUCTION database...');
 
+  // Debug: Show all available environment variables related to database
+  console.log('🔍 Available database environment variables:');
+  console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+  console.log('PRODUCTION_DATABASE_URL exists:', !!process.env.PRODUCTION_DATABASE_URL);
+  
   // Use production database URL from secrets
   const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
+  const devDbUrl = process.env.DATABASE_URL;
+  
+  console.log('🔍 Dev DB URL (partial):', devDbUrl ? devDbUrl.substring(0, 20) + '...' : 'NOT SET');
+  console.log('🔍 Prod DB URL (partial):', prodDbUrl ? prodDbUrl.substring(0, 20) + '...' : 'NOT SET');
+  
   if (!prodDbUrl) {
     console.error('❌ PRODUCTION_DATABASE_URL environment variable is required');
     console.log('Please ensure PRODUCTION_DATABASE_URL is set in your Replit secrets');
