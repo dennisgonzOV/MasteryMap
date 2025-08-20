@@ -4,8 +4,8 @@ config();
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { users, schools } from '../shared/schema.js';
-import { AuthService } from '../server/domains/auth/auth.service.js';
+import { users, schools } from '../shared/schema';
+import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 
 const productionUsers = [
@@ -74,7 +74,8 @@ async function addProductionUsers() {
         }
 
         // Hash password
-        const hashedPassword = await AuthService.hashPassword(userData.password);
+        const salt = await bcrypt.genSalt(12);
+        const hashedPassword = await bcrypt.hash(userData.password, salt);
         
         // Create user in production
         const [newUser] = await prodDb.insert(users).values({
