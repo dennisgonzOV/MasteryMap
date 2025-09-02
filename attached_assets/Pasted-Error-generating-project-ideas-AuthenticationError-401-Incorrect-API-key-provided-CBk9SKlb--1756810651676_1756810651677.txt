@@ -1,0 +1,43 @@
+Error generating project ideas: AuthenticationError: 401 Incorrect API key provided: CBk9SKlb************************************************************************mwlI. You can find your API key at https://platform.openai.com/account/api-keys.
+    at Function.generate (/home/runner/workspace/node_modules/openai/src/core/error.ts:76:14)
+    at OpenAI.makeStatusError (/home/runner/workspace/node_modules/openai/src/client.ts:438:28)
+    at OpenAI.makeRequest (/home/runner/workspace/node_modules/openai/src/client.ts:661:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OpenAIService.generateProjectIdeas (/home/runner/workspace/server/domains/ai/openai.service.ts:116:24)
+    at async AIService.generateProjectIdeas (/home/runner/workspace/server/domains/ai/ai.service.ts:33:12)
+    at async ProjectsService.generateProjectIdeas (/home/runner/workspace/server/domains/projects/projects.service.ts:314:19)
+    at async <anonymous> (/home/runner/workspace/server/domains/projects/projects.controller.ts:172:20) {
+  status: 401,
+  headers: Headers {
+    date: 'Tue, 02 Sep 2025 10:56:48 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '334',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_5b684264726b4159808308bd6579297d',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=FrYWV_U00UPAHzJJPDqVMCCUL5I43d9_7hPYotcg8WQ-1756810608-1.0.1.1-4OtoZfuU2rUjB6sMbGAUDRpJ4resfu5hsycmH.U8lD..gdrF9aOILHxClxfNV025uZnTGBIFHU_OU6I.d3je.XwPyyWifNu1PQWAa.oWhrc; path=/; expires=Tue, 02-Sep-25 11:26:48 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=A_AIi6tskAvO218JRV_vY6bAZaMi9dQlP1vUt1BWc0E-1756810608926-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    server: 'cloudflare',
+    'cf-ray': '978c7ba12f0dd845-ATL',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_5b684264726b4159808308bd6579297d',
+  error: {
+    message: 'Incorrect API key provided: CBk9SKlb************************************************************************mwlI. You can find your API key at https://platform.openai.com/account/api-keys.',
+    type: 'invalid_request_error',
+    param: null,
+    code: 'invalid_api_key'
+  },
+  code: 'invalid_api_key',
+  param: null,
+  type: 'invalid_request_error'
+}
+Error generating project ideas: Error: Failed to generate project ideas
+    at OpenAIService.generateProjectIdeas (/home/runner/workspace/server/domains/ai/openai.service.ts:162:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async AIService.generateProjectIdeas (/home/runner/workspace/server/domains/ai/ai.service.ts:33:12)
+    at async ProjectsService.generateProjectIdeas (/home/runner/workspace/server/domains/projects/projects.service.ts:314:19)
+    at async <anonymous> (/home/runner/workspace/server/domains/projects/projects.controller.ts:172:20)
+10:56:48 AM [express] POST /api/projects/generate-ideas 500 in 1637ms :: {"message":"Failed to genera…
