@@ -3,7 +3,11 @@ import { notifyTeacherOfSafetyIncident } from '../../services/notifications';
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.AZURE_GPT41_API_KEY,
+  baseURL: "https://denni-mf1s8rxz-eastus2.cognitiveservices.azure.com/",
+  model: "gpt-4.1"
+});
 
 interface SelfEvaluationAnalysis {
   improvementFeedback: string;
@@ -128,7 +132,7 @@ Respond in JSON format:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -199,7 +203,7 @@ Return as JSON array:
 ]`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -288,7 +292,7 @@ If safety concerns are detected:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",

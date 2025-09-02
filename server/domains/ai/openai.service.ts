@@ -114,7 +114,7 @@ Return the response as a JSON array of project objects with the following struct
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -130,7 +130,7 @@ Return the response as a JSON array of project objects with the following struct
       });
 
       let content = response.choices[0].message.content || "[]";
-      
+
       // Clean up any markdown formatting
       let cleanContent = content.trim();
       if (cleanContent.startsWith('```json')) {
@@ -142,10 +142,10 @@ Return the response as a JSON array of project objects with the following struct
       if (cleanContent.endsWith('```')) {
         cleanContent = cleanContent.replace(/\s*```$/, '');
       }
-      
+
       // Parse the cleaned JSON response
       const parsed = JSON.parse(cleanContent);
-      
+
       // Handle different response structures
       if (parsed.projects && Array.isArray(parsed.projects)) {
         return parsed.projects;
@@ -196,7 +196,7 @@ Return as JSON array with this structure:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -265,7 +265,7 @@ Return as JSON with this structure:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -331,7 +331,7 @@ Return as JSON with this structure:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -411,7 +411,7 @@ Return as JSON with this structure:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -465,7 +465,7 @@ Provide feedback that is:
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -541,7 +541,7 @@ Respond in JSON format:
 }`;
 
           const response = await this.openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4.1",
             messages: [
               {
                 role: "system",
@@ -557,7 +557,7 @@ Respond in JSON format:
           });
 
           const result = JSON.parse(response.choices[0].message.content || "{}");
-          
+
           return {
             componentSkillId: skill.id,
             rubricLevel: result.rubricLevel || 'emerging',
@@ -616,7 +616,7 @@ Respond with JSON in this format:
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",
@@ -632,11 +632,11 @@ Respond with JSON in this format:
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
-      
+
       // Validate the response
       const score = typeof result.score === 'number' ? Math.max(0, Math.min(100, result.score)) : -1;
       const rationale = typeof result.rationale === 'string' ? result.rationale : 'AI grading analysis completed';
-      
+
       return { score, rationale };
     } catch (error) {
       console.error("Error in AI question grading:", error);
@@ -683,7 +683,7 @@ Return as JSON:
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "system",

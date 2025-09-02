@@ -51,8 +51,8 @@ export abstract class BaseAIService {
 
   constructor(config: AIServiceConfig = {}) {
     this.config = {
-      apiKey: config.apiKey || process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "",
-      model: config.model || "gpt-4o",
+      apiKey: config.apiKey || process.env.AZURE_GPT41_API_KEY || "",
+      model: config.model || "gpt-4.1",
       maxTokens: config.maxTokens || 1500,
       temperature: config.temperature || 0.7,
       timeout: config.timeout || 30000,
@@ -60,6 +60,11 @@ export abstract class BaseAIService {
 
     this.openai = new OpenAI({
       apiKey: this.config.apiKey,
+      baseURL: "https://denni-mf1s8rxz-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
+      defaultQuery: { 'api-version': '2024-08-01-preview' },
+      defaultHeaders: {
+        'api-key': this.config.apiKey,
+      },
       timeout: this.config.timeout,
     });
   }
