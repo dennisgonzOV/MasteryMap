@@ -1,13 +1,21 @@
 import OpenAI from "openai";
-import type { Project, Milestone, Competency, Submission, Grade, ComponentSkill } from "@shared/schema";
+import type {
+  Project,
+  Milestone,
+  Competency,
+  Submission,
+  Grade,
+  ComponentSkill,
+} from "@shared/schema";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({
   apiKey: process.env.AZURE_GPT41_API_KEY,
-  baseURL: "https://denni-mf1s8rxz-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
-  defaultQuery: { 'api-version': '2024-08-01-preview' },
+  baseURL:
+    "https://denni-mf2i6jxh-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
+  defaultQuery: { "api-version": "2024-08-01-preview" },
   defaultHeaders: {
-    'api-key': process.env.AZURE_GPT41_API_KEY,
+    "api-key": process.env.AZURE_GPT41_API_KEY,
   },
 });
 
@@ -24,7 +32,7 @@ export interface GeneratedAssessment {
   questions: Array<{
     id: string;
     text: string;
-    type: 'open-ended' | 'multiple-choice' | 'short-answer';
+    type: "open-ended" | "multiple-choice" | "short-answer";
     rubricCriteria?: string;
     sampleAnswer?: string;
   }>;
@@ -68,9 +76,12 @@ export class OpenAIService {
     componentSkills: any[];
   }): Promise<GeneratedProjectIdea[]> {
     // Format component skills for the prompt
-    const skillsText = criteria.componentSkills.map(skill => 
-      `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`
-    ).join('\n');
+    const skillsText = criteria.componentSkills
+      .map(
+        (skill) =>
+          `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`,
+      )
+      .join("\n");
 
     const prompt = `Generate 3 creative and engaging project-based learning ideas based on the following criteria:
 
@@ -123,29 +134,30 @@ Return the response as a JSON array of project objects with the following struct
         messages: [
           {
             role: "system",
-            content: "You are an expert in project-based learning and curriculum design. Generate creative, engaging, and pedagogically sound project ideas that align with modern educational standards and XQ competency framework practices."
+            content:
+              "You are an expert in project-based learning and curriculum design. Generate creative, engaging, and pedagogically sound project ideas that align with modern educational standards and XQ competency framework practices.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.8,
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
       });
 
       let content = response.choices[0].message.content || "[]";
 
       // Clean up any markdown formatting
       let cleanContent = content.trim();
-      if (cleanContent.startsWith('```json')) {
-        cleanContent = cleanContent.replace(/^```json\s*/, '');
+      if (cleanContent.startsWith("```json")) {
+        cleanContent = cleanContent.replace(/^```json\s*/, "");
       }
-      if (cleanContent.startsWith('```')) {
-        cleanContent = cleanContent.replace(/^```\s*/, '');
+      if (cleanContent.startsWith("```")) {
+        cleanContent = cleanContent.replace(/^```\s*/, "");
       }
-      if (cleanContent.endsWith('```')) {
-        cleanContent = cleanContent.replace(/\s*```$/, '');
+      if (cleanContent.endsWith("```")) {
+        cleanContent = cleanContent.replace(/\s*```$/, "");
       }
 
       // Parse the cleaned JSON response
@@ -161,7 +173,6 @@ Return the response as a JSON array of project objects with the following struct
       } else {
         return [parsed];
       }
-
     } catch (error) {
       console.error("Error generating project ideas:", error);
       throw new Error("Failed to generate project ideas");
@@ -205,15 +216,16 @@ Return as JSON array with this structure:
         messages: [
           {
             role: "system",
-            content: "You are an expert in project-based learning and milestone planning. Create well-structured, achievable milestones that guide student progress."
+            content:
+              "You are an expert in project-based learning and milestone planning. Create well-structured, achievable milestones that guide student progress.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.7,
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
@@ -228,11 +240,14 @@ Return as JSON array with this structure:
     projectTitle: string,
     projectDescription: string,
     projectDueDate: string,
-    componentSkills: ComponentSkill[]
+    componentSkills: ComponentSkill[],
   ): Promise<GeneratedMilestone[]> {
-    const skillsText = componentSkills.map(skill => 
-      `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`
-    ).join('\n');
+    const skillsText = componentSkills
+      .map(
+        (skill) =>
+          `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`,
+      )
+      .join("\n");
 
     const prompt = `Generate 3-5 meaningful project milestones that will develop the specified component skills:
 
@@ -274,21 +289,25 @@ Return as JSON with this structure:
         messages: [
           {
             role: "system",
-            content: "You are an expert in competency-based education and project milestone design. Create milestones that systematically develop component skills through authentic project work."
+            content:
+              "You are an expert in competency-based education and project milestone design. Create milestones that systematically develop component skills through authentic project work.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.7,
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
       return result.milestones || [];
     } catch (error) {
-      console.error("Error generating milestones from component skills:", error);
+      console.error(
+        "Error generating milestones from component skills:",
+        error,
+      );
       throw new Error("Failed to generate milestones");
     }
   }
@@ -340,15 +359,16 @@ Return as JSON with this structure:
         messages: [
           {
             role: "system",
-            content: "You are an expert in educational assessment design. Create fair, comprehensive assessments that accurately measure student learning and skill development."
+            content:
+              "You are an expert in educational assessment design. Create fair, comprehensive assessments that accurately measure student learning and skill development.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.7,
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
       });
 
       return JSON.parse(response.choices[0].message.content || "{}");
@@ -362,11 +382,14 @@ Return as JSON with this structure:
     milestoneTitle: string,
     milestoneDescription: string,
     milestoneDueDate: string,
-    componentSkills: ComponentSkill[]
+    componentSkills: ComponentSkill[],
   ): Promise<GeneratedAssessment> {
-    const skillsText = componentSkills.map(skill => 
-      `- ${skill.name}: ${skill.description} (${skill.competencyName} - ${skill.learnerOutcomeName})`
-    ).join('\n');
+    const skillsText = componentSkills
+      .map(
+        (skill) =>
+          `- ${skill.name}: ${skill.description} (${skill.competencyName} - ${skill.learnerOutcomeName})`,
+      )
+      .join("\n");
 
     const prompt = `Generate a comprehensive competency-based assessment for the following milestone:
 
@@ -420,33 +443,40 @@ Return as JSON with this structure:
         messages: [
           {
             role: "system",
-            content: "You are an expert in competency-based assessment and XQ framework implementation. Create assessments that authentically measure component skill development and mastery."
+            content:
+              "You are an expert in competency-based assessment and XQ framework implementation. Create assessments that authentically measure component skill development and mastery.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.7,
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
       return result;
     } catch (error) {
-      console.error("Error generating assessment from component skills:", error);
+      console.error(
+        "Error generating assessment from component skills:",
+        error,
+      );
       throw new Error("Failed to generate assessment");
     }
   }
 
   async generateFeedback(
     submission: Submission,
-    grades: Grade[]
+    grades: Grade[],
   ): Promise<string> {
     try {
-      const gradesSummary = grades.map(g => 
-        `Component Skill: ${g.componentSkillId}, Level: ${g.rubricLevel}, Score: ${g.score}`
-      ).join('\n');
+      const gradesSummary = grades
+        .map(
+          (g) =>
+            `Component Skill: ${g.componentSkillId}, Level: ${g.rubricLevel}, Score: ${g.score}`,
+        )
+        .join("\n");
 
       const prompt = `
 You are an expert educator providing personalized feedback to a student. 
@@ -474,17 +504,21 @@ Provide feedback that is:
         messages: [
           {
             role: "system",
-            content: "You are an expert educator providing personalized, constructive feedback to students."
+            content:
+              "You are an expert educator providing personalized, constructive feedback to students.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.7,
       });
 
-      return response.choices[0].message.content || "Great work! Keep up the excellent effort.";
+      return (
+        response.choices[0].message.content ||
+        "Great work! Keep up the excellent effort."
+      );
     } catch (error) {
       console.error("Error generating feedback:", error);
       throw new Error("Failed to generate feedback");
@@ -494,20 +528,22 @@ Provide feedback that is:
   async generateComponentSkillGrades(
     submission: Submission,
     assessment: any,
-    componentSkills: ComponentSkill[]
-  ): Promise<Array<{
-    componentSkillId: number;
-    rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
-    feedback: string;
-    score: number;
-  }>> {
+    componentSkills: ComponentSkill[],
+  ): Promise<
+    Array<{
+      componentSkillId: number;
+      rubricLevel: "emerging" | "developing" | "proficient" | "applying";
+      feedback: string;
+      score: number;
+    }>
+  > {
     try {
       // Map rubric levels to scores for consistency
       const rubricLevelScores = {
-        'emerging': 1,
-        'developing': 2,
-        'proficient': 3,
-        'applying': 4
+        emerging: 1,
+        developing: 2,
+        proficient: 3,
+        applying: 4,
       };
 
       const skillGrades = await Promise.all(
@@ -550,26 +586,29 @@ Respond in JSON format:
             messages: [
               {
                 role: "system",
-                content: "You are an expert in competency-based assessment and the XQ Framework. Provide accurate, fair evaluations of student component skill development."
+                content:
+                  "You are an expert in competency-based assessment and the XQ Framework. Provide accurate, fair evaluations of student component skill development.",
               },
               {
                 role: "user",
-                content: prompt
-              }
+                content: prompt,
+              },
             ],
             response_format: { type: "json_object" },
             temperature: 0.3,
           });
 
-          const result = JSON.parse(response.choices[0].message.content || "{}");
+          const result = JSON.parse(
+            response.choices[0].message.content || "{}",
+          );
 
           return {
             componentSkillId: skill.id,
-            rubricLevel: result.rubricLevel || 'emerging',
-            feedback: result.feedback || '',
-            score: rubricLevelScores[result.rubricLevel] || 1
+            rubricLevel: result.rubricLevel || "emerging",
+            feedback: result.feedback || "",
+            score: rubricLevelScores[result.rubricLevel] || 1,
           };
-        })
+        }),
       );
 
       return skillGrades;
@@ -583,7 +622,7 @@ Respond in JSON format:
     questionText: string,
     studentAnswer: string,
     rubricCriteria: string,
-    sampleAnswer: string
+    sampleAnswer: string,
   ): Promise<{ score: number; rationale: string }> {
     try {
       const prompt = `
@@ -593,9 +632,9 @@ QUESTION: ${questionText}
 
 STUDENT ANSWER: ${studentAnswer}
 
-RUBRIC CRITERIA: ${rubricCriteria || 'Evaluate based on accuracy, completeness, and understanding demonstrated'}
+RUBRIC CRITERIA: ${rubricCriteria || "Evaluate based on accuracy, completeness, and understanding demonstrated"}
 
-SAMPLE/IDEAL ANSWER: ${sampleAnswer || 'Not provided'}
+SAMPLE/IDEAL ANSWER: ${sampleAnswer || "Not provided"}
 
 Grade this response on a scale of 0-100 based on:
 1. Accuracy and correctness of information
@@ -625,12 +664,13 @@ Respond with JSON in this format:
         messages: [
           {
             role: "system",
-            content: "You are an expert educator with extensive experience in assessment and grading. Provide fair, consistent, and educationally sound grades."
+            content:
+              "You are an expert educator with extensive experience in assessment and grading. Provide fair, consistent, and educationally sound grades.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         response_format: { type: "json_object" },
         temperature: 0.3, // Lower temperature for more consistent grading
@@ -639,25 +679,34 @@ Respond with JSON in this format:
       const result = JSON.parse(response.choices[0].message.content || "{}");
 
       // Validate the response
-      const score = typeof result.score === 'number' ? Math.max(0, Math.min(100, result.score)) : -1;
-      const rationale = typeof result.rationale === 'string' ? result.rationale : 'AI grading analysis completed';
+      const score =
+        typeof result.score === "number"
+          ? Math.max(0, Math.min(100, result.score))
+          : -1;
+      const rationale =
+        typeof result.rationale === "string"
+          ? result.rationale
+          : "AI grading analysis completed";
 
       return { score, rationale };
     } catch (error) {
       console.error("Error in AI question grading:", error);
-      return { score: -1, rationale: 'Error occurred during AI grading' };
+      return { score: -1, rationale: "Error occurred during AI grading" };
     }
   }
 
   async suggestCredentials(
     submission: Submission,
     grades: Grade[],
-    projectTitle: string
+    projectTitle: string,
   ): Promise<any[]> {
     try {
-      const gradesSummary = grades.map(g => 
-        `Component Skill ${g.componentSkillId}: ${g.rubricLevel} (Score: ${g.score})`
-      ).join('\n');
+      const gradesSummary = grades
+        .map(
+          (g) =>
+            `Component Skill ${g.componentSkillId}: ${g.rubricLevel} (Score: ${g.score})`,
+        )
+        .join("\n");
 
       const prompt = `
 Based on this student's performance, suggest appropriate micro-credentials they have earned:
@@ -692,12 +741,13 @@ Return as JSON:
         messages: [
           {
             role: "system",
-            content: "You are an expert educator designing meaningful micro-credentials for student achievements."
+            content:
+              "You are an expert educator designing meaningful micro-credentials for student achievements.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
