@@ -5,7 +5,7 @@ import OpenAI from "openai";
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({
   apiKey: process.env.AZURE_GPT41_API_KEY,
-  baseURL: "https://denni-mf1s8rxz-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
+  baseURL: "https://denni-mf2i6jxh-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
   defaultQuery: { 'api-version': '2024-08-01-preview' },
   defaultHeaders: {
     'api-key': process.env.AZURE_GPT41_API_KEY,
