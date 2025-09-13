@@ -347,22 +347,62 @@ export class EducationalAIService extends BaseAIService {
    * Generate assessment questions
    */
   async generateAssessment(milestone: any, componentSkills: any[], options: AIGenerationOptions = {}): Promise<any> {
+    const detailedSkills = componentSkills.map(skill => {
+      const rubricLevels = skill.rubricLevels || {};
+      return `
+COMPONENT SKILL: ${skill.name}
+Description: ${skill.description || 'No description provided'}
+Competency Area: ${skill.competencyName || 'Unknown'}
+Learning Outcome: ${skill.learnerOutcomeName || 'Unknown'}
+
+Rubric Levels:
+- Emerging: ${rubricLevels.emerging || 'Shows initial understanding'}
+- Developing: ${rubricLevels.developing || 'Shows growing competence'}
+- Proficient: ${rubricLevels.proficient || 'Shows solid competence'}
+- Applying: ${rubricLevels.applying || 'Shows advanced competence'}
+      `;
+    }).join('\n---\n');
+
     const template: AIPromptTemplate = {
-      system: `You are an educational assessment expert. Create engaging, competency-based assessment questions 
-               that evaluate student understanding and application of the specified component skills.`,
-      user: `Generate an assessment for this milestone:
-             Title: {{title}}
-             Description: {{description}}
-             
-             Component Skills: {{skills}}
-             
-             Return JSON with: title, description, questions array with id, text, type, rubricCriteria`,
+      system: `You are an educational assessment expert specializing in competency-based assessment. 
+               Create questions that directly measure each specific component skill using authentic scenarios 
+               and performance-based tasks. Each question must clearly assess one or more component skills.`,
+      user: `Generate a comprehensive assessment for this milestone that systematically evaluates ALL component skills:
+
+MILESTONE:
+Title: {{title}}
+Description: {{description}}
+
+COMPONENT SKILLS TO ASSESS:
+{{detailedSkills}}
+
+REQUIREMENTS:
+1. Create 5-7 questions that collectively assess ALL component skills listed above
+2. Each question must explicitly target at least one component skill
+3. Include a mix of question types: open-ended (60%), multiple-choice (20%), short-answer (20%)
+4. Questions should use authentic, real-world scenarios relevant to the milestone
+5. Rubric criteria must align with the component skill rubric levels provided
+6. Each question should specify which component skill(s) it primarily assesses
+
+Return JSON with this exact structure:
+{
+  "title": "Assessment for {{title}}",
+  "description": "This assessment evaluates student competency in the specified component skills through authentic performance tasks",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "Specific question text here",
+      "type": "open-ended",
+      "rubricCriteria": "Clear criteria aligned to component skill rubric levels",
+      "componentSkillsFocus": ["Component Skill Name 1"],
+      "sampleAnswer": "Example of proficient-level response"
+    }
+  ]
+}`,
       variables: {
         title: milestone.title,
         description: milestone.description,
-        skills: componentSkills.map(skill => 
-          `${skill.name}: ${skill.rubricLevels?.proficient || 'Demonstrate competency'}`
-        ).join('\n')
+        detailedSkills: detailedSkills
       }
     };
 

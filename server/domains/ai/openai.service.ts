@@ -391,48 +391,54 @@ Return as JSON with this structure:
       )
       .join("\n");
 
+    const detailedSkillsText = componentSkills.map(skill => `
+COMPONENT SKILL: ${skill.name}
+Description: ${skill.description}
+Competency Area: ${skill.competencyName} - ${skill.learnerOutcomeName}
+
+Rubric Levels:
+- Emerging: ${skill.rubricLevels?.emerging || 'Shows initial understanding'}
+- Developing: ${skill.rubricLevels?.developing || 'Shows growing competence'}  
+- Proficient: ${skill.rubricLevels?.proficient || 'Shows solid competence'}
+- Applying: ${skill.rubricLevels?.applying || 'Shows advanced competence'}
+`).join('\n---\n');
+
     const prompt = `Generate a comprehensive competency-based assessment for the following milestone:
 
 Milestone Title: ${milestoneTitle}
 Milestone Description: ${milestoneDescription}
 Due Date: ${milestoneDueDate}
 
-Target Component Skills to Assess:
-${skillsText}
+TARGET COMPONENT SKILLS TO ASSESS:
+${detailedSkillsText}
 
-Create an assessment that:
-1. Systematically evaluates each component skill
-2. Uses authentic, performance-based questions
-3. Includes multiple question types and formats
-4. Provides clear rubric criteria aligned to skill development levels
-5. Enables demonstration of skill mastery through varied approaches
+ASSESSMENT REQUIREMENTS:
+1. Create exactly ONE question per component skill (${componentSkills.length} questions total)
+2. Each question must explicitly measure the specific component skill's competency
+3. Use authentic, performance-based scenarios relevant to real-world application
+4. Include varied question types: 60% open-ended, 25% short-answer, 15% multiple-choice
+5. Rubric criteria must directly reference the skill's rubric levels (Emerging → Developing → Proficient → Applying)
+6. Questions should enable students to demonstrate mastery through varied approaches
+7. Each question must specify exactly which component skill it assesses
 
-Generate 6-10 assessment questions that collectively assess all component skills. Include:
-- Performance-based questions that demonstrate skill application
-- Reflective questions that show understanding of skill development
-- Scenario-based questions that test skill transfer
-- Self-assessment components where appropriate
+QUESTION DESIGN PRINCIPLES:
+- Open-ended questions: Complex scenarios requiring skill application and analysis
+- Short-answer questions: Focused demonstration of specific skill competency
+- Multiple-choice questions: Assessment of foundational skill understanding
 
-For each question, provide:
-- ID: A unique identifier
-- Text: The question text
-- Type: 'open-ended', 'multiple-choice', or 'short-answer'
-- RubricCriteria: Detailed evaluation criteria tied to skill levels
-- SampleAnswer: An example demonstrating proficient skill level
-- ComponentSkillFocus: Which component skill(s) this question primarily assesses
-
-Return as JSON with this structure:
+Return as JSON with this exact structure:
 {
-  "title": "Assessment Title",
-  "description": "Brief description focusing on component skill assessment",
+  "title": "${milestoneTitle} - Component Skills Assessment",
+  "description": "This assessment systematically evaluates each selected component skill through authentic performance tasks aligned to the XQ competency framework.",
   "questions": [
     {
-      "id": "q1",
-      "text": "Question text here",
+      "id": "skill_${componentSkills[0]?.id || '1'}_q1",
+      "text": "Specific question targeting exactly one component skill",
       "type": "open-ended",
-      "rubricCriteria": "Evaluation criteria aligned to skill levels",
-      "sampleAnswer": "Example answer showing skill proficiency",
-      "componentSkillFocus": ["skill1", "skill2"]
+      "rubricCriteria": "Evaluation criteria explicitly referencing Emerging/Developing/Proficient/Applying levels for the target skill",
+      "sampleAnswer": "Example response demonstrating Proficient level competency",
+      "componentSkillFocus": ["${componentSkills[0]?.name}"],
+      "targetComponentSkillId": ${componentSkills[0]?.id}
     }
   ]
 }`;

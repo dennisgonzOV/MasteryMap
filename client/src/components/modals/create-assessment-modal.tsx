@@ -272,8 +272,75 @@ export default function CreateAssessmentModal({
 
     setIsGeneratingWithAI(true);
     try {
-      // Mock AI generation for now - you can replace this with actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      // Get detailed component skill information
+      const selectedSkillsDetails = hierarchy.flatMap((outcome: any) => 
+        outcome.competencies?.flatMap((competency: any) => 
+          competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
+            .map((skill: any) => ({
+              ...skill,
+              competencyName: competency.name,
+              learnerOutcomeName: outcome.name
+            }))
+        ) || []
+      ) || [];
+
+      if (selectedSkillsDetails.length === 0) {
+        throw new Error("Could not find detailed information for selected skills");
+      }
+
+      // Make API call to generate assessment with AI
+      const response = await fetch('/api/ai/generate-assessment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          milestoneTitle: form.getValues("title") || "Assessment",
+          milestoneDescription: form.getValues("description") || "AI-generated assessment",
+          milestoneDueDate: form.getValues("dueDate") || new Date().toISOString(),
+          componentSkills: selectedSkillsDetails,
+          questionCount: aiQuestionCount,
+          questionTypes: selectedTypes
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI generation failed: ${response.statusText}`);
+      }
+
+      const aiAssessment = await response.json();
+      
+      if (aiAssessment.questions && aiAssessment.questions.length > 0) {
+        // Convert AI questions to form format
+        const formattedQuestions = aiAssessment.questions.map((q: any) => ({
+          text: q.text,
+          type: q.type,
+          rubricCriteria: q.rubricCriteria || "",
+          options: q.choices || [],
+          correctAnswer: q.correctAnswer || ""
+        }));
+
+        form.setValue("questions", formattedQuestions);
+        
+        toast({
+          title: "AI Assessment Generated",
+          description: `Generated ${formattedQuestions.length} questions aligned to your selected component skills.`,
+        });
+      } else {
+        throw new Error("No questions generated");
+      }
+    } catch (error) {
+      console.error("AI generation error:", error);
+      
+      // Fallback to mock generation with skill-aligned questions
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Get selected skill details for fallback
+      const selectedSkillsDetails = hierarchy.flatMap((outcome: any) => 
+        outcome.competencies?.flatMap((competency: any) => 
+          competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
+        ) || []
+      ) || [];
 
       // Generate sample questions based on preferences
       const questionTemplates = {
