@@ -190,22 +190,34 @@ Difficulty Level: ${difficulty}
 Create a mix of question types:
 - 2-3 open-ended questions for deep thinking
 - 2-3 short-answer questions for specific concepts
-- 1-2 multiple-choice questions with 4 options each
+- 1-2 multiple-choice questions with 4 answer options each
+- For multiple-choice questions, provide exactly 4 answer choices in a "choices" array
+        - Include a "correctAnswer" field that matches one of the choices exactly
+        - The correctAnswer field is REQUIRED for all multiple-choice questions
 
-For each question, provide:
-- Question text
-- Type (open-ended, short-answer, multiple-choice)
-- Expected answer or answer choices
-- Rubric criteria for grading
+Each question should include:
+- Question text (string)
+- Type (string: "open-ended", "short-answer", "multiple-choice")
+- Rubric criteria for grading (string)
+- Sample answer (string, for open-ended and short-answer)
+- Choices (array of strings, for multiple-choice questions only)
+- Correct answer (string, for multiple-choice questions only)
 
-Return as JSON array:
+Return as JSON array of question objects. Ensure the JSON is valid and follows the specified structure.
+Example JSON structure:
 [
   {
-    "text": "Question text",
+    "text": "What is the capital of France?",
+    "type": "multiple-choice",
+    "rubricCriteria": "Correctly identify the capital city.",
+    "choices": ["Berlin", "Madrid", "Paris", "Rome"],
+    "correctAnswer": "Paris"
+  },
+  {
+    "text": "Explain the process of photosynthesis.",
     "type": "open-ended",
-    "rubricCriteria": "How to evaluate this",
-    "sampleAnswer": "Example good answer",
-    "choices": null
+    "rubricCriteria": "Describe the key steps and components of photosynthesis.",
+    "sampleAnswer": "Photosynthesis is the process plants use to convert light energy into chemical energy..."
   }
 ]`;
 
@@ -214,7 +226,7 @@ Return as JSON array:
         messages: [
           {
             role: "system",
-            content: "You are an expert in educational assessment design. Create engaging, pedagogically sound questions."
+            content: "You are an expert in educational assessment design. Create engaging, pedagogically sound questions. Ensure all required fields, especially 'correctAnswer' for multiple-choice questions, are present and valid in the JSON output."
           },
           {
             role: "user",
@@ -226,7 +238,22 @@ Return as JSON array:
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
-      return result.questions || [];
+      const questions = result.questions || [];
+
+      // Post-processing to ensure correctAnswer is valid for multiple-choice questions
+      return questions.map(question => {
+        if (question.type === 'multiple-choice' && question.choices) {
+          // Ensure we have a correct answer for multiple choice
+          if (!question.correctAnswer && question.choices.length > 0) {
+            question.correctAnswer = question.choices[0]; // Default to first choice if not specified
+          }
+          // Validate that the correct answer is one of the choices
+          if (question.correctAnswer && !question.choices.includes(question.correctAnswer)) {
+            question.correctAnswer = question.choices[0]; // Fallback to first choice
+          }
+        }
+        return question;
+      });
     } catch (error) {
       console.error("Error generating assessment questions:", error);
       throw new Error("Failed to generate assessment questions");

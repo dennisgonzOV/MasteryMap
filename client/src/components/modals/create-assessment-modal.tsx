@@ -312,13 +312,26 @@ export default function CreateAssessmentModal({
 
       if (aiAssessment.questions && aiAssessment.questions.length > 0) {
         // Convert AI questions to form format
-        const formattedQuestions = aiAssessment.questions.map((q: any) => ({
-          text: q.text,
-          type: q.type,
-          rubricCriteria: q.rubricCriteria || "",
-          options: q.choices || [],
-          correctAnswer: q.correctAnswer || ""
-        }));
+        const formattedQuestions = aiAssessment.questions.map((q: any) => {
+          let correctAnswer = q.correctAnswer || "";
+          
+          // For multiple choice questions, ensure correct answer is set
+          if (q.type === "multiple-choice" && q.choices && q.choices.length > 0) {
+            if (!correctAnswer) {
+              correctAnswer = q.choices[0]; // Default to first choice if not provided
+            } else if (!q.choices.includes(correctAnswer)) {
+              correctAnswer = q.choices[0]; // Fallback if provided answer isn't in choices
+            }
+          }
+          
+          return {
+            text: q.text,
+            type: q.type,
+            rubricCriteria: q.rubricCriteria || "",
+            options: q.choices || [],
+            correctAnswer: correctAnswer
+          };
+        });
 
         // Get existing questions and filter out any blank ones
         const existingQuestions = form.getValues("questions") || [];
