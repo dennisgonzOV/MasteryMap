@@ -320,9 +320,10 @@ export default function CreateAssessmentModal({
           correctAnswer: q.correctAnswer || ""
         }));
 
-        // Get existing questions and append new ones
+        // Get existing questions and filter out any blank ones
         const existingQuestions = form.getValues("questions") || [];
-        const allQuestions = [...existingQuestions, ...formattedQuestions];
+        const nonBlankQuestions = existingQuestions.filter(q => q.text.trim().length > 0);
+        const allQuestions = [...nonBlankQuestions, ...formattedQuestions];
         form.setValue("questions", allQuestions);
 
         toast({
@@ -457,9 +458,10 @@ export default function CreateAssessmentModal({
       // Ensure we have exactly the requested count
       const finalQuestions = generatedQuestions.slice(0, aiQuestionCount);
 
-      // Get existing questions and append new ones for fallback too
+      // Get existing questions and filter out any blank ones for fallback too
       const existingQuestions = form.getValues("questions") || [];
-      const allQuestions = [...existingQuestions, ...finalQuestions];
+      const nonBlankQuestions = existingQuestions.filter(q => q.text.trim().length > 0);
+      const allQuestions = [...nonBlankQuestions, ...finalQuestions];
       form.setValue("questions", allQuestions);
 
       toast({
