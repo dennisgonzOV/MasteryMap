@@ -333,7 +333,8 @@ export default function CreateAssessmentModal({
       console.error("AI generation error:", error);
       
       // Fallback to mock generation with skill-aligned questions
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Get selected skill details for fallback
       const selectedSkillsDetails = hierarchy.flatMap((outcome: any) => 
@@ -452,7 +453,7 @@ export default function CreateAssessmentModal({
         title: "AI Assessment Generated",
         description: `Generated ${finalQuestions.length} questions based on your preferences. You can review and edit them.`,
       });
-    } catch (error) {
+      } catch (error) {
       toast({
         title: "AI Generation Failed",
         description: "Unable to generate assessment. Please create questions manually.",
@@ -460,6 +461,7 @@ export default function CreateAssessmentModal({
       });
     } finally {
       setIsGeneratingWithAI(false);
+    }
     }
   };
 

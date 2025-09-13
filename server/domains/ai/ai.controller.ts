@@ -136,37 +136,36 @@ export class AIController {
       }
     });
 
+    // Generate assessment from component skills
+    router.post('/generate-assessment', requireAuth, aiLimiter, async (req: AuthenticatedRequest, res) => {
+      try {
+        const { milestoneTitle, milestoneDescription, milestoneDueDate, componentSkills, questionCount = 5, questionTypes = ['open-ended'] } = req.body;
+
+        if (!componentSkills || !Array.isArray(componentSkills) || componentSkills.length === 0) {
+          return res.status(400).json({
+            error: "Component skills are required for assessment generation"
+          });
+        }
+
+        const assessment = await this.service.generateAssessmentFromComponentSkills(
+          milestoneTitle,
+          milestoneDescription,  
+          milestoneDueDate,
+          componentSkills
+        );
+
+        res.json(assessment);
+      } catch (error) {
+        console.error('Error generating assessment from skills:', error);
+        res.status(500).json({ 
+          error: "Failed to generate assessment from component skills" 
+        });
+      }
+    });
+
     return router;
   }
 }
 
 export const aiController = new AIController();
 export const aiRouter = aiController.createRouter();
-
-
-  // Generate assessment from component skills
-  async generateAssessmentFromSkills(req: Request, res: Response) {
-    try {
-      const { milestoneTitle, milestoneDescription, milestoneDueDate, componentSkills, questionCount = 5, questionTypes = ['open-ended'] } = req.body;
-
-      if (!componentSkills || !Array.isArray(componentSkills) || componentSkills.length === 0) {
-        return res.status(400).json({
-          error: "Component skills are required for assessment generation"
-        });
-      }
-
-      const assessment = await this.service.generateAssessmentFromComponentSkills(
-        milestoneTitle,
-        milestoneDescription,  
-        milestoneDueDate,
-        componentSkills
-      );
-
-      res.json(assessment);
-    } catch (error) {
-      console.error('Error generating assessment from skills:', error);
-      res.status(500).json({ 
-        error: "Failed to generate assessment from component skills" 
-      });
-    }
-  }
