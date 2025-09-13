@@ -320,11 +320,14 @@ export default function CreateAssessmentModal({
           correctAnswer: q.correctAnswer || ""
         }));
 
-        form.setValue("questions", formattedQuestions);
+        // Get existing questions and append new ones
+        const existingQuestions = form.getValues("questions") || [];
+        const allQuestions = [...existingQuestions, ...formattedQuestions];
+        form.setValue("questions", allQuestions);
 
         toast({
-          title: "AI Assessment Generated",
-          description: `Generated ${formattedQuestions.length} questions aligned to your selected component skills.`,
+          title: "AI Questions Added",
+          description: `Added ${formattedQuestions.length} new AI-generated questions. Total: ${allQuestions.length} questions.`,
         });
 
         // Invalidate queries after successful AI generation
@@ -454,11 +457,14 @@ export default function CreateAssessmentModal({
       // Ensure we have exactly the requested count
       const finalQuestions = generatedQuestions.slice(0, aiQuestionCount);
 
-      form.setValue("questions", finalQuestions);
+      // Get existing questions and append new ones for fallback too
+      const existingQuestions = form.getValues("questions") || [];
+      const allQuestions = [...existingQuestions, ...finalQuestions];
+      form.setValue("questions", allQuestions);
 
       toast({
-        title: "AI Assessment Generated",
-        description: `Generated ${finalQuestions.length} questions based on your preferences. You can review and edit them.`,
+        title: "AI Questions Added",
+        description: `Added ${finalQuestions.length} new questions based on your preferences. Total: ${allQuestions.length} questions.`,
       });
       } catch (error) {
       toast({
