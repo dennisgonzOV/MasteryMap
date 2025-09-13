@@ -309,7 +309,7 @@ export default function CreateAssessmentModal({
       }
 
       const aiAssessment = await response.json();
-      
+
       if (aiAssessment.questions && aiAssessment.questions.length > 0) {
         // Convert AI questions to form format
         const formattedQuestions = aiAssessment.questions.map((q: any) => ({
@@ -321,21 +321,24 @@ export default function CreateAssessmentModal({
         }));
 
         form.setValue("questions", formattedQuestions);
-        
+
         toast({
           title: "AI Assessment Generated",
           description: `Generated ${formattedQuestions.length} questions aligned to your selected component skills.`,
         });
+
+        // Invalidate queries after successful AI generation
+        queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
       } else {
         throw new Error("No questions generated");
       }
     } catch (error) {
       console.error("AI generation error:", error);
-      
+
       // Fallback to mock generation with skill-aligned questions
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Get selected skill details for fallback
       const selectedSkillsDetails = hierarchy.flatMap((outcome: any) => 
         outcome.competencies?.flatMap((competency: any) => 
@@ -643,7 +646,6 @@ export default function CreateAssessmentModal({
                                                     onChange={() => {
                                                       // For self-evaluation, only allow one selection
                                                       form.setValue("componentSkillIds", [skill.id]);
-                                                      form.trigger("componentSkillIds");
                                                     }}
                                                     className="mt-0.5"
                                                   />
