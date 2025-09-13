@@ -151,7 +151,9 @@ export class AIController {
           milestoneTitle,
           milestoneDescription,  
           milestoneDueDate,
-          componentSkills
+          componentSkills,
+          questionCount,
+          questionTypes
         );
 
         res.json(assessment);

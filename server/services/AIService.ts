@@ -346,7 +346,13 @@ export class EducationalAIService extends BaseAIService {
   /**
    * Generate assessment questions
    */
-  async generateAssessment(milestone: any, componentSkills: any[], options: AIGenerationOptions = {}): Promise<any> {
+  async generateAssessment(
+    milestone: any, 
+    componentSkills: any[], 
+    options: AIGenerationOptions = {},
+    questionCount: number = 5,
+    questionTypes: string[] = ['open-ended']
+  ): Promise<any> {
     const detailedSkills = componentSkills.map(skill => {
       const rubricLevels = skill.rubricLevels || {};
       return `
@@ -363,11 +369,17 @@ Rubric Levels:
       `;
     }).join('\n---\n');
 
+    // Calculate distribution of question types
+    const typeDistribution = this.calculateQuestionTypeDistribution(questionCount, questionTypes);
+    const typeInstructions = Object.entries(typeDistribution)
+      .map(([type, count]) => `${count} ${type} question(s)`)
+      .join(', ');
+
     const template: AIPromptTemplate = {
       system: `You are an educational assessment expert specializing in competency-based assessment. 
-               Create questions that directly measure each specific component skill using authentic scenarios 
-               and performance-based tasks. Each question must clearly assess one or more component skills.`,
-      user: `Generate a comprehensive assessment for this milestone that systematically evaluates ALL component skills:
+               Create questions that directly measure specific component skills using authentic scenarios 
+               and performance-based tasks. Follow the exact question count and type requirements.`,
+      user: `Generate an assessment for this milestone with EXACTLY {{questionCount}} questions:
 
 MILESTONE:
 Title: {{title}}
@@ -376,13 +388,18 @@ Description: {{description}}
 COMPONENT SKILLS TO ASSESS:
 {{detailedSkills}}
 
-REQUIREMENTS:
-1. Create 5-7 questions that collectively assess ALL component skills listed above
-2. Each question must explicitly target at least one component skill
-3. Include a mix of question types: open-ended (60%), multiple-choice (20%), short-answer (20%)
-4. Questions should use authentic, real-world scenarios relevant to the milestone
+QUESTION REQUIREMENTS:
+1. Create EXACTLY {{questionCount}} questions total
+2. Use these question types and counts: {{typeInstructions}}
+3. Questions should collectively assess the component skills listed above
+4. Use authentic, real-world scenarios relevant to the milestone
 5. Rubric criteria must align with the component skill rubric levels provided
 6. Each question should specify which component skill(s) it primarily assesses
+
+QUESTION TYPES:
+- open-ended: Complex questions requiring detailed responses and analysis
+- multiple-choice: Questions with 4 answer choices and one correct answer
+- short-answer: Questions requiring brief, focused responses (1-3 sentences)
 
 Return JSON with this exact structure:
 {
@@ -395,14 +412,19 @@ Return JSON with this exact structure:
       "type": "open-ended",
       "rubricCriteria": "Clear criteria aligned to component skill rubric levels",
       "componentSkillsFocus": ["Component Skill Name 1"],
-      "sampleAnswer": "Example of proficient-level response"
+      "sampleAnswer": "Example of proficient-level response",
+      "choices": null
     }
   ]
-}`,
+}
+
+For multiple-choice questions, include a "choices" array with 4 options and specify the correct answer in "sampleAnswer".`,
       variables: {
         title: milestone.title,
         description: milestone.description,
-        detailedSkills: detailedSkills
+        detailedSkills: detailedSkills,
+        questionCount: questionCount.toString(),
+        typeInstructions: typeInstructions
       }
     };
 
@@ -413,6 +435,39 @@ Return JSON with this exact structure:
       const context = createErrorContext('generateAssessment', undefined, { milestoneTitle: milestone.title });
       throw parseAIServiceError(error, context);
     }
+  }
+
+  /**
+   * Calculate distribution of question types based on preferences
+   */
+  private calculateQuestionTypeDistribution(totalCount: number, selectedTypes: string[]): Record<string, number> {
+    const distribution: Record<string, number> = {};
+    
+    if (selectedTypes.length === 0) {
+      distribution['open-ended'] = totalCount;
+      return distribution;
+    }
+
+    // Initialize all selected types with 0
+    selectedTypes.forEach(type => {
+      distribution[type] = 0;
+    });
+
+    // Distribute questions evenly across selected types
+    const questionsPerType = Math.floor(totalCount / selectedTypes.length);
+    const remainder = totalCount % selectedTypes.length;
+
+    // Give each type the base amount
+    selectedTypes.forEach(type => {
+      distribution[type] = questionsPerType;
+    });
+
+    // Distribute remainder to first types
+    for (let i = 0; i < remainder; i++) {
+      distribution[selectedTypes[i]]++;
+    }
+
+    return distribution;
   }
 
   /**

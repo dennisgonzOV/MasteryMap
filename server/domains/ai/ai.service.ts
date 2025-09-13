@@ -60,13 +60,17 @@ export class AIService {
     milestoneTitle: string,
     milestoneDescription: string,
     milestoneDueDate: string,
-    componentSkills: any[]
+    componentSkills: any[],
+    questionCount: number = 5,
+    questionTypes: string[] = ['open-ended']
   ) {
     return await this.openaiService.generateAssessmentFromComponentSkills(
       milestoneTitle,
       milestoneDescription,
       milestoneDueDate,
-      componentSkills
+      componentSkills,
+      questionCount,
+      questionTypes
     );
   }
 

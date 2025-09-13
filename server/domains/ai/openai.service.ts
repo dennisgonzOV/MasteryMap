@@ -383,6 +383,8 @@ Return as JSON with this structure:
     milestoneDescription: string,
     milestoneDueDate: string,
     componentSkills: ComponentSkill[],
+    questionCount: number = 5,
+    questionTypes: string[] = ['open-ended']
   ): Promise<GeneratedAssessment> {
     const skillsText = componentSkills
       .map(
@@ -403,6 +405,12 @@ Rubric Levels:
 - Applying: ${skill.rubricLevels?.applying || 'Shows advanced competence'}
 `).join('\n---\n');
 
+    // Calculate distribution of question types
+    const typeDistribution = this.calculateQuestionTypeDistribution(questionCount, questionTypes);
+    const typeInstructions = Object.entries(typeDistribution)
+      .map(([type, count]) => `${count} ${type} question(s)`)
+      .join(', ');
+
     const prompt = `Generate a comprehensive competency-based assessment for the following milestone:
 
 Milestone Title: ${milestoneTitle}
@@ -413,35 +421,37 @@ TARGET COMPONENT SKILLS TO ASSESS:
 ${detailedSkillsText}
 
 ASSESSMENT REQUIREMENTS:
-1. Create exactly ONE question per component skill (${componentSkills.length} questions total)
-2. Each question must explicitly measure the specific component skill's competency
-3. Use authentic, performance-based scenarios relevant to real-world application
-4. Include varied question types: 60% open-ended, 25% short-answer, 15% multiple-choice
+1. Create EXACTLY ${questionCount} questions total
+2. Use these question types and counts: ${typeInstructions}
+3. Questions should collectively assess the component skills listed above
+4. Use authentic, performance-based scenarios relevant to real-world application
 5. Rubric criteria must directly reference the skill's rubric levels (Emerging → Developing → Proficient → Applying)
 6. Questions should enable students to demonstrate mastery through varied approaches
-7. Each question must specify exactly which component skill it assesses
+7. Each question should specify which component skill(s) it primarily assesses
 
 QUESTION DESIGN PRINCIPLES:
 - Open-ended questions: Complex scenarios requiring skill application and analysis
 - Short-answer questions: Focused demonstration of specific skill competency
-- Multiple-choice questions: Assessment of foundational skill understanding
+- Multiple-choice questions: Assessment of foundational skill understanding with 4 answer choices
 
 Return as JSON with this exact structure:
 {
   "title": "${milestoneTitle} - Component Skills Assessment",
-  "description": "This assessment systematically evaluates each selected component skill through authentic performance tasks aligned to the XQ competency framework.",
+  "description": "This assessment systematically evaluates selected component skills through authentic performance tasks aligned to the XQ competency framework.",
   "questions": [
     {
-      "id": "skill_${componentSkills[0]?.id || '1'}_q1",
-      "text": "Specific question targeting exactly one component skill",
+      "id": "q1",
+      "text": "Specific question text here",
       "type": "open-ended",
-      "rubricCriteria": "Evaluation criteria explicitly referencing Emerging/Developing/Proficient/Applying levels for the target skill",
+      "rubricCriteria": "Evaluation criteria explicitly referencing Emerging/Developing/Proficient/Applying levels",
       "sampleAnswer": "Example response demonstrating Proficient level competency",
-      "componentSkillFocus": ["${componentSkills[0]?.name}"],
-      "targetComponentSkillId": ${componentSkills[0]?.id}
+      "componentSkillFocus": ["Component Skill Name"],
+      "choices": null
     }
   ]
-}`;
+}
+
+For multiple-choice questions, include a "choices" array with 4 options and specify the correct answer in "sampleAnswer".`;
 
     try {
       const response = await this.openai.chat.completions.create({
@@ -765,6 +775,39 @@ Return as JSON:
       console.error("Error suggesting credentials:", error);
       return [];
     }
+  }
+
+  /**
+   * Calculate distribution of question types based on preferences
+   */
+  private calculateQuestionTypeDistribution(totalCount: number, selectedTypes: string[]): Record<string, number> {
+    const distribution: Record<string, number> = {};
+    
+    if (selectedTypes.length === 0) {
+      distribution['open-ended'] = totalCount;
+      return distribution;
+    }
+
+    // Initialize all selected types with 0
+    selectedTypes.forEach(type => {
+      distribution[type] = 0;
+    });
+
+    // Distribute questions evenly across selected types
+    const questionsPerType = Math.floor(totalCount / selectedTypes.length);
+    const remainder = totalCount % selectedTypes.length;
+
+    // Give each type the base amount
+    selectedTypes.forEach(type => {
+      distribution[type] = questionsPerType;
+    });
+
+    // Distribute remainder to first types
+    for (let i = 0; i < remainder; i++) {
+      distribution[selectedTypes[i]]++;
+    }
+
+    return distribution;
   }
 }
 
