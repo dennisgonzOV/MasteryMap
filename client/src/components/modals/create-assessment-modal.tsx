@@ -329,6 +329,10 @@ export default function CreateAssessmentModal({
 
         // Invalidate queries after successful AI generation
         queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
+        
+        // Reset loading state on success
+        setIsGeneratingWithAI(false);
+        return;
       } else {
         throw new Error("No questions generated");
       }
