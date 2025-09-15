@@ -40,9 +40,14 @@ export default function Login() {
       setLocation('/');
     },
     onError: (error) => {
+      // Show user-friendly error message
+      const message = error.message === 'Invalid credentials' 
+        ? 'Invalid username or password. Please try again.'
+        : 'Failed to log in. Please try again.';
+      
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to log in',
+        title: 'Login Failed',
+        description: message,
         variant: 'destructive',
       });
     },

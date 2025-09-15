@@ -92,8 +92,8 @@ export const createAuthRouter = () => {
       res.json(userWithoutPassword);
     } catch (error) {
       console.error('Login error:', error);
-      const errorResponse = createErrorResponse(error, 'Login failed', 401);
-      res.status(401).json(errorResponse);
+      // Return generic error message for security
+      res.status(401).json({ message: 'Invalid credentials' });
     }
   });
 

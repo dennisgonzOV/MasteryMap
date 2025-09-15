@@ -138,7 +138,7 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    // Verify password
+    // Verify password - use constant time comparison to prevent timing attacks
     const isValidPassword = await this.comparePasswords(password, user.password);
     if (!isValidPassword) {
       throw new Error('Invalid credentials');
