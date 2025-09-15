@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { useTeacherAccess } from "@/hooks/useRoleBasedAccess";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -122,11 +123,14 @@ const rubricLevels = [
 export default function AssessmentSubmissions() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, canAccess } = useTeacherAccess();
   const { toast } = useToast();
 
-  // State for UI interactions
-  const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(new Set());
+  // State for UI interactions - auto-expand ungraded submissions
+  const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(() => {
+    // Will be populated after submissions load
+    return new Set();
+  });
 
   // Initialize gradingData from sessionStorage if available, otherwise empty object
   const [gradingData, setGradingData] = useState<Record<number, Record<number, {
@@ -147,7 +151,7 @@ export default function AssessmentSubmissions() {
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
     queryKey: [`/api/assessments/${id}`],
-    enabled: isAuthenticated && !!id,
+    enabled: canAccess && !!id,
   });
 
   // Fetch submissions
@@ -168,7 +172,7 @@ export default function AssessmentSubmissions() {
   // Fetch component skills for the assessment
   const { data: componentSkills = [] } = useQuery<ComponentSkill[]>({
     queryKey: ['/api/component-skills/details'],
-    enabled: isAuthenticated && !!assessment?.componentSkillIds?.length,
+    enabled: canAccess && !!assessment?.componentSkillIds?.length,
   });
 
   // Filter component skills relevant to this assessment
@@ -237,6 +241,19 @@ export default function AssessmentSubmissions() {
   React.useEffect(() => {
     initializeGradingData();
   }, [initializeGradingData]);
+
+  // Auto-expand ungraded submissions for easier access to manual grading
+  React.useEffect(() => {
+    if (submissions.length > 0 && expandedSubmissions.size === 0) {
+      const ungradedSubmissionIds = submissions
+        .filter(sub => !sub.grades?.length && !sub.grade)
+        .map(sub => sub.id);
+      
+      if (ungradedSubmissionIds.length > 0) {
+        setExpandedSubmissions(new Set(ungradedSubmissionIds));
+      }
+    }
+  }, [submissions, expandedSubmissions.size]);
 
   // Individual grading mutation
   const gradeMutation = useMutation({
@@ -479,6 +496,22 @@ export default function AssessmentSubmissions() {
     return Math.round((totalScore / submission.grades.length) * 25); // Convert to percentage (4 levels * 25%)
   };
 
+  // Check access first
+  if (!canAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">
+              You need teacher or admin privileges to access this page.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (assessmentLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -669,15 +702,34 @@ export default function AssessmentSubmissions() {
               </div>
               <div className="flex items-center space-x-3">
                 {stats.ungraded > 0 && (
-                  <Button
-                    size="sm"
-                    onClick={() => bulkGradeMutation.mutate()}
-                    disabled={isBulkGrading}
-                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Brain className="h-4 w-4" />
-                    <span>Grade All with AI</span>
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => bulkGradeMutation.mutate()}
+                      disabled={isBulkGrading}
+                      className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Brain className="h-4 w-4" />
+                      <span>Grade All with AI</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        // Expand ungraded submissions for manual grading
+                        const ungradedIds = new Set(
+                          submissions
+                            .filter(s => !s.grades?.length && !s.grade)
+                            .map(s => s.id)
+                        );
+                        setExpandedSubmissions(ungradedIds);
+                      }}
+                      className="flex items-center space-x-2 border-green-300 text-green-700 hover:bg-green-50"
+                    >
+                      <GraduationCap className="h-4 w-4" />
+                      <span>Manual Grade ({stats.ungraded})</span>
+                    </Button>
+                  </>
                 )}
                 <Button
                   size="sm"
