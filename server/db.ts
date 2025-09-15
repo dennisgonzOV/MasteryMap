@@ -20,14 +20,32 @@ export const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Handle Neon WebSocket connection errors to prevent uncaught exceptions
-process.on('uncaughtException', (error) => {
-  if (error.message && error.message.includes('Cannot set property message')) {
-    console.warn('Neon WebSocket connection error handled:', error.message);
-    return; // Don't crash the process for this known issue
+// Handle Neon WebSocket connection errors gracefully
+process.on('uncaughtException', (error: any) => {
+  // Handle known Neon WebSocket issues
+  if (error.message && (
+    error.message.includes('Cannot set property message') ||
+    error.message.includes('terminating connection due to administrator command') ||
+    error.message.includes('FATAL') ||
+    error.code === '57P01' // Neon connection termination code
+  )) {
+    console.warn('Neon connection error handled gracefully:', error.message);
+    return; // Don't crash the process for database connection issues
   }
-  // Re-throw other uncaught exceptions
-  throw error;
+  
+  // For non-database errors, log and exit gracefully
+  console.error('Uncaught exception:', error);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections from database operations
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  // For database-related rejections, don't crash the process
+  if (reason && typeof reason === 'object' && 'code' in reason && reason.code === '57P01') {
+    console.warn('Database connection rejection handled gracefully');
+    return;
+  }
 });
 
 

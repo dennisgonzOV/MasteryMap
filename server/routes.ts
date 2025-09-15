@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 // Import all domain routers
-import { authRouter, adminRouter, analyticsRouter, requireAuth } from "./domains/auth";
+import { authRouter, adminRouter, analyticsRouter, requireAuth, type AuthenticatedRequest } from "./domains/auth";
 import { projectsRouter, milestonesRouter, projectTeamsRouter, projectTeamMembersRouter, schoolsRouter, teacherRouter } from "./domains/projects";
 import { assessmentsRouter, submissionsRouter, selfEvaluationsRouter, assessmentStorage } from "./domains/assessments";
 import { credentialsRouter } from "./domains/credentials";
@@ -52,7 +52,7 @@ export function setupRoutes(app: Express) {
   app.use("/api/analytics", analyticsRouter);
 
   // School-wide component skills tracking for teachers
-  app.get("/api/teacher/school-component-skills-progress", requireAuth, async (req, res) => {
+  app.get("/api/teacher/school-component-skills-progress", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       if (req.user?.role !== 'teacher') {
         return res.status(403).json({ message: "Access denied" });
@@ -72,7 +72,7 @@ export function setupRoutes(app: Express) {
   });
 
   // School-wide skills statistics
-  app.get("/api/teacher/school-skills-stats", requireAuth, async (req, res) => {
+  app.get("/api/teacher/school-skills-stats", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       if (req.user?.role !== 'teacher') {
         return res.status(403).json({ message: "Access denied" });
