@@ -54,6 +54,12 @@ export interface IAssessmentStorage {
   // Grade operations
   createGrade(grade: Omit<Grade, "id" | "gradedAt">): Promise<Grade>;
   getGradesBySubmission(submissionId: number): Promise<Grade[]>;
+  getComponentSkill(id: number): Promise<any>;
+  generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]): Promise<any[]>;
+  generateStudentFeedback(submission: any, grades: any[]): Promise<string>;
+  getExistingGrade(submissionId: number, componentSkillId: number): Promise<any>;
+  updateGrade(gradeId: number, updates: any): Promise<any>;
+  awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]>;
 
   // Self-evaluation operations
   getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]>;
@@ -70,6 +76,10 @@ export interface IAssessmentStorage {
     lastUpdated: string;
     progressDirection: 'improving' | 'declining' | 'stable';
   }>>;
+
+  // Teacher-specific methods for school skills tracking
+  getSchoolComponentSkillsProgress(teacherId: number): Promise<any[]>;
+  getSchoolSkillsStats(teacherId: number): Promise<any>;
 }
 
 export class AssessmentStorage implements IAssessmentStorage {
@@ -156,10 +166,10 @@ export class AssessmentStorage implements IAssessmentStorage {
   async deleteAssessment(id: number): Promise<void> {
     // First delete all related self-evaluations
     await db.delete(selfEvaluations).where(eq(selfEvaluations.assessmentId, id));
-    
+
     // Then delete all related submissions
     await db.delete(submissions).where(eq(submissions.assessmentId, id));
-    
+
     // Finally delete the assessment
     await db.delete(assessments).where(eq(assessments.id, id));
   }
@@ -331,6 +341,59 @@ export class AssessmentStorage implements IAssessmentStorage {
       .from(grades)
       .where(eq(grades.submissionId, submissionId))
       .orderBy(desc(grades.gradedAt));
+  }
+
+  async getComponentSkill(id: number): Promise<any> {
+    const componentSkill = await db
+      .select()
+      .from(componentSkills)
+      .where(eq(componentSkills.id, id))
+      .limit(1);
+
+    return componentSkill[0];
+  }
+
+  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]): Promise<any[]> {
+    // This would typically call the AI service to generate grades
+    // For now, return empty array to prevent errors
+    return [];
+  }
+
+  async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {
+    // This would typically call the AI service to generate feedback
+    return "AI feedback generation failed. Please provide manual feedback.";
+  }
+
+  async getExistingGrade(submissionId: number, componentSkillId: number): Promise<any> {
+    const grade = await db
+      .select()
+      .from(grades)
+      .where(and(
+        eq(grades.submissionId, submissionId),
+        eq(grades.componentSkillId, componentSkillId)
+      ))
+      .limit(1);
+
+    return grade[0];
+  }
+
+  async updateGrade(gradeId: number, updates: any): Promise<any> {
+    const [updatedGrade] = await db
+      .update(grades)
+      .set({
+        ...updates,
+        gradedAt: new Date()
+      })
+      .where(eq(grades.id, gradeId))
+      .returning();
+
+    return updatedGrade;
+  }
+
+  async awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]> {
+    // This would typically award stickers based on grades
+    // For now, return empty array
+    return [];
   }
 
   // Self-evaluation operations

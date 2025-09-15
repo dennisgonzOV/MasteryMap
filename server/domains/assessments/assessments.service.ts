@@ -233,6 +233,30 @@ export class AssessmentService {
   async getSchoolSkillsStats(teacherId: number): Promise<any> {
     return await this.storage.getSchoolSkillsStats(teacherId);
   }
+
+  async getComponentSkill(id: number): Promise<any> {
+    return await this.storage.getComponentSkill(id);
+  }
+
+  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]): Promise<any[]> {
+    return await this.storage.generateComponentSkillGrades(submission, assessment, componentSkills);
+  }
+
+  async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {
+    return await this.storage.generateStudentFeedback(submission, grades);
+  }
+
+  async getExistingGrade(submissionId: number, componentSkillId: number): Promise<any> {
+    return await this.storage.getExistingGrade(submissionId, componentSkillId);
+  }
+
+  async updateGrade(gradeId: number, updates: any): Promise<any> {
+    return await this.storage.updateGrade(gradeId, updates);
+  }
+
+  async awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]> {
+    return await this.storage.awardStickersForGrades(studentId, grades);
+  }
 }
 
 export const assessmentService = new AssessmentService();
