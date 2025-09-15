@@ -284,11 +284,13 @@ export class AssessmentController {
     });
 
     // Assessment creation route
-    router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
+    router.post('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user!.id;
 
+        // Double-check role (belt and suspenders approach)
         if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+          console.log(`Assessment creation denied: User ${userId} has role '${req.user?.role}' but needs teacher/admin`);
           return res.status(403).json({ message: "Only teachers can create assessments" });
         }
 
@@ -621,11 +623,13 @@ export class AssessmentController {
     });
 
     // Submissions for assessment
-    router.get('/:id/submissions', requireAuth, async (req: AuthenticatedRequest, res) => {
+    router.get('/:id/submissions', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user!.id;
 
+        // Double-check role (belt and suspenders approach)
         if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+          console.log(`Submissions access denied: User ${userId} has role '${req.user?.role}' but needs teacher/admin`);
           return res.status(403).json({ message: "Only teachers can view submissions" });
         }
 

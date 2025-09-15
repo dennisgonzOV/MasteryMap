@@ -53,17 +53,26 @@ export const requireRole = (...roles: UserRole[]) => {
     console.log(`RequireRole: User ${req.user.id} has role '${userRole}' for ${req.path}`);
     console.log(`RequireRole: Required roles: [${roles.join(', ')}]`);
     
-    // Direct enum comparison - no need for normalization
-    const hasAccess = roles.includes(userRole);
+    // Ensure both user role and required roles are properly typed
+    const normalizedUserRole = userRole?.toLowerCase().trim() as UserRole;
+    const normalizedRequiredRoles = roles.map(role => role?.toLowerCase().trim() as UserRole);
     
-    console.log(`RequireRole: User role included: ${hasAccess}`);
+    const hasAccess = normalizedRequiredRoles.includes(normalizedUserRole);
+    
+    console.log(`RequireRole: Normalized user role '${normalizedUserRole}' included in [${normalizedRequiredRoles.join(', ')}]: ${hasAccess}`);
 
     if (!hasAccess) {
-      console.log(`RequireRole: Access denied - user role '${userRole}' not in allowed roles [${roles.join(', ')}]`);
-      return res.status(403).json({ message: 'Forbidden' });
+      console.log(`RequireRole: Access denied - user role '${normalizedUserRole}' not in allowed roles [${normalizedRequiredRoles.join(', ')}]`);
+      return res.status(403).json({ 
+        message: 'Forbidden',
+        details: process.env.NODE_ENV === 'development' ? {
+          userRole: normalizedUserRole,
+          requiredRoles: normalizedRequiredRoles
+        } : undefined
+      });
     }
 
-    console.log(`RequireRole: Access granted for user ${req.user.id} with role '${userRole}'`);
+    console.log(`RequireRole: Access granted for user ${req.user.id} with role '${normalizedUserRole}'`);
     next();
   };
 };
