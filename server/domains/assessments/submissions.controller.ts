@@ -76,9 +76,9 @@ export class SubmissionController {
     });
 
     // Grade submission route - teacher and admin only
-    router.post('/:submissionId/grade', requireAuth, requireRole('teacher', 'admin'), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+    router.post('/:submissionId/grade', requireAuth, requireRole('teacher', 'admin'), validateIntParam('submissionId'), async (req: AuthenticatedRequest, res) => {
       try {
-        const submissionId = parseInt(req.params.id);
+        const submissionId = parseInt(req.params.submissionId);
         const { grades: gradeData, feedback, grade, generateAiFeedback } = req.body;
 
         console.log("Starting grading for submission " + submissionId + ", generateAiFeedback: " + generateAiFeedback);
