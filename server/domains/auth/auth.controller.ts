@@ -50,7 +50,10 @@ export const requireRole = (...roles: string[]) => {
 
     // Normalize role strings to handle potential whitespace/casing issues
     const userRole = String(req.user.role).trim().toLowerCase();
-    const normalizedRoles = roles.map(role => String(role).trim().toLowerCase());
+    
+    // Ensure roles is an array and normalize each role
+    const rolesArray = Array.isArray(roles) ? roles : [roles];
+    const normalizedRoles = rolesArray.map(role => String(role).trim().toLowerCase());
 
     console.log(`RequireRole: User ${req.user.id} has role '${req.user.role}' (normalized: '${userRole}') for ${req.path}`);
     console.log(`RequireRole: Required roles: [${roles.join(', ')}] (normalized: [${normalizedRoles.join(', ')}])`);
