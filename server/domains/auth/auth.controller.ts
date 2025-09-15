@@ -55,9 +55,20 @@ export const requireRole = (...roles: string[]) => {
     console.log(`RequireRole: User ${req.user.id} has role '${req.user.role}' (normalized: '${userRole}') for ${req.path}`);
     console.log(`RequireRole: Required roles: [${roles.join(', ')}] (normalized: [${normalizedRoles.join(', ')}])`);
     console.log(`RequireRole: User role type: ${typeof req.user.role}, User role length: ${String(req.user.role).length}`);
-    console.log(`RequireRole: User role included: ${normalizedRoles.includes(userRole)}`);
+    
+    // More robust role checking with explicit comparison
+    let hasAccess = false;
+    for (const allowedRole of normalizedRoles) {
+      if (userRole === allowedRole) {
+        hasAccess = true;
+        break;
+      }
+    }
+    
+    console.log(`RequireRole: User role included: ${hasAccess}`);
+    console.log(`RequireRole: Detailed comparison - userRole='${userRole}', normalizedRoles=${JSON.stringify(normalizedRoles)}`);
 
-    if (!normalizedRoles.includes(userRole)) {
+    if (!hasAccess) {
       console.log(`RequireRole: Access denied - user role '${req.user.role}' (normalized: '${userRole}') not in allowed roles [${roles.join(', ')}] (normalized: [${normalizedRoles.join(', ')}])`);
       return res.status(403).json({ message: 'Forbidden' });
     }
