@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AuthService, type JWTPayload } from './auth.service';
 import { authStorage } from './auth.storage';
-import { registerSchema, loginSchema, type User } from '../../../shared/schema';
+import { registerSchema, loginSchema, type User, UserRole } from '../../../shared/schema';
 import { authLimiter, createErrorResponse } from '../../middleware/security';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -41,42 +41,29 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
 };
 
 // Role-based authorization middleware
-export const requireRole = (...roles: string[]) => {
+export const requireRole = (...roles: UserRole[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       console.log('RequireRole: No user found for', req.path);
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    // Normalize role strings to handle potential whitespace/casing issues
-    const userRole = String(req.user.role).trim().toLowerCase();
+    const userRole = req.user.role as UserRole;
     
-    // Ensure roles is an array and normalize each role
-    const rolesArray = Array.isArray(roles) ? roles : [roles];
-    const normalizedRoles = rolesArray.map(role => String(role).trim().toLowerCase());
-
-    console.log(`RequireRole: User ${req.user.id} has role '${req.user.role}' (normalized: '${userRole}') for ${req.path}`);
-    console.log(`RequireRole: Required roles: [${roles.join(', ')}] (normalized: [${normalizedRoles.join(', ')}])`);
-    console.log(`RequireRole: User role type: ${typeof req.user.role}, User role length: ${String(req.user.role).length}`);
+    console.log(`RequireRole: User ${req.user.id} has role '${userRole}' for ${req.path}`);
+    console.log(`RequireRole: Required roles: [${roles.join(', ')}]`);
     
-    // More robust role checking with explicit comparison
-    let hasAccess = false;
-    for (const allowedRole of normalizedRoles) {
-      if (userRole === allowedRole) {
-        hasAccess = true;
-        break;
-      }
-    }
+    // Direct enum comparison - no need for normalization
+    const hasAccess = roles.includes(userRole);
     
     console.log(`RequireRole: User role included: ${hasAccess}`);
-    console.log(`RequireRole: Detailed comparison - userRole='${userRole}', normalizedRoles=${JSON.stringify(normalizedRoles)}`);
 
     if (!hasAccess) {
-      console.log(`RequireRole: Access denied - user role '${req.user.role}' (normalized: '${userRole}') not in allowed roles [${roles.join(', ')}] (normalized: [${normalizedRoles.join(', ')}])`);
+      console.log(`RequireRole: Access denied - user role '${userRole}' not in allowed roles [${roles.join(', ')}]`);
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    console.log(`RequireRole: Access granted for user ${req.user.id} with role '${req.user.role}'`);
+    console.log(`RequireRole: Access granted for user ${req.user.id} with role '${userRole}'`);
     next();
   };
 };
@@ -209,7 +196,7 @@ export const createAnalyticsRouter = () => {
   const router = Router();
 
   // Analytics endpoint for admin dashboard
-  router.get('/dashboard', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
+  router.get('/dashboard', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
       // Get analytics data
       const analyticsData = await authStorage.getAnalyticsDashboard();
@@ -229,7 +216,7 @@ export const createAdminRouter = () => {
   const router = Router();
 
   // Get users from admin's school for password reset
-  router.get('/school-users', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
+  router.get('/school-users', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
       const adminId = req.user!.id;
 
@@ -260,7 +247,7 @@ export const createAdminRouter = () => {
   });
 
   // Analytics endpoint for admin dashboard
-  router.get('/analytics/dashboard', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
+  router.get('/analytics/dashboard', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
       // Get analytics data
       const analyticsData = await authStorage.getAnalyticsDashboard();

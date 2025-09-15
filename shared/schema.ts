@@ -17,6 +17,21 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { InferSelectModel } from 'drizzle-orm';
 
+// Define UserRole enum for type safety
+export enum UserRole {
+  ADMIN = 'admin',
+  TEACHER = 'teacher',
+  STUDENT = 'student'
+}
+
+// Role utilities
+export const USER_ROLES = Object.values(UserRole) as const;
+export const ROLE_HIERARCHY = {
+  [UserRole.ADMIN]: 3,
+  [UserRole.TEACHER]: 2,
+  [UserRole.STUDENT]: 1,
+} as const;
+
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const sessions = pgTable(
@@ -46,7 +61,7 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { enum: ["admin", "teacher", "student"] }).notNull().default("student"),
+  role: varchar("role", { enum: USER_ROLES }).notNull().default(UserRole.STUDENT),
   schoolId: integer("school_id").references(() => schools.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -540,7 +555,7 @@ export const registerSchema = createInsertSchema(users).omit({
 }).extend({
   username: z.string().min(3, 'Username must be at least 3 characters'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['admin', 'teacher', 'student']).default('student'),
+  role: z.nativeEnum(UserRole).default(UserRole.STUDENT),
   schoolId: z.number().int().positive().optional(),
 });
 

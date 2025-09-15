@@ -6,7 +6,8 @@ import { useEffect } from 'react';
  * Role-based access control hook to eliminate duplication across components
  */
 
-export type UserRole = 'admin' | 'teacher' | 'student';
+// Import the enum from shared schema
+import { UserRole } from '../../../shared/schema';
 
 export interface RoleBasedAccessOptions {
   allowedRoles?: UserRole[];
