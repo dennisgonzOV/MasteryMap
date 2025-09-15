@@ -354,14 +354,13 @@ export class AssessmentStorage implements IAssessmentStorage {
   }
 
   async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]): Promise<any[]> {
-    // This would typically call the AI service to generate grades
-    // For now, return empty array to prevent errors
-    return [];
+    const { aiService } = await import("../ai/ai.service");
+    return await aiService.generateComponentSkillGrades(submission, assessment, componentSkills);
   }
 
   async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {
-    // This would typically call the AI service to generate feedback
-    return "AI feedback generation failed. Please provide manual feedback.";
+    const { aiService } = await import("../ai/ai.service");
+    return await aiService.generateStudentFeedback(submission, grades);
   }
 
   async getExistingGrade(submissionId: number, componentSkillId: number): Promise<any> {

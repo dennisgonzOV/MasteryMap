@@ -65,6 +65,13 @@ export interface GeneratedProjectIdea {
   competencyAlignment: string[];
 }
 
+interface ComponentSkillGrade {
+  componentSkillId: number;
+  rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
+  score: number;
+  feedback: string;
+}
+
 export class OpenAIService {
   private openai = openai;
 
@@ -782,7 +789,7 @@ Return as JSON:
    */
   private calculateQuestionTypeDistribution(totalCount: number, selectedTypes: string[]): Record<string, number> {
     const distribution: Record<string, number> = {};
-    
+
     if (selectedTypes.length === 0) {
       distribution['open-ended'] = totalCount;
       return distribution;
