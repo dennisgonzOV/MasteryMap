@@ -75,8 +75,8 @@ export class SubmissionController {
       }
     });
 
-    // Grade submission route
-    router.post('/:id/grade', requireAuth, requireRole(['teacher', 'admin']), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+    // Grade submission route - teacher and admin only
+    router.post('/:submissionId/grade', requireAuth, requireRole('teacher', 'admin'), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
         const { grades: gradeData, feedback, grade, generateAiFeedback } = req.body;
@@ -238,7 +238,7 @@ export class SubmissionController {
     router.get('/:id/grades', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
-        
+
         const submission = await this.service.getSubmission(submissionId);
         if (!submission) {
           return res.status(404).json({ message: "Submission not found" });
