@@ -20,6 +20,17 @@ export const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+// Handle Neon WebSocket connection errors to prevent uncaught exceptions
+process.on('uncaughtException', (error) => {
+  if (error.message && error.message.includes('Cannot set property message')) {
+    console.warn('Neon WebSocket connection error handled:', error.message);
+    return; // Don't crash the process for this known issue
+  }
+  // Re-throw other uncaught exceptions
+  throw error;
+});
+
+
 export const db = drizzle({ client: pool, schema });
 
 // Test database connection

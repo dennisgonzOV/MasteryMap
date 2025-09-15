@@ -45,7 +45,7 @@ export function errorHandler(
   }
 
   // Handle database connection errors
-  if (err.message && err.message.includes('ECONNREFUSED')) {
+  if (err.message && (err.message.includes('ECONNREFUSED') || err.message.includes('Cannot set property message'))) {
     const dbError = new AppError(
       'Database connection failed',
       503,
