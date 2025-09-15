@@ -48,12 +48,17 @@ export const requireRole = (...roles: string[]) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    console.log(`RequireRole: User ${req.user.id} has role '${req.user.role}' for ${req.path}`);
-    console.log(`RequireRole: Required roles: [${roles.join(', ')}]`);
-    console.log(`RequireRole: User role included: ${roles.includes(req.user.role)}`);
+    // Normalize role strings to handle potential whitespace/casing issues
+    const userRole = String(req.user.role).trim().toLowerCase();
+    const normalizedRoles = roles.map(role => String(role).trim().toLowerCase());
 
-    if (!roles.includes(req.user.role)) {
-      console.log(`RequireRole: Access denied - user role '${req.user.role}' not in allowed roles [${roles.join(', ')}]`);
+    console.log(`RequireRole: User ${req.user.id} has role '${req.user.role}' (normalized: '${userRole}') for ${req.path}`);
+    console.log(`RequireRole: Required roles: [${roles.join(', ')}] (normalized: [${normalizedRoles.join(', ')}])`);
+    console.log(`RequireRole: User role type: ${typeof req.user.role}, User role length: ${String(req.user.role).length}`);
+    console.log(`RequireRole: User role included: ${normalizedRoles.includes(userRole)}`);
+
+    if (!normalizedRoles.includes(userRole)) {
+      console.log(`RequireRole: Access denied - user role '${req.user.role}' (normalized: '${userRole}') not in allowed roles [${roles.join(', ')}] (normalized: [${normalizedRoles.join(', ')}])`);
       return res.status(403).json({ message: 'Forbidden' });
     }
 
