@@ -89,6 +89,14 @@ export class CompetencyService implements ICompetencyService {
   async getComponentSkillsByIds(skillIds: number[]): Promise<any[]> {
     return await this.storage.getComponentSkillsByIds(skillIds);
   }
+
+  async getCompetenciesWithSkills(): Promise<any[]> {
+    return await this.storage.getCompetenciesWithSkills();
+  }
+
+  async getAllComponentSkills(): Promise<any[]> {
+    return await this.storage.getAllComponentSkills();
+  }
 }
 
 export const competencyService = new CompetencyService();

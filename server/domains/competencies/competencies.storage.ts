@@ -29,6 +29,8 @@ export interface ICompetencyStorage {
   getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
   getComponentSkillsWithDetails(): Promise<any[]>;
   getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
+  getCompetenciesWithSkills(): Promise<any[]>;
+  getAllComponentSkills(): Promise<any[]>;
 }
 
 export class CompetencyStorage implements ICompetencyStorage {
@@ -316,6 +318,59 @@ export class CompetencyStorage implements ICompetencyStorage {
       return enrichedSkills;
     } catch (error) {
       console.error("Error in getComponentSkillsByIds:", error);
+      return [];
+    }
+  }
+
+  async getCompetenciesWithSkills(): Promise<any[]> {
+    try {
+      const competenciesWithSkills = await db
+        .select()
+        .from(competencies)
+        .leftJoin(componentSkills, eq(competencies.id, componentSkills.competencyId))
+        .orderBy(competencies.name, componentSkills.name);
+
+      // Group by competency
+      const grouped = competenciesWithSkills.reduce((acc, row) => {
+        const competency = row.competencies;
+        const skill = row.component_skills;
+
+        if (!acc[competency.id]) {
+          acc[competency.id] = {
+            ...competency,
+            componentSkills: []
+          };
+        }
+
+        if (skill) {
+          acc[competency.id].componentSkills.push(skill);
+        }
+
+        return acc;
+      }, {} as Record<number, any>);
+
+      return Object.values(grouped);
+    } catch (error) {
+      console.error('Error fetching competencies with skills:', error);
+      return [];
+    }
+  }
+
+  async getAllComponentSkills(): Promise<any[]> {
+    try {
+      const skills = await db
+        .select({
+          id: componentSkills.id,
+          name: componentSkills.name,
+          rubricLevels: componentSkills.rubricLevels,
+          competencyId: componentSkills.competencyId
+        })
+        .from(componentSkills)
+        .orderBy(componentSkills.name);
+
+      return skills;
+    } catch (error) {
+      console.error('Error fetching all component skills:', error);
       return [];
     }
   }

@@ -189,6 +189,17 @@ export class CompetencyController {
       }
     });
 
+    // Get all component skills with details
+    router.get('/component-skills/details', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const skills = await this.service.getAllComponentSkills();
+        res.json(skills);
+      } catch (error) {
+        console.error("Error fetching component skills details:", error);
+        res.status(500).json({ message: "Failed to fetch component skills" });
+      }
+    });
+
     return router;
   }
 }
