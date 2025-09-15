@@ -25,7 +25,7 @@ export enum UserRole {
 }
 
 // Role utilities
-export const USER_ROLES = Object.values(UserRole) as const;
+export const USER_ROLES = Object.values(UserRole);
 export const ROLE_HIERARCHY = {
   [UserRole.ADMIN]: 3,
   [UserRole.TEACHER]: 2,
@@ -61,7 +61,7 @@ export const users = pgTable("users", {
   username: varchar("username", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { enum: USER_ROLES }).notNull().default(UserRole.STUDENT),
+  role: varchar("role").notNull().default(UserRole.STUDENT),
   schoolId: integer("school_id").references(() => schools.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

@@ -1,6 +1,6 @@
+import React, { useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { useLocation } from 'wouter';
-import { useEffect } from 'react';
 
 /**
  * Role-based access control hook to eliminate duplication across components
@@ -27,7 +27,7 @@ export function useRoleBasedAccess(options: RoleBasedAccessOptions = {}) {
     onUnauthorized
   } = options;
 
-  const userRole = user?.role as UserRole;
+  const userRole = (user as any)?.role as UserRole;
   const isAuthorized = !requireAuth || (isAuthenticated && (!allowedRoles.length || allowedRoles.includes(userRole)));
 
   useEffect(() => {
@@ -53,9 +53,9 @@ export function useRoleBasedAccess(options: RoleBasedAccessOptions = {}) {
     isLoading,
     hasRole: (role: UserRole) => userRole === role,
     hasAnyRole: (roles: UserRole[]) => roles.includes(userRole),
-    isAdmin: userRole === 'admin',
-    isTeacher: userRole === 'teacher',
-    isStudent: userRole === 'student',
+    isAdmin: userRole === UserRole.ADMIN,
+    isTeacher: userRole === UserRole.TEACHER,
+    isStudent: userRole === UserRole.STUDENT,
     canAccess: isAuthorized,
   };
 }
@@ -66,7 +66,7 @@ export function useRoleBasedAccess(options: RoleBasedAccessOptions = {}) {
 export function useAdminAccess(options?: Omit<RoleBasedAccessOptions, 'allowedRoles'>) {
   return useRoleBasedAccess({
     ...options,
-    allowedRoles: ['admin']
+    allowedRoles: [UserRole.ADMIN]
   });
 }
 
@@ -76,7 +76,7 @@ export function useAdminAccess(options?: Omit<RoleBasedAccessOptions, 'allowedRo
 export function useTeacherAccess(options?: Omit<RoleBasedAccessOptions, 'allowedRoles'>) {
   return useRoleBasedAccess({
     ...options,
-    allowedRoles: ['teacher', 'admin']
+    allowedRoles: [UserRole.TEACHER, UserRole.ADMIN]
   });
 }
 
@@ -84,9 +84,9 @@ export function useTeacherAccess(options?: Omit<RoleBasedAccessOptions, 'allowed
  * Hook for student access (with optional teacher/admin access)
  */
 export function useStudentAccess(includeTeachers = false, options?: Omit<RoleBasedAccessOptions, 'allowedRoles'>) {
-  const allowedRoles: UserRole[] = ['student'];
+  const allowedRoles: UserRole[] = [UserRole.STUDENT];
   if (includeTeachers) {
-    allowedRoles.push('teacher', 'admin');
+    allowedRoles.push(UserRole.TEACHER, UserRole.ADMIN);
   }
   
   return useRoleBasedAccess({
@@ -99,7 +99,8 @@ export function useStudentAccess(includeTeachers = false, options?: Omit<RoleBas
  * Hook for conditional rendering based on roles
  */
 export function useConditionalRender() {
-  const { userRole, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const userRole = (user as any)?.role as UserRole;
   
   return {
     renderForRole: (role: UserRole, component: React.ReactNode) => {
@@ -111,15 +112,15 @@ export function useConditionalRender() {
     },
     
     renderForAdmin: (component: React.ReactNode) => {
-      return userRole === 'admin' ? component : null;
+      return userRole === UserRole.ADMIN ? component : null;
     },
     
     renderForTeacher: (component: React.ReactNode) => {
-      return userRole === 'teacher' ? component : null;
+      return userRole === UserRole.TEACHER ? component : null;
     },
     
     renderForStudent: (component: React.ReactNode) => {
-      return userRole === 'student' ? component : null;
+      return userRole === UserRole.STUDENT ? component : null;
     },
     
     renderForAuthenticated: (component: React.ReactNode) => {
@@ -142,7 +143,7 @@ export function useRoleBasedRedirect() {
   const redirectToRoleDashboard = () => {
     if (!isAuthenticated || !user) return;
     
-    const route = getDefaultRedirectForRole(user.role as UserRole);
+    const route = getDefaultRedirectForRole((user as any).role as UserRole);
     setLocation(route);
   };
 
@@ -167,11 +168,11 @@ export function useRoleBasedRedirect() {
  */
 export function getDefaultRedirectForRole(role: UserRole): string {
   switch (role) {
-    case 'admin':
+    case UserRole.ADMIN:
       return '/admin/dashboard';
-    case 'teacher':
+    case UserRole.TEACHER:
       return '/teacher/dashboard';
-    case 'student':
+    case UserRole.STUDENT:
       return '/student/dashboard';
     default:
       return '/';
@@ -189,14 +190,14 @@ export function withRoleBasedAccess<P extends object>(
     const { canAccess, isLoading } = useRoleBasedAccess(options);
     
     if (isLoading) {
-      return <div>Loading...</div>;
+      return React.createElement('div', null, 'Loading...');
     }
     
     if (!canAccess) {
-      return <div>Unauthorized</div>;
+      return React.createElement('div', null, 'Unauthorized');
     }
     
-    return <Component {...props} />;
+    return React.createElement(Component, props);
   };
 }
 
@@ -216,40 +217,42 @@ export function RoleGate({
   children, 
   requireAuth = true 
 }: RoleGateProps) {
-  const { userRole, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const userRole = (user as any)?.role as UserRole;
   
   if (requireAuth && !isAuthenticated) {
     return fallback;
   }
   
   if (roles.length === 0 || roles.includes(userRole)) {
-    return <>{children}</>;
+    return React.createElement(React.Fragment, null, children);
   }
   
-  return <>{fallback}</>;
+  return React.createElement(React.Fragment, null, fallback);
 }
 
 /**
  * Permission checking utilities
  */
 export const permissions = {
-  canCreateProject: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canDeleteProject: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canGradeSubmission: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canViewAllStudents: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canManageUsers: (userRole: UserRole) => userRole === 'admin',
-  canAccessAnalytics: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canModerateContent: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canExportData: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canManageCredentials: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
-  canViewTeacherTools: (userRole: UserRole) => ['teacher', 'admin'].includes(userRole),
+  canCreateProject: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canDeleteProject: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canGradeSubmission: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canViewAllStudents: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canManageUsers: (userRole: UserRole) => userRole === UserRole.ADMIN,
+  canAccessAnalytics: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canModerateContent: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canExportData: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canManageCredentials: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canViewTeacherTools: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
 };
 
 /**
  * Hook for checking specific permissions
  */
 export function usePermissions() {
-  const { userRole } = useAuth();
+  const { user } = useAuth();
+  const userRole = (user as any)?.role as UserRole;
   
   return {
     ...permissions,
