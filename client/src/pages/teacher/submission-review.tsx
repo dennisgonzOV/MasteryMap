@@ -61,12 +61,11 @@ interface Submission {
 interface ComponentSkill {
   id: number;
   name: string;
-  competency: {
-    name: string;
-    learnerOutcome: {
-      name: string;
-    };
-  };
+  competencyId: number;
+  competencyName: string;
+  competencyCategory: string;
+  learnerOutcomeName: string;
+  learnerOutcomeType: string;
 }
 
 export default function SubmissionReview() {
@@ -80,21 +79,19 @@ export default function SubmissionReview() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch assessment data
-  const { data: assessment, isLoading: assessmentLoading } = useQuery({
+  const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
     queryKey: [`/api/assessments/${assessmentId}`],
     enabled: !!assessmentId,
   });
 
   // Fetch submission data
-  const { data: submission, isLoading: submissionLoading, error: submissionError } = useQuery({
+  const { data: submission, isLoading: submissionLoading, error: submissionError } = useQuery<Submission>({
     queryKey: [`/api/submissions/${submissionId}`],
     enabled: !!submissionId,
   });
 
-
-
   // Fetch component skills for context and grading
-  const { data: allComponentSkills = [] } = useQuery({
+  const { data: allComponentSkills = [] } = useQuery<ComponentSkill[]>({
     queryKey: ["/api/component-skills/details"],
     enabled: !!assessment?.componentSkillIds?.length,
   });
