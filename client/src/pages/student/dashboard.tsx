@@ -814,7 +814,14 @@ function AssessmentSubmissionCard({ submission }) {
             {isGraded && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h4 className="font-semibold text-blue-900 mb-3">Assessment Results</h4>
-                <p className="text-blue-800 text-sm">See feedback for individual questions below.</p>
+                {submission.feedback ? (
+                  <div>
+                    <p className="text-sm font-medium text-blue-900 mb-1">Overall Feedback:</p>
+                    <p className="text-blue-800 text-sm whitespace-pre-wrap">{submission.feedback}</p>
+                  </div>
+                ) : (
+                  <p className="text-blue-800 text-sm">See detailed feedback for each component skill below.</p>
+                )}
               </div>
             )}
 
