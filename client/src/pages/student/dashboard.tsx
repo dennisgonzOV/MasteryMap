@@ -706,22 +706,26 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                         return "No answer provided";
                       })()}
                     </p>
-                    {submission.status === 'graded' && 
-                     submission.questionGrades && 
-                     submission.questionGrades[question.id] && (
-                      <div className="mt-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">Score:</span>
-                          <Badge className={`text-xs ${getScoreBadge(submission.questionGrades[question.id].score)}`}>
-                            {submission.questionGrades[question.id].score}%
-                          </Badge>
-                        </div>
-                        {submission.questionGrades[question.id].feedback && (
-                          <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                            <p className="text-xs text-blue-900 font-medium">Teacher Feedback:</p>
-                            <p className="text-xs text-blue-800">{submission.questionGrades[question.id].feedback}</p>
+                    {submission.status === 'graded' && submission.grades && submission.grades.length > 0 && (
+                      <div className="mt-1 space-y-2">
+                        {submission.grades.map((grade) => (
+                          <div key={grade.id} className="bg-blue-50 p-2 rounded border border-blue-200">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-blue-900 font-medium">
+                                Score: {grade.score}/4 ({grade.rubricLevel})
+                              </span>
+                              <Badge className={`text-xs ${getScoreBadge(parseInt(grade.score) * 25)}`}>
+                                {parseInt(grade.score) * 25}%
+                              </Badge>
+                            </div>
+                            {grade.feedback && (
+                              <div>
+                                <p className="text-xs text-blue-900 font-medium">Teacher Feedback:</p>
+                                <p className="text-xs text-blue-800 whitespace-pre-wrap">{grade.feedback}</p>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        ))}
                       </div>
                     )}
                   </div>
@@ -868,30 +872,34 @@ function AssessmentSubmissionCard({ submission }) {
                       </p>
                     </div>
 
-                    {isGraded && submission.questionGrades && submission.questionGrades[question.id] && (
-                      <div className="space-y-2 mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">Score:</span>
-                          <Badge className={getScoreBadge(submission.questionGrades[question.id].score)}>
-                            {submission.questionGrades[question.id].score}%
-                          </Badge>
-                        </div>
-                        {submission.questionGrades[question.id].rubricLevel && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Rubric Level:</span>
-                            <Badge variant="outline" className="capitalize">
-                              {submission.questionGrades[question.id].rubricLevel}
-                            </Badge>
+                    {isGraded && submission.grades && submission.grades.length > 0 && (
+                      <div className="space-y-3 mt-3 pt-3 border-t border-gray-200">
+                        <h6 className="text-sm font-medium text-gray-700">Component Skill Assessments:</h6>
+                        {submission.grades.map((grade) => (
+                          <div key={grade.id} className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-700">
+                                Skill Score: {grade.score}/4
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="capitalize">
+                                  {grade.rubricLevel}
+                                </Badge>
+                                <Badge className={getScoreBadge(parseInt(grade.score) * 25)}>
+                                  {parseInt(grade.score) * 25}%
+                                </Badge>
+                              </div>
+                            </div>
+                            {grade.feedback && (
+                              <div>
+                                <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
+                                <p className="text-sm text-blue-800 whitespace-pre-wrap">
+                                  {grade.feedback}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {submission.questionGrades[question.id].feedback && (
-                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
-                            <p className="text-sm text-blue-800 whitespace-pre-wrap">
-                              {submission.questionGrades[question.id].feedback}
-                            </p>
-                          </div>
-                        )}
+                        ))}
                       </div>
                     )}
                   </div>
