@@ -933,8 +933,8 @@ function AssessmentSubmissionCard({ submission }) {
                 ))}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        </CardContent>
       )}
     </Card>
   );
