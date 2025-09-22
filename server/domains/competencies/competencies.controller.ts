@@ -189,6 +189,23 @@ export class CompetencyController {
       }
     });
 
+    // Get component skills by specific IDs
+    router.post('/component-skills/by-ids', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const { skillIds } = req.body;
+        
+        if (!skillIds || !Array.isArray(skillIds)) {
+          return res.status(400).json({ message: "skillIds must be an array" });
+        }
+        
+        const componentSkills = await this.service.getComponentSkillsByIds(skillIds);
+        res.json(componentSkills);
+      } catch (error) {
+        console.error("Error fetching component skills by IDs:", error);
+        res.status(500).json({ message: "Failed to fetch component skills by IDs" });
+      }
+    });
+
     // Get all component skills with details
     router.get('/component-skills/details', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {

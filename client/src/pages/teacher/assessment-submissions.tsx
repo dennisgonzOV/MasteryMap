@@ -171,16 +171,58 @@ export default function AssessmentSubmissions() {
 
   // Fetch component skills for the assessment
   const { data: componentSkills = [] } = useQuery<ComponentSkill[]>({
-    queryKey: ['/api/component-skills/details'],
+    queryKey: ['/api/competencies/component-skills'],
     enabled: canAccess,
+  });
+
+  // Also try to fetch specific component skills if we have the assessment
+  const { data: assessmentComponentSkills = [] } = useQuery<ComponentSkill[]>({
+    queryKey: ['/api/competencies/component-skills/by-ids', assessment?.componentSkillIds],
+    queryFn: async () => {
+      if (!assessment?.componentSkillIds?.length) return [];
+      
+      // Handle both array and object formats for componentSkillIds
+      let skillIds: number[] = [];
+      if (Array.isArray(assessment.componentSkillIds)) {
+        skillIds = assessment.componentSkillIds;
+      } else if (typeof assessment.componentSkillIds === 'object') {
+        skillIds = Object.values(assessment.componentSkillIds).filter((id): id is number => typeof id === 'number');
+      }
+      
+      if (skillIds.length === 0) return [];
+      
+      const response = await fetch('/api/competencies/component-skills/by-ids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skillIds }),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to fetch component skills by IDs');
+        return [];
+      }
+      
+      return response.json();
+    },
+    enabled: canAccess && !!assessment?.componentSkillIds?.length,
   });
 
   // Filter component skills relevant to this assessment
   const relevantSkills = React.useMemo(() => {
     console.log('Assessment componentSkillIds:', assessment?.componentSkillIds);
     console.log('Available componentSkills:', componentSkills);
+    console.log('Assessment-specific componentSkills:', assessmentComponentSkills);
+    console.log('ComponentSkills type:', typeof componentSkills);
+    console.log('ComponentSkills length:', componentSkills?.length);
     
-    if (!assessment?.componentSkillIds || !componentSkills.length) {
+    // Prefer assessment-specific skills if available
+    if (assessmentComponentSkills?.length > 0) {
+      console.log('Using assessment-specific component skills:', assessmentComponentSkills);
+      return assessmentComponentSkills;
+    }
+    
+    if (!assessment?.componentSkillIds || !componentSkills?.length) {
       console.log('Missing assessment componentSkillIds or componentSkills');
       return [];
     }
@@ -194,11 +236,18 @@ export default function AssessmentSubmissions() {
     }
     
     console.log('Processed skillIds:', skillIds);
-    const filtered = componentSkills.filter(skill => skillIds.includes(skill.id));
+    console.log('First component skill structure:', componentSkills[0]);
+    
+    const filtered = componentSkills.filter(skill => {
+      const skillId = skill.id;
+      const matches = skillIds.includes(skillId);
+      console.log(`Skill ${skillId} (${skill.name}) matches: ${matches}`);
+      return matches;
+    });
     console.log('Relevant skills found:', filtered);
     
     return filtered;
-  }, [assessment?.componentSkillIds, componentSkills]);
+  }, [assessment?.componentSkillIds, componentSkills, assessmentComponentSkills]);
 
   // Track if grading data has been initialized to prevent resetting user input
   const [isGradingDataInitialized, setIsGradingDataInitialized] = React.useState(false);
