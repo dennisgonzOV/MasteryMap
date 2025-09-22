@@ -289,16 +289,29 @@ export class AssessmentStorage implements IAssessmentStorage {
         .where(eq(submissions.assessmentId, assessmentId))
         .orderBy(desc(submissions.submittedAt));
 
-      // Transform the result to match expected format
-      const transformedResult = result.map(row => ({
-        id: row.submissions.id,
-        studentId: row.submissions.studentId,
-        studentName: row.users.username,
-        studentUsername: row.users.username,
-        responses: row.submissions.responses,
-        submittedAt: row.submissions.submittedAt,
-        feedback: row.submissions.feedback,
-        aiGeneratedFeedback: row.submissions.aiGeneratedFeedback,
+      // Transform the result to match expected format and fetch grades for each submission
+      const transformedResult = await Promise.all(result.map(async (row) => {
+        // Fetch grades for this submission
+        const submissionGrades = await db
+          .select()
+          .from(grades)
+          .where(eq(grades.submissionId, row.submissions.id))
+          .orderBy(desc(grades.gradedAt));
+
+        console.log(`Submission ${row.submissions.id} has ${submissionGrades.length} grades:`, submissionGrades);
+
+        return {
+          id: row.submissions.id,
+          studentId: row.submissions.studentId,
+          studentName: row.users.username,
+          studentUsername: row.users.username,
+          responses: row.submissions.responses,
+          submittedAt: row.submissions.submittedAt,
+          feedback: row.submissions.feedback,
+          aiGeneratedFeedback: row.submissions.aiGeneratedFeedback,
+          grade: row.submissions.grade, // Add the overall grade field
+          grades: submissionGrades, // Add the component skill grades
+        };
       }));
 
       return transformedResult || [];
