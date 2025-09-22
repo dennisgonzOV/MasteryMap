@@ -738,7 +738,9 @@ function AssessmentSubmissionCard({ submission }) {
 
   const getStatusBadge = (submission) => {
     // Check if graded (has grades or explicit graded status)
-    if (submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) {
+    if (submission.status === 'graded' || 
+        (submission.questionGrades && Object.keys(submission.questionGrades).length > 0) ||
+        submission.feedback) {
       return <Badge className="bg-green-100 text-green-800">Graded</Badge>;
     }
     // Check if submitted (has submittedAt timestamp)
@@ -757,6 +759,23 @@ function AssessmentSubmissionCard({ submission }) {
     return 'bg-red-100 text-red-800';
   };
 
+  // Calculate overall score from question grades
+  const calculateOverallScore = () => {
+    if (!submission.questionGrades || Object.keys(submission.questionGrades).length === 0) {
+      return null;
+    }
+    
+    const scores = Object.values(submission.questionGrades).map((grade: any) => grade.score || 0);
+    if (scores.length === 0) return null;
+    
+    return Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+  };
+
+  const overallScore = calculateOverallScore();
+  const isGraded = submission.status === 'graded' || 
+                  (submission.questionGrades && Object.keys(submission.questionGrades).length > 0) ||
+                  submission.feedback;
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
@@ -773,6 +792,21 @@ function AssessmentSubmissionCard({ submission }) {
               <p className="text-xs text-gray-500">
                 Submitted: {new Date(submission.submittedAt).toLocaleString()}
               </p>
+              {/* Show overall score and feedback preview */}
+              {isGraded && (
+                <div className="mt-2 flex items-center space-x-3">
+                  {overallScore !== null && (
+                    <Badge className={`text-xs ${getScoreBadge(overallScore)}`}>
+                      Score: {overallScore}%
+                    </Badge>
+                  )}
+                  {submission.feedback && (
+                    <span className="text-xs text-blue-600">
+                      ✓ Teacher Feedback Available
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -787,8 +821,33 @@ function AssessmentSubmissionCard({ submission }) {
       {isExpanded && (
         <CardContent className="pt-0">
           <div className="space-y-6">
+            {/* Overall Score and Feedback - Show for graded assessments */}
+            {isGraded && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-900 mb-3">Assessment Results</h4>
+                <div className="space-y-3">
+                  {overallScore !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-blue-800 font-medium">Overall Score:</span>
+                      <Badge className={getScoreBadge(overallScore)}>
+                        {overallScore}%
+                      </Badge>
+                    </div>
+                  )}
+                  {submission.feedback && (
+                    <div>
+                      <h5 className="text-blue-900 font-medium mb-2">Teacher Feedback:</h5>
+                      <p className="text-blue-800 bg-white p-3 rounded border border-blue-200">
+                        {submission.feedback}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Earned Credentials - Only show for graded assessments */}
-            {(submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) && 
+            {isGraded && 
              submission.earnedCredentials && submission.earnedCredentials.length > 0 && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
@@ -841,8 +900,8 @@ function AssessmentSubmissionCard({ submission }) {
                       </p>
                     </div>
 
-                    {submission.status === 'graded' && submission.questionGrades && submission.questionGrades[question.id] && (
-                      <div className="space-y-2">
+                    {isGraded && submission.questionGrades && submission.questionGrades[question.id] && (
+                      <div className="space-y-2 mt-3 pt-3 border-t border-gray-200">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-700">Score:</span>
                           <Badge className={getScoreBadge(submission.questionGrades[question.id].score)}>
@@ -852,14 +911,14 @@ function AssessmentSubmissionCard({ submission }) {
                         {submission.questionGrades[question.id].rubricLevel && (
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-gray-700">Rubric Level:</span>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="capitalize">
                               {submission.questionGrades[question.id].rubricLevel}
                             </Badge>
                           </div>
                         )}
                         {submission.questionGrades[question.id].feedback && (
-                          <div className="bg-blue-50 p-3 rounded-lg">
-                            <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <p className="text-sm font-medium text-blue-900 mb-1">Question Feedback:</p>
                             <p className="text-sm text-blue-800">
                               {submission.questionGrades[question.id].feedback}
                             </p>
