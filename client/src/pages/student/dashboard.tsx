@@ -391,7 +391,7 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
 
     const query = searchQuery.toLowerCase();
     const projectMilestonesList = projectMilestonesWithAssessments[project.id] || [];
-    
+
     return (
       project.title.toLowerCase().includes(query) ||
       project.description.toLowerCase().includes(query) ||
@@ -759,19 +759,6 @@ function AssessmentSubmissionCard({ submission }) {
     return 'bg-red-100 text-red-800';
   };
 
-  // Calculate overall score from question grades
-  const calculateOverallScore = () => {
-    if (!submission.questionGrades || Object.keys(submission.questionGrades).length === 0) {
-      return null;
-    }
-    
-    const scores = Object.values(submission.questionGrades).map((grade: any) => grade.score || 0);
-    if (scores.length === 0) return null;
-    
-    return Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-  };
-
-  const overallScore = calculateOverallScore();
   const isGraded = submission.status === 'graded' || 
                   (submission.questionGrades && Object.keys(submission.questionGrades).length > 0) ||
                   submission.feedback;
@@ -792,19 +779,12 @@ function AssessmentSubmissionCard({ submission }) {
               <p className="text-xs text-gray-500">
                 Submitted: {new Date(submission.submittedAt).toLocaleString()}
               </p>
-              {/* Show overall score and feedback preview */}
-              {isGraded && (
-                <div className="mt-2 flex items-center space-x-3">
-                  {overallScore !== null && (
-                    <Badge className={`text-xs ${getScoreBadge(overallScore)}`}>
-                      Score: {overallScore}%
-                    </Badge>
-                  )}
-                  {submission.feedback && (
-                    <span className="text-xs text-blue-600">
-                      ✓ Teacher Feedback Available
-                    </span>
-                  )}
+              {/* Show feedback preview */}
+              {isGraded && submission.feedback && (
+                <div className="mt-2">
+                  <span className="text-xs text-blue-600">
+                    ✓ Teacher Feedback Available
+                  </span>
                 </div>
               )}
             </div>
@@ -826,14 +806,6 @@ function AssessmentSubmissionCard({ submission }) {
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h4 className="font-semibold text-blue-900 mb-3">Assessment Results</h4>
                 <div className="space-y-3">
-                  {overallScore !== null && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-blue-800 font-medium">Overall Score:</span>
-                      <Badge className={getScoreBadge(overallScore)}>
-                        {overallScore}%
-                      </Badge>
-                    </div>
-                  )}
                   {submission.feedback && (
                     <div>
                       <h5 className="text-blue-900 font-medium mb-2">Teacher Feedback:</h5>
