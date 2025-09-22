@@ -160,18 +160,34 @@ export class SubmissionController {
                     `${g.componentSkillId}: ${g.rubricLevel} (${g.score})`
                   ).join(', '));
 
-                  // Save the AI-generated component skill grades
+                  // Save or update the AI-generated component skill grades
                   savedGrades = await Promise.all(
-                    aiSkillGrades.map(gradeItem => 
-                      this.service.createGrade({
-                        submissionId,
-                        componentSkillId: gradeItem.componentSkillId,
-                        rubricLevel: gradeItem.rubricLevel,
-                        score: gradeItem.score?.toString() || "0",
-                        feedback: gradeItem.feedback,
-                        gradedBy: req.user!.id,
-                      })
-                    )
+                    aiSkillGrades.map(async (gradeItem) => {
+                      // Check if grade already exists for this submission and component skill
+                      const existingGrade = await this.service.getExistingGrade(submissionId, gradeItem.componentSkillId);
+
+                      if (existingGrade) {
+                        // Update existing grade
+                        console.log(`Updating existing grade ${existingGrade.id} for component skill ${gradeItem.componentSkillId}`);
+                        return await this.service.updateGrade(existingGrade.id, {
+                          rubricLevel: gradeItem.rubricLevel,
+                          score: gradeItem.score?.toString() || "0",
+                          feedback: gradeItem.feedback,
+                          gradedBy: req.user!.id,
+                        });
+                      } else {
+                        // Create new grade if none exists
+                        console.log(`Creating new grade for component skill ${gradeItem.componentSkillId}`);
+                        return await this.service.createGrade({
+                          submissionId,
+                          componentSkillId: gradeItem.componentSkillId,
+                          rubricLevel: gradeItem.rubricLevel,
+                          score: gradeItem.score?.toString() || "0",
+                          feedback: gradeItem.feedback,
+                          gradedBy: req.user!.id,
+                        });
+                      }
+                    })
                   );
                 }
               }
