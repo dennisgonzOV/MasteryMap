@@ -6,6 +6,7 @@ import {
   users,
   componentSkills,
   competencies,
+  credentials,
   type Assessment,
   type Submission,
   type SubmissionWithAssessment,
@@ -403,9 +404,56 @@ export class AssessmentStorage implements IAssessmentStorage {
   }
 
   async awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]> {
-    // This would typically award stickers based on grades
-    // For now, return empty array
-    return [];
+    const awardedCredentials: any[] = [];
+
+    try {
+      for (const grade of grades) {
+        // Only award stickers for proficient or applying levels
+        if (grade.rubricLevel === 'proficient' || grade.rubricLevel === 'applying') {
+          // Check if sticker already exists for this component skill
+          const existingCredential = await db
+            .select()
+            .from(credentials)
+            .where(and(
+              eq(credentials.studentId, studentId),
+              eq(credentials.componentSkillId, grade.componentSkillId),
+              eq(credentials.type, 'sticker')
+            ))
+            .limit(1);
+
+          if (existingCredential.length === 0) {
+            // Get component skill name for the credential title
+            const componentSkill = await this.getComponentSkill(grade.componentSkillId);
+
+            if (componentSkill) {
+              const stickerColor = grade.rubricLevel === 'applying' ? 'green' : 'blue';
+              const stickerTitle = `${grade.rubricLevel === 'applying' ? 'Applying' : 'Proficient'} ${componentSkill.name}`;
+
+              const newCredential = await db
+                .insert(credentials)
+                .values({
+                  studentId,
+                  componentSkillId: grade.componentSkillId,
+                  type: 'sticker',
+                  title: stickerTitle,
+                  description: `Achieved ${grade.rubricLevel} level in ${componentSkill.name}`,
+                  iconUrl: stickerColor,
+                  awardedAt: new Date(),
+                  approvedBy: grade.gradedBy
+                })
+                .returning();
+
+              awardedCredentials.push(newCredential[0]);
+              console.log(`Awarded sticker: ${stickerTitle} to student ${studentId}`);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error awarding stickers for grades:', error);
+    }
+
+    return awardedCredentials;
   }
 
   // Self-evaluation operations
