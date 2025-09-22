@@ -660,9 +660,6 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
             <h6 className="text-sm font-medium text-gray-700 mb-2">Submission Details</h6>
             <div className="text-xs text-gray-600 space-y-1">
               <p>Submitted: {new Date(submission.submittedAt).toLocaleString()}</p>
-              {submission.feedback && (
-                <p>Teacher Feedback: {submission.feedback}</p>
-              )}
             </div>
           </div>
 
@@ -712,11 +709,19 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                     {submission.status === 'graded' && 
                      submission.questionGrades && 
                      submission.questionGrades[question.id] && (
-                      <div className="mt-1 flex items-center justify-between">
-                        <span className="text-xs text-gray-600">Score:</span>
-                        <Badge className={`text-xs ${getScoreBadge(submission.questionGrades[question.id].score)}`}>
-                          {submission.questionGrades[question.id].score}%
-                        </Badge>
+                      <div className="mt-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-600">Score:</span>
+                          <Badge className={`text-xs ${getScoreBadge(submission.questionGrades[question.id].score)}`}>
+                            {submission.questionGrades[question.id].score}%
+                          </Badge>
+                        </div>
+                        {submission.questionGrades[question.id].feedback && (
+                          <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                            <p className="text-xs text-blue-900 font-medium">Teacher Feedback:</p>
+                            <p className="text-xs text-blue-800">{submission.questionGrades[question.id].feedback}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -805,16 +810,7 @@ function AssessmentSubmissionCard({ submission }) {
             {isGraded && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h4 className="font-semibold text-blue-900 mb-3">Assessment Results</h4>
-                <div className="space-y-3">
-                  {submission.feedback && (
-                    <div>
-                      <h5 className="text-blue-900 font-medium mb-2">Teacher Feedback:</h5>
-                      <p className="text-blue-800 bg-white p-3 rounded border border-blue-200">
-                        {submission.feedback}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <p className="text-blue-800 text-sm">See feedback for individual questions below.</p>
               </div>
             )}
 
@@ -890,8 +886,8 @@ function AssessmentSubmissionCard({ submission }) {
                         )}
                         {submission.questionGrades[question.id].feedback && (
                           <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <p className="text-sm font-medium text-blue-900 mb-1">Question Feedback:</p>
-                            <p className="text-sm text-blue-800">
+                            <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
+                            <p className="text-sm text-blue-800 whitespace-pre-wrap">
                               {submission.questionGrades[question.id].feedback}
                             </p>
                           </div>
