@@ -1052,8 +1052,8 @@ export default function AssessmentSubmissions() {
                         </div>
                       )}
 
-                      {/* Current Grades Display */}
-                      {submission.grades && submission.grades.length > 0 && (
+                      {/* Manual Grades Display - Only show if there are manually created grades */}
+                      {submission.grades && submission.grades.length > 0 && !submission.aiGeneratedFeedback && (
                         <div className="space-y-4">
                           <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                             <Star className="h-5 w-5" />
