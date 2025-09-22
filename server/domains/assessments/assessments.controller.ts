@@ -101,8 +101,8 @@ export class AssessmentController {
         const studentId = req.user.id;
 
         // Get student's assigned projects
-        const assignments = await this.service.getProjectAssignmentsByStudent(studentId);
-        const projectIds = assignments.map(a => a.projectId);
+        const projects = await projectsService.getProjectsByUser(studentId, 'student');
+        const projectIds = projects.map(p => p.id);
 
         const upcomingDeadlines = projectIds.length > 0
           ? await this.service.getUpcomingDeadlines(projectIds)
