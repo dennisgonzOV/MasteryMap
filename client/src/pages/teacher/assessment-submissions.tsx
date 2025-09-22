@@ -177,7 +177,11 @@ export default function AssessmentSubmissions() {
 
   // Filter component skills relevant to this assessment
   const relevantSkills = React.useMemo(() => {
+    console.log('Assessment componentSkillIds:', assessment?.componentSkillIds);
+    console.log('Available componentSkills:', componentSkills);
+    
     if (!assessment?.componentSkillIds || !componentSkills.length) {
+      console.log('Missing assessment componentSkillIds or componentSkills');
       return [];
     }
     
@@ -189,7 +193,11 @@ export default function AssessmentSubmissions() {
       skillIds = Object.values(assessment.componentSkillIds).filter((id): id is number => typeof id === 'number');
     }
     
-    return componentSkills.filter(skill => skillIds.includes(skill.id));
+    console.log('Processed skillIds:', skillIds);
+    const filtered = componentSkills.filter(skill => skillIds.includes(skill.id));
+    console.log('Relevant skills found:', filtered);
+    
+    return filtered;
   }, [assessment?.componentSkillIds, componentSkills]);
 
   // Track if grading data has been initialized to prevent resetting user input
@@ -1032,8 +1040,8 @@ export default function AssessmentSubmissions() {
                         </div>
                       )}
 
-                      {/* Manual Grading Interface - Show for all submissions to allow editing AI results */}
-                      {(relevantSkills.length > 0 || true) && (
+                      {/* Manual Grading Interface - Show only if relevant skills are available */}
+                      {relevantSkills.length > 0 && (
                         <div className="space-y-4">
                           <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                             <GraduationCap className="h-5 w-5" />
@@ -1046,11 +1054,7 @@ export default function AssessmentSubmissions() {
                           </h4>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {(relevantSkills.length > 0 ? relevantSkills : [
-                              { id: 1, name: "Understanding", rubricLevels: { emerging: "Basic understanding", developing: "Growing understanding", proficient: "Good understanding", applying: "Deep understanding" } },
-                              { id: 2, name: "Communication", rubricLevels: { emerging: "Basic communication", developing: "Clear communication", proficient: "Effective communication", applying: "Expert communication" } },
-                              { id: 3, name: "Problem Solving", rubricLevels: { emerging: "Basic problem solving", developing: "Systematic approach", proficient: "Creative solutions", applying: "Innovative solutions" } }
-                            ]).map((skill) => {
+                            {relevantSkills.map((skill) => {
                               // Get existing grade for this skill if available
                               const existingGrade = submission.grades?.find(g => g.componentSkillId === skill.id);
 
