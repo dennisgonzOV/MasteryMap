@@ -44,11 +44,11 @@ export class AssessmentController {
     router.get("/competency-progress/student/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthenticatedRequest, res) => {
       try {
         const studentId = parseInt(req.params.studentId);
-        
+
         if (!req.user) {
           return res.status(401).json({ message: "User not authenticated" });
         }
-        
+
         const { role, id: userId } = req.user;
 
         // Only allow students to view their own progress, or teachers/admins
@@ -131,11 +131,11 @@ export class AssessmentController {
     router.get("/student/assessment-submissions/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthenticatedRequest, res) => {
       try {
         const studentId = parseInt(req.params.studentId);
-        
+
         if (!req.user) {
           return res.status(401).json({ message: "User not authenticated" });
         }
-        
+
         const { role, id: userId } = req.user;
 
         // Only allow students to view their own submissions, or teachers/admins
@@ -166,8 +166,7 @@ export class AssessmentController {
         // Get earned credentials for each submission
         const submissionsWithCredentials = await Promise.all(
           submissionResults.map(async (submission) => {
-            // Get credentials earned for this specific assessment submission
-            // First get grades for this submission to find associated component skills
+            // Get grades for this submission to find associated component skills
             const submissionGrades = await db
               .select({
                 componentSkillId: gradesTable.componentSkillId,
@@ -233,6 +232,7 @@ export class AssessmentController {
                 }
                 return acc;
               }, {}),
+              grades: grades, // Include grades directly
             };
           })
         );
@@ -298,11 +298,11 @@ export class AssessmentController {
         res.json(assessment);
       } catch (error) {
         console.error("Error creating assessment:", error);
-        
+
         // Handle validation errors with appropriate status codes
         if (error instanceof Error) {
           const errorMessage = error.message;
-          
+
           // Check for specific validation errors
           if (errorMessage.includes("must have at least one question") || 
               errorMessage.includes("must have non-empty text") ||
@@ -312,7 +312,7 @@ export class AssessmentController {
               error: errorMessage
             });
           }
-          
+
           // Check for Zod validation errors
           if (errorMessage.includes("Teacher assessments must have at least one question with non-empty text")) {
             return res.status(400).json({ 
@@ -321,7 +321,7 @@ export class AssessmentController {
             });
           }
         }
-        
+
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
         res.status(500).json({ 
           message: "Failed to create assessment", 

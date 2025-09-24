@@ -259,21 +259,40 @@ export class AssessmentStorage implements IAssessmentStorage {
         .where(eq(submissions.studentId, studentId))
         .orderBy(desc(submissions.submittedAt));
 
-      // Transform the data to match the expected format
-      return submissionsWithAssessments.map(row => ({
-        id: row.id,
-        assessmentId: row.assessmentId,
-        studentId: row.studentId,
-        responses: row.responses,
-        artifacts: row.artifacts,
-        submittedAt: row.submittedAt,
-        gradedAt: row.gradedAt,
-        feedback: row.feedback,
-        aiGeneratedFeedback: row.aiGeneratedFeedback,
-        isSelfEvaluation: row.isSelfEvaluation,
-        selfEvaluationData: row.selfEvaluationData,
-        assessment: row.assessment
-      }));
+      // Transform the data and include grades for each submission
+      const transformedSubmissions = await Promise.all(
+        submissionsWithAssessments.map(async (row) => {
+          // Get grades for this submission
+          const submissionGrades = await this.getGradesBySubmission(row.id);
+          
+          // Get earned credentials for this submission
+          const earnedCredentials = await db
+            .select()
+            .from(credentials)
+            .where(eq(credentials.studentId, studentId))
+            .orderBy(desc(credentials.awardedAt));
+
+          return {
+            id: row.id,
+            assessmentId: row.assessmentId,
+            studentId: row.studentId,
+            responses: row.responses,
+            artifacts: row.artifacts,
+            submittedAt: row.submittedAt,
+            gradedAt: row.gradedAt,
+            feedback: row.feedback,
+            aiGeneratedFeedback: row.aiGeneratedFeedback,
+            isSelfEvaluation: row.isSelfEvaluation,
+            selfEvaluationData: row.selfEvaluationData,
+            assessment: row.assessment,
+            grades: submissionGrades,
+            earnedCredentials: earnedCredentials,
+            status: submissionGrades.length > 0 ? 'graded' : (row.submittedAt ? 'submitted' : 'draft')
+          };
+        })
+      );
+
+      return transformedSubmissions;
     } catch (error) {
       console.error("Error fetching submissions by student:", error);
       return []; // Return empty array or re-throw depending on desired error handling

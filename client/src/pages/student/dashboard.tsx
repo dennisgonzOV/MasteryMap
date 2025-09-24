@@ -222,7 +222,13 @@ function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
   // Fetch student's assessment submissions
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ["/api/student/assessment-submissions", (user as any)?.id],
-    queryFn: () => api.getStudentAssessmentSubmissions((user as any).id),
+    queryFn: async () => {
+      const response = await fetch(`/api/student/assessment-submissions/${(user as any).id}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch submissions');
+      return response.json();
+    },
     enabled: !!(user as any)?.id,
     retry: false,
   });
@@ -769,7 +775,7 @@ function AssessmentSubmissionCard({ submission }) {
   const getStatusBadge = (submission) => {
     // Check if graded (has grades or explicit graded status)
     if (submission.status === 'graded' || 
-        (submission.questionGrades && Object.keys(submission.questionGrades).length > 0) ||
+        (submission.grades && submission.grades.length > 0) ||
         submission.feedback) {
       return <Badge className="bg-green-100 text-green-800">Graded</Badge>;
     }
@@ -790,7 +796,7 @@ function AssessmentSubmissionCard({ submission }) {
   };
 
   const isGraded = submission.status === 'graded' || 
-                  (submission.questionGrades && Object.keys(submission.questionGrades).length > 0) ||
+                  (submission.grades && submission.grades.length > 0) ||
                   submission.feedback;
 
   return (
