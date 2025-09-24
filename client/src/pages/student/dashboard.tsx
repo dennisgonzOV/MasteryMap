@@ -837,29 +837,6 @@ function AssessmentSubmissionCard({ submission }) {
       {isExpanded && (
         <CardContent className="pt-0">
           <div className="space-y-6">
-
-
-            {/* Earned Credentials - Only show for graded assessments */}
-            {isGraded && 
-             submission.earnedCredentials && submission.earnedCredentials.length > 0 && (
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                  <Star className="h-5 w-5 text-yellow-500 mr-2" />
-                  Stickers & Credentials Earned
-                </h4>
-                <div className="flex flex-wrap gap-3">
-                  {submission.earnedCredentials.map((credential) => (
-                    <div key={credential.id} className="flex items-center space-x-2 bg-yellow-50 px-3 py-2 rounded-full border border-yellow-200">
-                      {credential.type === 'sticker' && <Star className="h-4 w-4 text-yellow-500" />}
-                      {credential.type === 'badge' && <Award className="h-4 w-4 text-blue-500" />}
-                      {credential.type === 'plaque' && <Trophy className="h-4 w-4 text-purple-500" />}
-                      <span className="text-sm font-medium">{credential.title}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Questions and Responses */}
             <div>
               <h4 className="font-semibold text-gray-900 mb-3">Questions & Your Responses</h4>
