@@ -893,62 +893,65 @@ function AssessmentSubmissionCard({ submission }) {
                       </p>
                     </div>
 
-                    {isGraded && submission.grades && submission.grades.length > 0 && (
-                      <div className="space-y-4 mt-4 pt-4 border-t border-gray-200">
-                        <h6 className="text-sm font-medium text-gray-700 flex items-center">
-                          <Target className="h-4 w-4 mr-2" />
-                          Component Skill Results
-                        </h6>
-                        <div className="space-y-3">
-                          {submission.grades.map((grade) => {
-                            // Get rubric level color based on level
-                            const getRubricLevelColor = (level: string) => {
-                              switch (level?.toLowerCase()) {
-                                case 'applying': return 'bg-green-100 text-green-800 border-green-200';
-                                case 'proficient': return 'bg-blue-100 text-blue-800 border-blue-200';
-                                case 'developing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                                case 'emerging': return 'bg-orange-100 text-orange-800 border-orange-200';
-                                default: return 'bg-gray-100 text-gray-800 border-gray-200';
-                              }
-                            };
-
-                            return (
-                              <div key={grade.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center space-x-2">
-                                    <h6 className="font-medium text-gray-900">
-                                      {grade.componentSkillName || 'Component Skill'}
-                                    </h6>
-                                    {grade.rubricLevel && (
-                                      <Badge 
-                                        className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
-                                      >
-                                        {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-lg font-semibold text-gray-900">
-                                    Score: {parseFloat(grade.score) || 0}/4
-                                  </div>
-                                </div>
-                                {grade.feedback && (
-                                  <div className="bg-blue-50 border border-blue-100 rounded p-3">
-                                    <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
-                                    <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
-                                      {grade.feedback}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                    
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Component Skill Results - Show once per submission */}
+            {isGraded && submission.grades && submission.grades.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                  <Target className="h-5 w-5 mr-2" />
+                  Component Skill Results
+                </h4>
+                <div className="space-y-4">
+                  {submission.grades.map((grade) => {
+                    // Get rubric level color based on level
+                    const getRubricLevelColor = (level: string) => {
+                      switch (level?.toLowerCase()) {
+                        case 'applying': return 'bg-green-100 text-green-800 border-green-200';
+                        case 'proficient': return 'bg-blue-100 text-blue-800 border-blue-200';
+                        case 'developing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                        case 'emerging': return 'bg-orange-100 text-orange-800 border-orange-200';
+                        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+                      }
+                    };
+
+                    return (
+                      <div key={grade.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <h6 className="font-medium text-gray-900">
+                              {grade.componentSkillName || 'Component Skill'}
+                            </h6>
+                            {grade.rubricLevel && (
+                              <Badge 
+                                className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
+                              >
+                                {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-lg font-semibold text-gray-900">
+                            Score: {parseFloat(grade.score) || 0}/4
+                          </div>
+                        </div>
+                        {grade.feedback && (
+                          <div className="bg-blue-50 border border-blue-100 rounded p-3">
+                            <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
+                            <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
+                              {grade.feedback}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       )}
