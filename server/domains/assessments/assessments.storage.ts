@@ -3,15 +3,14 @@ import {
   submissions,
   grades,
   selfEvaluations,
-  users,
   componentSkills,
   competencies,
   credentials,
+  users,
   type Assessment,
   type Submission,
   type SubmissionWithAssessment,
   type Grade,
-  type SelfEvaluation,
   InsertAssessment,
   InsertSubmission,
 } from "../../../shared/schema";
@@ -293,13 +292,7 @@ export class AssessmentStorage implements IAssessmentStorage {
       // Transform the result to match expected format and fetch grades for each submission
       const transformedResult = await Promise.all(result.map(async (row) => {
         // Fetch grades for this submission
-        const submissionGrades = await db
-          .select()
-          .from(grades)
-          .where(eq(grades.submissionId, row.submissions.id))
-          .orderBy(desc(grades.gradedAt));
-
-        console.log(`Submission ${row.submissions.id} has ${submissionGrades.length} grades:`, submissionGrades);
+        const submissionGrades = await this.getGradesBySubmission(row.submissions.id);
 
         return {
           id: row.submissions.id,
@@ -350,11 +343,25 @@ export class AssessmentStorage implements IAssessmentStorage {
   }
 
   async getGradesBySubmission(submissionId: number): Promise<Grade[]> {
-    return await db
-      .select()
+    const gradesWithSkills = await db.select({
+      id: grades.id,
+      submissionId: grades.submissionId,
+      componentSkillId: grades.componentSkillId,
+      rubricLevel: grades.rubricLevel,
+      score: grades.score,
+      feedback: grades.feedback,
+      gradedBy: grades.gradedBy,
+      gradedAt: grades.gradedAt,
+      componentSkillName: componentSkills.name,
+      competencyName: competencies.name,
+    })
       .from(grades)
+      .leftJoin(componentSkills, eq(grades.componentSkillId, componentSkills.id))
+      .leftJoin(competencies, eq(componentSkills.competencyId, competencies.id))
       .where(eq(grades.submissionId, submissionId))
-      .orderBy(desc(grades.gradedAt));
+      .orderBy(grades.gradedAt);
+
+    return gradesWithSkills as any[];
   }
 
   async getComponentSkill(id: number): Promise<any> {

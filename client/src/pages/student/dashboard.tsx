@@ -726,12 +726,12 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-xs font-medium text-gray-900">
-                                    {grade.componentSkillName || `Skill ${grade.id}`}
+                                    {grade.componentSkillName || `Component Skill ${grade.componentSkillId}`}
                                   </span>
                                   <Badge 
                                     className={`capitalize px-1 py-0.5 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
                                   >
-                                    {grade.rubricLevel} ⭐
+                                    {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
                                   </Badge>
                                 </div>
                                 <div className="text-xs font-bold text-gray-900">
@@ -740,6 +740,7 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                               </div>
                               {grade.feedback && (
                                 <div className="bg-blue-50 border border-blue-100 rounded p-2 mt-2">
+                                  <p className="text-xs font-medium text-blue-900 mb-1">Teacher Feedback:</p>
                                   <p className="text-xs text-blue-900 whitespace-pre-wrap leading-relaxed">
                                     {grade.feedback}
                                   </p>
@@ -830,20 +831,7 @@ function AssessmentSubmissionCard({ submission }) {
       {isExpanded && (
         <CardContent className="pt-0">
           <div className="space-y-6">
-            {/* Overall Score and Feedback - Show for graded assessments */}
-            {isGraded && (
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-900 mb-3">Assessment Results</h4>
-                {submission.feedback ? (
-                  <div>
-                    <p className="text-sm font-medium text-blue-900 mb-1">Overall Feedback:</p>
-                    <p className="text-blue-800 text-sm whitespace-pre-wrap">{submission.feedback}</p>
-                  </div>
-                ) : (
-                  <p className="text-blue-800 text-sm">See detailed feedback for each component skill below.</p>
-                )}
-              </div>
-            )}
+            
 
             {/* Earned Credentials - Only show for graded assessments */}
             {isGraded && 
@@ -905,7 +893,7 @@ function AssessmentSubmissionCard({ submission }) {
                           <Target className="h-4 w-4 mr-2" />
                           Component Skill Results
                         </h6>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
                           {submission.grades.map((grade) => {
                             // Get rubric level color based on level
                             const getRubricLevelColor = (level: string) => {
@@ -919,33 +907,31 @@ function AssessmentSubmissionCard({ submission }) {
                             };
 
                             return (
-                              <Card key={grade.id} className="bg-white">
-                                <CardContent className="p-4">
-                                  <div className="flex items-center justify-between mb-3">
+                              <div key={grade.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center space-x-2">
                                     <h6 className="font-medium text-gray-900">
-                                      {grade.componentSkillName || `Skill ${grade.id}`}
+                                      {grade.componentSkillName || `Component Skill ${grade.componentSkillId}`}
                                     </h6>
                                     <Badge 
                                       className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
                                     >
-                                      {grade.rubricLevel} ⭐
+                                      {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
                                     </Badge>
                                   </div>
-                                  <div className="space-y-2">
-                                    <div className="text-lg font-semibold text-gray-900">
-                                      Score: {grade.score}/4
-                                    </div>
-                                    {grade.feedback && (
-                                      <div className="bg-gray-50 p-3 rounded border">
-                                        <p className="text-sm font-medium text-gray-700 mb-1">Teacher Feedback:</p>
-                                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                                          {grade.feedback}
-                                        </p>
-                                      </div>
-                                    )}
+                                  <div className="text-lg font-semibold text-gray-900">
+                                    Score: {grade.score}/4
                                   </div>
-                                </CardContent>
-                              </Card>
+                                </div>
+                                {grade.feedback && (
+                                  <div className="bg-blue-50 border border-blue-100 rounded p-3">
+                                    <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
+                                    <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
+                                      {grade.feedback}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
