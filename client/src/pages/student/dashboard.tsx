@@ -900,33 +900,55 @@ function AssessmentSubmissionCard({ submission }) {
                     </div>
 
                     {isGraded && submission.grades && submission.grades.length > 0 && (
-                      <div className="space-y-3 mt-3 pt-3 border-t border-gray-200">
-                        <h6 className="text-sm font-medium text-gray-700">Component Skill Assessments:</h6>
-                        {submission.grades.map((grade) => (
-                          <div key={grade.id} className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-gray-700">
-                                Skill Score: {grade.score}/4
-                              </span>
-                              <div className="flex items-center space-x-2">
-                                <Badge variant="outline" className="capitalize">
-                                  {grade.rubricLevel}
-                                </Badge>
-                                <Badge className={getScoreBadge(parseInt(grade.score) * 25)}>
-                                  {parseInt(grade.score) * 25}%
-                                </Badge>
-                              </div>
-                            </div>
-                            {grade.feedback && (
-                              <div>
-                                <p className="text-sm font-medium text-blue-900 mb-1">Teacher Feedback:</p>
-                                <p className="text-sm text-blue-800 whitespace-pre-wrap">
-                                  {grade.feedback}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                      <div className="space-y-4 mt-4 pt-4 border-t border-gray-200">
+                        <h6 className="text-sm font-medium text-gray-700 flex items-center">
+                          <Target className="h-4 w-4 mr-2" />
+                          Component Skill Results
+                        </h6>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {submission.grades.map((grade) => {
+                            // Get rubric level color based on level
+                            const getRubricLevelColor = (level: string) => {
+                              switch (level?.toLowerCase()) {
+                                case 'applying': return 'bg-green-100 text-green-800 border-green-200';
+                                case 'proficient': return 'bg-blue-100 text-blue-800 border-blue-200';
+                                case 'developing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                                case 'emerging': return 'bg-orange-100 text-orange-800 border-orange-200';
+                                default: return 'bg-gray-100 text-gray-800 border-gray-200';
+                              }
+                            };
+
+                            return (
+                              <Card key={grade.id} className="bg-white">
+                                <CardContent className="p-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h6 className="font-medium text-gray-900">
+                                      {grade.componentSkillName || `Skill ${grade.id}`}
+                                    </h6>
+                                    <Badge 
+                                      className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
+                                    >
+                                      {grade.rubricLevel} ⭐
+                                    </Badge>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <div className="text-lg font-semibold text-gray-900">
+                                      Score: {grade.score}/4
+                                    </div>
+                                    {grade.feedback && (
+                                      <div className="bg-gray-50 p-3 rounded border">
+                                        <p className="text-sm font-medium text-gray-700 mb-1">Teacher Feedback:</p>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                          {grade.feedback}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
