@@ -27,7 +27,9 @@ import {
   credentials,
   portfolioArtifacts,
   assessments,
-  submissions
+  submissions,
+  componentSkills,
+  competencies
 } from "../../../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "../../db";
@@ -209,10 +211,23 @@ export class AssessmentController {
               }
             }
 
-            // Get grades for this submission
+            // Get grades for this submission with component skill details
             const grades = await db
-              .select()
+              .select({
+                id: gradesTable.id,
+                submissionId: gradesTable.submissionId,
+                componentSkillId: gradesTable.componentSkillId,
+                rubricLevel: gradesTable.rubricLevel,
+                score: gradesTable.score,
+                feedback: gradesTable.feedback,
+                gradedBy: gradesTable.gradedBy,
+                gradedAt: gradesTable.gradedAt,
+                componentSkillName: componentSkills.name,
+                competencyName: competencies.name
+              })
               .from(gradesTable)
+              .leftJoin(componentSkills, eq(gradesTable.componentSkillId, componentSkills.id))
+              .leftJoin(competencies, eq(componentSkills.competencyId, competencies.id))
               .where(eq(gradesTable.submissionId, submission.id));
 
             // Determine if submission is graded (has grades)

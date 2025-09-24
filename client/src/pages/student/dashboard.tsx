@@ -732,7 +732,7 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-xs font-medium text-gray-900">
-                                    {grade.componentSkillName || `Component Skill ${grade.componentSkillId}`}
+                                    {grade.componentSkillName || 'Component Skill'}
                                   </span>
                                   <Badge 
                                     className={`capitalize px-1 py-0.5 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
@@ -917,7 +917,7 @@ function AssessmentSubmissionCard({ submission }) {
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center space-x-2">
                                     <h6 className="font-medium text-gray-900">
-                                      {grade.componentSkillName || `Component Skill ${grade.componentSkillId}`}
+                                      {grade.componentSkillName || 'Component Skill'}
                                     </h6>
                                     {grade.rubricLevel && (
                                       <Badge 
