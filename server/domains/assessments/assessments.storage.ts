@@ -434,8 +434,8 @@ export class AssessmentStorage implements IAssessmentStorage {
 
     try {
       for (const grade of grades) {
-        // Only award stickers for proficient or applying levels
-        if (grade.rubricLevel === 'proficient' || grade.rubricLevel === 'applying') {
+        // Award stickers for all rubric levels
+        if (grade.rubricLevel && ['emerging', 'developing', 'proficient', 'applying'].includes(grade.rubricLevel)) {
           // Check if sticker already exists for this component skill
           const existingCredential = await db
             .select()
@@ -452,8 +452,31 @@ export class AssessmentStorage implements IAssessmentStorage {
             const componentSkill = await this.getComponentSkill(grade.componentSkillId);
 
             if (componentSkill) {
-              const stickerColor = grade.rubricLevel === 'applying' ? 'green' : 'blue';
-              const stickerTitle = `${grade.rubricLevel === 'applying' ? 'Applying' : 'Proficient'} ${componentSkill.name}`;
+              // Map rubric levels to sticker colors
+              const getStickerColor = (level: string) => {
+                switch (level) {
+                  case 'applying': return 'green';
+                  case 'proficient': return 'blue';
+                  case 'developing': return 'yellow';
+                  case 'emerging': return 'red';
+                  default: return 'blue';
+                }
+              };
+
+              // Map rubric levels to display names
+              const getDisplayName = (level: string) => {
+                switch (level) {
+                  case 'applying': return 'Applying';
+                  case 'proficient': return 'Proficient';
+                  case 'developing': return 'Developing';
+                  case 'emerging': return 'Emerging';
+                  default: return 'Proficient';
+                }
+              };
+
+              const stickerColor = getStickerColor(grade.rubricLevel);
+              const displayName = getDisplayName(grade.rubricLevel);
+              const stickerTitle = `${displayName} ${componentSkill.name}`;
 
               const newCredential = await db
                 .insert(credentials)
