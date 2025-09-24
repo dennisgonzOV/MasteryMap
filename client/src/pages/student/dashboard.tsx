@@ -735,7 +735,7 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                                   </Badge>
                                 </div>
                                 <div className="text-xs font-bold text-gray-900">
-                                  Score: {grade.score}/4
+                                  Score: {parseFloat(grade.score) || 0}/4
                                 </div>
                               </div>
                               {grade.feedback && (
@@ -831,7 +831,7 @@ function AssessmentSubmissionCard({ submission }) {
       {isExpanded && (
         <CardContent className="pt-0">
           <div className="space-y-6">
-            
+
 
             {/* Earned Credentials - Only show for graded assessments */}
             {isGraded && 
@@ -913,14 +913,16 @@ function AssessmentSubmissionCard({ submission }) {
                                     <h6 className="font-medium text-gray-900">
                                       {grade.componentSkillName || `Component Skill ${grade.componentSkillId}`}
                                     </h6>
-                                    <Badge 
-                                      className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
-                                    >
-                                      {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
-                                    </Badge>
+                                    {grade.rubricLevel && (
+                                      <Badge 
+                                        className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
+                                      >
+                                        {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
+                                      </Badge>
+                                    )}
                                   </div>
                                   <div className="text-lg font-semibold text-gray-900">
-                                    Score: {grade.score}/4
+                                    Score: {parseFloat(grade.score) || 0}/4
                                   </div>
                                 </div>
                                 {grade.feedback && (
