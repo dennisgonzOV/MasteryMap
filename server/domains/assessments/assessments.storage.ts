@@ -60,6 +60,7 @@ export interface IAssessmentStorage {
   getExistingGrade(submissionId: number, componentSkillId: number): Promise<any>;
   updateGrade(gradeId: number, updates: any): Promise<any>;
   awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]>;
+  checkAndAwardBadge(studentId: number, competencyId: number, gradedBy: number): Promise<any[]>;
 
   // Self-evaluation operations
   getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]>;
@@ -429,10 +430,101 @@ export class AssessmentStorage implements IAssessmentStorage {
     return updatedGrade;
   }
 
+  async checkAndAwardBadge(studentId: number, competencyId: number, gradedBy: number): Promise<any[]> {
+    const awardedCredentials: any[] = [];
+
+    try {
+      // Check if badge already exists for this competency
+      const existingBadge = await db
+        .select()
+        .from(credentials)
+        .where(and(
+          eq(credentials.studentId, studentId),
+          eq(credentials.competencyId, competencyId),
+          eq(credentials.type, 'badge')
+        ))
+        .limit(1);
+
+      if (existingBadge.length > 0) {
+        return awardedCredentials; // Badge already awarded
+      }
+
+      // Get all component skills for this competency
+      const allComponentSkills = await db
+        .select()
+        .from(componentSkills)
+        .where(eq(componentSkills.competencyId, competencyId));
+
+      if (allComponentSkills.length === 0) {
+        return awardedCredentials; // No component skills in this competency
+      }
+
+      // Get all proficient/applying stickers for this student in this competency
+      const proficientStickers = await db
+        .select()
+        .from(credentials)
+        .innerJoin(componentSkills, eq(credentials.componentSkillId, componentSkills.id))
+        .where(and(
+          eq(credentials.studentId, studentId),
+          eq(credentials.type, 'sticker'),
+          eq(componentSkills.competencyId, competencyId),
+          or(
+            like(credentials.title, '%Proficient%'),
+            like(credentials.title, '%Applying%')
+          )
+        ));
+
+      // Check if student has proficient/applying stickers for ALL component skills in this competency
+      const stickerSkillIds = new Set(proficientStickers.map(s => s.credentials.componentSkillId));
+      const allSkillIds = new Set(allComponentSkills.map(s => s.id));
+
+      // Check if all component skills have proficient/applying stickers
+      const hasAllSkills = allComponentSkills.every(skill => stickerSkillIds.has(skill.id));
+
+      if (hasAllSkills) {
+        // Get competency name for badge title
+        const competency = await db
+          .select()
+          .from(competencies)
+          .where(eq(competencies.id, competencyId))
+          .limit(1);
+
+        if (competency.length > 0) {
+          const badgeTitle = `${competency[0].name} Badge`;
+          const badgeDescription = `Achieved proficiency in all component skills for ${competency[0].name}`;
+
+          const newBadge = await db
+            .insert(credentials)
+            .values({
+              studentId,
+              competencyId,
+              type: 'badge',
+              title: badgeTitle,
+              description: badgeDescription,
+              iconUrl: 'gold',
+              awardedAt: new Date(),
+              approvedBy: gradedBy
+            })
+            .returning();
+
+          awardedCredentials.push(newBadge[0]);
+          console.log(`Awarded badge: ${badgeTitle} to student ${studentId} for competency completion`);
+        }
+      }
+
+    } catch (error) {
+      console.error('Error checking/awarding badge for competency:', error);
+    }
+
+    return awardedCredentials;
+  }
+
   async awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]> {
     const awardedCredentials: any[] = [];
 
     try {
+      const competenciesToCheck = new Set<number>();
+
       for (const grade of grades) {
         // Award stickers for all rubric levels
         if (grade.rubricLevel && ['emerging', 'developing', 'proficient', 'applying'].includes(grade.rubricLevel)) {
@@ -494,10 +586,22 @@ export class AssessmentStorage implements IAssessmentStorage {
 
               awardedCredentials.push(newCredential[0]);
               console.log(`Awarded sticker: ${stickerTitle} to student ${studentId}`);
+
+              // Track competencies to check for badge eligibility
+              if (componentSkill.competencyId) {
+                competenciesToCheck.add(componentSkill.competencyId);
+              }
             }
           }
         }
       }
+
+      // Check for badge eligibility after awarding stickers
+      for (const competencyId of competenciesToCheck) {
+        const badgeCredentials = await this.checkAndAwardBadge(studentId, competencyId, grades[0]?.gradedBy);
+        awardedCredentials.push(...badgeCredentials);
+      }
+
     } catch (error) {
       console.error('Error awarding stickers for grades:', error);
     }
