@@ -60,8 +60,8 @@ export abstract class BaseAIService {
 
     this.openai = new OpenAI({
       apiKey: this.config.apiKey,
-      baseURL: "https://denni-mf2i6jxh-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
-      defaultQuery: { 'api-version': '2024-08-01-preview' },
+      baseURL: "https://trueaimopenai.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview",
+      defaultQuery: { 'api-version': '2024-12-01-preview' },
       defaultHeaders: {
         'api-key': this.config.apiKey,
       },
