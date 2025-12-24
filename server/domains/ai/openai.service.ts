@@ -12,8 +12,8 @@ import type {
 const openai = new OpenAI({
   apiKey: process.env.AZURE_GPT41_API_KEY,
   baseURL:
-    "https://denni-mf2i6jxh-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
-  defaultQuery: { "api-version": "2024-08-01-preview" },
+    "https://trueaimopenai.openai.azure.com/openai/deployments/gpt-4o",
+  defaultQuery: { "api-version": "2025-01-01-preview" },
   defaultHeaders: {
     "api-key": process.env.AZURE_GPT41_API_KEY,
   },
@@ -137,7 +137,7 @@ Return the response as a JSON array of project objects with the following struct
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -219,7 +219,7 @@ Return as JSON array with this structure:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -292,7 +292,7 @@ Return as JSON with this structure:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -362,7 +362,7 @@ Return as JSON with this structure:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -462,7 +462,7 @@ For multiple-choice questions, include a "choices" array with 4 options and spec
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -523,7 +523,7 @@ Provide feedback that is:
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -605,7 +605,7 @@ Respond in JSON format:
 }`;
 
           const response = await this.openai.chat.completions.create({
-            model: "gpt-4.1",
+            model: "gpt-4o",
             messages: [
               {
                 role: "system",
@@ -683,7 +683,7 @@ Respond with JSON in this format:
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -760,7 +760,7 @@ Return as JSON:
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",

@@ -52,7 +52,7 @@ export abstract class BaseAIService {
   constructor(config: AIServiceConfig = {}) {
     this.config = {
       apiKey: config.apiKey || process.env.AZURE_GPT41_API_KEY || "",
-      model: config.model || "gpt-4.1",
+      model: config.model || "gpt-4o",
       maxTokens: config.maxTokens || 1500,
       temperature: config.temperature || 0.7,
       timeout: config.timeout || 30000,
@@ -60,8 +60,8 @@ export abstract class BaseAIService {
 
     this.openai = new OpenAI({
       apiKey: this.config.apiKey,
-      baseURL: "https://trueaimopenai.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview",
-      defaultQuery: { 'api-version': '2024-12-01-preview' },
+      baseURL: "https://trueaimopenai.openai.azure.com/openai/deployments/gpt-4o",
+      defaultQuery: { 'api-version': '2025-01-01-preview' },
       defaultHeaders: {
         'api-key': this.config.apiKey,
       },
