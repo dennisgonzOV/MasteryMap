@@ -309,7 +309,15 @@ export const portfolios = pgTable("portfolios", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-
+// Contact requests from landing page
+export const contactRequests = pgTable("contact_requests", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Relations
 
@@ -482,6 +490,8 @@ export type BestStandard = typeof bestStandards.$inferSelect;
 export type InsertBestStandard = typeof bestStandards.$inferInsert;
 export type SelfEvaluation = typeof selfEvaluations.$inferSelect;
 export type InsertSelfEvaluation = typeof selfEvaluations.$inferInsert;
+export type ContactRequest = typeof contactRequests.$inferSelect;
+export type InsertContactRequest = typeof contactRequests.$inferInsert;
 
 // Zod schemas
 export const insertProjectSchema = createInsertSchema(projects).omit({
@@ -545,7 +555,11 @@ export const insertPortfolioArtifactSchema = createInsertSchema(portfolioArtifac
   createdAt: true,
 });
 
-
+export const insertContactRequestSchema = createInsertSchema(contactRequests).omit({
+  id: true,
+  createdAt: true,
+  isRead: true,
+});
 
 // Auth schemas
 export const registerSchema = createInsertSchema(users).omit({
