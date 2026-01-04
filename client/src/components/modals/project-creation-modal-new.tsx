@@ -139,13 +139,25 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     enabled: isOpen,
   });
 
+  // Build URL with query parameters for B.E.S.T. Standards filtering
+  const bestStandardsUrl = (() => {
+    const params = new URLSearchParams();
+    if (standardsSearchTerm?.trim()) {
+      params.set('search', standardsSearchTerm.trim());
+    }
+    if (selectedSubject && selectedSubject !== 'all') {
+      params.set('subject', selectedSubject);
+    }
+    if (selectedGrade && selectedGrade !== 'all') {
+      params.set('grade', selectedGrade);
+    }
+    const queryString = params.toString();
+    return queryString ? `/api/competencies/best-standards?${queryString}` : '/api/competencies/best-standards';
+  })();
+
   // Fetch B.E.S.T. Standards based on search/filter criteria
   const { data: bestStandards = [], isLoading: isLoadingStandards, error: standardsError } = useQuery({
-    queryKey: ['/api/competencies/best-standards', {
-      search: standardsSearchTerm?.trim() || undefined,
-      subject: (selectedSubject && selectedSubject !== 'all') ? selectedSubject : undefined,
-      grade: (selectedGrade && selectedGrade !== 'all') ? selectedGrade : undefined
-    }],
+    queryKey: [bestStandardsUrl],
     enabled: isOpen,
     retry: (failureCount, error) => {
       // Don't retry on validation errors
