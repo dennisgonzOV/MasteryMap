@@ -99,6 +99,7 @@ export default function CreateAssessmentModal({
 
   const form = useForm<AssessmentForm>({
     resolver: zodResolver(assessmentSchema),
+    mode: "onBlur",
     defaultValues: {
       title: "",
       description: "",
@@ -138,8 +139,6 @@ export default function CreateAssessmentModal({
         }]);
       }
     }
-    // Trigger validation after changing questions
-    form.trigger();
   }, [assessmentType, form]);
 
   const { fields: questionFields, append: appendQuestion, remove: removeQuestion } = useFieldArray({
