@@ -508,6 +508,8 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   id: true,
   createdAt: true,
+}).extend({
+  dueDate: z.coerce.date().optional(),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({
