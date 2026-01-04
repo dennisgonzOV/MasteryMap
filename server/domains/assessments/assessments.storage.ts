@@ -805,7 +805,7 @@ export class AssessmentStorage implements IAssessmentStorage {
 
         if (skillGrades.length === 0) continue;
 
-        const scores = skillGrades.map((g: any) => g.score || 0);
+        const scores = skillGrades.map((g: any) => Number(g.score) || 0);
         const averageScore = scores.reduce((a: number, b: number) => a + b, 0) / scores.length;
 
         const rubricDistribution = {
@@ -815,8 +815,8 @@ export class AssessmentStorage implements IAssessmentStorage {
           applying: skillGrades.filter((g: any) => g.rubricLevel === 'applying').length
         };
 
-        const strugglingStudents = skillGrades.filter((g: any) => (g.score || 0) < 2.5).length;
-        const excellingStudents = skillGrades.filter((g: any) => (g.score || 0) >= 3.5).length;
+        const strugglingStudents = skillGrades.filter((g: any) => (Number(g.score) || 0) < 2.5).length;
+        const excellingStudents = skillGrades.filter((g: any) => (Number(g.score) || 0) >= 3.5).length;
         const passRate = (rubricDistribution.proficient + rubricDistribution.applying) / skillGrades.length * 100;
 
         // Calculate trend (simplified)
@@ -830,8 +830,8 @@ export class AssessmentStorage implements IAssessmentStorage {
 
         let trend: 'improving' | 'declining' | 'stable' = 'stable';
         if (recentGrades.length > 0 && olderGrades.length > 0) {
-          const recentAvg = recentGrades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / recentGrades.length;
-          const olderAvg = olderGrades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / olderGrades.length;
+          const recentAvg = recentGrades.reduce((sum: number, g: any) => sum + (Number(g.score) || 0), 0) / recentGrades.length;
+          const olderAvg = olderGrades.reduce((sum: number, g: any) => sum + (Number(g.score) || 0), 0) / olderGrades.length;
 
           if (recentAvg > olderAvg + 0.5) trend = 'improving';
           else if (recentAvg < olderAvg - 0.5) trend = 'declining';

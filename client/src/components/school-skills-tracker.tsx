@@ -376,33 +376,65 @@ export default function SchoolSkillsTracker() {
                         <span className="text-sm font-medium text-gray-700">Performance Distribution</span>
                         <span className="text-sm text-gray-500">{skill.passRate.toFixed(0)}% passing</span>
                       </div>
-                      <div className="flex space-x-1 h-3 bg-gray-200 rounded">
-                        <div 
-                          className="bg-red-500 h-full rounded-l"
-                          style={{ width: `${(skill.rubricDistribution.emerging / skill.studentsAssessed) * 100}%` }}
-                          title={`Emerging: ${skill.rubricDistribution.emerging} students`}
-                        ></div>
-                        <div 
-                          className="bg-yellow-500 h-full"
-                          style={{ width: `${(skill.rubricDistribution.developing / skill.studentsAssessed) * 100}%` }}
-                          title={`Developing: ${skill.rubricDistribution.developing} students`}
-                        ></div>
-                        <div 
-                          className="bg-blue-500 h-full"
-                          style={{ width: `${(skill.rubricDistribution.proficient / skill.studentsAssessed) * 100}%` }}
-                          title={`Proficient: ${skill.rubricDistribution.proficient} students`}
-                        ></div>
-                        <div 
-                          className="bg-green-500 h-full rounded-r"
-                          style={{ width: `${(skill.rubricDistribution.applying / skill.studentsAssessed) * 100}%` }}
-                          title={`Applying: ${skill.rubricDistribution.applying} students`}
-                        ></div>
+                      <div className="flex h-6 bg-gray-200 rounded overflow-hidden">
+                        {skill.rubricDistribution.emerging > 0 && (
+                          <div 
+                            className="bg-red-500 h-full flex items-center justify-center text-xs text-white font-medium"
+                            style={{ width: `${(skill.rubricDistribution.emerging / skill.studentsAssessed) * 100}%` }}
+                            title={`Emerging: ${skill.rubricDistribution.emerging} students (${((skill.rubricDistribution.emerging / skill.studentsAssessed) * 100).toFixed(0)}%)`}
+                            data-testid={`distribution-emerging-${skill.id}`}
+                          >
+                            {(skill.rubricDistribution.emerging / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.emerging : ''}
+                          </div>
+                        )}
+                        {skill.rubricDistribution.developing > 0 && (
+                          <div 
+                            className="bg-yellow-500 h-full flex items-center justify-center text-xs text-white font-medium"
+                            style={{ width: `${(skill.rubricDistribution.developing / skill.studentsAssessed) * 100}%` }}
+                            title={`Developing: ${skill.rubricDistribution.developing} students (${((skill.rubricDistribution.developing / skill.studentsAssessed) * 100).toFixed(0)}%)`}
+                            data-testid={`distribution-developing-${skill.id}`}
+                          >
+                            {(skill.rubricDistribution.developing / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.developing : ''}
+                          </div>
+                        )}
+                        {skill.rubricDistribution.proficient > 0 && (
+                          <div 
+                            className="bg-blue-500 h-full flex items-center justify-center text-xs text-white font-medium"
+                            style={{ width: `${(skill.rubricDistribution.proficient / skill.studentsAssessed) * 100}%` }}
+                            title={`Proficient: ${skill.rubricDistribution.proficient} students (${((skill.rubricDistribution.proficient / skill.studentsAssessed) * 100).toFixed(0)}%)`}
+                            data-testid={`distribution-proficient-${skill.id}`}
+                          >
+                            {(skill.rubricDistribution.proficient / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.proficient : ''}
+                          </div>
+                        )}
+                        {skill.rubricDistribution.applying > 0 && (
+                          <div 
+                            className="bg-green-500 h-full flex items-center justify-center text-xs text-white font-medium"
+                            style={{ width: `${(skill.rubricDistribution.applying / skill.studentsAssessed) * 100}%` }}
+                            title={`Applying: ${skill.rubricDistribution.applying} students (${((skill.rubricDistribution.applying / skill.studentsAssessed) * 100).toFixed(0)}%)`}
+                            data-testid={`distribution-applying-${skill.id}`}
+                          >
+                            {(skill.rubricDistribution.applying / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.applying : ''}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>Emerging</span>
-                        <span>Developing</span>
-                        <span>Proficient</span>
-                        <span>Applying</span>
+                      <div className="flex flex-wrap gap-3 mt-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-sm bg-red-500"></div>
+                          <span className="text-xs text-gray-600">Emerging: {skill.rubricDistribution.emerging} ({((skill.rubricDistribution.emerging / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-sm bg-yellow-500"></div>
+                          <span className="text-xs text-gray-600">Developing: {skill.rubricDistribution.developing} ({((skill.rubricDistribution.developing / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
+                          <span className="text-xs text-gray-600">Proficient: {skill.rubricDistribution.proficient} ({((skill.rubricDistribution.proficient / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-sm bg-green-500"></div>
+                          <span className="text-xs text-gray-600">Applying: {skill.rubricDistribution.applying} ({((skill.rubricDistribution.applying / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
