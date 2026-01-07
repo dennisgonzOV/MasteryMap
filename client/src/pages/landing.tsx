@@ -17,6 +17,7 @@ import {
   Send,
   Loader2
 } from "lucide-react";
+import introVideo from "@assets/MasteryMap_Intro_1767756337009.mp4";
 
 export default function Landing() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -114,24 +115,16 @@ export default function Landing() {
             </p>
           </div>
           
-          <div className="relative aspect-video rounded-2xl overflow-hidden apple-shadow bg-gray-900 flex items-center justify-center group cursor-pointer">
-            {/* Placeholder Image/Background */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 to-purple-600/20 mix-blend-overlay" />
-            
-            {/* Play Button UI */}
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform duration-300">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-xl">
-                  <div className="w-0 h-0 border-t-[12px] border-t-transparent border-l-[20px] border-l-blue-600 border-b-[12px] border-b-transparent ml-1" />
-                </div>
-              </div>
-              <p className="mt-6 text-white font-semibold text-lg drop-shadow-md">Watch Demo Video</p>
-            </div>
-
-            {/* Hint for the user */}
-            <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur-sm text-white/70 text-xs px-3 py-1.5 rounded-full border border-white/10">
-              Placeholder Video Player
-            </div>
+          <div className="relative aspect-video rounded-2xl overflow-hidden apple-shadow bg-gray-900">
+            <video 
+              className="w-full h-full object-cover"
+              controls
+              poster=""
+              data-testid="intro-video"
+            >
+              <source src={introVideo} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
           </div>
         </div>
       </section>
