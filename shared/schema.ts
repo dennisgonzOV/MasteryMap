@@ -128,6 +128,10 @@ export const milestones = pgTable("milestones", {
   dueDate: timestamp("due_date"),
   order: integer("order").default(0),
   aiGenerated: boolean("ai_generated").default(false),
+  deliverableUrl: varchar("deliverable_url"),
+  deliverableFileName: varchar("deliverable_file_name"),
+  deliverableDescription: text("deliverable_description"),
+  includeInPortfolio: boolean("include_in_portfolio").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -287,6 +291,7 @@ export const portfolioArtifacts = pgTable("portfolio_artifacts", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id").references(() => users.id),
   submissionId: integer("submission_id").references(() => submissions.id),
+  milestoneId: integer("milestone_id").references(() => milestones.id),
   title: varchar("title").notNull(),
   description: text("description"),
   artifactUrl: varchar("artifact_url"),

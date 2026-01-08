@@ -26,6 +26,7 @@ import TakeAssessment from "@/pages/student/take-assessment";
 import EnterCode from "@/pages/student/enter-code";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminPasswordReset from '@/pages/admin/password-reset';
+import PublicPortfolio from "@/pages/public-portfolio";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -45,8 +46,9 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-
-
+      
+      {/* Public portfolio page - accessible without authentication */}
+      <Route path="/portfolio/public/:studentId" component={PublicPortfolio} />
 
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />

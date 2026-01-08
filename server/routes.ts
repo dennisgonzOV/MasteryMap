@@ -11,6 +11,7 @@ import { competenciesRouter } from "./domains/competencies";
 import { notificationsRouter } from "./domains/notifications";
 import { safetyIncidentsRouter } from "./domains/safety-incidents";
 import { contactRouter } from "./domains/contact";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 import { db } from './db';
 import { users as usersTable } from '../shared/schema';
@@ -52,6 +53,9 @@ export function setupRoutes(app: Express) {
   app.use("/api/admin", adminRouter);
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/contact", contactRouter);
+
+  // Register object storage routes for file uploads
+  registerObjectStorageRoutes(app);
 
   // School-wide component skills tracking for teachers
   app.get("/api/teacher/school-component-skills-progress", requireAuth, async (req: AuthenticatedRequest, res) => {

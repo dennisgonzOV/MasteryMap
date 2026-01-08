@@ -76,7 +76,7 @@ export default function StudentPortfolio() {
     if (isAuthenticated && user) {
       const generateQRCode = async () => {
         try {
-          const portfolioUrl = `${window.location.origin}/portfolio/student/${user.id}`;
+          const portfolioUrl = `${window.location.origin}/portfolio/public/${user.id}`;
           const dataUrl = await QRCode.toDataURL(portfolioUrl, {
             width: 200,
             margin: 2,
@@ -183,7 +183,7 @@ export default function StudentPortfolio() {
               <Button 
                 variant="outline" 
                 onClick={() => {
-                  const portfolioUrl = `${window.location.origin}/portfolio/student/${user?.id}`;
+                  const portfolioUrl = `${window.location.origin}/portfolio/public/${user?.id}`;
                   navigator.clipboard.writeText(portfolioUrl);
                   toast({
                     title: "Link copied!",
@@ -486,7 +486,7 @@ export default function StudentPortfolio() {
                     <Button 
                       variant="outline" 
                       onClick={() => {
-                        const portfolioUrl = `${window.location.origin}/portfolio/student/${user?.id}`;
+                        const portfolioUrl = `${window.location.origin}/portfolio/public/${user?.id}`;
                         navigator.clipboard.writeText(portfolioUrl);
                         toast({
                           title: "Link copied!",

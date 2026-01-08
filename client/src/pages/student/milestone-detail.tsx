@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useUpload } from "@/hooks/use-upload";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import Navigation from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -16,14 +20,100 @@ import {
   CheckCircle, 
   Clock, 
   AlertCircle,
-  ClipboardList
+  ClipboardList,
+  Upload,
+  FolderOpen,
+  ExternalLink
 } from "lucide-react";
 
 export default function StudentMilestoneDetail({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const milestoneId = parseInt(params.id);
+
+  const [deliverableDescription, setDeliverableDescription] = useState("");
+  const [includeInPortfolio, setIncludeInPortfolio] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  const { uploadFile, isUploading, progress } = useUpload({
+    onSuccess: (response) => {
+      toast({
+        title: "File uploaded",
+        description: "Your file has been uploaded successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deliverableMutation = useMutation({
+    mutationFn: async (data: { 
+      deliverableUrl: string; 
+      deliverableFileName: string; 
+      deliverableDescription: string; 
+      includeInPortfolio: boolean 
+    }) => {
+      const response = await fetch(`/api/milestones/${milestoneId}/deliverable`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to save deliverable');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/milestones", milestoneId] });
+      toast({
+        title: "Deliverable saved",
+        description: includeInPortfolio 
+          ? "Your deliverable has been saved and added to your portfolio." 
+          : "Your deliverable has been saved.",
+      });
+      setSelectedFile(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleSubmitDeliverable = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No file selected",
+        description: "Please select a file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const uploadResponse = await uploadFile(selectedFile);
+    if (uploadResponse) {
+      deliverableMutation.mutate({
+        deliverableUrl: uploadResponse.objectPath,
+        deliverableFileName: selectedFile.name,
+        deliverableDescription,
+        includeInPortfolio,
+      });
+    }
+  };
 
   // Fetch milestone details
   const { data: milestone, isLoading: milestoneLoading } = useQuery({
@@ -251,7 +341,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {assessments.map((assessment) => (
+                  {assessments.map((assessment: any) => (
                     <div 
                       key={assessment.id}
                       className="flex items-start space-x-4 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
@@ -272,13 +362,14 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                               </span>
                             )}
                             {(() => {
-                              const hasSubmission = studentSubmissions.some(sub => sub.assessmentId === assessment.id);
+                              const hasSubmission = studentSubmissions.some((sub: any) => sub.assessmentId === assessment.id);
                               return (
                                 <Button
                                   size="sm"
                                   variant={hasSubmission ? 'outline' : 'default'}
                                   onClick={() => setLocation(`/student/assessments/${assessment.id}`)}
                                   className={hasSubmission ? 'text-blue-600 border-blue-600' : 'bg-blue-600 hover:bg-blue-700'}
+                                  data-testid={`button-assessment-${assessment.id}`}
                                 >
                                   {hasSubmission ? 'View Submission' : 'Start Assessment'}
                                 </Button>
@@ -296,6 +387,128 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                     </div>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Deliverable Upload Section */}
+          <Card className="apple-shadow border-0 mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Upload className="h-5 w-5" />
+                <span>Submit Deliverable</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {milestone.deliverableUrl ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-green-900">Deliverable Submitted</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-green-700">
+                    <FolderOpen className="h-4 w-4" />
+                    <span>{milestone.deliverableFileName || 'File uploaded'}</span>
+                    <a 
+                      href={milestone.deliverableUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-blue-600 hover:underline"
+                    >
+                      <ExternalLink className="h-4 w-4 ml-2" />
+                    </a>
+                  </div>
+                  {milestone.deliverableDescription && (
+                    <p className="text-sm text-green-700 mt-2">{milestone.deliverableDescription}</p>
+                  )}
+                  {milestone.includeInPortfolio && (
+                    <Badge className="mt-2 bg-purple-100 text-purple-800">Added to Portfolio</Badge>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="file-upload" className="text-sm font-medium text-gray-700">
+                        Upload your work
+                      </Label>
+                      <div className="mt-2 flex items-center space-x-4">
+                        <input
+                          id="file-upload"
+                          type="file"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          data-testid="input-file-upload"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => document.getElementById('file-upload')?.click()}
+                          disabled={isUploading}
+                          data-testid="button-select-file"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {selectedFile ? 'Change File' : 'Select File'}
+                        </Button>
+                        {selectedFile && (
+                          <span className="text-sm text-gray-600">
+                            {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                        Description (optional)
+                      </Label>
+                      <Textarea
+                        id="description"
+                        placeholder="Describe your deliverable..."
+                        value={deliverableDescription}
+                        onChange={(e) => setDeliverableDescription(e.target.value)}
+                        className="mt-2"
+                        rows={3}
+                        data-testid="textarea-description"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="portfolio"
+                        checked={includeInPortfolio}
+                        onCheckedChange={(checked) => setIncludeInPortfolio(checked === true)}
+                        data-testid="checkbox-include-portfolio"
+                      />
+                      <Label htmlFor="portfolio" className="text-sm text-gray-700 cursor-pointer">
+                        Include this deliverable in my public portfolio
+                      </Label>
+                    </div>
+                  </div>
+
+                  {isUploading && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Uploading...</span>
+                        <span className="text-gray-600">{progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all" 
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleSubmitDeliverable}
+                    disabled={!selectedFile || isUploading || deliverableMutation.isPending}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    data-testid="button-submit-deliverable"
+                  >
+                    {isUploading ? 'Uploading...' : deliverableMutation.isPending ? 'Saving...' : 'Submit Deliverable'}
+                  </Button>
+                </>
               )}
             </CardContent>
           </Card>

@@ -55,7 +55,7 @@ export class PortfolioController {
     router.get('/qr-code', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user!.id;
-        const portfolioUrl = `${req.protocol}://${req.get('host')}/portfolio/student/${userId}`;
+        const portfolioUrl = `${req.protocol}://${req.get('host')}/portfolio/public/${userId}`;
         
         // Generate QR code using the installed library
         const QRCode = await import('qrcode');
@@ -75,6 +75,49 @@ export class PortfolioController {
       } catch (error) {
         console.error("Error generating QR code:", error);
         res.status(500).json({ message: "Failed to generate QR code" });
+      }
+    });
+
+    // Public portfolio endpoint - NO AUTHENTICATION REQUIRED
+    // Returns student info, all credentials, and only PUBLIC artifacts
+    router.get('/public/:studentId', async (req, res) => {
+      try {
+        const studentId = parseInt(req.params.studentId);
+        if (isNaN(studentId)) {
+          return res.status(400).json({ message: "Invalid student ID" });
+        }
+
+        const portfolioData = await this.service.getPublicPortfolio(studentId);
+        if (!portfolioData) {
+          return res.status(404).json({ message: "Portfolio not found" });
+        }
+
+        res.json(portfolioData);
+      } catch (error) {
+        console.error("Error fetching public portfolio:", error);
+        res.status(500).json({ message: "Failed to fetch public portfolio" });
+      }
+    });
+
+    // Update artifact visibility (make public/private)
+    router.patch('/artifacts/:id/visibility', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const artifactId = parseInt(req.params.id);
+        const { isPublic } = req.body;
+
+        if (isNaN(artifactId)) {
+          return res.status(400).json({ message: "Invalid artifact ID" });
+        }
+
+        if (typeof isPublic !== 'boolean') {
+          return res.status(400).json({ message: "isPublic must be a boolean" });
+        }
+
+        const artifact = await this.service.updateArtifact(artifactId, { isPublic });
+        res.json(artifact);
+      } catch (error) {
+        console.error("Error updating artifact visibility:", error);
+        res.status(500).json({ message: "Failed to update artifact visibility" });
       }
     });
 
