@@ -8,6 +8,27 @@ import { portfolioStorage } from '../portfolio/portfolio.storage';
 
 const router = Router();
 
+// Get a specific milestone by ID
+router.get('/:id', requireAuth, validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const milestoneId = parseInt(req.params.id);
+    const milestone = await projectsStorage.getMilestone(milestoneId);
+    
+    if (!milestone) {
+      return res.status(404).json({ message: "Milestone not found" });
+    }
+    
+    res.json(milestone);
+  } catch (error) {
+    console.error("Error fetching milestone:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    res.status(500).json({ 
+      message: "Failed to fetch milestone", 
+      error: errorMessage
+    });
+  }
+});
+
 // Get assessments for a specific milestone
 router.get('/:id/assessments', requireAuth, validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
