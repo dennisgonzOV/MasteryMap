@@ -137,7 +137,7 @@ export default function TakeAssessment() {
 
   // Fetch component skills with competency details
   const { data: componentSkillsDetails = [] } = useQuery({
-    queryKey: ["/api/component-skills/details"],
+    queryKey: ["/api/competencies/component-skills/details"],
     enabled: isAuthenticated,
     retry: false,
   });

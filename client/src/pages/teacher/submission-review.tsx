@@ -92,7 +92,7 @@ export default function SubmissionReview() {
 
   // Fetch component skills for context and grading
   const { data: allComponentSkills = [] } = useQuery<ComponentSkill[]>({
-    queryKey: ["/api/component-skills/details"],
+    queryKey: ["/api/competencies/component-skills/details"],
     enabled: !!assessment?.componentSkillIds?.length,
   });
 

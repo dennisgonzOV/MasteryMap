@@ -87,7 +87,7 @@ export default function AssessmentDetails() {
 
   // Fetch component skills with competency details
   const { data: componentSkillsDetails = [] } = useQuery<ComponentSkill[]>({
-    queryKey: ["/api/component-skills/details"],
+    queryKey: ["/api/competencies/component-skills/details"],
     enabled: isAuthenticated,
   });
 

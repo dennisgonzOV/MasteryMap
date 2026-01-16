@@ -109,7 +109,7 @@ export default function TeacherAssessments() {
 
   // Fetch component skills with competency details
   const { data: componentSkillsDetails = [] } = useQuery<any[]>({
-    queryKey: ["/api/component-skills/details"],
+    queryKey: ["/api/competencies/component-skills/details"],
     enabled: isAuthenticated && (user as User)?.role === 'teacher',
     retry: false,
   });
