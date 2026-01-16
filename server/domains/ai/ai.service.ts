@@ -2,11 +2,11 @@ import { openAIService } from './openai.service';
 import { notifyTeacherOfSafetyIncident } from '../../services/notifications';
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+// Use the same Azure OpenAI endpoint as openai.service.ts for consistency
 const openai = new OpenAI({
   apiKey: process.env.AZURE_GPT41_API_KEY,
-  baseURL: "https://denni-mf2i6jxh-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1",
-  defaultQuery: { 'api-version': '2024-08-01-preview' },
+  baseURL: "https://trueaimopenai.openai.azure.com/openai/deployments/gpt-4o",
+  defaultQuery: { 'api-version': '2025-01-01-preview' },
   defaultHeaders: {
     'api-key': process.env.AZURE_GPT41_API_KEY,
   },
@@ -139,7 +139,7 @@ Respond in JSON format:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -222,7 +222,7 @@ Example JSON structure:
 ]`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -277,7 +277,14 @@ Example JSON structure:
 
       const currentLevel = currentEvaluation?.selfAssessedLevel || 'unknown';
       const skillName = componentSkill.name || 'this skill';
-      const rubricLevels = componentSkill.rubricLevels || {};
+      
+      // Build rubric levels from individual component skill fields
+      const rubricLevels = {
+        emerging: componentSkill.emerging || '',
+        developing: componentSkill.developing || '',
+        proficient: componentSkill.proficient || '',
+        applying: componentSkill.applying || ''
+      };
 
       const prompt = `You are an AI tutor helping a student develop their competency in "${skillName}".
 
@@ -286,6 +293,7 @@ CURRENT LEVEL: ${currentLevel}
 
 RUBRIC LEVELS:
 ${Object.entries(rubricLevels)
+  .filter(([_, description]) => description) // Only include non-empty levels
   .map(([level, description]) => `${level.toUpperCase()}: ${description}`)
   .join("\n")}
 
@@ -326,7 +334,7 @@ If safety concerns are detected:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -350,8 +358,14 @@ If safety concerns are detected:
         shouldTerminate: result.shouldTerminate || false,
         safetyFlag: result.safetyFlag || undefined
       };
-    } catch (error) {
-      console.error("Error generating tutor response:", error);
+    } catch (error: any) {
+      console.error("Error generating tutor response:", {
+        message: error?.message,
+        status: error?.status,
+        code: error?.code,
+        type: error?.type,
+        error: error
+      });
       return {
         response: "I'm here to help you develop this skill! Can you tell me more about what you're working on?",
         shouldTerminate: false
