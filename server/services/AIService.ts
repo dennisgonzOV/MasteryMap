@@ -1,4 +1,5 @@
-import OpenAI from "openai";
+import { AzureOpenAI } from "openai";
+import type { ChatCompletion } from "openai/resources/chat/completions";
 import { sanitizeForPrompt } from "../middleware/security";
 import { AIServiceError, parseAIServiceError, createErrorContext } from "../utils/errorTypes";
 
@@ -8,7 +9,9 @@ import { AIServiceError, parseAIServiceError, createErrorContext } from "../util
 
 export interface AIServiceConfig {
   apiKey?: string;
-  model?: string;
+  endpoint?: string;
+  deployment?: string;
+  apiVersion?: string;
   maxTokens?: number;
   temperature?: number;
   timeout?: number;
@@ -46,25 +49,25 @@ export interface AIGenerationOptions {
 }
 
 export abstract class BaseAIService {
-  protected openai: OpenAI;
+  protected openai: AzureOpenAI;
   protected config: Required<AIServiceConfig>;
 
   constructor(config: AIServiceConfig = {}) {
     this.config = {
-      apiKey: config.apiKey || process.env.AZURE_GPT41_API_KEY || "",
-      model: config.model || "gpt-4o",
+      apiKey: config.apiKey || process.env.AZURE_OPENAI_API_KEY || process.env.AZURE_GPT41_API_KEY || "",
+      endpoint: config.endpoint || process.env.AZURE_OPENAI_ENDPOINT || "https://trueaimopenai.openai.azure.com",
+      deployment: config.deployment || process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
+      apiVersion: config.apiVersion || process.env.AZURE_OPENAI_API_VERSION || "2025-01-01-preview",
       maxTokens: config.maxTokens || 1500,
       temperature: config.temperature || 0.7,
       timeout: config.timeout || 30000,
     };
 
-    this.openai = new OpenAI({
+    this.openai = new AzureOpenAI({
       apiKey: this.config.apiKey,
-      baseURL: "https://trueaimopenai.openai.azure.com/openai/deployments/gpt-4o",
-      defaultQuery: { 'api-version': '2025-01-01-preview' },
-      defaultHeaders: {
-        'api-key': this.config.apiKey,
-      },
+      endpoint: this.config.endpoint,
+      deployment: this.config.deployment,
+      apiVersion: this.config.apiVersion,
       timeout: this.config.timeout,
     });
   }
@@ -78,15 +81,15 @@ export abstract class BaseAIService {
   ): Promise<AIResponse> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: this.config.model,
+        model: this.config.deployment,
         messages,
         max_tokens: options.maxTokens || this.config.maxTokens,
         temperature: options.temperature || this.config.temperature,
         top_p: options.topP,
         frequency_penalty: options.frequencyPenalty,
         presence_penalty: options.presencePenalty,
-        stream: false, // Always disable streaming for type safety
-      }) as OpenAI.Chat.Completions.ChatCompletion;
+        stream: false,
+      }) as ChatCompletion;
 
       const choice = completion.choices[0];
       if (!choice || !choice.message?.content) {
@@ -105,15 +108,8 @@ export abstract class BaseAIService {
       };
     } catch (error) {
       const context = createErrorContext('generateResponse', undefined, {
-        model: this.config.model,
+        deployment: this.config.deployment,
         messageCount: messages.length
-      });
-      
-  
-        context,
-        error: error instanceof Error ? error.message : error,
-        model: this.config.model,
-        timestamp: new Date().toISOString()
       });
       
       throw parseAIServiceError(error, context);
