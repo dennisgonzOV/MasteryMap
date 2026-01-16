@@ -131,7 +131,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
     setStudentMessageCount(newStudentMessageCount);
 
     try {
-      const response = await fetch('/api/ai-tutor/chat', {
+      const response = await fetch('/api/ai-tutor/tutor/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
