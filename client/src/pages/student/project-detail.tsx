@@ -19,7 +19,8 @@ import {
   Clock, 
   AlertCircle,
   Users,
-  MessageCircle
+  MessageCircle,
+  ImageIcon
 } from "lucide-react";
 
 export default function StudentProjectDetail({ params }: { params: { id: string } }) {
@@ -192,6 +193,21 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
 
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
+          {/* Project Thumbnail Banner */}
+          {project.thumbnailUrl && (
+            <div className="relative h-48 w-full rounded-xl overflow-hidden mb-6 shadow-lg">
+              <img 
+                src={project.thumbnailUrl} 
+                alt={`${project.title} thumbnail`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.parentElement!.style.display = 'none';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            </div>
+          )}
+
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-4">

@@ -54,6 +54,8 @@ interface ProjectCreationModalProps {
     title: string;
     description: string;
     selectedComponentSkillIds: number[];
+    subject?: string;
+    topic?: string;
   };
 }
 
@@ -229,6 +231,34 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
         description: "Project created successfully!",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+
+      // Generate thumbnail for the project (especially when coming from a project idea)
+      if (projectIdea) {
+        try {
+          const thumbnailResponse = await fetch(`/api/projects/${createdProject.id}/generate-thumbnail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subject: projectIdea.subject,
+              topic: projectIdea.topic
+            }),
+            credentials: 'include',
+          });
+
+          if (thumbnailResponse.ok) {
+            toast({
+              title: "Thumbnail Generated",
+              description: "Project thumbnail has been created!",
+            });
+            queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/projects', createdProject.id] });
+          } else {
+            console.error('Failed to generate thumbnail');
+          }
+        } catch (error) {
+          console.error('Error generating thumbnail:', error);
+        }
+      }
 
       // Automatically generate milestones and assessments if option is checked
       if (generateMilestones && selectedSkills.size > 0) {

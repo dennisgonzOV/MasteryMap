@@ -27,6 +27,7 @@ import {
   projectTeamMembers
 } from "../../../shared/schema";
 import { aiService } from "../ai/ai.service";
+import { fluxImageService } from "../ai/flux.service";
 import { z } from "zod";
 import { db } from "../../db";
 import { eq, sql } from "drizzle-orm";
@@ -181,6 +182,96 @@ router.post('/generate-ideas', requireAuth, requireRole('teacher', 'admin'), aiL
   } catch (error) {
     console.error("Error generating project ideas:", error);
     const errorResponse = createErrorResponse(error, "Failed to generate project ideas", 500);
+    res.status(500).json(errorResponse);
+  }
+});
+
+// Zod schemas for thumbnail endpoints
+const thumbnailOptionsSchema = z.object({
+  subject: z.string().max(100).optional(),
+  topic: z.string().max(200).optional(),
+});
+
+const thumbnailPreviewSchema = z.object({
+  title: z.string().min(1, "Project title is required").max(200),
+  description: z.string().max(2000).optional(),
+  subject: z.string().max(100).optional(),
+  topic: z.string().max(200).optional(),
+});
+
+// Generate thumbnail for a project
+router.post('/:id/generate-thumbnail', requireAuth, requireRole('teacher', 'admin'), validateIdParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    // Validate request body
+    const parseResult = thumbnailOptionsSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ message: "Invalid request body", errors: parseResult.error.errors });
+    }
+    const { subject, topic } = parseResult.data;
+
+    const project = await projectsStorage.getProject(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check access
+    if (userRole === 'teacher' && project.teacherId !== userId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Generate thumbnail using FLUX API
+    const thumbnailUrl = await fluxImageService.generateThumbnail({
+      projectTitle: project.title,
+      projectDescription: project.description || "",
+      subject,
+      topic
+    });
+
+    if (!thumbnailUrl) {
+      return res.status(500).json({ message: "Failed to generate thumbnail" });
+    }
+
+    // Update project with thumbnail URL
+    const updatedProject = await projectsStorage.updateProject(projectId, { thumbnailUrl });
+
+    res.json({ thumbnailUrl, project: updatedProject });
+  } catch (error) {
+    console.error("Error generating thumbnail:", error);
+    const errorResponse = createErrorResponse(error, "Failed to generate thumbnail", 500);
+    res.status(500).json(errorResponse);
+  }
+});
+
+// Generate thumbnail during project creation (returns URL without saving)
+router.post('/generate-thumbnail-preview', requireAuth, requireRole('teacher', 'admin'), aiLimiter, async (req: AuthenticatedRequest, res) => {
+  try {
+    // Validate request body
+    const parseResult = thumbnailPreviewSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ message: "Invalid request body", errors: parseResult.error.errors });
+    }
+    const { title, description, subject, topic } = parseResult.data;
+
+    // Generate thumbnail using FLUX API
+    const thumbnailUrl = await fluxImageService.generateThumbnail({
+      projectTitle: title,
+      projectDescription: description || "",
+      subject,
+      topic
+    });
+
+    if (!thumbnailUrl) {
+      return res.status(500).json({ message: "Failed to generate thumbnail" });
+    }
+
+    res.json({ thumbnailUrl });
+  } catch (error) {
+    console.error("Error generating thumbnail preview:", error);
+    const errorResponse = createErrorResponse(error, "Failed to generate thumbnail preview", 500);
     res.status(500).json(errorResponse);
   }
 });

@@ -99,7 +99,7 @@ interface ProjectIdea {
 interface ProjectIdeasModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectIdea?: (idea: ProjectIdea & { selectedComponentSkillIds: number[] }) => void;
+  onSelectIdea?: (idea: ProjectIdea & { selectedComponentSkillIds: number[]; subject?: string; topic?: string }) => void;
 }
 
 export default function ProjectIdeasModal({
@@ -245,10 +245,13 @@ export default function ProjectIdeasModal({
   const handleSelectIdea = (idea: ProjectIdea) => {
     setSelectedIdea(idea);
     if (onSelectIdea) {
-      // Pass the idea data along with the selected component skills
+      // Pass the idea data along with the selected component skills and form data
+      const formValues = form.getValues();
       onSelectIdea({
         ...idea,
-        selectedComponentSkillIds: Array.from(selectedSkills)
+        selectedComponentSkillIds: Array.from(selectedSkills),
+        subject: formValues.subject,
+        topic: formValues.topic
       });
     }
     toast({

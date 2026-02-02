@@ -111,6 +111,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   teacherId: integer("teacher_id").references(() => users.id),
   schoolId: integer("school_id").references(() => schools.id), // Add school association
+  thumbnailUrl: varchar("thumbnail_url"), // AI-generated project thumbnail
 
   componentSkillIds: jsonb("component_skill_ids").$type<number[]>().default([]), // Array of component skill IDs
   bestStandardIds: jsonb("best_standard_ids").$type<number[]>().default([]), // Array of B.E.S.T. standard IDs
@@ -508,6 +509,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   componentSkillIds: z.array(z.number()).optional(),
   bestStandardIds: z.array(z.number()).optional(),
   schoolId: z.number().optional(),
+  thumbnailUrl: z.string().optional(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
