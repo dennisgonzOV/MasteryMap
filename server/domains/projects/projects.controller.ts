@@ -624,6 +624,100 @@ teacherRouter.get('/pending-tasks', requireAuth, requireRole('teacher', 'admin')
   createSuccessResponse(res, tasks);
 }));
 
+// Public projects endpoint (no auth required for browsing)
+router.get('/public', wrapRoute(async (req, res) => {
+  const { search, subjectArea, gradeLevel, estimatedDuration, componentSkillIds, bestStandardIds } = req.query;
+  
+  const filters: {
+    search?: string;
+    subjectArea?: string;
+    gradeLevel?: string;
+    estimatedDuration?: string;
+    componentSkillIds?: number[];
+    bestStandardIds?: number[];
+  } = {};
+  
+  if (search && typeof search === 'string') filters.search = search;
+  if (subjectArea && typeof subjectArea === 'string') filters.subjectArea = subjectArea;
+  if (gradeLevel && typeof gradeLevel === 'string') filters.gradeLevel = gradeLevel;
+  if (estimatedDuration && typeof estimatedDuration === 'string') filters.estimatedDuration = estimatedDuration;
+  
+  if (componentSkillIds) {
+    const ids = typeof componentSkillIds === 'string' ? componentSkillIds.split(',') : componentSkillIds;
+    filters.componentSkillIds = (ids as string[]).map(id => parseInt(id)).filter(id => !isNaN(id));
+  }
+  
+  if (bestStandardIds) {
+    const ids = typeof bestStandardIds === 'string' ? bestStandardIds.split(',') : bestStandardIds;
+    filters.bestStandardIds = (ids as string[]).map(id => parseInt(id)).filter(id => !isNaN(id));
+  }
+  
+  const publicProjects = await projectsStorage.getPublicProjects(filters);
+  createSuccessResponse(res, publicProjects);
+}));
+
+// Get public project detail (no auth required)
+router.get('/public/:id', wrapRoute(async (req, res) => {
+  const projectId = parseInt(req.params.id);
+  if (isNaN(projectId)) {
+    return res.status(400).json({ message: "Invalid project ID" });
+  }
+  
+  const project = await projectsStorage.getProject(projectId);
+  if (!project) {
+    return res.status(404).json({ message: "Project not found" });
+  }
+  
+  if (!project.isPublic) {
+    return res.status(403).json({ message: "This project is not publicly available" });
+  }
+  
+  // Get milestones for the public project
+  const projectMilestones = await projectsStorage.getMilestonesByProject(projectId);
+  
+  // Get component skills if available
+  let componentSkills: any[] = [];
+  if (project.componentSkillIds && (project.componentSkillIds as number[]).length > 0) {
+    componentSkills = await projectsStorage.getComponentSkillsByIds(project.componentSkillIds as number[]);
+  }
+  
+  createSuccessResponse(res, {
+    ...project,
+    milestones: projectMilestones,
+    componentSkills
+  });
+}));
+
+// Toggle project visibility (teachers only)
+router.patch('/:id/visibility', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  const projectId = parseInt(req.params.id);
+  const { isPublic } = req.body;
+  
+  if (typeof isPublic !== 'boolean') {
+    return res.status(400).json({ message: "isPublic must be a boolean" });
+  }
+  
+  const updatedProject = await projectsStorage.toggleProjectVisibility(projectId, isPublic);
+  createSuccessResponse(res, updatedProject);
+}));
+
+// Get filter options for public projects
+router.get('/public-filters', wrapRoute(async (req, res) => {
+  const subjectAreas = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
+  const gradeLevels = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  const durations = ['1-2 weeks', '3-4 weeks', '5-6 weeks', '7-8 weeks', '9+ weeks'];
+  
+  // Get competency frameworks for filtering
+  const learnerOutcomes = await competencyStorage.getLearnerOutcomesHierarchy();
+  
+  createSuccessResponse(res, {
+    subjectAreas,
+    gradeLevels,
+    durations,
+    competencyFrameworks: learnerOutcomes
+  });
+}));
+
 // Teacher current milestones
 teacherRouter.get('/current-milestones', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;

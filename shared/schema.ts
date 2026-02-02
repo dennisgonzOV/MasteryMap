@@ -104,6 +104,14 @@ export const componentSkills = pgTable("component_skills", {
 
 // Removed legacy outcomes table - using 3-level hierarchy instead
 
+// Grade level enum for K-12
+export const gradeLevelEnum = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"] as const;
+export type GradeLevel = typeof gradeLevelEnum[number];
+
+// Project duration enum
+export const projectDurationEnum = ["1-2 weeks", "3-4 weeks", "5-6 weeks", "7-8 weeks", "9+ weeks"] as const;
+export type ProjectDuration = typeof projectDurationEnum[number];
+
 // Projects and Milestones
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
@@ -117,6 +125,13 @@ export const projects = pgTable("projects", {
   bestStandardIds: jsonb("best_standard_ids").$type<number[]>().default([]), // Array of B.E.S.T. standard IDs
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
   dueDate: timestamp("due_date"),
+  
+  // Project Explorer fields
+  isPublic: boolean("is_public").default(false), // Whether project appears in public library
+  subjectArea: varchar("subject_area"), // e.g., "Math", "Science", "English"
+  gradeLevel: varchar("grade_level"), // K-12 grade level
+  estimatedDuration: varchar("estimated_duration"), // Estimated project duration
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -510,6 +525,10 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   bestStandardIds: z.array(z.number()).optional(),
   schoolId: z.number().optional(),
   thumbnailUrl: z.string().optional(),
+  isPublic: z.boolean().optional(),
+  subjectArea: z.string().optional(),
+  gradeLevel: z.string().optional(),
+  estimatedDuration: z.string().optional(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({

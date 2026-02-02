@@ -19,7 +19,7 @@ import {
   type InsertProjectTeam,
 } from "../../../shared/schema";
 import { db } from "../../db";
-import { eq, and, desc, asc, ne, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, asc, ne, inArray, sql, ilike, or } from "drizzle-orm";
 import { assessments } from "../../../shared/schema";
 import { competencyStorage } from "../competencies/competencies.storage";
 
@@ -72,6 +72,17 @@ export interface IProjectsStorage {
   getTeacherPendingTasks(teacherId: number): Promise<any[]>;
   getTeacherCurrentMilestones(teacherId: number): Promise<any[]>;
   getSchoolStudentsProgress(teacherId: number): Promise<any[]>;
+  
+  // Public projects operations
+  getPublicProjects(filters?: {
+    search?: string;
+    subjectArea?: string;
+    gradeLevel?: string;
+    estimatedDuration?: string;
+    componentSkillIds?: number[];
+    bestStandardIds?: number[];
+  }): Promise<Project[]>;
+  toggleProjectVisibility(projectId: number, isPublic: boolean): Promise<Project>;
 }
 
 export class ProjectsStorage implements IProjectsStorage {
@@ -626,6 +637,75 @@ export class ProjectsStorage implements IProjectsStorage {
     );
 
     return studentsWithProgress;
+  }
+
+  // Public projects operations
+  async getPublicProjects(filters?: {
+    search?: string;
+    subjectArea?: string;
+    gradeLevel?: string;
+    estimatedDuration?: string;
+    componentSkillIds?: number[];
+    bestStandardIds?: number[];
+  }): Promise<Project[]> {
+    let query = db.select().from(projects).where(eq(projects.isPublic, true));
+    
+    const conditions: any[] = [eq(projects.isPublic, true)];
+    
+    if (filters?.search) {
+      conditions.push(
+        or(
+          ilike(projects.title, `%${filters.search}%`),
+          ilike(projects.description, `%${filters.search}%`)
+        )
+      );
+    }
+    
+    if (filters?.subjectArea) {
+      conditions.push(eq(projects.subjectArea, filters.subjectArea));
+    }
+    
+    if (filters?.gradeLevel) {
+      conditions.push(eq(projects.gradeLevel, filters.gradeLevel));
+    }
+    
+    if (filters?.estimatedDuration) {
+      conditions.push(eq(projects.estimatedDuration, filters.estimatedDuration));
+    }
+    
+    const result = await db
+      .select()
+      .from(projects)
+      .where(and(...conditions))
+      .orderBy(desc(projects.createdAt));
+    
+    // Filter by component skill IDs if provided (JSONB array contains check)
+    let filteredResults = result;
+    if (filters?.componentSkillIds && filters.componentSkillIds.length > 0) {
+      filteredResults = filteredResults.filter(project => {
+        const projectSkills = project.componentSkillIds as number[] || [];
+        return filters.componentSkillIds!.some(skillId => projectSkills.includes(skillId));
+      });
+    }
+    
+    // Filter by B.E.S.T. standard IDs if provided
+    if (filters?.bestStandardIds && filters.bestStandardIds.length > 0) {
+      filteredResults = filteredResults.filter(project => {
+        const projectStandards = project.bestStandardIds as number[] || [];
+        return filters.bestStandardIds!.some(standardId => projectStandards.includes(standardId));
+      });
+    }
+    
+    return filteredResults;
+  }
+
+  async toggleProjectVisibility(projectId: number, isPublic: boolean): Promise<Project> {
+    const [updatedProject] = await db
+      .update(projects)
+      .set({ isPublic, updatedAt: new Date() })
+      .where(eq(projects.id, projectId))
+      .returning();
+    return updatedProject;
   }
 }
 
