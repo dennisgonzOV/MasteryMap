@@ -27,6 +27,8 @@ import EnterCode from "@/pages/student/enter-code";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminPasswordReset from '@/pages/admin/password-reset';
 import PublicPortfolio from "@/pages/public-portfolio";
+import ProjectExplorer from "@/pages/project-explorer";
+import PublicProjectDetail from "@/pages/public-project-detail";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -47,8 +49,10 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       
-      {/* Public portfolio page - accessible without authentication */}
+      {/* Public pages - accessible without authentication */}
       <Route path="/portfolio/public/:studentId" component={PublicPortfolio} />
+      <Route path="/explore" component={ProjectExplorer} />
+      <Route path="/explore/project/:id" component={PublicProjectDetail} />
 
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
