@@ -68,6 +68,10 @@ interface Project {
   teacherId: number;
   componentSkillIds: number[];
   createdAt: string;
+  isPublic?: boolean;
+  subjectArea?: string;
+  gradeLevel?: string;
+  estimatedDuration?: string;
 }
 
 export default function ProjectManagementModal({ projectId, isOpen, onClose }: ProjectManagementModalProps) {
@@ -138,6 +142,35 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     onError: (error: any) => {
       toast({
         title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle project visibility mutation
+  const toggleVisibilityMutation = useMutation({
+    mutationFn: async (isPublic: boolean) => {
+      const response = await fetch(`/api/projects/${projectId}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic }),
+      });
+      if (!response.ok) throw new Error('Failed to update visibility');
+      return response.json();
+    },
+    onSuccess: (_, isPublic) => {
+      toast({ 
+        title: isPublic ? "Project is now public" : "Project is now private",
+        description: isPublic ? "Other educators can now discover this project" : "This project is hidden from the community library"
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects/public"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update visibility",
         description: error.message,
         variant: "destructive",
       });
@@ -575,6 +608,53 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                           <span>Due: {format(new Date(project.dueDate), 'MMM d, yyyy')}</span>
                         )}
                       </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Visibility Settings */}
+              <Card className="bg-gradient-to-r from-blue-50/50 to-purple-50/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Eye className="h-5 w-5 mr-2" />
+                    Community Library
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Share to Project Explorer</p>
+                      <p className="text-sm text-muted-foreground">
+                        Make this project visible to other educators in the community library
+                      </p>
+                    </div>
+                    <Button
+                      variant={project.isPublic ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleVisibilityMutation.mutate(!project.isPublic)}
+                      disabled={toggleVisibilityMutation.isPending}
+                    >
+                      {toggleVisibilityMutation.isPending ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                      ) : project.isPublic ? (
+                        <>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Public
+                        </>
+                      ) : (
+                        <>
+                          <X className="h-4 w-4 mr-2" />
+                          Private
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {project.isPublic && (
+                    <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <p className="text-sm text-green-700">
+                        This project is visible in the Project Explorer. Other educators can view and learn from it.
+                      </p>
                     </div>
                   )}
                 </CardContent>

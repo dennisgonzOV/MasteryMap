@@ -78,6 +78,13 @@ export default function Landing() {
             </div>
             <div className="flex items-center space-x-4">
               <Button 
+                onClick={() => window.location.href = '/explore'}
+                variant="ghost"
+                className="px-4"
+              >
+                Explore Projects
+              </Button>
+              <Button 
                 onClick={() => window.location.href = '/login'}
                 variant="outline"
                 className="px-6 py-2 rounded-full"

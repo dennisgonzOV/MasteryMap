@@ -44,6 +44,10 @@ interface ProjectData {
   dueDate?: string;
   componentSkillIds: number[];
   bestStandardIds: number[];
+  isPublic?: boolean;
+  subjectArea?: string;
+  gradeLevel?: string;
+  estimatedDuration?: string;
 }
 
 interface ProjectCreationModalProps {
@@ -72,6 +76,14 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [activeTab, setActiveTab] = useState('skills');
+  const [isPublic, setIsPublic] = useState(false);
+  const [projectSubjectArea, setProjectSubjectArea] = useState('');
+  const [projectGradeLevel, setProjectGradeLevel] = useState('');
+  const [projectDuration, setProjectDuration] = useState('');
+  
+  const subjectAreaOptions = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
+  const gradeLevelOptions = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  const durationOptions = ['1-2 weeks', '3-4 weeks', '5-6 weeks', '7-8 weeks', '9+ weeks'];
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -310,6 +322,10 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     setSelectedSubject('');
     setSelectedGrade('');
     setActiveTab('skills');
+    setIsPublic(false);
+    setProjectSubjectArea('');
+    setProjectGradeLevel('');
+    setProjectDuration('');
   };
 
   const handleClose = () => {
@@ -431,6 +447,10 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       dueDate: projectDueDate || undefined,
       componentSkillIds: Array.from(selectedSkills),
       bestStandardIds: Array.from(selectedStandards),
+      isPublic,
+      subjectArea: projectSubjectArea || undefined,
+      gradeLevel: projectGradeLevel || undefined,
+      estimatedDuration: projectDuration || undefined,
     });
   };
 
@@ -474,6 +494,62 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                   value={projectDueDate}
                   onChange={(e) => setProjectDueDate(e.target.value)}
                   placeholder="Select due date"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="subjectArea">Subject Area</Label>
+                  <Select value={projectSubjectArea} onValueChange={setProjectSubjectArea}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjectAreaOptions.map(subject => (
+                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="gradeLevel">Grade Level</Label>
+                  <Select value={projectGradeLevel} onValueChange={setProjectGradeLevel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gradeLevelOptions.map(grade => (
+                        <SelectItem key={grade} value={grade}>
+                          {grade === 'K' ? 'Kindergarten' : `Grade ${grade}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="duration">Estimated Duration</Label>
+                  <Select value={projectDuration} onValueChange={setProjectDuration}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {durationOptions.map(duration => (
+                        <SelectItem key={duration} value={duration}>{duration}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
+                <div>
+                  <Label htmlFor="isPublic" className="text-sm font-medium">Share to Project Explorer</Label>
+                  <p className="text-xs text-muted-foreground">Make this project visible to other educators in the community library</p>
+                </div>
+                <Checkbox
+                  id="isPublic"
+                  checked={isPublic}
+                  onCheckedChange={(checked) => setIsPublic(checked as boolean)}
                 />
               </div>
 
