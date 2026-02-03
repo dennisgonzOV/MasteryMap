@@ -102,7 +102,7 @@ interface ProjectIdea {
 interface ProjectIdeasModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectIdea?: (idea: ProjectIdea & { selectedComponentSkillIds: number[]; subject?: string; topic?: string }) => void;
+  onSelectIdea?: (idea: ProjectIdea & { selectedComponentSkillIds: number[]; bestStandardIds?: number[]; subject?: string; topic?: string }) => void;
 }
 
 export default function ProjectIdeasModal({
@@ -328,6 +328,7 @@ export default function ProjectIdeasModal({
       onSelectIdea({
         ...idea,
         selectedComponentSkillIds: Array.from(selectedSkills),
+        bestStandardIds: Array.from(selectedStandards),
         subject: formValues.subject,
         topic: formValues.topic
       });

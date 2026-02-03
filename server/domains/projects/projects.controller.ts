@@ -3,23 +3,23 @@ import { projectsService } from './projects.service';
 import { projectsStorage } from './projects.storage';
 import { competencyStorage } from "../competencies/competencies.storage";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../auth";
-import { 
-  validateIntParam, 
-  sanitizeForPrompt, 
+import {
+  validateIntParam,
+  sanitizeForPrompt,
   createErrorResponse,
   aiLimiter
 } from "../../middleware/security";
-import { 
-  handleRouteError, 
-  handleEntityNotFound, 
+import {
+  handleRouteError,
+  handleEntityNotFound,
   handleAuthorizationError,
   createSuccessResponse,
   wrapRoute
 } from "../../utils/routeHelpers";
 import { validateIdParam } from "../../middleware/routeValidation";
 import { checkProjectAccess } from "../../middleware/resourceAccess";
-import { 
-  insertProjectSchema, 
+import {
+  insertProjectSchema,
   insertMilestoneSchema,
   insertCredentialSchema,
   type User,
@@ -35,6 +35,100 @@ import { eq, sql } from "drizzle-orm";
 const router = Router();
 
 // Project CRUD routes
+
+// Public projects endpoint (no auth required for browsing)
+router.get('/public', wrapRoute(async (req, res) => {
+  const { search, subjectArea, gradeLevel, estimatedDuration, componentSkillIds, bestStandardIds } = req.query;
+
+  const filters: {
+    search?: string;
+    subjectArea?: string;
+    gradeLevel?: string;
+    estimatedDuration?: string;
+    componentSkillIds?: number[];
+    bestStandardIds?: number[];
+  } = {};
+
+  if (search && typeof search === 'string') filters.search = search;
+  if (subjectArea && typeof subjectArea === 'string') filters.subjectArea = subjectArea;
+  if (gradeLevel && typeof gradeLevel === 'string') filters.gradeLevel = gradeLevel;
+  if (estimatedDuration && typeof estimatedDuration === 'string') filters.estimatedDuration = estimatedDuration;
+
+  if (componentSkillIds) {
+    const ids = typeof componentSkillIds === 'string' ? componentSkillIds.split(',') : componentSkillIds;
+    filters.componentSkillIds = (ids as string[]).map(id => parseInt(id)).filter(id => !isNaN(id));
+  }
+
+  if (bestStandardIds) {
+    const ids = typeof bestStandardIds === 'string' ? bestStandardIds.split(',') : bestStandardIds;
+    filters.bestStandardIds = (ids as string[]).map(id => parseInt(id)).filter(id => !isNaN(id));
+  }
+
+  const publicProjects = await projectsStorage.getPublicProjects(filters);
+  createSuccessResponse(res, publicProjects);
+}));
+
+// Get filter options for public projects - Defined BEFORE :id routes
+router.get('/public-filters', wrapRoute(async (req, res) => {
+  const subjectAreas = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
+  const gradeLevels = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  const durations = ['1-2 weeks', '3-4 weeks', '5-6 weeks', '7-8 weeks', '9+ weeks'];
+
+  // Get competency frameworks for filtering
+  const learnerOutcomes = await competencyStorage.getLearnerOutcomesWithCompetencies();
+
+  createSuccessResponse(res, {
+    subjectAreas,
+    gradeLevels,
+    durations,
+    competencyFrameworks: learnerOutcomes
+  });
+}));
+
+// Get public project detail (no auth required)
+router.get('/public/:id', wrapRoute(async (req, res) => {
+  const projectId = parseInt(req.params.id);
+  if (isNaN(projectId)) {
+    return res.status(400).json({ message: "Invalid project ID" });
+  }
+
+  const project = await projectsStorage.getProject(projectId);
+  if (!project) {
+    return res.status(404).json({ message: "Project not found" });
+  }
+
+  if (!project.isPublic) {
+    return res.status(403).json({ message: "This project is not publicly available" });
+  }
+
+  // Get milestones for the public project
+  const projectMilestones = await projectsStorage.getMilestonesByProject(projectId);
+
+  // Get component skills if available
+  let componentSkills: any[] = [];
+  if (project.componentSkillIds && (project.componentSkillIds as number[]).length > 0) {
+    componentSkills = await projectsStorage.getComponentSkillsByIds(project.componentSkillIds as number[]);
+  }
+
+  createSuccessResponse(res, {
+    ...project,
+    milestones: projectMilestones,
+    componentSkills
+  });
+}));
+
+// Toggle project visibility (teachers only)
+router.patch('/:id/visibility', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  const projectId = parseInt(req.params.id);
+  const { isPublic } = req.body;
+
+  if (typeof isPublic !== 'boolean') {
+    return res.status(400).json({ message: "isPublic must be a boolean" });
+  }
+
+  const updatedProject = await projectsStorage.toggleProjectVisibility(projectId, isPublic);
+  createSuccessResponse(res, updatedProject);
+}));
 router.post('/', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
 
@@ -119,8 +213,8 @@ router.post('/:id/start', requireAuth, requireRole('teacher', 'admin'), validate
   } catch (error) {
     console.error("Error starting project:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    res.status(500).json({ 
-      message: "Failed to start project", 
+    res.status(500).json({
+      message: "Failed to start project",
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
@@ -327,8 +421,8 @@ router.post('/:id/generate-milestones-and-assessments', requireAuth, async (req:
   } catch (error) {
     console.error("Error generating milestones and assessments:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    res.status(500).json({ 
-      message: "Failed to generate milestones and assessments", 
+    res.status(500).json({
+      message: "Failed to generate milestones and assessments",
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
@@ -356,8 +450,8 @@ router.get('/:id/milestones', requireAuth, validateIdParam('id'), async (req: Au
   } catch (error) {
     console.error("Error fetching milestones:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    res.status(500).json({ 
-      message: "Failed to fetch milestones", 
+    res.status(500).json({
+      message: "Failed to fetch milestones",
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
@@ -378,8 +472,8 @@ router.get('/milestones/:id', requireAuth, validateIdParam(), async (req: Authen
   } catch (error) {
     console.error("Error fetching milestone:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    res.status(500).json({ 
-      message: "Failed to fetch milestone", 
+    res.status(500).json({
+      message: "Failed to fetch milestone",
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error : undefined
     });
@@ -426,11 +520,11 @@ milestonesRouter.get('/test', (req, res) => {
 milestonesRouter.get('/:id/assessments', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const milestoneId = parseInt(req.params.id);
-    
+
     // Import the assessment service
     const { assessmentService } = await import('../assessments');
     const assessments = await assessmentService.getAssessmentsByMilestone(milestoneId);
-    
+
     res.json(assessments);
   } catch (error) {
     console.error("Error fetching assessments for milestone:", error);
@@ -592,7 +686,7 @@ schoolsRouter.get('/:id/students', requireAuth, async (req: AuthenticatedRequest
 // Get school students progress for teacher dashboard
 schoolsRouter.get('/students-progress', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
-  
+
   const studentsProgress = await projectsService.getSchoolStudentsProgress(teacherId);
   createSuccessResponse(res, studentsProgress);
 }));
@@ -603,7 +697,7 @@ const teacherRouter = Router();
 // Teacher dashboard stats
 teacherRouter.get('/dashboard-stats', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
-  
+
   const stats = await projectsService.getTeacherDashboardStats(teacherId);
   createSuccessResponse(res, stats);
 }));
@@ -611,7 +705,7 @@ teacherRouter.get('/dashboard-stats', requireAuth, requireRole('teacher', 'admin
 // Teacher projects overview
 teacherRouter.get('/projects', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
-  
+
   const projects = await projectsService.getTeacherProjects(teacherId);
   createSuccessResponse(res, projects);
 }));
@@ -619,109 +713,17 @@ teacherRouter.get('/projects', requireAuth, requireRole('teacher', 'admin'), wra
 // Teacher pending tasks
 teacherRouter.get('/pending-tasks', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
-  
+
   const tasks = await projectsService.getTeacherPendingTasks(teacherId);
   createSuccessResponse(res, tasks);
 }));
 
-// Public projects endpoint (no auth required for browsing)
-router.get('/public', wrapRoute(async (req, res) => {
-  const { search, subjectArea, gradeLevel, estimatedDuration, componentSkillIds, bestStandardIds } = req.query;
-  
-  const filters: {
-    search?: string;
-    subjectArea?: string;
-    gradeLevel?: string;
-    estimatedDuration?: string;
-    componentSkillIds?: number[];
-    bestStandardIds?: number[];
-  } = {};
-  
-  if (search && typeof search === 'string') filters.search = search;
-  if (subjectArea && typeof subjectArea === 'string') filters.subjectArea = subjectArea;
-  if (gradeLevel && typeof gradeLevel === 'string') filters.gradeLevel = gradeLevel;
-  if (estimatedDuration && typeof estimatedDuration === 'string') filters.estimatedDuration = estimatedDuration;
-  
-  if (componentSkillIds) {
-    const ids = typeof componentSkillIds === 'string' ? componentSkillIds.split(',') : componentSkillIds;
-    filters.componentSkillIds = (ids as string[]).map(id => parseInt(id)).filter(id => !isNaN(id));
-  }
-  
-  if (bestStandardIds) {
-    const ids = typeof bestStandardIds === 'string' ? bestStandardIds.split(',') : bestStandardIds;
-    filters.bestStandardIds = (ids as string[]).map(id => parseInt(id)).filter(id => !isNaN(id));
-  }
-  
-  const publicProjects = await projectsStorage.getPublicProjects(filters);
-  createSuccessResponse(res, publicProjects);
-}));
 
-// Get public project detail (no auth required)
-router.get('/public/:id', wrapRoute(async (req, res) => {
-  const projectId = parseInt(req.params.id);
-  if (isNaN(projectId)) {
-    return res.status(400).json({ message: "Invalid project ID" });
-  }
-  
-  const project = await projectsStorage.getProject(projectId);
-  if (!project) {
-    return res.status(404).json({ message: "Project not found" });
-  }
-  
-  if (!project.isPublic) {
-    return res.status(403).json({ message: "This project is not publicly available" });
-  }
-  
-  // Get milestones for the public project
-  const projectMilestones = await projectsStorage.getMilestonesByProject(projectId);
-  
-  // Get component skills if available
-  let componentSkills: any[] = [];
-  if (project.componentSkillIds && (project.componentSkillIds as number[]).length > 0) {
-    componentSkills = await projectsStorage.getComponentSkillsByIds(project.componentSkillIds as number[]);
-  }
-  
-  createSuccessResponse(res, {
-    ...project,
-    milestones: projectMilestones,
-    componentSkills
-  });
-}));
-
-// Toggle project visibility (teachers only)
-router.patch('/:id/visibility', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const projectId = parseInt(req.params.id);
-  const { isPublic } = req.body;
-  
-  if (typeof isPublic !== 'boolean') {
-    return res.status(400).json({ message: "isPublic must be a boolean" });
-  }
-  
-  const updatedProject = await projectsStorage.toggleProjectVisibility(projectId, isPublic);
-  createSuccessResponse(res, updatedProject);
-}));
-
-// Get filter options for public projects
-router.get('/public-filters', wrapRoute(async (req, res) => {
-  const subjectAreas = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
-  const gradeLevels = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-  const durations = ['1-2 weeks', '3-4 weeks', '5-6 weeks', '7-8 weeks', '9+ weeks'];
-  
-  // Get competency frameworks for filtering
-  const learnerOutcomes = await competencyStorage.getLearnerOutcomesHierarchy();
-  
-  createSuccessResponse(res, {
-    subjectAreas,
-    gradeLevels,
-    durations,
-    competencyFrameworks: learnerOutcomes
-  });
-}));
 
 // Teacher current milestones
 teacherRouter.get('/current-milestones', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
-  
+
   const milestones = await projectsService.getTeacherCurrentMilestones(teacherId);
   createSuccessResponse(res, milestones);
 }));

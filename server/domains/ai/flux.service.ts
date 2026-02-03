@@ -83,7 +83,7 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       const result = await response.json();
       console.log("FLUX API response structure:", JSON.stringify(result, null, 2).substring(0, 500));
-      
+
       if (result.data && result.data[0]) {
         const imageData = result.data[0];
         if (imageData.url) {
@@ -95,12 +95,12 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
           return thumbnailUrl;
         }
       }
-      
+
       if (result.url) {
         console.log("FLUX returned URL at root level");
         return result.url;
       }
-      
+
       if (result.image) {
         console.log("FLUX returned image at root level, saving to storage...");
         const thumbnailUrl = await this.saveBase64ToStorage(result.image);
@@ -125,7 +125,7 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       const publicDir = publicSearchPaths.split(",")[0].trim();
       const fileName = `thumbnails/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-      
+
       const { bucketName, objectName } = this.parseObjectPath(`${publicDir}/${fileName}`);
 
       const bucket = objectStorageClient.bucket(bucketName);
@@ -141,6 +141,16 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
       });
 
       await setObjectAclPolicy(file, { owner: "system", visibility: "public" });
+
+      try {
+        await file.makePublic();
+      } catch (error) {
+        console.error("Warning: Failed to make file public via legacy ACL:", error);
+        // Continue anyway as the object ACL policy might be enough for some setups, 
+        // or this might be a uniform bucket-level access bucket where makePublic() fails.
+        // However, given the error "Anonymous caller does not have storage.objects.get",
+        // we likely need to set the ACL or IAM policy. makePublic() sets the ACL.
+      }
 
       const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
       console.log("Thumbnail saved to:", publicUrl);
