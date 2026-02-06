@@ -166,19 +166,36 @@ export class ObjectStorageService {
     }
 
     const entityId = parts.slice(1).join("/");
-    let entityDir = this.getPrivateObjectDir();
-    if (!entityDir.endsWith("/")) {
-      entityDir = `${entityDir}/`;
+
+    const dirsToSearch: string[] = [];
+
+    try {
+      let entityDir = this.getPrivateObjectDir();
+      if (!entityDir.endsWith("/")) entityDir = `${entityDir}/`;
+      dirsToSearch.push(entityDir);
+    } catch {}
+
+    try {
+      const publicPaths = this.getPublicObjectSearchPaths();
+      for (const pub of publicPaths) {
+        let p = pub;
+        if (!p.endsWith("/")) p = `${p}/`;
+        dirsToSearch.push(p);
+      }
+    } catch {}
+
+    for (const dir of dirsToSearch) {
+      const objectEntityPath = `${dir}${entityId}`;
+      const { bucketName, objectName } = parseObjectPath(objectEntityPath);
+      const bucket = objectStorageClient.bucket(bucketName);
+      const objectFile = bucket.file(objectName);
+      const [exists] = await objectFile.exists();
+      if (exists) {
+        return objectFile;
+      }
     }
-    const objectEntityPath = `${entityDir}${entityId}`;
-    const { bucketName, objectName } = parseObjectPath(objectEntityPath);
-    const bucket = objectStorageClient.bucket(bucketName);
-    const objectFile = bucket.file(objectName);
-    const [exists] = await objectFile.exists();
-    if (!exists) {
-      throw new ObjectNotFoundError();
-    }
-    return objectFile;
+
+    throw new ObjectNotFoundError();
   }
 
   normalizeObjectEntityPath(
@@ -188,22 +205,34 @@ export class ObjectStorageService {
       return rawPath;
     }
   
-    // Extract the path from the URL by removing query parameters and domain
     const url = new URL(rawPath);
     const rawObjectPath = url.pathname;
-  
-    let objectEntityDir = this.getPrivateObjectDir();
-    if (!objectEntityDir.endsWith("/")) {
-      objectEntityDir = `${objectEntityDir}/`;
+
+    const dirsToCheck: string[] = [];
+
+    try {
+      let privateDir = this.getPrivateObjectDir();
+      if (!privateDir.endsWith("/")) privateDir = `${privateDir}/`;
+      dirsToCheck.push(privateDir);
+    } catch {}
+
+    try {
+      const publicPaths = this.getPublicObjectSearchPaths();
+      for (const pub of publicPaths) {
+        let p = pub;
+        if (!p.endsWith("/")) p = `${p}/`;
+        dirsToCheck.push(p);
+      }
+    } catch {}
+
+    for (const dir of dirsToCheck) {
+      if (rawObjectPath.startsWith(dir)) {
+        const entityId = rawObjectPath.slice(dir.length);
+        return `/objects/${entityId}`;
+      }
     }
-  
-    if (!rawObjectPath.startsWith(objectEntityDir)) {
-      return rawObjectPath;
-    }
-  
-    // Extract the entity ID from the path
-    const entityId = rawObjectPath.slice(objectEntityDir.length);
-    return `/objects/${entityId}`;
+
+    return rawObjectPath;
   }
 
   // Tries to set the ACL policy for the object entity and return the normalized path.

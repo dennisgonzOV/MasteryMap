@@ -86,25 +86,23 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       if (result.data && result.data[0]) {
         const imageData = result.data[0];
-        if (imageData.url) {
-          console.log("FLUX returned direct URL");
-          return imageData.url;
-        } else if (imageData.b64_json) {
+        if (imageData.b64_json) {
           console.log("FLUX returned base64, saving to storage...");
-          const thumbnailUrl = await this.saveBase64ToStorage(imageData.b64_json);
-          return thumbnailUrl;
+          return await this.saveBase64ToStorage(imageData.b64_json);
+        } else if (imageData.url) {
+          console.log("FLUX returned direct URL, downloading and saving to storage...");
+          return await this.saveUrlToStorage(imageData.url);
         }
-      }
-
-      if (result.url) {
-        console.log("FLUX returned URL at root level");
-        return result.url;
       }
 
       if (result.image) {
         console.log("FLUX returned image at root level, saving to storage...");
-        const thumbnailUrl = await this.saveBase64ToStorage(result.image);
-        return thumbnailUrl;
+        return await this.saveBase64ToStorage(result.image);
+      }
+
+      if (result.url) {
+        console.log("FLUX returned URL at root level, downloading and saving to storage...");
+        return await this.saveUrlToStorage(result.url);
       }
 
       console.error("Unexpected FLUX API response format:", JSON.stringify(result, null, 2));
@@ -115,18 +113,34 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
     }
   }
 
+  private async saveUrlToStorage(imageUrl: string): Promise<string | null> {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        console.error("Failed to download image from URL:", response.status);
+        return null;
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      const base64Data = Buffer.from(arrayBuffer).toString("base64");
+      return await this.saveBase64ToStorage(base64Data);
+    } catch (error) {
+      console.error("Error downloading image from URL:", error);
+      return null;
+    }
+  }
+
   private async saveBase64ToStorage(base64Data: string): Promise<string | null> {
     try {
-      const publicSearchPaths = process.env.PUBLIC_OBJECT_SEARCH_PATHS;
-      if (!publicSearchPaths) {
-        console.error("PUBLIC_OBJECT_SEARCH_PATHS not configured");
+      const privateDir = process.env.PRIVATE_OBJECT_DIR;
+      if (!privateDir) {
+        console.error("PRIVATE_OBJECT_DIR not configured");
         return null;
       }
 
-      const publicDir = publicSearchPaths.split(",")[0].trim();
       const fileName = `thumbnails/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+      const fullPath = `${privateDir}/${fileName}`;
 
-      const { bucketName, objectName } = this.parseObjectPath(`${publicDir}/${fileName}`);
+      const { bucketName, objectName } = this.parseObjectPath(fullPath);
 
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
@@ -142,19 +156,9 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       await setObjectAclPolicy(file, { owner: "system", visibility: "public" });
 
-      try {
-        await file.makePublic();
-      } catch (error) {
-        console.error("Warning: Failed to make file public via legacy ACL:", error);
-        // Continue anyway as the object ACL policy might be enough for some setups, 
-        // or this might be a uniform bucket-level access bucket where makePublic() fails.
-        // However, given the error "Anonymous caller does not have storage.objects.get",
-        // we likely need to set the ACL or IAM policy. makePublic() sets the ACL.
-      }
-
-      const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
-      console.log("Thumbnail saved to:", publicUrl);
-      return publicUrl;
+      const localPath = `/objects/${fileName}`;
+      console.log("Thumbnail saved, serving at:", localPath);
+      return localPath;
     } catch (error) {
       console.error("Error saving thumbnail to storage:", error);
       return null;
