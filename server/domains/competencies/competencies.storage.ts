@@ -29,6 +29,7 @@ export interface ICompetencyStorage {
   getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
   getComponentSkillsWithDetails(): Promise<any[]>;
   getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
+  getBestStandardsByIds(standardIds: number[]): Promise<BestStandard[]>;
   getCompetenciesWithSkills(): Promise<any[]>;
   getAllComponentSkills(): Promise<any[]>;
 }
@@ -141,17 +142,17 @@ export class CompetencyStorage implements ICompetencyStorage {
       const subjectsResult = await db.select({
         subject: bestStandards.subject
       })
-      .from(bestStandards)
-      .where(isNotNull(bestStandards.subject))
-      .groupBy(bestStandards.subject);
+        .from(bestStandards)
+        .where(isNotNull(bestStandards.subject))
+        .groupBy(bestStandards.subject);
 
       // Get unique grades
       const gradesResult = await db.select({
         grade: bestStandards.grade
       })
-      .from(bestStandards)
-      .where(isNotNull(bestStandards.grade))
-      .groupBy(bestStandards.grade);
+        .from(bestStandards)
+        .where(isNotNull(bestStandards.grade))
+        .groupBy(bestStandards.grade);
 
       return {
         subjects: subjectsResult.map(r => r.subject).filter((s): s is string => Boolean(s)).sort(),
@@ -221,7 +222,7 @@ export class CompetencyStorage implements ICompetencyStorage {
       // Get all data separately to avoid join issues
       const skills = await db.select().from(componentSkills).orderBy(componentSkills.id);
 
-      if (!skills || skills.length === 0){
+      if (!skills || skills.length === 0) {
         console.log("No component skills found in database");
         return [];
       }
@@ -318,6 +319,23 @@ export class CompetencyStorage implements ICompetencyStorage {
       return enrichedSkills;
     } catch (error) {
       console.error("Error in getComponentSkillsByIds:", error);
+      return [];
+    }
+  }
+
+  async getBestStandardsByIds(standardIds: number[]): Promise<BestStandard[]> {
+    if (!standardIds || standardIds.length === 0) {
+      return [];
+    }
+
+    try {
+      return await db
+        .select()
+        .from(bestStandards)
+        .where(inArray(bestStandards.id, standardIds))
+        .orderBy(asc(bestStandards.benchmarkNumber));
+    } catch (error) {
+      console.error("Error fetching BEST standards by IDs:", error);
       return [];
     }
   }

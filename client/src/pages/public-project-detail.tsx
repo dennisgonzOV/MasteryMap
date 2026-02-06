@@ -5,18 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { 
-  ArrowLeft, 
-  BookOpen, 
-  Clock, 
+import {
+  ArrowLeft,
+  BookOpen,
+  Clock,
   GraduationCap,
   Target,
   CheckCircle,
   FileText,
   Calendar,
   Users,
-  Sparkles
+  Sparkles,
+  Share2
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Milestone {
   id: number;
@@ -32,6 +34,14 @@ interface ComponentSkill {
   description: string | null;
 }
 
+interface BestStandard {
+  id: number;
+  benchmarkNumber: string;
+  description: string;
+  subject: string | null;
+  grade: string | null;
+}
+
 interface PublicProject {
   id: number;
   title: string;
@@ -45,11 +55,13 @@ interface PublicProject {
   createdAt: string;
   milestones: Milestone[];
   componentSkills: ComponentSkill[];
+  bestStandards: BestStandard[];
 }
 
 export default function PublicProjectDetail() {
   const [match, params] = useRoute("/explore/project/:id");
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const projectId = params?.id;
 
   const { data: project, isLoading, error } = useQuery<PublicProject>({
@@ -160,20 +172,34 @@ export default function PublicProjectDetail() {
       </nav>
 
       <main className="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        <Button 
-          variant="ghost" 
-          className="mb-6" 
+        <Button
+          variant="ghost"
+          className="mb-6"
           onClick={() => setLocation("/explore")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Explorer
         </Button>
+        <Button
+          variant="outline"
+          className="mb-6 float-right"
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            toast({
+              title: "Link copied",
+              description: "Project link copied to clipboard",
+            });
+          }}
+        >
+          <Share2 className="h-4 w-4 mr-2" />
+          Share
+        </Button>
 
         <Card className="overflow-hidden">
           {project.thumbnailUrl ? (
             <div className="aspect-[21/9] bg-gradient-to-br from-blue-100 to-purple-100 overflow-hidden">
-              <img 
-                src={project.thumbnailUrl} 
+              <img
+                src={project.thumbnailUrl}
                 alt={project.title}
                 className="w-full h-full object-cover"
               />
@@ -222,8 +248,8 @@ export default function PublicProjectDetail() {
                 </h3>
                 <div className="grid gap-3">
                   {project.componentSkills.map(skill => (
-                    <div 
-                      key={skill.id} 
+                    <div
+                      key={skill.id}
                       className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg"
                     >
                       <CheckCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
@@ -232,6 +258,41 @@ export default function PublicProjectDetail() {
                         {skill.description && (
                           <p className="text-sm text-gray-600 mt-1">{skill.description}</p>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {project.bestStandards && project.bestStandards.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-indigo-600" />
+                  B.E.S.T. Standards
+                </h3>
+                <div className="grid gap-3">
+                  {project.bestStandards.map(standard => (
+                    <div
+                      key={standard.id}
+                      className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg"
+                    >
+                      <CheckCircle className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-gray-900">{standard.benchmarkNumber}</p>
+                        <p className="text-sm text-gray-600 mt-1">{standard.description}</p>
+                        <div className="flex gap-2 mt-2">
+                          {standard.subject && (
+                            <Badge variant="outline" className="text-xs">
+                              {standard.subject}
+                            </Badge>
+                          )}
+                          {standard.grade && (
+                            <Badge variant="outline" className="text-xs">
+                              {standard.grade}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -249,8 +310,8 @@ export default function PublicProjectDetail() {
                 </h3>
                 <div className="space-y-4">
                   {sortedMilestones.map((milestone, index) => (
-                    <div 
-                      key={milestone.id} 
+                    <div
+                      key={milestone.id}
                       className="flex gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 text-purple-700 font-bold shrink-0">
@@ -260,12 +321,6 @@ export default function PublicProjectDetail() {
                         <h4 className="font-semibold text-gray-900">{milestone.title}</h4>
                         {milestone.description && (
                           <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
-                        )}
-                        {milestone.dueDate && (
-                          <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                            <Calendar className="h-3 w-3" />
-                            Due: {new Date(milestone.dueDate).toLocaleDateString()}
-                          </div>
                         )}
                       </div>
                     </div>

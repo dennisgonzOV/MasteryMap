@@ -110,10 +110,17 @@ router.get('/public/:id', wrapRoute(async (req, res) => {
     componentSkills = await projectsStorage.getComponentSkillsByIds(project.componentSkillIds as number[]);
   }
 
+  // Get BEST standards if available
+  let bestStandards: any[] = [];
+  if (project.bestStandardIds && (project.bestStandardIds as number[]).length > 0) {
+    bestStandards = await competencyStorage.getBestStandardsByIds(project.bestStandardIds as number[]);
+  }
+
   createSuccessResponse(res, {
     ...project,
     milestones: projectMilestones,
-    componentSkills
+    componentSkills,
+    bestStandards
   });
 }));
 
