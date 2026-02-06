@@ -44,3 +44,6 @@ AZURE_OPENAI_API_VERSION = "2025-01-01-preview"
 
 [agent]
 integrations = ["javascript_object_storage:2.0.0"]
+
+[objectStorage]
+defaultBucketID = "replit-objstore-d76ec663-71be-401c-8427-51d07d8db0c8"
