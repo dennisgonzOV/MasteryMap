@@ -1,6 +1,5 @@
 import { objectStorageClient } from "../../replit_integrations/object_storage/objectStorage";
 import { setObjectAclPolicy } from "../../replit_integrations/object_storage/objectAcl";
-import sharp from "sharp";
 
 interface GenerateThumbnailOptions {
   projectTitle: string;
@@ -148,16 +147,7 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       const imageBuffer = Buffer.from(base64Data, "base64");
 
-      // Compress and resize the image using sharp
-      const processedBuffer = await sharp(imageBuffer)
-        .resize(512, 512, {
-          fit: 'cover',
-          position: 'center'
-        })
-        .png({ quality: 80, compressionLevel: 9 })
-        .toBuffer();
-
-      await file.save(processedBuffer, {
+      await file.save(imageBuffer, {
         contentType: "image/png",
         metadata: {
           cacheControl: "public, max-age=31536000",
