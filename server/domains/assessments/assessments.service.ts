@@ -1,17 +1,17 @@
 import { assessmentStorage, type IAssessmentStorage } from './assessments.storage';
-import { 
-  type Assessment, 
-  type Submission, 
+import {
+  type Assessment,
+  type Submission,
   type SubmissionWithAssessment,
   type Grade,
   InsertAssessment,
   InsertSubmission,
   insertAssessmentSchema,
-  insertSubmissionSchema 
+  insertSubmissionSchema
 } from "../../../shared/schema";
 
 export class AssessmentService {
-  constructor(private storage: IAssessmentStorage = assessmentStorage) {}
+  constructor(private storage: IAssessmentStorage = assessmentStorage) { }
 
   // Assessment business logic
   async createAssessment(data: any): Promise<Assessment> {
@@ -23,7 +23,7 @@ export class AssessmentService {
       if (!bodyData.questions || !Array.isArray(bodyData.questions) || bodyData.questions.length === 0) {
         throw new Error("Teacher assessments must have at least one question");
       }
-      
+
       // Check for questions with empty text
       const emptyQuestions = bodyData.questions.filter((q: any) => !q.text || q.text.trim().length === 0);
       if (emptyQuestions.length > 0) {
@@ -70,8 +70,12 @@ export class AssessmentService {
     return await this.storage.getAllAssessments();
   }
 
-  async updateAssessment(id: number, updates: Partial<InsertAssessment>): Promise<Assessment> {
-    return await this.storage.updateAssessment(id, updates);
+  async updateAssessment(id: number, updates: Partial<InsertAssessment> & { dueDate?: string | Date }): Promise<Assessment> {
+    const formattedUpdates = { ...updates };
+    if (formattedUpdates.dueDate && typeof formattedUpdates.dueDate === 'string') {
+      formattedUpdates.dueDate = new Date(formattedUpdates.dueDate);
+    }
+    return await this.storage.updateAssessment(id, formattedUpdates as any);
   }
 
   async deleteAssessment(id: number): Promise<void> {
@@ -92,7 +96,7 @@ export class AssessmentService {
 
     const shareCode = await this.storage.generateShareCode(assessmentId);
 
-    return { 
+    return {
       shareCode,
       message: "Share code generated successfully"
     };
@@ -126,7 +130,7 @@ export class AssessmentService {
 
     const newShareCode = await this.storage.regenerateShareCode(assessmentId);
 
-    return { 
+    return {
       shareCode: newShareCode,
       message: "Share code regenerated successfully"
     };
@@ -183,8 +187,8 @@ export class AssessmentService {
               ...submission,
               answers: submission.responses || {},
               grades: grades || [],
-              isLate: assessment?.dueDate && submission.submittedAt 
-                ? new Date(submission.submittedAt) > new Date(assessment.dueDate) 
+              isLate: assessment?.dueDate && submission.submittedAt
+                ? new Date(submission.submittedAt) > new Date(assessment.dueDate)
                 : false
             };
           } catch (error) {

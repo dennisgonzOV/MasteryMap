@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Link, useLocation } from 'wouter';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import ContactModal from "@/components/contact-modal";
 import { registerSchema, UserRole } from '@shared/schema';
 import type { z } from 'zod';
 
@@ -20,6 +21,7 @@ export default function Register() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<'individual' | 'school'>('school');
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -110,70 +112,69 @@ export default function Register() {
                 </RadioGroup>
               </div>
 
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="Choose a username"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {accountType === 'school' ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                    <p className="mb-2 font-semibold">School Implementation</p>
+                    <p>
+                      MasteryMap for schools requires a custom setup to ensure seamless integration with your existing systems.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={() => setContactModalOpen(true)}
+                  >
+                    Contact Sales to Get Started
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="Choose a username"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Choose a password (min 8 characters)"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="Choose a password (min 8 characters)"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              {accountType === 'school' && (
-                <FormField
-                  control={form.control}
-                  name="schoolId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>School ID</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Enter your school ID"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <Button
+                    type="submit"
+                    className="w-full mt-6"
+                    disabled={registerMutation.isPending}
+                  >
+                    {registerMutation.isPending ? 'Creating Account...' : 'Create Account'}
+                  </Button>
+                </>
               )}
-
-              <Button
-                type="submit"
-                className="w-full mt-6"
-                disabled={registerMutation.isPending}
-              >
-                {registerMutation.isPending ? 'Creating Account...' : 'Create Account'}
-              </Button>
             </form>
           </Form>
           <div className="mt-4 text-center text-sm">
@@ -186,6 +187,13 @@ export default function Register() {
           </div>
         </CardContent>
       </Card>
+
+      <ContactModal
+        open={contactModalOpen}
+        onOpenChange={setContactModalOpen}
+        title="Get MasteryMap for Your School"
+        description="Contact our team to set up a school-wide implementation."
+      />
     </div>
   );
 }

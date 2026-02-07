@@ -6,28 +6,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { 
-  ArrowLeft, 
-  Calendar, 
-  Clock, 
-  Users, 
-  Target, 
-  BookOpen, 
-  CheckCircle, 
-  AlertCircle, 
-  Share2, 
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Users,
+  Target,
+  BookOpen,
+  CheckCircle,
+  AlertCircle,
+  Share2,
   Eye,
   GraduationCap,
   Lightbulb,
   ChevronRight,
   FileText,
-  Award
+  Award,
+  Pencil,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { getCompetencyInfo } from "@/lib/competencyUtils";
+import { api } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { X, Check } from "lucide-react";
 
 interface Assessment {
   id: number;
@@ -67,6 +72,7 @@ interface Submission {
   submittedAt: string;
   answers: Record<string, string>;
   grade?: number;
+  grades?: any[];
   feedback?: string;
   isLate: boolean;
 }
@@ -77,6 +83,28 @@ export default function AssessmentDetails() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [shareCode, setShareCode] = useState<string | null>(null);
+  const [isEditingDueDate, setIsEditingDueDate] = useState(false);
+  const [newDueDate, setNewDueDate] = useState<string>("");
+
+  // Update assessment mutation
+  const updateAssessmentMutation = useMutation({
+    mutationFn: (data: any) => api.updateAssessment(Number(id), data),
+    onSuccess: () => {
+      toast({
+        title: "Assessment Updated",
+        description: "Due date has been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/assessments/${id}`] });
+      setIsEditingDueDate(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update assessment due date.",
+        variant: "destructive",
+      });
+    }
+  });
 
   // Fetch assessment data
   const { data: assessment, isLoading: assessmentLoading, error: assessmentError } = useQuery<Assessment>({
@@ -112,7 +140,7 @@ export default function AssessmentDetails() {
 
   const handleCopyShareCode = async () => {
     if (!shareCode) return;
-    
+
     try {
       await navigator.clipboard.writeText(shareCode);
       toast({
@@ -128,7 +156,7 @@ export default function AssessmentDetails() {
     }
   };
 
-  
+
 
   if (assessmentLoading || submissionsLoading) {
     return (
@@ -161,12 +189,12 @@ export default function AssessmentDetails() {
 
   const competencyGroups = getCompetencyInfo(assessment, componentSkillsDetails);
   const totalStudents = submissions.length;
-  const completedSubmissions = submissions.filter(s => 
+  const completedSubmissions = submissions.filter(s =>
     (s.grade !== undefined && s.grade !== null) || (s.grades && s.grades.length > 0)
   ).length;
   const lateSubmissions = submissions.filter(s => s.isLate).length;
-  const averageGrade = submissions.length > 0 
-    ? submissions.reduce((sum, s) => sum + (s.grade || 0), 0) / submissions.length 
+  const averageGrade = submissions.length > 0
+    ? submissions.reduce((sum, s) => sum + (s.grade || 0), 0) / submissions.length
     : 0;
 
   const isOverdue = assessment.dueDate && new Date(assessment.dueDate) < new Date();
@@ -198,9 +226,54 @@ export default function AssessmentDetails() {
               <div className="flex items-center space-x-6 text-sm">
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4 text-gray-500" />
-                  <span className={`font-medium ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}>
-                    Due: {format(new Date(assessment.dueDate), 'MMM d, yyyy h:mm a')}
-                  </span>
+                  {isEditingDueDate ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="date"
+                        value={newDueDate}
+                        onChange={(e) => setNewDueDate(e.target.value)}
+                        className="h-8 max-w-[150px]"
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        onClick={() => {
+                          if (newDueDate) {
+                            updateAssessmentMutation.mutate({ dueDate: new Date(newDueDate).toISOString() });
+                          }
+                        }}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setIsEditingDueDate(false)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}>
+                        Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy') : 'No due date'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 ml-2"
+                        onClick={() => {
+                          setNewDueDate(assessment.dueDate ? format(new Date(assessment.dueDate), 'yyyy-MM-dd') : '');
+                          setIsEditingDueDate(true);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600" />
+                      </Button>
+                    </div>
+                  )}
+
                   {isOverdue && (
                     <Badge variant="destructive" className="ml-2">
                       <Clock className="h-3 w-3 mr-1" />
@@ -225,7 +298,7 @@ export default function AssessmentDetails() {
                 <div className="flex items-center space-x-2 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg px-3 py-2">
                   <Share2 className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-medium text-green-800">Code:</span>
-                  <div 
+                  <div
                     className="bg-white px-3 py-1 rounded-md border-2 border-green-300 cursor-pointer hover:bg-green-50 transition-colors"
                     onClick={handleCopyShareCode}
                     title="Click to copy code"
@@ -237,7 +310,7 @@ export default function AssessmentDetails() {
             </div>
           </div>
 
-          
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -261,8 +334,8 @@ export default function AssessmentDetails() {
                             <h3 className="font-semibold text-gray-900 text-lg">
                               {competency.competencyName}
                             </h3>
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
                             >
                               {competency.competencyCategory}
@@ -277,7 +350,7 @@ export default function AssessmentDetails() {
                             <h4 className="text-sm font-medium text-gray-700">Specific skills:</h4>
                             <div className="flex flex-wrap gap-2">
                               {competency.skills.map((skill: ComponentSkill) => (
-                                <Badge 
+                                <Badge
                                   key={skill.id}
                                   variant="secondary"
                                   className="bg-gray-100 text-gray-700 hover:bg-gray-200 text-xs px-3 py-1"
@@ -315,8 +388,8 @@ export default function AssessmentDetails() {
                           <p className="text-gray-900 font-medium mb-2">{question.text}</p>
                           <div className="flex items-center space-x-4 text-sm text-gray-500">
                             <Badge variant="outline" className="text-xs">
-                              {question.type === 'multiple-choice' ? 'Multiple Choice' : 
-                               question.type === 'short-answer' ? 'Short Answer' : 'Open Ended'}
+                              {question.type === 'multiple-choice' ? 'Multiple Choice' :
+                                question.type === 'short-answer' ? 'Short Answer' : 'Open Ended'}
                             </Badge>
                             {question.rubricCriteria && (
                               <span className="text-xs">Rubric: {question.rubricCriteria}</span>
@@ -369,8 +442,8 @@ export default function AssessmentDetails() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">Recent Submissions</CardTitle>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => setLocation(`/teacher/assessments/${id}/submissions`)}
                   >
@@ -401,8 +474,8 @@ export default function AssessmentDetails() {
                           <div className="flex items-center space-x-1">
                             <CheckCircle className="h-4 w-4 text-green-500" />
                             <span className="text-sm font-medium text-green-600">
-                              {submission.grade !== undefined && submission.grade !== null 
-                                ? `${submission.grade}%` 
+                              {submission.grade !== undefined && submission.grade !== null
+                                ? `${submission.grade}%`
                                 : 'Graded'}
                             </span>
                           </div>
