@@ -1,4 +1,4 @@
-import { asc, eq, inArray, like, or, isNotNull, and } from "drizzle-orm";
+import { asc, eq, inArray, like, or, isNotNull, and, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   competencies,
@@ -133,7 +133,7 @@ export class CompetencyStorage implements ICompetencyStorage {
       query = query.where(and(...conditions));
     }
 
-    return await query.orderBy(asc(bestStandards.benchmarkNumber));
+    return (await query.orderBy(asc(bestStandards.benchmarkNumber))) as BestStandard[];
   }
 
   async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }> {
@@ -297,7 +297,7 @@ export class CompetencyStorage implements ICompetencyStorage {
             return {
               id: skill.id,
               name: skill.name,
-              rubricLevels: skill.rubricLevels,
+              rubricLevels: (typeof skill.rubricLevels === 'object' && skill.rubricLevels !== null && !Array.isArray(skill.rubricLevels)) ? skill.rubricLevels : {},
               competencyId: skill.competencyId,
               competencyName: competency?.name || 'Unknown Competency',
               learnerOutcomeName: learnerOutcome?.name || 'Unknown Learner Outcome',
@@ -380,7 +380,7 @@ export class CompetencyStorage implements ICompetencyStorage {
         .select({
           id: componentSkills.id,
           name: componentSkills.name,
-          rubricLevels: componentSkills.rubricLevels,
+          rubricLevels: sql`CASE WHEN jsonb_typeof(${componentSkills.rubricLevels}) = 'object' THEN ${componentSkills.rubricLevels} ELSE '{}'::jsonb END`,
           competencyId: componentSkills.competencyId
         })
         .from(componentSkills)

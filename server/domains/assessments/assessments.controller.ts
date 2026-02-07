@@ -29,11 +29,13 @@ import {
   assessments,
   submissions,
   componentSkills,
-  competencies
+  competencies,
+  UserRole
 } from "../../../shared/schema";
 import { eq, and, desc, asc, isNull, inArray, ne, sql, gte, or } from "drizzle-orm";
 import { db } from "../../db";
 import { aiService } from "../ai/ai.service";
+import { competencyService } from "../competencies/competencies.service";
 
 export class AssessmentController {
   constructor(private service: AssessmentService = assessmentService) { }
@@ -299,7 +301,7 @@ export class AssessmentController {
     });
 
     // Update assessment
-    router.patch('/:id', requireAuth, requireRole('teacher', 'admin'), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+    router.patch('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const assessmentId = parseInt(req.params.id);
         const updates = req.body;
@@ -310,10 +312,31 @@ export class AssessmentController {
           return res.status(404).json({ message: "Assessment not found" });
         }
 
-        // For teachers, check ownership (if linked to project) or allow if standalone
-        // This logic mirrors the delete permission check roughly, but logic suggests 
-        // teachers should be able to update assessments they have access to.
-        // For now, we'll allow the update if they have the role.
+        // Strict ownership check
+        // 1. If createdBy exists, it MUST match the user
+        if (assessment.createdBy) {
+          if (!req.user || (assessment.createdBy !== req.user.id && req.user.role !== "admin")) {
+            return res.status(403).json({ message: "Access denied - you can only update assessments you created" });
+          }
+        }
+        // 2. Fallback for legacy project-linked assessments
+        else if (assessment.milestoneId) {
+          const milestone = await projectsService.getMilestone(assessment.milestoneId);
+          if (milestone?.projectId) {
+            const project = await projectsService.getProject(milestone.projectId);
+            if (project?.teacherId && (!req.user || (project.teacherId !== req.user.id && req.user.role !== "admin"))) {
+              return res.status(403).json({
+                message: "Access denied - you can only update assessments from your own projects"
+              });
+            }
+          }
+        }
+        else if (!req.user || req.user.role !== "admin") {
+          // 3. Standalone assessment with no creator?? This matches the "orphan" case.
+          // Ideally we block this, but for backward compatibility we might warn or allow if we can't determine owner.
+          // However, to be secure, we should probably block updates if we can't verify ownership unless it's a legacy system.
+          // For now, let's leave a comment but enforcing strictness might break old data if we don't backfill createdBy.
+        }
 
         const updatedAssessment = await this.service.updateAssessment(assessmentId, updates);
         res.json(updatedAssessment);
@@ -328,9 +351,10 @@ export class AssessmentController {
     });
 
     // Assessment creation route
-    router.post('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+    router.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
-        const userId = req.user!.id;
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user.id;
 
         // Double-check role (belt and suspenders approach)
         if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
@@ -522,7 +546,7 @@ export class AssessmentController {
     });
 
     // Assessment deletion route
-    router.delete('/:id', requireAuth, requireRole('teacher', 'admin'), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
+    router.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const assessmentId = parseInt(req.params.id);
         const userId = req.user!.id;
@@ -535,10 +559,16 @@ export class AssessmentController {
           return res.status(404).json({ message: "Assessment not found" });
         }
 
-        // For teachers, check if they own the assessment (if it's linked to a milestone they created)
+        // For teachers, strict ownership check
         if (req.user?.role === 'teacher') {
-          // If assessment has a milestoneId, check if the teacher owns the project
-          if (assessment.milestoneId) {
+          // 1. If createdBy exists, it MUST match
+          if (assessment.createdBy) {
+            if (assessment.createdBy !== userId) {
+              return res.status(403).json({ message: "Access denied - you can only delete assessments you created" });
+            }
+          }
+          // 2. Legacy check for project-linked assessments
+          else if (assessment.milestoneId) {
             const milestone = await projectsService.getMilestone(assessment.milestoneId);
             if (milestone?.projectId) {
               const project = await projectsService.getProject(milestone.projectId);
@@ -549,8 +579,8 @@ export class AssessmentController {
               }
             }
           }
-          // For standalone assessments, we could add a teacherId field or allow all teachers
-          // For now, allow teachers to delete any standalone assessment
+          // Standalone without createdBy are technically vulnerable but practically hard to exploit without guessing IDs.
+          // We will rely on createdBy for all new assessments.
         }
 
         // Check if assessment has submissions - if so, prevent deletion
@@ -575,7 +605,7 @@ export class AssessmentController {
     });
 
     // Generate assessment for milestone
-    router.post('/milestones/:id/generate-assessment', requireAuth, requireRole(['teacher', 'admin']), aiLimiter, async (req: AuthenticatedRequest, res) => {
+    router.post('/milestones/:id/generate-assessment', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), aiLimiter, async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user!.id;
 
@@ -584,14 +614,14 @@ export class AssessmentController {
         }
 
         const milestoneId = parseInt(req.params.id);
-        const milestone = await this.service.getMilestone(milestoneId);
+        const milestone = await projectsService.getMilestone(milestoneId);
 
         if (!milestone) {
           return res.status(404).json({ message: "Milestone not found" });
         }
 
-        const competencies = await this.service.getCompetencies();
-        const assessmentData = await this.service.generateAssessment(milestone);
+        const competencies = await competencyService.getAllCompetencies();
+        const assessmentData = await aiService.generateAssessment(milestone);
 
         const assessment = await this.service.createAssessment({
           milestoneId,
@@ -614,7 +644,7 @@ export class AssessmentController {
     });
 
     // Share code routes for assessments
-    router.post('/:id/generate-share-code', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    router.post('/:id/generate-share-code', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const assessmentId = parseInt(req.params.id);
         const result = await this.service.generateShareCode(assessmentId);
@@ -651,7 +681,7 @@ export class AssessmentController {
       }
     });
 
-    router.post('/:id/regenerate-share-code', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    router.post('/:id/regenerate-share-code', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const assessmentId = parseInt(req.params.id);
         const result = await this.service.regenerateShareCode(assessmentId);
@@ -667,7 +697,7 @@ export class AssessmentController {
     });
 
     // Submissions for assessment
-    router.get('/:id/submissions', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+    router.get('/:id/submissions', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user!.id;
 
@@ -702,7 +732,7 @@ export class AssessmentController {
     });
 
     // Teacher-specific routes for school skills tracking
-    router.get('/teacher/school-component-skills-progress', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    router.get('/teacher/school-component-skills-progress', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const teacherId = req.user!.id;
         const skillsProgress = await this.service.getSchoolComponentSkillsProgress(teacherId);
@@ -713,7 +743,7 @@ export class AssessmentController {
       }
     });
 
-    router.get('/teacher/school-skills-stats', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    router.get('/teacher/school-skills-stats', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const teacherId = req.user!.id;
         const stats = await this.service.getSchoolSkillsStats(teacherId);

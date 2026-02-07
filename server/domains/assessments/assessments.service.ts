@@ -42,16 +42,33 @@ export class AssessmentService {
     const assessmentData = insertAssessmentSchema.parse({
       ...bodyData,
       dueDate: dueDate ? new Date(dueDate) : undefined,
+      createdBy: data.createdBy // Ensure this is passed through
     });
 
     console.log("Creating assessment with questions:", assessmentData.questions);
 
-    // Convert componentSkillIds if it's not a proper array
-    if (assessmentData.componentSkillIds && !Array.isArray(assessmentData.componentSkillIds)) {
-      assessmentData.componentSkillIds = Object.values(assessmentData.componentSkillIds).filter((id): id is number => typeof id === 'number');
+    // Ensure componentSkillIds is properly handled
+    let componentSkillIds: number[] = [];
+    if (assessmentData.componentSkillIds) {
+      if (Array.isArray(assessmentData.componentSkillIds)) {
+        componentSkillIds = assessmentData.componentSkillIds;
+      } else if (typeof assessmentData.componentSkillIds === 'object') {
+        // Handle Drizzle returning object for generic jsonb - cast to unknown first to break type checking
+        const rawSkills = assessmentData.componentSkillIds as unknown;
+        componentSkillIds = Object.values(rawSkills as Record<string, unknown>).filter((id): id is number => typeof id === 'number');
+      }
     }
 
-    return await this.storage.createAssessment(assessmentData);
+    if (componentSkillIds.length === 0) {
+      console.warn('Project created without component skills');
+    }
+    const assessmentToCreate = {
+      ...assessmentData,
+      componentSkillIds,
+      createdBy: assessmentData.createdBy
+    };
+
+    return await this.storage.createAssessment(assessmentToCreate);
   }
 
   async getAssessment(id: number): Promise<Assessment | undefined> {
@@ -260,6 +277,10 @@ export class AssessmentService {
 
   async awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]> {
     return await this.storage.awardStickersForGrades(studentId, grades);
+  }
+
+  async getUpcomingDeadlines(projectIds: number[]): Promise<any[]> {
+    return await this.storage.getUpcomingDeadlines(projectIds);
   }
 }
 

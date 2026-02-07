@@ -752,7 +752,7 @@ export class ProjectsStorage implements IProjectsStorage {
     let filteredResults = result;
     if (filters?.componentSkillIds && filters.componentSkillIds.length > 0) {
       filteredResults = filteredResults.filter(project => {
-        const projectSkills = project.componentSkillIds as number[] || [];
+        const projectSkills = Array.isArray(project.componentSkillIds) ? project.componentSkillIds as number[] : [];
         return filters.componentSkillIds!.some(skillId => projectSkills.includes(skillId));
       });
     }
@@ -760,7 +760,7 @@ export class ProjectsStorage implements IProjectsStorage {
     // Filter by B.E.S.T. standard IDs if provided
     if (filters?.bestStandardIds && filters.bestStandardIds.length > 0) {
       filteredResults = filteredResults.filter(project => {
-        const projectStandards = project.bestStandardIds as number[] || [];
+        const projectStandards = Array.isArray(project.bestStandardIds) ? project.bestStandardIds as number[] : [];
         return filters.bestStandardIds!.some(standardId => projectStandards.includes(standardId));
       });
     }
@@ -778,39 +778,37 @@ export class ProjectsStorage implements IProjectsStorage {
   }
 
   async incrementProjectGenerationCount(userId: number): Promise<User> {
-    const user = await this.getUser(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     const now = new Date();
-    const lastDate = user.lastProjectGenerationDate;
 
-    let newCount = (user.projectGenerationCount || 0) + 1;
+    // Atomic update to handle race conditions
+    // SQL Logic:
+    // If last_project_generation_date month/year matches current month/year, increment count
+    // Else (new month), reset count to 1
+    // Always update last_project_generation_date to now
 
-    // Check if we need to reset count (new month)
-    if (lastDate) {
-      const lastMonth = lastDate.getMonth();
-      const lastYear = lastDate.getFullYear();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      if (lastMonth !== currentMonth || lastYear !== currentYear) {
-        newCount = 1;
-      }
-    } else {
-      newCount = 1;
-    }
+    // Note: Drizzle's sql operator allows us to write raw SQL fragments
+    // We use COALESCE to handle null last_project_generation_date (treat as new month -> 1)
 
     const [updatedUser] = await db
       .update(users)
       .set({
-        projectGenerationCount: newCount,
-        lastProjectGenerationDate: now,
-        updatedAt: now
+        projectGenerationCount: sql`
+          CASE 
+            WHEN ${users.lastProjectGenerationDate} IS NOT NULL 
+              AND EXTRACT(MONTH FROM ${users.lastProjectGenerationDate}) = EXTRACT(MONTH FROM NOW())
+              AND EXTRACT(YEAR FROM ${users.lastProjectGenerationDate}) = EXTRACT(YEAR FROM NOW())
+            THEN ${users.projectGenerationCount} + 1
+            ELSE 1
+          END
+        `,
+        lastProjectGenerationDate: now
       })
       .where(eq(users.id, userId))
       .returning();
+
+    if (!updatedUser) {
+      throw new Error("User not found");
+    }
 
     return updatedUser;
   }

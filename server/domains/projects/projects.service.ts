@@ -1,6 +1,6 @@
 import { projectsStorage, type IProjectsStorage } from './projects.storage';
-import { 
-  insertProjectSchema, 
+import {
+  insertProjectSchema,
   insertMilestoneSchema,
   type User,
   type Project,
@@ -15,12 +15,12 @@ import { aiService } from "../ai/ai.service";
 import { sanitizeForPrompt } from "../../middleware/security";
 
 export class ProjectsService {
-  constructor(private storage: IProjectsStorage = projectsStorage) {}
+  constructor(private storage: IProjectsStorage = projectsStorage) { }
 
   // Project operations
   async createProject(projectData: any, teacherId: number, teacherSchoolId: number | null): Promise<Project> {
     const { dueDate, ...bodyData } = projectData;
-    
+
     const validatedProject = insertProjectSchema.parse({
       ...bodyData,
       teacherId,
@@ -114,7 +114,7 @@ export class ProjectsService {
   // Milestone operations
   async createMilestone(milestoneData: any, userId: number, userRole: string): Promise<Milestone> {
     const validatedMilestone = insertMilestoneSchema.parse(milestoneData);
-    
+
     // Check if user owns the project this milestone belongs to
     if (!validatedMilestone.projectId) {
       throw new Error("Project ID is required");
@@ -332,7 +332,7 @@ export class ProjectsService {
       throw new Error("Access denied");
     }
 
-    const selectedCompetencies = competencies.filter(c => 
+    const selectedCompetencies = competencies.filter(c =>
       (project.componentSkillIds as number[])?.includes(c.id)
     );
 
@@ -340,7 +340,7 @@ export class ProjectsService {
 
     // Save generated milestones to database
     const savedMilestones = await Promise.all(
-      milestones.map((milestone, index) => 
+      milestones.map((milestone, index) =>
         this.storage.createMilestone({
           projectId,
           title: milestone.title,
@@ -380,7 +380,7 @@ export class ProjectsService {
 
     const milestones = await aiService.generateMilestonesFromComponentSkills(
       project.title,
-      project.description,
+      project.description || "",
       project.dueDate ? project.dueDate.toISOString() : new Date().toISOString(),
       projectComponentSkills
     );
@@ -400,7 +400,7 @@ export class ProjectsService {
         // Generate assessment for this milestone
         const assessment = await aiService.generateAssessmentFromComponentSkills(
           savedMilestone.title,
-          savedMilestone.description,
+          savedMilestone.description || "",
           savedMilestone.dueDate ? savedMilestone.dueDate.toISOString() : new Date().toISOString(),
           projectComponentSkills
         );

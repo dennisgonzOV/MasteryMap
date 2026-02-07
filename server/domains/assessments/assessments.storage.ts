@@ -13,9 +13,12 @@ import {
   type Grade,
   InsertAssessment,
   InsertSubmission,
+  type SelfEvaluation,
+  milestones,
+  projects,
 } from "../../../shared/schema";
 import { db } from "../../db";
-import { eq, and, desc, asc, isNull, inArray, ne, sql, like, or } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, inArray, ne, sql, like, or, gte } from "drizzle-orm";
 
 // Utility function to generate random 5-letter codes
 function generateRandomCode(): string {
@@ -64,6 +67,9 @@ export interface IAssessmentStorage {
 
   // Self-evaluation operations
   getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]>;
+
+  // Dashboard operations
+  getUpcomingDeadlines(projectIds: number[]): Promise<any[]>;
 
   // Student competency progress
   getStudentCompetencyProgress(studentId: number): Promise<Array<{
@@ -120,7 +126,8 @@ export class AssessmentStorage implements IAssessmentStorage {
       ...data,
       questions: data.questions || [],
       shareCode,
-      shareCodeExpiresAt: expiresAt
+      shareCodeExpiresAt: expiresAt,
+      createdBy: data.createdBy // Pass the createdBy field
     };
 
     const [assessment] = await db.insert(assessments).values(processedData).returning();
@@ -186,21 +193,30 @@ export class AssessmentStorage implements IAssessmentStorage {
       shareCode = generateRandomCode();
       attempts++;
 
-      // Check if code already exists
-      const [existing] = await db
-        .select()
-        .from(assessments)
-        .where(eq(assessments.shareCode, shareCode))
-        .limit(1);
+      try {
+        // Check if code already exists
+        const [existing] = await db
+          .select()
+          .from(assessments)
+          .where(eq(assessments.shareCode, shareCode))
+          .limit(1);
 
-      if (!existing) {
-        // Update the assessment with the new share code
-        await db
-          .update(assessments)
-          .set({ shareCode })
-          .where(eq(assessments.id, assessmentId));
+        if (!existing) {
+          // Update the assessment with the new share code
+          await db
+            .update(assessments)
+            .set({ shareCode })
+            .where(eq(assessments.id, assessmentId));
 
-        return shareCode;
+          return shareCode;
+        }
+      } catch (error: any) {
+        // If unique constraint violation (code 23505 in Postgres), retry
+        if (error?.code === '23505') {
+          console.warn(`Race condition caught in share code generation (code: ${shareCode}), retrying...`);
+          continue;
+        }
+        throw error;
       }
     }
 
@@ -265,7 +281,7 @@ export class AssessmentStorage implements IAssessmentStorage {
         submissionsWithAssessments.map(async (row) => {
           // Get grades for this submission
           const submissionGrades = await this.getGradesBySubmission(row.id);
-          
+
           // Get earned credentials for this submission
           const earnedCredentials = await db
             .select()
@@ -323,7 +339,6 @@ export class AssessmentStorage implements IAssessmentStorage {
           submittedAt: row.submissions.submittedAt,
           feedback: row.submissions.feedback,
           aiGeneratedFeedback: row.submissions.aiGeneratedFeedback,
-          grade: row.submissions.grade, // Add the overall grade field
           grades: submissionGrades, // Add the component skill grades
         };
       }));
@@ -597,7 +612,7 @@ export class AssessmentStorage implements IAssessmentStorage {
       }
 
       // Check for badge eligibility after awarding stickers
-      for (const competencyId of competenciesToCheck) {
+      for (const competencyId of Array.from(competenciesToCheck)) {
         const badgeCredentials = await this.checkAndAwardBadge(studentId, competencyId, grades[0]?.gradedBy);
         awardedCredentials.push(...badgeCredentials);
       }
@@ -906,6 +921,32 @@ export class AssessmentStorage implements IAssessmentStorage {
         totalStudents: 0
       };
     }
+  }
+  async getUpcomingDeadlines(projectIds: number[]): Promise<any[]> {
+    if (!projectIds.length) return [];
+
+    const now = new Date();
+    const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+    // Get milestones with due dates in the next 2 weeks
+    const upcomingMilestones = await db
+      .select({
+        milestoneId: milestones.id,
+        title: milestones.title,
+        dueDate: milestones.dueDate,
+        projectTitle: projects.title,
+        projectId: projects.id
+      })
+      .from(milestones)
+      .innerJoin(projects, eq(milestones.projectId, projects.id))
+      .where(and(
+        inArray(milestones.projectId, projectIds),
+        gte(milestones.dueDate, now),
+        sql`${milestones.dueDate} <= ${twoWeeksFromNow}`
+      ))
+      .orderBy(asc(milestones.dueDate));
+
+    return upcomingMilestones;
   }
 }
 

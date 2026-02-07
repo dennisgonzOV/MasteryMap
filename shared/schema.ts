@@ -238,6 +238,7 @@ export const assessments = pgTable("assessments", {
   allowSelfEvaluation: boolean("allow_self_evaluation").default(false),
   shareCode: varchar("share_code", { length: 5 }).unique(), // 5-letter code for sharing
   shareCodeExpiresAt: timestamp("share_code_expires_at"), // Optional expiration for codes
+  createdBy: integer("created_by").references(() => users.id), // Track who created the assessment for ownership checks
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -528,6 +529,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
+  title: z.string().min(1, "Title is required"),
   dueDate: z.coerce.date().optional(),
   componentSkillIds: z.array(z.number()).optional(),
   bestStandardIds: z.array(z.number()).optional(),

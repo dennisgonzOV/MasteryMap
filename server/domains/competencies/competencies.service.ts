@@ -1,5 +1,5 @@
 import { competencyStorage, type ICompetencyStorage } from './competencies.storage';
-import { 
+import {
   type Competency,
   type ComponentSkill,
   type BestStandard,
@@ -24,10 +24,11 @@ export interface ICompetencyService {
   getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
   getComponentSkillsWithDetails(): Promise<any[]>;
   getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
+  getEnrichedComponentSkills(): Promise<any[]>;
 }
 
 export class CompetencyService implements ICompetencyService {
-  constructor(private storage: ICompetencyStorage = competencyStorage) {}
+  constructor(private storage: ICompetencyStorage = competencyStorage) { }
 
   async getAllCompetencies(): Promise<Competency[]> {
     return await this.storage.getCompetencies();
@@ -94,7 +95,7 @@ export class CompetencyService implements ICompetencyService {
     return await this.storage.getCompetenciesWithSkills();
   }
 
-  async getAllComponentSkills(): Promise<any[]> {
+  async getEnrichedComponentSkills(): Promise<any[]> {
     return await this.storage.getAllComponentSkills();
   }
 }
