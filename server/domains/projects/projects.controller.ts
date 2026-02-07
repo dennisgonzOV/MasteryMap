@@ -113,7 +113,15 @@ router.get('/public/:id', wrapRoute(async (req, res) => {
   // Get BEST standards if available
   let bestStandards: any[] = [];
   if (project.bestStandardIds && (project.bestStandardIds as number[]).length > 0) {
-    bestStandards = await competencyStorage.getBestStandardsByIds(project.bestStandardIds as number[]);
+    console.log(`[DEBUG] Fetching BEST standards for project ${projectId}. IDs:`, project.bestStandardIds);
+    try {
+      bestStandards = await competencyStorage.getBestStandardsByIds(project.bestStandardIds as number[]);
+      console.log(`[DEBUG] Fetched ${bestStandards.length} BEST standards`);
+    } catch (e) {
+      console.error("[DEBUG] Error fetching BEST standards:", e);
+    }
+  } else {
+    console.log(`[DEBUG] No BEST standard IDs found for project ${projectId}. Raw value:`, project.bestStandardIds);
   }
 
   createSuccessResponse(res, {

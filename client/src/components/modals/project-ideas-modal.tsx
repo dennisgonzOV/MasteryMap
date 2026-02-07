@@ -102,7 +102,7 @@ interface ProjectIdea {
 interface ProjectIdeasModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectIdea?: (idea: ProjectIdea & { selectedComponentSkillIds: number[]; bestStandardIds?: number[]; subject?: string; topic?: string }) => void;
+  onSelectIdea?: (idea: ProjectIdea & { selectedComponentSkillIds: number[]; bestStandardIds?: number[]; subject?: string; topic?: string; gradeLevel?: string; duration?: string }) => void;
 }
 
 export default function ProjectIdeasModal({
@@ -330,7 +330,9 @@ export default function ProjectIdeasModal({
         selectedComponentSkillIds: Array.from(selectedSkills),
         bestStandardIds: Array.from(selectedStandards),
         subject: formValues.subject,
-        topic: formValues.topic
+        topic: formValues.topic,
+        gradeLevel: formValues.gradeLevel,
+        duration: formValues.duration
       });
     }
     toast({
@@ -428,9 +430,19 @@ export default function ProjectIdeasModal({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="9-10">High School (9-10)</SelectItem>
-                              <SelectItem value="11-12">High School (11-12)</SelectItem>
-                              <SelectItem value="mixed">Mixed Grade Levels</SelectItem>
+                              <SelectItem value="K">Kindergarten</SelectItem>
+                              <SelectItem value="1">Grade 1</SelectItem>
+                              <SelectItem value="2">Grade 2</SelectItem>
+                              <SelectItem value="3">Grade 3</SelectItem>
+                              <SelectItem value="4">Grade 4</SelectItem>
+                              <SelectItem value="5">Grade 5</SelectItem>
+                              <SelectItem value="6">Grade 6</SelectItem>
+                              <SelectItem value="7">Grade 7</SelectItem>
+                              <SelectItem value="8">Grade 8</SelectItem>
+                              <SelectItem value="9">Grade 9</SelectItem>
+                              <SelectItem value="10">Grade 10</SelectItem>
+                              <SelectItem value="11">Grade 11</SelectItem>
+                              <SelectItem value="12">Grade 12</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -453,8 +465,9 @@ export default function ProjectIdeasModal({
                             <SelectContent>
                               <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
                               <SelectItem value="3-4 weeks">3-4 weeks</SelectItem>
-                              <SelectItem value="5-8 weeks">5-8 weeks (quarter)</SelectItem>
-                              <SelectItem value="9-18 weeks">9-18 weeks (semester)</SelectItem>
+                              <SelectItem value="5-6 weeks">5-6 weeks</SelectItem>
+                              <SelectItem value="7-8 weeks">7-8 weeks</SelectItem>
+                              <SelectItem value="9+ weeks">9+ weeks</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

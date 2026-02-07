@@ -61,6 +61,8 @@ interface ProjectCreationModalProps {
     bestStandardIds?: number[];
     subject?: string;
     topic?: string;
+    gradeLevel?: string;
+    duration?: string;
   };
 }
 
@@ -191,6 +193,15 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       setSelectedSkills(new Set(projectIdea.selectedComponentSkillIds));
       if (projectIdea.bestStandardIds) {
         setSelectedStandards(new Set(projectIdea.bestStandardIds));
+      }
+      if (projectIdea.gradeLevel) {
+        setProjectGradeLevel(projectIdea.gradeLevel);
+      }
+      if (projectIdea.duration) {
+        setProjectDuration(projectIdea.duration);
+      }
+      if (projectIdea.subject) {
+        setProjectSubjectArea(projectIdea.subject);
       }
 
       // Expand all relevant outcomes and competencies that contain the selected skills
