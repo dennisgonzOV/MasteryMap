@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -122,6 +123,18 @@ export default function ProjectIdeasModal({
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
 
+  // Fetch user data to check usage limits
+  const { data: user } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+  });
+
+  // Calculate usage
+  const isFreeTier = user?.tier === 'free';
+  const usageCount = user?.projectGenerationCount || 0;
+  const usageLimit = 5;
+  const isLimitReached = isFreeTier && usageCount >= usageLimit;
+  const remainingGenerations = Math.max(0, usageLimit - usageCount);
+
   // Fetch the complete 3-level hierarchy
   const { data: hierarchyData = [], isLoading } = useQuery<LearnerOutcome[]>({
     queryKey: ['/api/competencies/learner-outcomes-hierarchy/complete'],
@@ -197,9 +210,12 @@ export default function ProjectIdeasModal({
     },
     onSuccess: (data) => {
       setGeneratedIdeas(data.ideas || []);
+      // Refresh user data to update usage count
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
       toast({
         title: "Ideas Generated!",
         description: `Generated ${data.ideas?.length || 0} project ideas based on your criteria.`,
+        variant: "default",
       });
     },
     onError: (error: any) => {
@@ -690,10 +706,34 @@ export default function ProjectIdeasModal({
                       )}
                     </div>
 
+                    {isFreeTier && (
+                      <div className={`p-3 rounded-md mb-4 ${isLimitReached ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-sm">Free Tier Usage</span>
+                          <span className="text-xs font-medium">{usageCount} / {usageLimit} used</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${isLimitReached ? 'bg-red-500' : 'bg-blue-500'}`}
+                            style={{ width: `${Math.min(100, (usageCount / usageLimit) * 100)}%` }}
+                          />
+                        </div>
+                        {isLimitReached ? (
+                          <p className="text-xs mt-2">
+                            You have reached your monthly limit. Please upgrade to Enterprise for unlimited AI generation.
+                          </p>
+                        ) : (
+                          <p className="text-xs mt-1">
+                            {remainingGenerations} generations remaining this month.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <Button
                       type="submit"
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                      disabled={generateIdeasMutation.isPending || (selectedSkills.size === 0 && selectedStandards.size === 0)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                      disabled={generateIdeasMutation.isPending || (selectedSkills.size === 0 && selectedStandards.size === 0) || isLimitReached}
                     >
                       {generateIdeasMutation.isPending ? (
                         <>
@@ -703,7 +743,7 @@ export default function ProjectIdeasModal({
                       ) : (
                         <>
                           <Sparkles className="mr-2 h-4 w-4" />
-                          Generate Project Ideas
+                          {isLimitReached ? 'Limit Reached' : 'Generate Project Ideas'}
                         </>
                       )}
                     </Button>

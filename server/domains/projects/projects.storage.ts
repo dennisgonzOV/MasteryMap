@@ -72,7 +72,7 @@ export interface IProjectsStorage {
   getTeacherPendingTasks(teacherId: number): Promise<any[]>;
   getTeacherCurrentMilestones(teacherId: number): Promise<any[]>;
   getSchoolStudentsProgress(teacherId: number): Promise<any[]>;
-  
+
   // Public projects operations
   getPublicProjects(filters?: {
     search?: string;
@@ -83,6 +83,9 @@ export interface IProjectsStorage {
     bestStandardIds?: number[];
   }): Promise<Project[]>;
   toggleProjectVisibility(projectId: number, isPublic: boolean): Promise<Project>;
+
+  // Rate limiting operations
+  incrementProjectGenerationCount(userId: number): Promise<User>;
 }
 
 export class ProjectsStorage implements IProjectsStorage {
@@ -124,6 +127,11 @@ export class ProjectsStorage implements IProjectsStorage {
         bestStandardIds: projects.bestStandardIds,
         status: projects.status,
         dueDate: projects.dueDate,
+        thumbnailUrl: projects.thumbnailUrl,
+        isPublic: projects.isPublic,
+        subjectArea: projects.subjectArea,
+        gradeLevel: projects.gradeLevel,
+        estimatedDuration: projects.estimatedDuration,
         createdAt: projects.createdAt,
         updatedAt: projects.updatedAt,
       })
@@ -146,6 +154,11 @@ export class ProjectsStorage implements IProjectsStorage {
         bestStandardIds: projects.bestStandardIds,
         status: projects.status,
         dueDate: projects.dueDate,
+        thumbnailUrl: projects.thumbnailUrl,
+        isPublic: projects.isPublic,
+        subjectArea: projects.subjectArea,
+        gradeLevel: projects.gradeLevel,
+        estimatedDuration: projects.estimatedDuration,
         createdAt: projects.createdAt,
         updatedAt: projects.updatedAt,
       })
@@ -281,7 +294,7 @@ export class ProjectsStorage implements IProjectsStorage {
       role: projectTeamMembers.role,
       joinedAt: projectTeamMembers.joinedAt,
     }).from(projectTeamMembers)
-    .where(eq(projectTeamMembers.teamId, teamId));
+      .where(eq(projectTeamMembers.teamId, teamId));
   }
 
   async getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined> {
@@ -292,7 +305,7 @@ export class ProjectsStorage implements IProjectsStorage {
       role: projectTeamMembers.role,
       joinedAt: projectTeamMembers.joinedAt,
     }).from(projectTeamMembers)
-    .where(eq(projectTeamMembers.id, memberId));
+      .where(eq(projectTeamMembers.id, memberId));
     return member;
   }
 
@@ -604,9 +617,9 @@ export class ProjectsStorage implements IProjectsStorage {
             };
           });
 
-                      return {
-              ...student,
-              projects: processedAssignments,
+          return {
+            ...student,
+            projects: processedAssignments,
             credentials: studentCredentials.map(cred => ({
               id: cred.id,
               title: cred.title,
@@ -649,9 +662,9 @@ export class ProjectsStorage implements IProjectsStorage {
     bestStandardIds?: number[];
   }): Promise<Project[]> {
     let query = db.select().from(projects).where(eq(projects.isPublic, true));
-    
+
     const conditions: any[] = [eq(projects.isPublic, true)];
-    
+
     if (filters?.search) {
       conditions.push(
         or(
@@ -660,25 +673,25 @@ export class ProjectsStorage implements IProjectsStorage {
         )
       );
     }
-    
+
     if (filters?.subjectArea) {
       conditions.push(eq(projects.subjectArea, filters.subjectArea));
     }
-    
+
     if (filters?.gradeLevel) {
       conditions.push(eq(projects.gradeLevel, filters.gradeLevel));
     }
-    
+
     if (filters?.estimatedDuration) {
       conditions.push(eq(projects.estimatedDuration, filters.estimatedDuration));
     }
-    
+
     const result = await db
       .select()
       .from(projects)
       .where(and(...conditions))
       .orderBy(desc(projects.createdAt));
-    
+
     // Filter by component skill IDs if provided (JSONB array contains check)
     let filteredResults = result;
     if (filters?.componentSkillIds && filters.componentSkillIds.length > 0) {
@@ -687,7 +700,7 @@ export class ProjectsStorage implements IProjectsStorage {
         return filters.componentSkillIds!.some(skillId => projectSkills.includes(skillId));
       });
     }
-    
+
     // Filter by B.E.S.T. standard IDs if provided
     if (filters?.bestStandardIds && filters.bestStandardIds.length > 0) {
       filteredResults = filteredResults.filter(project => {
@@ -695,7 +708,7 @@ export class ProjectsStorage implements IProjectsStorage {
         return filters.bestStandardIds!.some(standardId => projectStandards.includes(standardId));
       });
     }
-    
+
     return filteredResults;
   }
 
@@ -706,6 +719,44 @@ export class ProjectsStorage implements IProjectsStorage {
       .where(eq(projects.id, projectId))
       .returning();
     return updatedProject;
+  }
+
+  async incrementProjectGenerationCount(userId: number): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const now = new Date();
+    const lastDate = user.lastProjectGenerationDate;
+
+    let newCount = (user.projectGenerationCount || 0) + 1;
+
+    // Check if we need to reset count (new month)
+    if (lastDate) {
+      const lastMonth = lastDate.getMonth();
+      const lastYear = lastDate.getFullYear();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      if (lastMonth !== currentMonth || lastYear !== currentYear) {
+        newCount = 1;
+      }
+    } else {
+      newCount = 1;
+    }
+
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        projectGenerationCount: newCount,
+        lastProjectGenerationDate: now,
+        updatedAt: now
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    return updatedUser;
   }
 }
 

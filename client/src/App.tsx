@@ -25,6 +25,7 @@ import StudentPortfolio from "@/pages/student/portfolio";
 import TakeAssessment from "@/pages/student/take-assessment";
 import EnterCode from "@/pages/student/enter-code";
 import AdminDashboard from "@/pages/admin/dashboard";
+import AdminUsers from "@/pages/admin/users";
 import AdminPasswordReset from '@/pages/admin/password-reset';
 import PublicPortfolio from "@/pages/public-portfolio";
 import ProjectExplorer from "@/pages/project-explorer";
@@ -48,7 +49,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-      
+
       {/* Public pages - accessible without authentication */}
       <Route path="/portfolio/public/:studentId" component={PublicPortfolio} />
       <Route path="/explore" component={ProjectExplorer} />
@@ -66,7 +67,7 @@ function Router() {
               <Route path="/teacher/assessments" component={TeacherAssessments} />
               <Route path="/teacher/assessments/:id/submissions/:submissionId" component={SubmissionReview} />
               <Route path="/teacher/assessments/:id/submissions" component={AssessmentSubmissions} />
-              
+
               <Route path="/teacher/assessments/:id" component={AssessmentDetails} />
             </>
           )}
@@ -84,6 +85,7 @@ function Router() {
           {(user as any)?.role === 'admin' && (
             <>
               <Route path="/admin/dashboard" component={AdminDashboard} />
+              <Route path="/admin/users" component={AdminUsers} />
               <Route path="/admin/password-reset" component={AdminPasswordReset} />
             </>
           )}

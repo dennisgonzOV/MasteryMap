@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthService, type JWTPayload } from './auth.service';
 import { authStorage } from './auth.storage';
 import { registerSchema, loginSchema, type User, UserRole } from '../../../shared/schema';
+import { z } from 'zod';
 import { authLimiter, createErrorResponse } from '../../middleware/security';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -49,21 +50,21 @@ export const requireRole = (...roles: UserRole[]) => {
     }
 
     const userRole = req.user.role as UserRole;
-    
+
     console.log(`RequireRole: User ${req.user.id} has role '${userRole}' for ${req.path}`);
     console.log(`RequireRole: Required roles: [${roles.join(', ')}]`);
-    
+
     // Ensure both user role and required roles are properly typed
     const normalizedUserRole = userRole?.toLowerCase().trim() as UserRole;
     const normalizedRequiredRoles = roles.map(role => role?.toLowerCase().trim() as UserRole);
-    
+
     const hasAccess = normalizedRequiredRoles.includes(normalizedUserRole);
-    
+
     console.log(`RequireRole: Normalized user role '${normalizedUserRole}' included in [${normalizedRequiredRoles.join(', ')}]: ${hasAccess}`);
 
     if (!hasAccess) {
       console.log(`RequireRole: Access denied - user role '${normalizedUserRole}' not in allowed roles [${normalizedRequiredRoles.join(', ')}]`);
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Forbidden',
         details: process.env.NODE_ENV === 'development' ? {
           userRole: normalizedUserRole,
@@ -80,23 +81,59 @@ export const requireRole = (...roles: UserRole[]) => {
 // Create auth router
 export const createAuthRouter = () => {
   const router = Router();
-  
+
   // Apply auth-specific rate limiting
   router.use('/login', authLimiter);
   router.use('/register', authLimiter);
 
-  // Register route - DISABLED
+  // Register route
   router.post('/register', async (req, res) => {
-    res.status(403).json({ 
-      message: 'Registration is currently disabled. Please contact your administrator for account access.' 
-    });
+    try {
+      // Validate request body against schema
+      const userData = registerSchema.parse(req.body);
+
+      // Check if user already exists
+      const existingUser = await authStorage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: 'Username already exists' });
+      }
+
+      // If schoolId is provided, verify it exists
+      if (userData.schoolId) {
+        // We might want to verify school exists here, but foreign key constraint handles it too
+        // For now, we trust the input validation
+      }
+
+      // Determine tier based on schoolId presence (no school = free tier)
+      // Note: This logic can be refined later if we have paid individual tiers
+      const tier = userData.schoolId ? 'enterprise' : 'free';
+
+      // Register user using service
+      const { user, accessToken, refreshToken } = await AuthService.registerUser({
+        ...userData,
+        tier
+      });
+
+      // Set cookies
+      AuthService.setAuthCookies(res, accessToken, refreshToken);
+
+      // Return user data (without password)
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid input', errors: error.errors });
+      }
+      console.error('Registration error:', error);
+      res.status(500).json({ message: 'Registration failed' });
+    }
   });
 
   // Login route
   router.post('/login', async (req, res) => {
     try {
       const { username, password } = loginSchema.parse(req.body);
-      
+
       const { user, accessToken, refreshToken } = await AuthService.loginUser(username, password);
 
       // Set cookies
@@ -119,7 +156,7 @@ export const createAuthRouter = () => {
       if (refreshToken) {
         await AuthService.revokeRefreshToken(refreshToken);
       }
-      
+
       AuthService.clearAuthCookies(res);
       res.json({ message: 'Logged out successfully' });
     } catch (error) {
@@ -156,7 +193,7 @@ export const createAuthRouter = () => {
       }
 
       const { userId, newPassword } = req.body;
-      
+
       if (!userId || !newPassword) {
         return res.status(400).json({ message: 'User ID and new password are required' });
       }
@@ -187,7 +224,7 @@ export const createAuthRouter = () => {
       if (!req.user) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
-      
+
       // Return user data (without password)
       const { password: _, ...userWithoutPassword } = req.user;
       res.json(userWithoutPassword);
@@ -220,58 +257,6 @@ export const createAnalyticsRouter = () => {
   return router;
 };
 
-// Create admin router
-export const createAdminRouter = () => {
-  const router = Router();
-
-  // Get users from admin's school for password reset
-  router.get('/school-users', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
-    try {
-      const adminId = req.user!.id;
-
-      // Get admin's school ID
-      const admin = await authStorage.getUser(adminId);
-      if (!admin || !admin.schoolId) {
-        return res.status(400).json({ message: "Admin school not found" });
-      }
-
-      const schoolId = admin.schoolId;
-
-      // Get all users from the same school (excluding the admin themselves)
-      const schoolUsers = await authStorage.getUsersBySchool(schoolId, adminId);
-
-      // Format the response to include only the fields we need
-      const formattedUsers = schoolUsers.map(user => ({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        schoolId: user.schoolId
-      }));
-
-      res.json(formattedUsers);
-    } catch (error) {
-      console.error('Error fetching school users:', error);
-      res.status(500).json({ message: "Failed to fetch school users" });
-    }
-  });
-
-  // Analytics endpoint for admin dashboard
-  router.get('/analytics/dashboard', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
-    try {
-      // Get analytics data
-      const analyticsData = await authStorage.getAnalyticsDashboard();
-
-      res.json(analyticsData);
-    } catch (error) {
-      console.error('Analytics error:', error);
-      res.status(500).json({ message: "Failed to fetch analytics data" });
-    }
-  });
-
-  return router;
-};
-
 // Export the configured routers
 export const authRouter = createAuthRouter();
-export const adminRouter = createAdminRouter();
 export const analyticsRouter = createAnalyticsRouter();

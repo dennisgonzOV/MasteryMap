@@ -24,6 +24,11 @@ export enum UserRole {
   STUDENT = 'student'
 }
 
+export enum UserTier {
+  FREE = 'free',
+  ENTERPRISE = 'enterprise'
+}
+
 // Role utilities
 export const USER_ROLES = Object.values(UserRole);
 export const ROLE_HIERARCHY = {
@@ -63,6 +68,9 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default(UserRole.STUDENT),
   schoolId: integer("school_id").references(() => schools.id),
+  tier: varchar("tier", { enum: ["free", "enterprise"] }).notNull().default("free"),
+  projectGenerationCount: integer("project_generation_count").default(0),
+  lastProjectGenerationDate: timestamp("last_project_generation_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -125,13 +133,13 @@ export const projects = pgTable("projects", {
   bestStandardIds: jsonb("best_standard_ids").$type<number[]>().default([]), // Array of B.E.S.T. standard IDs
   status: varchar("status", { enum: ["draft", "active", "completed", "archived"] }).default("draft"),
   dueDate: timestamp("due_date"),
-  
+
   // Project Explorer fields
   isPublic: boolean("is_public").default(false), // Whether project appears in public library
   subjectArea: varchar("subject_area"), // e.g., "Math", "Science", "English"
   gradeLevel: varchar("grade_level"), // K-12 grade level
   estimatedDuration: varchar("estimated_duration"), // Estimated project duration
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -549,10 +557,10 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
 }).refine((data) => {
   // For teacher assessments, questions are required and must have non-empty text
   if (data.assessmentType === "teacher") {
-    return data.questions && 
-           Array.isArray(data.questions) && 
-           data.questions.length > 0 && 
-           data.questions.every((q: any) => q.text && q.text.trim().length > 0);
+    return data.questions &&
+      Array.isArray(data.questions) &&
+      data.questions.length > 0 &&
+      data.questions.every((q: any) => q.text && q.text.trim().length > 0);
   }
   // For self-evaluation assessments, questions are optional
   return true;

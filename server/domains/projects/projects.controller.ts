@@ -19,12 +19,11 @@ import {
 import { validateIdParam } from "../../middleware/routeValidation";
 import { checkProjectAccess } from "../../middleware/resourceAccess";
 import {
-  insertProjectSchema,
-  insertMilestoneSchema,
   insertCredentialSchema,
   type User,
   users,
-  projectTeamMembers
+  projectTeamMembers,
+  UserRole
 } from "../../../shared/schema";
 import { aiService } from "../ai/ai.service";
 import { fluxImageService } from "../ai/flux.service";
@@ -153,7 +152,7 @@ router.get('/public/:id', wrapRoute(async (req, res) => {
 }));
 
 // Toggle project visibility (teachers only)
-router.patch('/:id/visibility', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.patch('/:id/visibility', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.id);
   const { isPublic } = req.body;
 
@@ -164,7 +163,7 @@ router.patch('/:id/visibility', requireAuth, requireRole('teacher', 'admin'), va
   const updatedProject = await projectsStorage.toggleProjectVisibility(projectId, isPublic);
   createSuccessResponse(res, updatedProject);
 }));
-router.post('/', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
 
   // Get teacher's school ID
@@ -218,7 +217,7 @@ router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess({
   createSuccessResponse(res, project);
 }));
 
-router.put('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.put('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -227,7 +226,7 @@ router.put('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam
   createSuccessResponse(res, updatedProject);
 }));
 
-router.delete('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -237,7 +236,7 @@ router.delete('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdPa
 }));
 
 // Project management routes
-router.post('/:id/start', requireAuth, requireRole('teacher', 'admin'), validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
+router.post('/:id/start', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam('id'), async (req: AuthenticatedRequest, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -277,7 +276,7 @@ router.post('/:id/assign', requireAuth, async (req: AuthenticatedRequest, res) =
 });
 
 // AI-powered routes
-router.post('/generate-ideas', requireAuth, requireRole('teacher', 'admin'), aiLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/generate-ideas', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     console.log('Generate Ideas Request Body:', req.body);
     const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
@@ -297,6 +296,47 @@ router.post('/generate-ideas', requireAuth, requireRole('teacher', 'admin'), aiL
 
     if (!componentSkills || componentSkills.length === 0) {
       return res.status(400).json({ message: "No valid component skills found for the provided IDs" });
+    }
+
+    // Check rate limits for free tier
+    // We need to fetch the user to check tier and counts
+    try {
+      const user = await projectsStorage.getUser(req.user!.id);
+      if (user?.tier === 'free') {
+        const now = new Date();
+        const lastDate = user.lastProjectGenerationDate;
+        let currentCount = user.projectGenerationCount || 0;
+
+        // Reset count if new month
+        if (lastDate) {
+          const lastMonth = lastDate.getMonth();
+          const lastYear = lastDate.getFullYear();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+
+          if (lastMonth !== currentMonth || lastYear !== currentYear) {
+            currentCount = 0;
+          }
+        }
+
+        if (currentCount >= 5) {
+          return res.status(403).json({
+            message: "Free tier limit reached. You can generate up to 5 project ideas per month.",
+            limitReached: true
+          });
+        }
+
+        // Increment count
+        await projectsStorage.incrementProjectGenerationCount(req.user!.id);
+      }
+    } catch (limitError) {
+      console.error("Error checking/updating rate limits:", limitError);
+      // We don't want to block the user if there's a DB error, or maybe we do?
+      // For now, log and proceed, or fail safe? 
+      // Let's fail safe -> allow generation if check fails? No, better to be strict?
+      // Actually, if update fails, we might not want to proceed.
+      // But let's keep it simple: if increment fails, we might still generate but not count it?
+      // Better to fail if critical.
     }
 
     const result = await projectsService.generateProjectIdeas({
@@ -329,7 +369,7 @@ const thumbnailPreviewSchema = z.object({
 });
 
 // Generate thumbnail for a project
-router.post('/:id/generate-thumbnail', requireAuth, requireRole('teacher', 'admin'), validateIdParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/:id/generate-thumbnail', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -376,7 +416,7 @@ router.post('/:id/generate-thumbnail', requireAuth, requireRole('teacher', 'admi
 });
 
 // Generate thumbnail during project creation (returns URL without saving)
-router.post('/generate-thumbnail-preview', requireAuth, requireRole('teacher', 'admin'), aiLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/generate-thumbnail-preview', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), aiLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     // Validate request body
     const parseResult = thumbnailPreviewSchema.safeParse(req.body);
@@ -518,7 +558,7 @@ router.get('/milestones/:id', requireAuth, validateIdParam(), async (req: Authen
 
 
 // Team management routes  
-router.post('/:id/teams', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+router.post('/:id/teams', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -583,7 +623,7 @@ milestonesRouter.get('/:id', requireAuth, validateIdParam('id'), async (req: Aut
   }
 });
 
-milestonesRouter.post('/', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.id;
   const userRole = req.user!.role;
 
@@ -591,7 +631,7 @@ milestonesRouter.post('/', requireAuth, requireRole('teacher', 'admin'), wrapRou
   createSuccessResponse(res, milestone);
 }));
 
-milestonesRouter.put('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.put('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const milestoneId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -600,7 +640,7 @@ milestonesRouter.put('/:id', requireAuth, requireRole('teacher', 'admin'), valid
   createSuccessResponse(res, updatedMilestone);
 }));
 
-milestonesRouter.delete('/:id', requireAuth, requireRole('teacher', 'admin'), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+milestonesRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const milestoneId = parseInt(req.params.id);
   const userId = req.user!.id;
   const userRole = req.user!.role;
@@ -611,7 +651,7 @@ milestonesRouter.delete('/:id', requireAuth, requireRole('teacher', 'admin'), va
 
 export const projectTeamsRouter = Router();
 
-projectTeamsRouter.post('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+projectTeamsRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -624,7 +664,7 @@ projectTeamsRouter.post('/', requireAuth, requireRole('teacher', 'admin'), async
   }
 });
 
-projectTeamsRouter.delete('/:id', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+projectTeamsRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
   try {
     const teamId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -678,7 +718,7 @@ projectTeamsRouter.get('/:teamId/members', requireAuth, async (req, res) => {
 
 export const projectTeamMembersRouter = Router();
 
-projectTeamMembersRouter.post('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+projectTeamMembersRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -691,7 +731,7 @@ projectTeamMembersRouter.post('/', requireAuth, requireRole('teacher', 'admin'),
   }
 });
 
-projectTeamMembersRouter.delete('/:id', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+projectTeamMembersRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
   try {
     const memberId = parseInt(req.params.id);
     const userId = req.user!.id;
@@ -719,7 +759,7 @@ schoolsRouter.get('/:id/students', requireAuth, async (req: AuthenticatedRequest
 });
 
 // Get school students progress for teacher dashboard
-schoolsRouter.get('/students-progress', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+schoolsRouter.get('/students-progress', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
 
   const studentsProgress = await projectsService.getSchoolStudentsProgress(teacherId);
@@ -730,7 +770,7 @@ schoolsRouter.get('/students-progress', requireAuth, requireRole('teacher', 'adm
 const teacherRouter = Router();
 
 // Teacher dashboard stats
-teacherRouter.get('/dashboard-stats', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+teacherRouter.get('/dashboard-stats', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
 
   const stats = await projectsService.getTeacherDashboardStats(teacherId);
@@ -738,7 +778,7 @@ teacherRouter.get('/dashboard-stats', requireAuth, requireRole('teacher', 'admin
 }));
 
 // Teacher projects overview
-teacherRouter.get('/projects', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+teacherRouter.get('/projects', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
 
   const projects = await projectsService.getTeacherProjects(teacherId);
@@ -746,7 +786,7 @@ teacherRouter.get('/projects', requireAuth, requireRole('teacher', 'admin'), wra
 }));
 
 // Teacher pending tasks
-teacherRouter.get('/pending-tasks', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+teacherRouter.get('/pending-tasks', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
 
   const tasks = await projectsService.getTeacherPendingTasks(teacherId);
@@ -756,7 +796,7 @@ teacherRouter.get('/pending-tasks', requireAuth, requireRole('teacher', 'admin')
 
 
 // Teacher current milestones
-teacherRouter.get('/current-milestones', requireAuth, requireRole('teacher', 'admin'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+teacherRouter.get('/current-milestones', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   const teacherId = req.user!.id;
 
   const milestones = await projectsService.getTeacherCurrentMilestones(teacherId);

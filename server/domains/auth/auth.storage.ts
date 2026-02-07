@@ -29,6 +29,7 @@ export interface IAuthStorage {
   // Admin operations
   getUsersBySchool(schoolId: number, excludeUserId: number): Promise<User[]>;
   getAnalyticsDashboard(): Promise<any>;
+  deleteUser(id: number): Promise<void>;
 }
 
 export class AuthStorage implements IAuthStorage {
@@ -117,6 +118,10 @@ export class AuthStorage implements IAuthStorage {
     };
 
     return analyticsData;
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
   }
 }
 
