@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { setupRoutes } from "./routes";
@@ -69,7 +70,7 @@ handleUncaughtExceptions();
     }
 
     setupRoutes(app);
-    
+
     const server = createServer(app);
 
     // importantly only setup vite in development and after
@@ -80,10 +81,10 @@ handleUncaughtExceptions();
     } else {
       serveStatic(app);
     }
-    
+
     // Add 404 handler for unmatched API routes AFTER Vite/static setup
     app.use('/api/*', notFoundHandler);
-    
+
     // Global error handler
     app.use(errorHandler);
 
