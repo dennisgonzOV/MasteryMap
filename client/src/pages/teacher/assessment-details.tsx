@@ -240,7 +240,9 @@ export default function AssessmentDetails() {
                         className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                         onClick={() => {
                           if (newDueDate) {
-                            updateAssessmentMutation.mutate({ dueDate: new Date(newDueDate).toISOString() });
+                            // Append time to ensure local date construction, avoiding UTC midnight shift
+                            const date = new Date(newDueDate + 'T00:00:00');
+                            updateAssessmentMutation.mutate({ dueDate: date.toISOString() });
                           }
                         }}
                       >

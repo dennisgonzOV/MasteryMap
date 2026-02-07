@@ -17,6 +17,9 @@ import {
   type InsertProject,
   type InsertMilestone,
   type InsertProjectTeam,
+  portfolioArtifacts,
+  selfEvaluations,
+  safetyIncidents,
 } from "../../../shared/schema";
 import { db } from "../../db";
 import { eq, and, desc, asc, ne, inArray, sql, ilike, or } from "drizzle-orm";
@@ -199,25 +202,78 @@ export class ProjectsStorage implements IProjectsStorage {
   }
 
   async deleteProject(id: number): Promise<void> {
-    // Delete milestones first (due to foreign key constraints)
-    await db.delete(milestones).where(eq(milestones.projectId, id));
+    // 1. Get all milestone IDs for the project
+    const projectMilestones = await db
+      .select({ id: milestones.id })
+      .from(milestones)
+      .where(eq(milestones.projectId, id));
 
-    // Delete project teams and their members
-    const teamIds = await db
+    const milestoneIds = projectMilestones.map(m => m.id);
+
+    if (milestoneIds.length > 0) {
+      // 2. Get all assessment IDs linked to these milestones
+      const milestoneAssessments = await db
+        .select({ id: assessments.id })
+        .from(assessments)
+        .where(inArray(assessments.milestoneId, milestoneIds));
+
+      const assessmentIds = milestoneAssessments.map(a => a.id);
+
+      if (assessmentIds.length > 0) {
+        // 3. Cleanup Assessment Dependencies
+
+        // Get submissions for these assessments
+        const assessmentSubmissions = await db
+          .select({ id: submissions.id })
+          .from(submissions)
+          .where(inArray(submissions.assessmentId, assessmentIds));
+
+        const submissionIds = assessmentSubmissions.map(s => s.id);
+
+        if (submissionIds.length > 0) {
+          // Delete grades linked to these submissions
+          await db.delete(grades).where(inArray(grades.submissionId, submissionIds));
+
+          // Delete portfolio artifacts linked to these submissions
+          await db.delete(portfolioArtifacts).where(inArray(portfolioArtifacts.submissionId, submissionIds));
+
+          // Delete the submissions
+          await db.delete(submissions).where(inArray(submissions.id, submissionIds));
+        }
+
+        // Delete self-evaluations linked to these assessments
+        await db.delete(selfEvaluations).where(inArray(selfEvaluations.assessmentId, assessmentIds));
+
+        // Delete safety incidents linked to these assessments
+        await db.delete(safetyIncidents).where(inArray(safetyIncidents.assessmentId, assessmentIds));
+
+        // 4. Delete Assessments
+        await db.delete(assessments).where(inArray(assessments.id, assessmentIds));
+      }
+
+      // 5. Delete Milestone Artifacts (portfolio artifacts linked directly to milestones)
+      await db.delete(portfolioArtifacts).where(inArray(portfolioArtifacts.milestoneId, milestoneIds));
+
+      // 6. Delete Milestones
+      await db.delete(milestones).where(inArray(milestones.id, milestoneIds));
+    }
+
+    // 7. Delete project teams and their members
+    const teamIdsResult = await db
       .select({ id: projectTeams.id })
       .from(projectTeams)
       .where(eq(projectTeams.projectId, id));
 
-    if (teamIds.length > 0) {
-      const teamIdValues = teamIds.map(team => team.id);
+    if (teamIdsResult.length > 0) {
+      const teamIdValues = teamIdsResult.map(team => team.id);
       await db.delete(projectTeamMembers).where(inArray(projectTeamMembers.teamId, teamIdValues));
       await db.delete(projectTeams).where(eq(projectTeams.projectId, id));
     }
 
-    // Delete project assignments
+    // 8. Delete project assignments
     await db.delete(projectAssignments).where(eq(projectAssignments.projectId, id));
 
-    // Finally, delete the project
+    // 9. Finally, delete the project
     await db.delete(projects).where(eq(projects.id, id));
   }
 

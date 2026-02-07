@@ -146,7 +146,7 @@ export const projects = pgTable("projects", {
 
 export const milestones = pgTable("milestones", {
   id: serial("id").primaryKey(),
-  projectId: integer("project_id").references(() => projects.id),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "cascade" }),
   title: varchar("title").notNull(),
   description: text("description"),
   dueDate: timestamp("due_date"),
@@ -226,7 +226,7 @@ export const projectAssignments = pgTable("project_assignments", {
 // Assessments and Submissions
 export const assessments = pgTable("assessments", {
   id: serial("id").primaryKey(),
-  milestoneId: integer("milestone_id").references(() => milestones.id), // Optional - for milestone-linked assessments
+  milestoneId: integer("milestone_id").references(() => milestones.id, { onDelete: "cascade" }), // Optional - for milestone-linked assessments
   title: varchar("title").notNull(),
   description: text("description"),
   questions: jsonb("questions"), // Array of question objects
