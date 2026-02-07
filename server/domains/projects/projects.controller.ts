@@ -65,7 +65,27 @@ router.get('/public', wrapRoute(async (req, res) => {
   }
 
   const publicProjects = await projectsStorage.getPublicProjects(filters);
-  createSuccessResponse(res, publicProjects);
+
+  // Hydrate BEST standards
+  const allBestStandardIds = new Set<number>();
+  publicProjects.forEach(p => {
+    if (p.bestStandardIds && Array.isArray(p.bestStandardIds)) {
+      p.bestStandardIds.forEach(id => allBestStandardIds.add(id));
+    }
+  });
+
+  const bestStandardsMap = new Map<number, any>();
+  if (allBestStandardIds.size > 0) {
+    const standards = await competencyStorage.getBestStandardsByIds(Array.from(allBestStandardIds));
+    standards.forEach(s => bestStandardsMap.set(s.id, s));
+  }
+
+  const projectsWithStandards = publicProjects.map(p => ({
+    ...p,
+    bestStandards: p.bestStandardIds?.map(id => bestStandardsMap.get(id)).filter(Boolean) || []
+  }));
+
+  createSuccessResponse(res, projectsWithStandards);
 }));
 
 // Get filter options for public projects - Defined BEFORE :id routes

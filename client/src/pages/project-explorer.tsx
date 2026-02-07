@@ -10,11 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Search, 
-  Filter, 
-  BookOpen, 
-  Clock, 
+import {
+  Search,
+  Filter,
+  BookOpen,
+  Clock,
   GraduationCap,
   ChevronDown,
   ChevronRight,
@@ -36,6 +36,7 @@ interface Project {
   estimatedDuration: string | null;
   componentSkillIds: number[] | null;
   bestStandardIds: number[] | null;
+  bestStandards?: { id: number; benchmarkNumber: string; description: string }[];
   createdAt: string;
 }
 
@@ -391,7 +392,7 @@ export default function ProjectExplorer() {
                 <FileText className="h-16 w-16 mx-auto text-gray-300 mb-4" />
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">No Projects Found</h3>
                 <p className="text-gray-500 mb-4">
-                  {hasActiveFilters 
+                  {hasActiveFilters
                     ? "Try adjusting your filters to find more projects."
                     : "No public projects are available yet."}
                 </p>
@@ -426,8 +427,8 @@ function ProjectCard({ project }: { project: Project }) {
     <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
       <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 relative overflow-hidden">
         {project.thumbnailUrl ? (
-          <img 
-            src={project.thumbnailUrl} 
+          <img
+            src={project.thumbnailUrl}
             alt={project.title}
             className="w-full h-full object-cover"
           />
@@ -467,6 +468,17 @@ function ProjectCard({ project }: { project: Project }) {
               {project.estimatedDuration}
             </Badge>
           )}
+          {project.bestStandards && project.bestStandards.slice(0, 3).map(standard => (
+            <Badge key={standard.id} variant="secondary" className="text-xs bg-orange-100 text-orange-800 hover:bg-orange-200">
+              <Target className="h-3 w-3 mr-1" />
+              {standard.benchmarkNumber}
+            </Badge>
+          ))}
+          {project.bestStandards && project.bestStandards.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{project.bestStandards.length - 3} more
+            </Badge>
+          )}
         </div>
       </CardContent>
       <CardFooter>
@@ -486,8 +498,8 @@ function ProjectListItem({ project }: { project: Project }) {
       <div className="flex gap-4 p-4">
         <div className="w-40 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg shrink-0 overflow-hidden">
           {project.thumbnailUrl ? (
-            <img 
-              src={project.thumbnailUrl} 
+            <img
+              src={project.thumbnailUrl}
               alt={project.title}
               className="w-full h-full object-cover"
             />
@@ -520,6 +532,16 @@ function ProjectListItem({ project }: { project: Project }) {
             {project.estimatedDuration && (
               <Badge variant="outline" className="text-xs">
                 {project.estimatedDuration}
+              </Badge>
+            )}
+            {project.bestStandards && project.bestStandards.slice(0, 3).map(standard => (
+              <Badge key={standard.id} variant="secondary" className="text-xs bg-orange-100 text-orange-800 hover:bg-orange-200">
+                {standard.benchmarkNumber}
+              </Badge>
+            ))}
+            {project.bestStandards && project.bestStandards.length > 3 && (
+              <Badge variant="outline" className="text-xs">
+                +{project.bestStandards.length - 3} more
               </Badge>
             )}
           </div>
