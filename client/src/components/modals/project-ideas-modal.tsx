@@ -134,6 +134,9 @@ export default function ProjectIdeasModal({
     enabled: isOpen,
   });
 
+  // Subject area options matching project creation modal
+  const subjectAreaOptions = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
+
   // Build URL with query parameters for B.E.S.T. Standards filtering
   const bestStandardsUrl = (() => {
     const params = new URLSearchParams();
@@ -389,12 +392,20 @@ export default function ProjectIdeasModal({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Subject Area *</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="e.g., Science, History, Mathematics, English"
-                              {...field}
-                            />
-                          </FormControl>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select subject area" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {subjectAreaOptions.map((subject) => (
+                                <SelectItem key={subject} value={subject}>
+                                  {subject}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
