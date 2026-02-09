@@ -476,6 +476,7 @@ export class AssessmentStorage implements IAssessmentStorage {
       }
 
       // Get all proficient/applying stickers for this student in this competency
+      // Use iconUrl color (blue=proficient, green=applying) for reliable matching
       const proficientStickers = await db
         .select()
         .from(credentials)
@@ -485,8 +486,8 @@ export class AssessmentStorage implements IAssessmentStorage {
           eq(credentials.type, 'sticker'),
           eq(componentSkills.competencyId, competencyId),
           or(
-            like(credentials.title, '%Proficient%'),
-            like(credentials.title, '%Applying%')
+            eq(credentials.iconUrl, 'blue'),
+            eq(credentials.iconUrl, 'green')
           )
         ));
 
@@ -605,7 +606,13 @@ export class AssessmentStorage implements IAssessmentStorage {
             awardedCredentials.push(newCredential[0]);
             console.log(`Awarded sticker: ${stickerTitle} to student ${studentId}`);
           } else {
-            const existingLevel = existingCredential[0].title?.split(' ')[0]?.toLowerCase() || '';
+            const colorToLevel: Record<string, string> = {
+              'red': 'emerging',
+              'yellow': 'developing',
+              'blue': 'proficient',
+              'green': 'applying',
+            };
+            const existingLevel = colorToLevel[existingCredential[0].iconUrl || ''] || '';
             const existingRank = rubricRank[existingLevel] || 0;
             const newRank = rubricRank[grade.rubricLevel] || 0;
 
