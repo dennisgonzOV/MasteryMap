@@ -538,13 +538,38 @@ export class AssessmentStorage implements IAssessmentStorage {
   async awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]> {
     const awardedCredentials: any[] = [];
 
+    const rubricRank: Record<string, number> = {
+      'emerging': 1,
+      'developing': 2,
+      'proficient': 3,
+      'applying': 4,
+    };
+
+    const getStickerColor = (level: string) => {
+      switch (level) {
+        case 'applying': return 'green';
+        case 'proficient': return 'blue';
+        case 'developing': return 'yellow';
+        case 'emerging': return 'red';
+        default: return 'blue';
+      }
+    };
+
+    const getDisplayName = (level: string) => {
+      switch (level) {
+        case 'applying': return 'Applying';
+        case 'proficient': return 'Proficient';
+        case 'developing': return 'Developing';
+        case 'emerging': return 'Emerging';
+        default: return 'Proficient';
+      }
+    };
+
     try {
       const competenciesToCheck = new Set<number>();
 
       for (const grade of grades) {
-        // Award stickers for all rubric levels
         if (grade.rubricLevel && ['emerging', 'developing', 'proficient', 'applying'].includes(grade.rubricLevel)) {
-          // Check if sticker already exists for this component skill
           const existingCredential = await db
             .select()
             .from(credentials)
@@ -555,64 +580,59 @@ export class AssessmentStorage implements IAssessmentStorage {
             ))
             .limit(1);
 
+          const componentSkill = await this.getComponentSkill(grade.componentSkillId);
+          if (!componentSkill) continue;
+
+          const stickerColor = getStickerColor(grade.rubricLevel);
+          const displayName = getDisplayName(grade.rubricLevel);
+          const stickerTitle = `${displayName} ${componentSkill.name}`;
+
           if (existingCredential.length === 0) {
-            // Get component skill name for the credential title
-            const componentSkill = await this.getComponentSkill(grade.componentSkillId);
+            const newCredential = await db
+              .insert(credentials)
+              .values({
+                studentId,
+                componentSkillId: grade.componentSkillId,
+                type: 'sticker',
+                title: stickerTitle,
+                description: `Achieved ${grade.rubricLevel} level in ${componentSkill.name}`,
+                iconUrl: stickerColor,
+                awardedAt: new Date(),
+                approvedBy: grade.gradedBy
+              })
+              .returning();
 
-            if (componentSkill) {
-              // Map rubric levels to sticker colors
-              const getStickerColor = (level: string) => {
-                switch (level) {
-                  case 'applying': return 'green';
-                  case 'proficient': return 'blue';
-                  case 'developing': return 'yellow';
-                  case 'emerging': return 'red';
-                  default: return 'blue';
-                }
-              };
+            awardedCredentials.push(newCredential[0]);
+            console.log(`Awarded sticker: ${stickerTitle} to student ${studentId}`);
+          } else {
+            const existingLevel = existingCredential[0].title?.split(' ')[0]?.toLowerCase() || '';
+            const existingRank = rubricRank[existingLevel] || 0;
+            const newRank = rubricRank[grade.rubricLevel] || 0;
 
-              // Map rubric levels to display names
-              const getDisplayName = (level: string) => {
-                switch (level) {
-                  case 'applying': return 'Applying';
-                  case 'proficient': return 'Proficient';
-                  case 'developing': return 'Developing';
-                  case 'emerging': return 'Emerging';
-                  default: return 'Proficient';
-                }
-              };
-
-              const stickerColor = getStickerColor(grade.rubricLevel);
-              const displayName = getDisplayName(grade.rubricLevel);
-              const stickerTitle = `${displayName} ${componentSkill.name}`;
-
-              const newCredential = await db
-                .insert(credentials)
-                .values({
-                  studentId,
-                  componentSkillId: grade.componentSkillId,
-                  type: 'sticker',
+            if (newRank > existingRank) {
+              const updatedCredential = await db
+                .update(credentials)
+                .set({
                   title: stickerTitle,
                   description: `Achieved ${grade.rubricLevel} level in ${componentSkill.name}`,
                   iconUrl: stickerColor,
                   awardedAt: new Date(),
                   approvedBy: grade.gradedBy
                 })
+                .where(eq(credentials.id, existingCredential[0].id))
                 .returning();
 
-              awardedCredentials.push(newCredential[0]);
-              console.log(`Awarded sticker: ${stickerTitle} to student ${studentId}`);
-
-              // Track competencies to check for badge eligibility
-              if (componentSkill.competencyId) {
-                competenciesToCheck.add(componentSkill.competencyId);
-              }
+              awardedCredentials.push(updatedCredential[0]);
+              console.log(`Upgraded sticker: ${stickerTitle} for student ${studentId}`);
             }
+          }
+
+          if (componentSkill.competencyId) {
+            competenciesToCheck.add(componentSkill.competencyId);
           }
         }
       }
 
-      // Check for badge eligibility after awarding stickers
       for (const competencyId of Array.from(competenciesToCheck)) {
         const badgeCredentials = await this.checkAndAwardBadge(studentId, competencyId, grades[0]?.gradedBy);
         awardedCredentials.push(...badgeCredentials);
