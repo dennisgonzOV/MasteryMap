@@ -246,7 +246,8 @@ export class CompetencyStorage implements ICompetencyStorage {
           competencyName: competency?.name || 'Unknown Competency',
           competencyCategory: competency?.category || null,
           learnerOutcomeId: competency?.learnerOutcomeId || null,
-          learnerOutcomeName: learnerOutcome?.name || 'Unknown Learner Outcome'
+          learnerOutcomeName: learnerOutcome?.name || 'Unknown Learner Outcome',
+          rubricLevels: skill.rubricLevels || null
         };
       });
 
