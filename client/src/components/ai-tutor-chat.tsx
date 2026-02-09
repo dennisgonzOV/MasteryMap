@@ -18,10 +18,7 @@ interface ChatMessage {
 interface ComponentSkill {
   id: number;
   name: string;
-  emerging: string;
-  developing: string;
-  proficient: string;
-  applying: string;
+  rubricLevels?: Record<string, string> | null;
 }
 
 interface SelfEvaluationData {
@@ -98,18 +95,28 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
   }, [componentSkill, hasGreeted, currentStep, selfEvaluation.selfAssessedLevel]);
 
   const getLevelSpecificGreeting = (level: string) => {
-    switch (level) {
-      case 'emerging':
-        return `At the Emerging level, you're beginning to understand and use this skill with significant support. Can you tell me about a specific situation where you've tried to use "${componentSkill.name}"? What challenges did you face, and what support would help you grow?`;
-      case 'developing':
-        return `At the Developing level, you're building confidence and competency with this skill. Can you share an example of when you successfully demonstrated "${componentSkill.name}"? What made that experience successful?`;
-      case 'proficient':
-        return `At the Proficient level, you demonstrate solid understanding and effective use of this skill. I'd love to hear about a specific example where you demonstrated "${componentSkill.name}" in practice. What made you successful?`;
-      case 'applying':
-        return `At the Applying level, you use this skill in complex situations and help others develop it. Please share a detailed example of how you've applied "${componentSkill.name}" in a complex situation. How have you helped others with this skill?`;
-      default:
-        return `Let's explore your understanding of this skill together. Can you tell me what "${componentSkill.name}" means to you?`;
-    }
+    const rubricLevels = componentSkill.rubricLevels;
+    const rubricDescription = rubricLevels?.[level];
+
+    const fallbackDescriptions: Record<string, string> = {
+      emerging: 'beginning to understand and use this skill with significant support',
+      developing: 'building confidence and competency with this skill',
+      proficient: 'demonstrating solid understanding and effective use of this skill',
+      applying: 'using this skill in complex situations and helping others develop it',
+    };
+
+    const description = rubricDescription || fallbackDescriptions[level];
+    const capitalizedLevel = level.charAt(0).toUpperCase() + level.slice(1);
+
+    const prompts: Record<string, string> = {
+      emerging: `Can you tell me about a specific situation where you've tried to use "${componentSkill.name}"? What challenges did you face, and what support would help you grow?`,
+      developing: `Can you share an example of when you successfully demonstrated "${componentSkill.name}"? What made that experience successful?`,
+      proficient: `I'd love to hear about a specific example where you demonstrated "${componentSkill.name}" in practice. What made you successful?`,
+      applying: `Please share a detailed example of how you've applied "${componentSkill.name}" in a complex situation. How have you helped others with this skill?`,
+    };
+
+    const prompt = prompts[level] || `Can you tell me what "${componentSkill.name}" means to you?`;
+    return `At the ${capitalizedLevel} level, the expectation is: "${description}". ${prompt}`;
   };
 
   const handleSendMessage = async () => {
@@ -301,7 +308,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
               >
                 <div className="font-medium capitalize mb-1 text-sm">{level}</div>
                 <div className="text-blue-700 leading-relaxed">
-                  {componentSkill[level] || {
+                  {componentSkill.rubricLevels?.[level] || {
                     emerging: 'Beginning to understand and use this skill with significant support',
                     developing: 'Building confidence and competency with this skill',
                     proficient: 'Demonstrates solid understanding and effective use of this skill',
