@@ -94,7 +94,7 @@ export default function AdminUsers() {
     // Create user mutation
     const createUserMutation = useMutation({
         mutationFn: async (data: CreateUserFormValues) => {
-            const res = await apiRequest('POST', '/api/admin/users', data);
+            const res = await apiRequest('/api/admin/users', 'POST', data);
             return res.json();
         },
         onSuccess: () => {
@@ -117,7 +117,7 @@ export default function AdminUsers() {
     // Delete user mutation
     const deleteUserMutation = useMutation({
         mutationFn: async (userId: number) => {
-            await apiRequest('DELETE', `/api/admin/users/${userId}`);
+            await apiRequest(`/api/admin/users/${userId}`, 'DELETE');
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -139,7 +139,7 @@ export default function AdminUsers() {
     // Reset password mutation
     const resetPasswordMutation = useMutation({
         mutationFn: async (data: { userId: number, newPassword: string }) => {
-            await apiRequest('POST', `/api/admin/users/${data.userId}/password`, { newPassword: data.newPassword });
+            await apiRequest(`/api/admin/users/${data.userId}/password`, 'POST', { newPassword: data.newPassword });
         },
         onSuccess: () => {
             setUserToResetPassword(null);

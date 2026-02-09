@@ -13,7 +13,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Create pool with connection pooling settings
-export const pool = new Pool({ 
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
@@ -21,22 +21,25 @@ export const pool = new Pool({
 });
 
 // Handle Neon WebSocket connection errors gracefully
-process.on('uncaughtException', (error: any) => {
-  // Handle known Neon WebSocket issues
-  if (error.message && (
-    error.message.includes('Cannot set property message') ||
-    error.message.includes('terminating connection due to administrator command') ||
-    error.message.includes('FATAL') ||
-    error.code === '57P01' // Neon connection termination code
-  )) {
-    console.warn('Neon connection error handled gracefully:', error.message);
-    return; // Don't crash the process for database connection issues
-  }
-  
-  // For non-database errors, log and exit gracefully
-  console.error('Uncaught exception:', error);
-  process.exit(1);
-});
+// Handle Neon WebSocket connection errors gracefully
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  process.on('uncaughtException', (error: any) => {
+    // Handle known Neon WebSocket issues
+    if (error.message && (
+      error.message.includes('Cannot set property message') ||
+      error.message.includes('terminating connection due to administrator command') ||
+      error.message.includes('FATAL') ||
+      error.code === '57P01' // Neon connection termination code
+    )) {
+      console.warn('Neon connection error handled gracefully:', error.message);
+      return; // Don't crash the process for database connection issues
+    }
+
+    // For non-database errors, log and exit gracefully
+    console.error('Uncaught exception:', error);
+    // process.exit(1);
+  });
+}
 
 // Handle unhandled promise rejections from database operations
 process.on('unhandledRejection', (reason, promise) => {

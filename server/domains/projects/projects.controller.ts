@@ -178,6 +178,12 @@ router.get('/', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) =>
   const userId = req.user!.id;
   const userRole = req.user!.role;
 
+  // For free tier users, only return projects they created
+  if (req.user!.tier === 'free') {
+    const projects = await projectsStorage.getProjectsByTeacher(userId);
+    return createSuccessResponse(res, projects);
+  }
+
   const projects = await projectsService.getProjectsByUser(userId, userRole);
   createSuccessResponse(res, projects);
 }));

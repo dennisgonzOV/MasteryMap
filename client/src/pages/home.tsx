@@ -11,7 +11,11 @@ export default function Home() {
       // Redirect to role-specific landing page
       switch (user.role) {
         case 'teacher':
-          setLocation('/teacher/dashboard');
+          if (user.tier === 'free') {
+            setLocation('/teacher/projects');
+          } else {
+            setLocation('/teacher/dashboard');
+          }
           break;
         case 'student':
           setLocation('/student/projects');

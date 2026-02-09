@@ -1,0 +1,632 @@
+
+ RUN  v3.2.4 /Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap
+
+stdout | tests/api/assessments.test.ts
+10:00:26 PM [express] Testing database connection...
+
+stdout | tests/reproduce_issue.test.ts
+10:00:26 PM [express] Testing database connection...
+
+stdout | tests/api/assessments.test.ts > Assessments API
+Database connection successful
+
+stdout | tests/api/assessments.test.ts > Assessments API
+Setting up learner-outcomes-hierarchy routes
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+Database connection successful
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+Setting up learner-outcomes-hierarchy routes
+
+stderr | tests/api/assessments.test.ts > Assessments API
+🔥 UNCAUGHT EXCEPTION! Shutting down... {
+  error: [32m'listen EADDRINUSE: address already in use 0.0.0.0:8080'[39m,
+  stack: [32m'Error: listen EADDRINUSE: address already in use 0.0.0.0:8080\n'[39m +
+    [32m'    at Server.setupListenHandle [as _listen2] (node:net:1817:16)\n'[39m +
+    [32m'    at listenInCluster (node:net:1865:12)\n'[39m +
+    [32m'    at doListen (node:net:2014:7)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:83:21)'[39m,
+  timestamp: [32m'2026-02-08T03:00:26.644Z'[39m
+}
+
+stderr | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+🔥 UNCAUGHT EXCEPTION! Shutting down... {
+  error: [32m'listen EADDRINUSE: address already in use 0.0.0.0:8080'[39m,
+  stack: [32m'Error: listen EADDRINUSE: address already in use 0.0.0.0:8080\n'[39m +
+    [32m'    at Server.setupListenHandle [as _listen2] (node:net:1817:16)\n'[39m +
+    [32m'    at listenInCluster (node:net:1865:12)\n'[39m +
+    [32m'    at doListen (node:net:2014:7)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:83:21)'[39m,
+  timestamp: [32m'2026-02-08T03:00:26.647Z'[39m
+}
+
+stdout | tests/api/assessments.test.ts > Assessments API
+10:00:27 PM [express] POST /api/auth/register 201 in 603ms :: {"id":49,"username":"assessment-teacher…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+10:00:27 PM [express] POST /api/auth/register 201 in 606ms :: {"id":48,"username":"update-test-teache…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m48[39m for /
+RequireRole: User 48 has role 'teacher' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 48 with role 'teacher'
+Creating assessment with questions: [
+  {
+    type: [32m'open-ended'[39m,
+    question: [32m'Explain the greenhouse effect in your own words'[39m,
+    points: [33m10[39m,
+    id: [32m'q_1770519627454_0'[39m
+  },
+  {
+    type: [32m'multiple-choice'[39m,
+    question: [32m'Which greenhouse gas is most abundant in the atmosphere?'[39m,
+    options: [ [32m'Carbon dioxide'[39m, [32m'Methane'[39m, [32m'Water vapor'[39m, [32m'Nitrous oxide'[39m ],
+    correctAnswer: [33m2[39m,
+    points: [33m5[39m,
+    id: [32m'q_1770519627454_1'[39m
+  }
+]
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+10:00:27 PM [express] POST /api/assessments 200 in 289ms :: {"id":98,"milestoneId":null,"title":"Asse…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+Attempting to update assessment 98 with due date: 2026-02-15T03:00:27.648Z
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m48[39m for /98
+RequireRole: User 48 has role 'teacher' for /98
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 48 with role 'teacher'
+[DEBUG] PATCH /api/assessments/98
+[DEBUG] User: 48 (teacher)
+[DEBUG] Updates: {
+  "dueDate": "2026-02-15T03:00:27.648Z"
+}
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Existing Assessment: createdBy=null, milestoneId=null
+[DEBUG] Access granted. Proceeding with update.
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Update successful. New DueDate: Sat Feb 14 2026 22:00:27 GMT-0500 (Eastern Standard Time)
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+10:00:27 PM [express] PATCH /api/assessments/98 200 in 293ms :: {"id":98,"milestoneId":null,"title":"…
+
+stdout | tests/api/assessments.test.ts > Assessments API
+10:00:27 PM [express] POST /api/auth/register 201 in 614ms :: {"id":50,"username":"assessment-student…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m48[39m for /98
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should create standalone assessment with questions
+RequireAuth: Successfully authenticated user [33m49[39m for /
+RequireRole: User 49 has role 'teacher' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+Creating assessment with questions: [
+  {
+    type: [32m'open-ended'[39m,
+    question: [32m'Explain the greenhouse effect in your own words'[39m,
+    points: [33m10[39m,
+    id: [32m'q_1770519628069_0'[39m
+  },
+  {
+    type: [32m'multiple-choice'[39m,
+    question: [32m'Which greenhouse gas is most abundant in the atmosphere?'[39m,
+    options: [ [32m'Carbon dioxide'[39m, [32m'Methane'[39m, [32m'Water vapor'[39m, [32m'Nitrous oxide'[39m ],
+    correctAnswer: [33m2[39m,
+    points: [33m5[39m,
+    id: [32m'q_1770519628069_1'[39m
+  }
+]
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+10:00:28 PM [express] GET /api/assessments/98 200 in 195ms :: {"id":98,"milestoneId":null,"title":"As…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+Original Due Date: 2026-02-08T03:00:27.357Z
+Requested Due Date: 2026-02-15T03:00:27.648Z
+Actual Updated Due Date: 2026-02-15T03:00:27.648Z
+Attempting to clear due date for assessment 98
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m48[39m for /98
+RequireRole: User 48 has role 'teacher' for /98
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 48 with role 'teacher'
+[DEBUG] PATCH /api/assessments/98
+[DEBUG] User: 48 (teacher)
+[DEBUG] Updates: {
+  "dueDate": null
+}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should create standalone assessment with questions
+10:00:28 PM [express] POST /api/assessments 200 in 294ms :: {"id":99,"milestoneId":null,"title":"Clim…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should generate AI questions for assessment
+10:00:28 PM [express] POST /api/assessments/generate-questions 200 in 3ms
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Existing Assessment: createdBy=null, milestoneId=null
+[DEBUG] Access granted. Proceeding with update.
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject assessment creation by non-teacher
+RequireAuth: Successfully authenticated user [33m50[39m for /
+RequireRole: User 50 has role 'student' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'student' included in [teacher, admin]: false
+RequireRole: Access denied - user role 'student' not in allowed roles [teacher, admin]
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject assessment creation by non-teacher
+10:00:28 PM [express] POST /api/assessments 403 in 94ms :: {"message":"Forbidden"}
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Update successful. New DueDate: null
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+10:00:28 PM [express] PATCH /api/assessments/98 200 in 287ms :: {"id":98,"milestoneId":null,"title":"…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation without questions
+RequireAuth: Successfully authenticated user [33m49[39m for /
+RequireRole: User 49 has role 'teacher' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+Creating assessment with questions: []
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m48[39m for /98
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+10:00:28 PM [express] GET /api/assessments/98 200 in 196ms :: {"id":98,"milestoneId":null,"title":"As…
+
+ ✓ tests/reproduce_issue.test.ts (1 test) 2375ms
+   ✓ Assessment Update Reproduction > should create an assessment and fail to update due date  1273ms
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation without questions
+10:00:28 PM [express] POST /api/assessments 200 in 295ms :: {"id":100,"milestoneId":null,"title":"Cli…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text
+RequireAuth: Successfully authenticated user [33m49[39m for /
+RequireRole: User 49 has role 'teacher' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+Creating assessment with questions: [
+  {
+    text: [32m''[39m,
+    type: [32m'open-ended'[39m,
+    rubricCriteria: [32m''[39m,
+    id: [32m'q_1770519628772_0'[39m
+  }
+]
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text
+10:00:28 PM [express] POST /api/assessments 200 in 284ms :: {"id":101,"milestoneId":null,"title":"Cli…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions
+RequireAuth: Successfully authenticated user [33m49[39m for /
+RequireRole: User 49 has role 'teacher' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+Creating assessment with questions: []
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions
+10:00:29 PM [express] POST /api/assessments 200 in 292ms :: {"id":102,"milestoneId":null,"title":"Cli…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+RequireAuth: Successfully authenticated user [33m50[39m for /by-code/undefined
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+Error accessing assessment by code: Error: Invalid share code format
+    at AssessmentService.getAssessmentByShareCode [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.service.ts:124:13[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.controller.ts:674:47
+    at Layer.handle [as handle_request] [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/layer.js:95:5[90m)[39m
+    at next [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/route.js:149:13[90m)[39m
+    at requireAuth [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/auth/auth.controller.ts:37:5[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+10:00:29 PM [express] GET /api/assessments/by-code/undefined 400 in 105ms :: {"message":"Invalid shar…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+RequireAuth: Successfully authenticated user [33m50[39m for /by-code/ZZZZZ
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+Error accessing assessment by code: Error: Assessment not found with this code
+    at AssessmentService.getAssessmentByShareCode [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.service.ts:130:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.controller.ts:674:28
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+10:00:29 PM [express] GET /api/assessments/by-code/ZZZZZ 404 in 192ms :: {"message":"Assessment not f…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+RequireAuth: Successfully authenticated user [33m49[39m for /undefined/regenerate-share-code
+RequireRole: User 49 has role 'teacher' for /undefined/regenerate-share-code
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+Error regenerating share code: error: invalid input syntax for type integer: "NaN"
+    at [90mfile:///Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4m@neondatabase[24m/serverless/index.mjs:1345:74
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at NeonPreparedQuery.execute [90m(file:///Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4msrc[24m/neon-serverless/session.ts:102:18[90m)[39m
+    at AssessmentStorage.getAssessment [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.storage.ts:138:26[90m)[39m
+    at AssessmentService.regenerateShareCode [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.service.ts:142:24[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.controller.ts:696:24 {
+  length: [33m146[39m,
+  severity: [32m'ERROR'[39m,
+  code: [32m'22P02'[39m,
+  detail: [90mundefined[39m,
+  hint: [90mundefined[39m,
+  position: [90mundefined[39m,
+  internalPosition: [90mundefined[39m,
+  internalQuery: [90mundefined[39m,
+  where: [32m"unnamed portal parameter $1 = '...'"[39m,
+  schema: [90mundefined[39m,
+  table: [90mundefined[39m,
+  column: [90mundefined[39m,
+  dataType: [90mundefined[39m,
+  constraint: [90mundefined[39m,
+  file: [32m'numutils.c'[39m,
+  line: [32m'617'[39m,
+  routine: [32m'pg_strtoint32_safe'[39m
+}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+10:00:29 PM [express] POST /api/assessments/undefined/regenerate-share-code 500 in 199ms :: {"message…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should create assessment submission
+RequireAuth: Successfully authenticated user [33m50[39m for /
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should create assessment submission
+10:00:30 PM [express] POST /api/submissions 200 in 500ms :: {"id":128,"assessmentId":null,"studentId"…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+RequireAuth: Successfully authenticated user [33m49[39m for /undefined/submissions
+RequireRole: User 49 has role 'teacher' for /undefined/submissions
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+Invalid assessmentId: [33mNaN[39m
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+10:00:30 PM [express] GET /api/assessments/undefined/submissions 200 in 97ms :: []
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should prevent duplicate submissions
+RequireAuth: Successfully authenticated user [33m50[39m for /
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should prevent duplicate submissions
+10:00:30 PM [express] POST /api/submissions 200 in 200ms :: {"id":129,"assessmentId":null,"studentId"…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading
+RequireAuth: Successfully authenticated user [33m49[39m for /undefined/submissions
+RequireRole: User 49 has role 'teacher' for /undefined/submissions
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Grading
+Invalid assessmentId: [33mNaN[39m
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading
+10:00:30 PM [express] GET /api/assessments/undefined/submissions 200 in 94ms :: []
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Analytics > should get assessment statistics
+10:00:30 PM [express] GET /api/assessments/undefined/stats 200 in 2ms
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions
+RequireAuth: Successfully authenticated user [33m49[39m for /undefined
+RequireRole: User 49 has role 'teacher' for /undefined
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions
+10:00:30 PM [express] DELETE /api/assessments/undefined 400 in 97ms :: {"message":"Invalid id paramet…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+RequireAuth: Successfully authenticated user [33m49[39m for /
+RequireRole: User 49 has role 'teacher' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+Creating assessment with questions: [
+  {
+    type: [32m'open-ended'[39m,
+    question: [32m'Explain the greenhouse effect in your own words'[39m,
+    points: [33m10[39m,
+    id: [32m'q_1770519630897_0'[39m
+  },
+  {
+    type: [32m'multiple-choice'[39m,
+    question: [32m'Which greenhouse gas is most abundant in the atmosphere?'[39m,
+    options: [ [32m'Carbon dioxide'[39m, [32m'Methane'[39m, [32m'Water vapor'[39m, [32m'Nitrous oxide'[39m ],
+    correctAnswer: [33m2[39m,
+    points: [33m5[39m,
+    id: [32m'q_1770519630897_1'[39m
+  }
+]
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+10:00:31 PM [express] POST /api/assessments 200 in 290ms :: {"id":103,"milestoneId":null,"title":"Tes…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+RequireAuth: Successfully authenticated user [33m49[39m for /103
+RequireRole: User 49 has role 'teacher' for /103
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 49 with role 'teacher'
+DELETE Assessment: User 49 (role: teacher) attempting to delete assessment 103
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+10:00:31 PM [express] DELETE /api/assessments/103 200 in 573ms :: {"message":"Assessment deleted succ…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should reject deletion by non-teacher
+RequireAuth: Successfully authenticated user [33m50[39m for /undefined
+RequireRole: User 50 has role 'student' for /undefined
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'student' included in [teacher, admin]: false
+RequireRole: Access denied - user role 'student' not in allowed roles [teacher, admin]
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should reject deletion by non-teacher
+10:00:31 PM [express] DELETE /api/assessments/undefined 403 in 94ms :: {"message":"Forbidden"}
+
+ ❯ tests/api/assessments.test.ts (19 tests | 11 failed) 5505ms
+   × Assessments API > Assessment Creation > should create standalone assessment with questions 305ms
+     → expected [ …(2) ] to deeply equal [ { type: 'open-ended', …(2) }, …(1) ]
+   × Assessments API > Assessment Creation > should generate AI questions for assessment 7ms
+     → expected false to be true // Object.is equality
+   ✓ Assessments API > Assessment Creation > should reject assessment creation by non-teacher 97ms
+   × Assessments API > Assessment Creation > should reject teacher assessment creation without questions 297ms
+     → expected 200 to be 400 // Object.is equality
+   × Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text 286ms
+     → expected 200 to be 400 // Object.is equality
+   ✓ Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions 297ms
+   × Assessments API > Assessment Share Codes > should access assessment by share code 111ms
+     → expected 400 to be 200 // Object.is equality
+   ✓ Assessments API > Assessment Share Codes > should reject invalid share code 197ms
+   × Assessments API > Assessment Share Codes > should regenerate share code 204ms
+     → expected 500 to be 200 // Object.is equality
+   × Assessments API > Assessment Submissions > should create assessment submission 505ms
+     → expected null to be undefined // Object.is equality
+   × Assessments API > Assessment Submissions > should get assessment submissions for teacher 104ms
+     → expected 0 to be greater than 0
+   × Assessments API > Assessment Submissions > should prevent duplicate submissions 206ms
+     → expected 200 to be 400 // Object.is equality
+   ✓ Assessments API > Assessment Grading > should grade submission with AI feedback 0ms
+   ✓ Assessments API > Assessment Grading > should generate AI feedback for individual question 0ms
+   ✓ Assessments API > Assessment Grading > should get graded submission for student 0ms
+   × Assessments API > Assessment Analytics > should get assessment statistics 6ms
+     → expected undefined to be defined
+   × Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions 103ms
+     → expected 'Invalid id parameter' to contain 'Cannot delete assessment'
+   ✓ Assessments API > Assessment Deletion > should allow deletion of assessment without submissions  867ms
+   ✓ Assessments API > Assessment Deletion > should reject deletion by non-teacher 95ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should create standalone assessment with questions
+AssertionError: expected [ …(2) ] to deeply equal [ { type: 'open-ended', …(2) }, …(1) ]
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[33m@@ -1,13 +1,15 @@[39m
+[2m  [[22m
+[2m    {[22m
+[31m+     "id": "q_1770519628069_0",[39m
+[2m      "points": 10,[22m
+[2m      "question": "Explain the greenhouse effect in your own words",[22m
+[2m      "type": "open-ended",[22m
+[2m    },[22m
+[2m    {[22m
+[2m      "correctAnswer": 2,[22m
+[31m+     "id": "q_1770519628069_1",[39m
+[2m      "options": [[22m
+[2m        "Carbon dioxide",[22m
+[2m        "Methane",[22m
+[2m        "Water vapor",[22m
+[2m        "Nitrous oxide",[22m
+
+ ❯ tests/api/assessments.test.ts:60:39
+     58|       expect(response.body.title).toBe(testAssessment.title);
+     59|       expect(response.body.componentSkillIds).toEqual(testAssessment.c…
+     60|       expect(response.body.questions).toEqual(testAssessment.questions…
+       |                                       ^
+     61|       expect(response.body.shareCode).toBeDefined();
+     62|       expect(response.body.shareCode).toMatch(/^[A-Z]{5}$/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should generate AI questions for assessment
+AssertionError: expected false to be true // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+ ❯ tests/api/assessments.test.ts:78:44
+     76| 
+     77|       expect(response.status).toBe(200);
+     78|       expect(Array.isArray(response.body)).toBe(true);
+       |                                            ^
+     79|       expect(response.body.length).toBe(3);
+     80| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation without questions
+AssertionError: expected 200 to be 400 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 200[39m
+
+ ❯ tests/api/assessments.test.ts:106:31
+    104|         .send(assessmentWithoutQuestions);
+    105| 
+    106|       expect(response.status).toBe(400);
+       |                               ^
+    107|       expect(response.body.message).toBe('Validation Error');
+    108|       expect(response.body.error).toContain('must have at least one qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text
+AssertionError: expected 200 to be 400 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 200[39m
+
+ ❯ tests/api/assessments.test.ts:127:31
+    125|         .send(assessmentWithEmptyQuestions);
+    126| 
+    127|       expect(response.status).toBe(400);
+       |                               ^
+    128|       expect(response.body.message).toBe('Validation Error');
+    129|       expect(response.body.error).toContain('must have non-empty text'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+AssertionError: expected 400 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 400[39m
+
+ ❯ tests/api/assessments.test.ts:154:31
+    152|         .get(`/api/assessments/by-code/${shareCode}`);
+    153| 
+    154|       expect(response.status).toBe(200);
+       |                               ^
+    155|       expect(response.body.title).toBe(testAssessment.title);
+    156|       expect(response.body.questions).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+AssertionError: expected 500 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+ ❯ tests/api/assessments.test.ts:171:31
+    169|         .post(`/api/assessments/${assessmentId}/regenerate-share-code`…
+    170| 
+    171|       expect(response.status).toBe(200);
+       |                               ^
+    172|       expect(response.body.shareCode).toBeDefined();
+    173|       expect(response.body.shareCode).toMatch(/^[A-Z]{5}$/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should create assessment submission
+AssertionError: expected null to be undefined // Object.is equality
+
+[32m- Expected:[39m 
+undefined
+
+[31m+ Received:[39m 
+null
+
+ ❯ tests/api/assessments.test.ts:199:42
+    197| 
+    198|       expect(response.status).toBe(200);
+    199|       expect(response.body.assessmentId).toBe(assessmentId);
+       |                                          ^
+    200|       expect(response.body.answers).toBeDefined();
+    201|       expect(response.body.submittedAt).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+AssertionError: expected 0 to be greater than 0
+ ❯ tests/api/assessments.test.ts:212:36
+    210|       expect(response.status).toBe(200);
+    211|       expect(Array.isArray(response.body)).toBe(true);
+    212|       expect(response.body.length).toBeGreaterThan(0);
+       |                                    ^
+    213| 
+    214|       const submission = response.body[0];
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should prevent duplicate submissions
+AssertionError: expected 200 to be 400 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 200[39m
+
+ ❯ tests/api/assessments.test.ts:232:31
+    230|         });
+    231| 
+    232|       expect(response.status).toBe(400);
+       |                               ^
+    233|       expect(response.body.message).toContain('already submitted');
+    234|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Analytics > should get assessment statistics
+AssertionError: expected undefined to be defined
+ ❯ tests/api/assessments.test.ts:316:46
+    314| 
+    315|       expect(response.status).toBe(200);
+    316|       expect(response.body.totalSubmissions).toBeDefined();
+       |                                              ^
+    317|       expect(response.body.averageScore).toBeDefined();
+    318|       expect(response.body.completionRate).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions
+AssertionError: expected 'Invalid id parameter' to contain 'Cannot delete assessment'
+
+Expected: [32m"Cannot delete assessment"[39m
+Received: [31m"Invalid id parameter"[39m
+
+ ❯ tests/api/assessments.test.ts:328:37
+    326| 
+    327|       expect(response.status).toBe(400);
+    328|       expect(response.body.message).toContain('Cannot delete assessmen…
+       |                                     ^
+    329|       expect(response.body.message).toContain('existing submissions');
+    330|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  11 failed | 9 passed (20)
+   Start at  22:00:25
+   Duration  6.20s (transform 230ms, setup 23ms, collect 988ms, tests 7.88s, environment 0ms, prepare 63ms)
+

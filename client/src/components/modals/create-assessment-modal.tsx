@@ -11,22 +11,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog";
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
 } from "@/components/ui/form";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -147,7 +147,7 @@ export default function CreateAssessmentModal({
   });
 
   // Fetch the complete hierarchy
-  const { data: hierarchy = [], isLoading: hierarchyLoading } = useQuery({
+  const { data: hierarchy = [], isLoading: hierarchyLoading } = useQuery<any[]>({
     queryKey: ["/api/competencies/learner-outcomes-hierarchy/complete"],
     enabled: open,
   });
@@ -272,8 +272,8 @@ export default function CreateAssessmentModal({
     setIsGeneratingWithAI(true);
     try {
       // Get detailed component skill information
-      const selectedSkillsDetails = hierarchy.flatMap((outcome: any) => 
-        outcome.competencies?.flatMap((competency: any) => 
+      const selectedSkillsDetails = hierarchy.flatMap((outcome: any) =>
+        outcome.competencies?.flatMap((competency: any) =>
           competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
             .map((skill: any) => ({
               ...skill,
@@ -313,7 +313,7 @@ export default function CreateAssessmentModal({
         // Convert AI questions to form format
         const formattedQuestions = aiAssessment.questions.map((q: any) => {
           let correctAnswer = q.correctAnswer || "";
-          
+
           // For multiple choice questions, ensure correct answer is set
           if (q.type === "multiple-choice" && q.choices && q.choices.length > 0) {
             if (!correctAnswer) {
@@ -322,7 +322,7 @@ export default function CreateAssessmentModal({
               correctAnswer = q.choices[0]; // Fallback if provided answer isn't in choices
             }
           }
-          
+
           return {
             text: q.text,
             type: q.type,
@@ -345,7 +345,7 @@ export default function CreateAssessmentModal({
 
         // Invalidate queries after successful AI generation
         queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
-        
+
         // Reset loading state on success
         setIsGeneratingWithAI(false);
         return;
@@ -359,136 +359,136 @@ export default function CreateAssessmentModal({
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Get selected skill details for fallback
-      const selectedSkillsDetails = hierarchy.flatMap((outcome: any) => 
-        outcome.competencies?.flatMap((competency: any) => 
-          competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
-        ) || []
-      ) || [];
+        // Get selected skill details for fallback
+        const selectedSkillsDetails = hierarchy.flatMap((outcome: any) =>
+          outcome.competencies?.flatMap((competency: any) =>
+            competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
+          ) || []
+        ) || [];
 
-      // Generate sample questions based on preferences
-      const questionTemplates = {
-        "open-ended": [
-          {
-            text: "Describe how you would collaborate effectively with team members from different backgrounds.",
-            type: "open-ended" as const,
-            rubricCriteria: "Look for evidence of cultural awareness, communication strategies, and inclusive practices.",
-          },
-          {
-            text: "Explain how you would approach solving a complex problem in your field.",
-            type: "open-ended" as const,
-            rubricCriteria: "Assess problem-solving methodology, critical thinking, and systematic approach.",
-          },
-          {
-            text: "Discuss the importance of ethical considerations in your work.",
-            type: "open-ended" as const,
-            rubricCriteria: "Evaluate understanding of ethics, moral reasoning, and professional responsibility.",
-          }
-        ],
-        "multiple-choice": [
-          {
-            text: "Which of the following best describes effective cross-cultural communication?",
-            type: "multiple-choice" as const,
-            options: [
-              "Using the same approach with everyone",
-              "Adapting communication style to cultural context",
-              "Avoiding cultural differences",
-              "Speaking louder to overcome barriers"
-            ],
-            correctAnswer: "Adapting communication style to cultural context",
-            rubricCriteria: "Assesses understanding of cultural adaptability in communication.",
-          },
-          {
-            text: "What is the most important factor in successful teamwork?",
-            type: "multiple-choice" as const,
-            options: [
-              "Having similar personalities",
-              "Clear communication and shared goals",
-              "Working independently",
-              "Avoiding conflict at all costs"
-            ],
-            correctAnswer: "Clear communication and shared goals",
-            rubricCriteria: "Evaluates understanding of collaborative principles.",
-          }
-        ],
-        "short-answer": [
-          {
-            text: "List three key strategies for effective time management.",
-            type: "short-answer" as const,
-            rubricCriteria: "Look for practical, actionable strategies and understanding of time management principles.",
-          },
-          {
-            text: "What are two main benefits of diverse perspectives in problem-solving?",
-            type: "short-answer" as const,
-            rubricCriteria: "Assess understanding of diversity's value and its impact on outcomes.",
-          }
-        ]
-      };
+        // Generate sample questions based on preferences
+        const questionTemplates = {
+          "open-ended": [
+            {
+              text: "Describe how you would collaborate effectively with team members from different backgrounds.",
+              type: "open-ended" as const,
+              rubricCriteria: "Look for evidence of cultural awareness, communication strategies, and inclusive practices.",
+            },
+            {
+              text: "Explain how you would approach solving a complex problem in your field.",
+              type: "open-ended" as const,
+              rubricCriteria: "Assess problem-solving methodology, critical thinking, and systematic approach.",
+            },
+            {
+              text: "Discuss the importance of ethical considerations in your work.",
+              type: "open-ended" as const,
+              rubricCriteria: "Evaluate understanding of ethics, moral reasoning, and professional responsibility.",
+            }
+          ],
+          "multiple-choice": [
+            {
+              text: "Which of the following best describes effective cross-cultural communication?",
+              type: "multiple-choice" as const,
+              options: [
+                "Using the same approach with everyone",
+                "Adapting communication style to cultural context",
+                "Avoiding cultural differences",
+                "Speaking louder to overcome barriers"
+              ],
+              correctAnswer: "Adapting communication style to cultural context",
+              rubricCriteria: "Assesses understanding of cultural adaptability in communication.",
+            },
+            {
+              text: "What is the most important factor in successful teamwork?",
+              type: "multiple-choice" as const,
+              options: [
+                "Having similar personalities",
+                "Clear communication and shared goals",
+                "Working independently",
+                "Avoiding conflict at all costs"
+              ],
+              correctAnswer: "Clear communication and shared goals",
+              rubricCriteria: "Evaluates understanding of collaborative principles.",
+            }
+          ],
+          "short-answer": [
+            {
+              text: "List three key strategies for effective time management.",
+              type: "short-answer" as const,
+              rubricCriteria: "Look for practical, actionable strategies and understanding of time management principles.",
+            },
+            {
+              text: "What are two main benefits of diverse perspectives in problem-solving?",
+              type: "short-answer" as const,
+              rubricCriteria: "Assess understanding of diversity's value and its impact on outcomes.",
+            }
+          ]
+        };
 
-      // Validate selectedTypes is not empty to prevent infinite loop
-      if (selectedTypes.length === 0) {
+        // Validate selectedTypes is not empty to prevent infinite loop
+        if (selectedTypes.length === 0) {
+          toast({
+            title: "Error",
+            description: "Please select at least one question type before generating.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Generate questions based on selected types and count
+        const generatedQuestions = [];
+        const questionsPerType = Math.ceil(aiQuestionCount / selectedTypes.length);
+
+        for (const type of selectedTypes) {
+          const templates = questionTemplates[type as keyof typeof questionTemplates];
+          const questionsToAdd = Math.min(questionsPerType, templates.length);
+
+          // Add questions from this type's templates, cycling through if needed
+          for (let i = 0; i < questionsToAdd && generatedQuestions.length < aiQuestionCount; i++) {
+            const templateIndex = i % templates.length; // Cycle through templates if we need more questions
+            generatedQuestions.push({
+              ...templates[templateIndex],
+              text: `${templates[templateIndex].text} (Question ${generatedQuestions.length + 1})`
+            });
+          }
+        }
+
+        // If we still need more questions, cycle through all types again
+        while (generatedQuestions.length < aiQuestionCount) {
+          for (const type of selectedTypes) {
+            if (generatedQuestions.length >= aiQuestionCount) break;
+
+            const templates = questionTemplates[type as keyof typeof questionTemplates];
+            const templateIndex = generatedQuestions.length % templates.length;
+            generatedQuestions.push({
+              ...templates[templateIndex],
+              text: `${templates[templateIndex].text} (Question ${generatedQuestions.length + 1})`
+            });
+          }
+        }
+
+        // Ensure we have exactly the requested count
+        const finalQuestions = generatedQuestions.slice(0, aiQuestionCount);
+
+        // Get existing questions and filter out any blank ones for fallback too
+        const existingQuestions = form.getValues("questions") || [];
+        const nonBlankQuestions = existingQuestions.filter(q => q.text.trim().length > 0);
+        const allQuestions = [...nonBlankQuestions, ...finalQuestions];
+        form.setValue("questions", allQuestions);
+
         toast({
-          title: "Error",
-          description: "Please select at least one question type before generating.",
+          title: "AI Questions Added",
+          description: `Added ${finalQuestions.length} new questions based on your preferences. Total: ${allQuestions.length} questions.`,
+        });
+      } catch (error) {
+        toast({
+          title: "AI Generation Failed",
+          description: "Unable to generate assessment. Please create questions manually.",
           variant: "destructive",
         });
-        return;
+      } finally {
+        setIsGeneratingWithAI(false);
       }
-
-      // Generate questions based on selected types and count
-      const generatedQuestions = [];
-      const questionsPerType = Math.ceil(aiQuestionCount / selectedTypes.length);
-
-      for (const type of selectedTypes) {
-        const templates = questionTemplates[type as keyof typeof questionTemplates];
-        const questionsToAdd = Math.min(questionsPerType, templates.length);
-
-        // Add questions from this type's templates, cycling through if needed
-        for (let i = 0; i < questionsToAdd && generatedQuestions.length < aiQuestionCount; i++) {
-          const templateIndex = i % templates.length; // Cycle through templates if we need more questions
-          generatedQuestions.push({
-            ...templates[templateIndex],
-            text: `${templates[templateIndex].text} (Question ${generatedQuestions.length + 1})`
-          });
-        }
-      }
-
-      // If we still need more questions, cycle through all types again
-      while (generatedQuestions.length < aiQuestionCount) {
-        for (const type of selectedTypes) {
-          if (generatedQuestions.length >= aiQuestionCount) break;
-
-          const templates = questionTemplates[type as keyof typeof questionTemplates];
-          const templateIndex = generatedQuestions.length % templates.length;
-          generatedQuestions.push({
-            ...templates[templateIndex],
-            text: `${templates[templateIndex].text} (Question ${generatedQuestions.length + 1})`
-          });
-        }
-      }
-
-      // Ensure we have exactly the requested count
-      const finalQuestions = generatedQuestions.slice(0, aiQuestionCount);
-
-      // Get existing questions and filter out any blank ones for fallback too
-      const existingQuestions = form.getValues("questions") || [];
-      const nonBlankQuestions = existingQuestions.filter(q => q.text.trim().length > 0);
-      const allQuestions = [...nonBlankQuestions, ...finalQuestions];
-      form.setValue("questions", allQuestions);
-
-      toast({
-        title: "AI Questions Added",
-        description: `Added ${finalQuestions.length} new questions based on your preferences. Total: ${allQuestions.length} questions.`,
-      });
-      } catch (error) {
-      toast({
-        title: "AI Generation Failed",
-        description: "Unable to generate assessment. Please create questions manually.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingWithAI(false);
-    }
     }
   };
 
@@ -685,7 +685,7 @@ export default function CreateAssessmentModal({
                                                   <Checkbox
                                                     id={`skill-${skill.id}`}
                                                     checked={field.value?.includes(skill.id)}
-                                                    onCheckedChange={(checked) => 
+                                                    onCheckedChange={(checked) =>
                                                       handleComponentSkillChange(skill.id, checked as boolean)
                                                     }
                                                     className="mt-0.5"
@@ -744,8 +744,8 @@ export default function CreateAssessmentModal({
                         Students will self-evaluate on {selectedSkills.length} component skill{selectedSkills.length > 1 ? 's' : ''}:
                       </p>
                       <div className="space-y-1">
-                        {hierarchy.flatMap((outcome: any) => 
-                          outcome.competencies?.flatMap((competency: any) => 
+                        {hierarchy.flatMap((outcome: any) =>
+                          outcome.competencies?.flatMap((competency: any) =>
                             competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
                               .map((skill: any) => (
                                 <div key={skill.id} className="text-xs text-green-700 flex items-center">
@@ -770,253 +770,253 @@ export default function CreateAssessmentModal({
 
             {/* AI Generation Section - Only for Teacher Assessments */}
             {assessmentType === "teacher" && (
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
-              <div className="flex items-center space-x-3">
-                <Brain className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="font-medium text-blue-900">AI-Powered Assessment Generation</p>
-                  <p className="text-sm text-blue-700">Generate questions automatically based on selected component skills</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Number of Questions */}
-                <div>
-                  <Label className="text-sm font-medium text-blue-900">Number of Questions</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={aiQuestionCount}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 1;
-                      const clampedValue = Math.min(Math.max(value, 1), 50);
-                      setAiQuestionCount(clampedValue);
-                    }}
-                    className="mt-1 bg-white border-blue-200 focus:border-blue-400"
-                  />
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
+                <div className="flex items-center space-x-3">
+                  <Brain className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-blue-900">AI-Powered Assessment Generation</p>
+                    <p className="text-sm text-blue-700">Generate questions automatically based on selected component skills</p>
+                  </div>
                 </div>
 
-                {/* Question Types */}
-                <div>
-                  <Label className="text-sm font-medium text-blue-900 mb-2 block">Question Types</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={aiQuestionTypes["open-ended"]}
-                        onCheckedChange={(checked) => 
-                          setAiQuestionTypes(prev => ({ ...prev, "open-ended": checked as boolean }))
-                        }
-                        className="border-blue-300"
-                      />
-                      <Label className="text-sm text-blue-800">Open-ended</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={aiQuestionTypes["multiple-choice"]}
-                        onCheckedChange={(checked) => 
-                          setAiQuestionTypes(prev => ({ ...prev, "multiple-choice": checked as boolean }))
-                        }
-                        className="border-blue-300"
-                      />
-                      <Label className="text-sm text-blue-800">Multiple Choice</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={aiQuestionTypes["short-answer"]}
-                        onCheckedChange={(checked) => 
-                          setAiQuestionTypes(prev => ({ ...prev, "short-answer": checked as boolean }))
-                        }
-                        className="border-blue-300"
-                      />
-                      <Label className="text-sm text-blue-800">Short Answer</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Number of Questions */}
+                  <div>
+                    <Label className="text-sm font-medium text-blue-900">Number of Questions</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={aiQuestionCount}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        const clampedValue = Math.min(Math.max(value, 1), 50);
+                        setAiQuestionCount(clampedValue);
+                      }}
+                      className="mt-1 bg-white border-blue-200 focus:border-blue-400"
+                    />
+                  </div>
+
+                  {/* Question Types */}
+                  <div>
+                    <Label className="text-sm font-medium text-blue-900 mb-2 block">Question Types</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={aiQuestionTypes["open-ended"]}
+                          onCheckedChange={(checked) =>
+                            setAiQuestionTypes(prev => ({ ...prev, "open-ended": checked as boolean }))
+                          }
+                          className="border-blue-300"
+                        />
+                        <Label className="text-sm text-blue-800">Open-ended</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={aiQuestionTypes["multiple-choice"]}
+                          onCheckedChange={(checked) =>
+                            setAiQuestionTypes(prev => ({ ...prev, "multiple-choice": checked as boolean }))
+                          }
+                          className="border-blue-300"
+                        />
+                        <Label className="text-sm text-blue-800">Multiple Choice</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={aiQuestionTypes["short-answer"]}
+                          onCheckedChange={(checked) =>
+                            setAiQuestionTypes(prev => ({ ...prev, "short-answer": checked as boolean }))
+                          }
+                          className="border-blue-300"
+                        />
+                        <Label className="text-sm text-blue-800">Short Answer</Label>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={generateWithAI}
-                  disabled={isGeneratingWithAI || form.watch("componentSkillIds").length === 0}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {isGeneratingWithAI ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate with AI
-                    </>
-                  )}
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={generateWithAI}
+                    disabled={isGeneratingWithAI || form.watch("componentSkillIds").length === 0}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isGeneratingWithAI ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate with AI
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
-            </div>
             )}
 
             {/* Assessment Questions - Only for Teacher Assessments */}
             {assessmentType === "teacher" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-medium">Assessment Questions</Label>
-                <Button
-                  type="button"
-                  onClick={addQuestion}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Question
-                </Button>
-              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-medium">Assessment Questions</Label>
+                  <Button
+                    type="button"
+                    onClick={addQuestion}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Question
+                  </Button>
+                </div>
 
-              {questionFields.map((question, index) => (
-                <Card key={question.id} className="border border-gray-200">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium">Question {index + 1}</CardTitle>
-                      {questionFields.length > 1 && (
-                        <Button
-                          type="button"
-                          onClick={() => removeQuestion(index)}
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name={`questions.${index}.text`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Question Text</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Enter your question"
-                              {...field}
-                              rows={3}
-                              className="focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`questions.${index}.type`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Question Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="focus-ring">
-                                <SelectValue placeholder="Select question type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="open-ended">Open-ended</SelectItem>
-                              <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                              <SelectItem value="short-answer">Short Answer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Multiple Choice Options */}
-                    {form.watch(`questions.${index}.type`) === "multiple-choice" && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">Answer Options</Label>
+                {questionFields.map((question, index) => (
+                  <Card key={question.id} className="border border-gray-200">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium">Question {index + 1}</CardTitle>
+                        {questionFields.length > 1 && (
                           <Button
                             type="button"
-                            onClick={() => addMultipleChoiceOption(index)}
+                            onClick={() => removeQuestion(index)}
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            <Plus className="mr-2 h-3 w-3" />
-                            Add Option
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name={`questions.${index}.text`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Question Text</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter your question"
+                                {...field}
+                                rows={3}
+                                className="focus-ring"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        {(form.watch(`questions.${index}.options`) || []).map((option: string, optionIndex: number) => (
-                          <div key={`option-${index}-${optionIndex}`} className="flex items-center space-x-2">
-                            <Input
-                              placeholder={`Option ${optionIndex + 1}`}
-                              value={option}
-                              onChange={(e) => {
-                                const currentOptions = form.getValues(`questions.${index}.options`) || [];
-                                const newOptions = [...currentOptions];
-                                newOptions[optionIndex] = e.target.value;
-                                form.setValue(`questions.${index}.options`, newOptions);
-                              }}
-                              className="flex-1"
-                            />
+                      <FormField
+                        control={form.control}
+                        name={`questions.${index}.type`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Question Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="focus-ring">
+                                  <SelectValue placeholder="Select question type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="open-ended">Open-ended</SelectItem>
+                                <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                                <SelectItem value="short-answer">Short Answer</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Multiple Choice Options */}
+                      {form.watch(`questions.${index}.type`) === "multiple-choice" && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">Answer Options</Label>
                             <Button
                               type="button"
-                              onClick={() => removeMultipleChoiceOption(index, optionIndex)}
+                              onClick={() => addMultipleChoiceOption(index)}
                               size="sm"
-                              variant="ghost"
-                              className="text-red-600 hover:text-red-700"
+                              variant="outline"
                             >
-                              <X className="h-4 w-4" />
+                              <Plus className="mr-2 h-3 w-3" />
+                              Add Option
                             </Button>
                           </div>
-                        ))}
 
-                        <FormField
-                          control={form.control}
-                          name={`questions.${index}.correctAnswer`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Correct Answer</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter the correct answer"
-                                  {...field}                                  className="focus-ring"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
+                          {(form.watch(`questions.${index}.options`) || []).map((option: string, optionIndex: number) => (
+                            <div key={`option-${index}-${optionIndex}`} className="flex items-center space-x-2">
+                              <Input
+                                placeholder={`Option ${optionIndex + 1}`}
+                                value={option}
+                                onChange={(e) => {
+                                  const currentOptions = form.getValues(`questions.${index}.options`) || [];
+                                  const newOptions = [...currentOptions];
+                                  newOptions[optionIndex] = e.target.value;
+                                  form.setValue(`questions.${index}.options`, newOptions);
+                                }}
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => removeMultipleChoiceOption(index, optionIndex)}
+                                size="sm"
+                                variant="ghost"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
 
-                    <FormField
-                      control={form.control}
-                      name={`questions.${index}.rubricCriteria`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Rubric Criteria (Optional)</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Describe how this question will be evaluated"
-                              {...field}
-                              rows={2}
-                              className="focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                          <FormField
+                            control={form.control}
+                            name={`questions.${index}.correctAnswer`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Correct Answer</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Enter the correct answer"
+                                    {...field} className="focus-ring"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       )}
-                    />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+
+                      <FormField
+                        control={form.control}
+                        name={`questions.${index}.rubricCriteria`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Rubric Criteria (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Describe how this question will be evaluated"
+                                {...field}
+                                rows={2}
+                                className="focus-ring"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
 
             <DialogFooter className="flex items-center space-x-4 pt-6">

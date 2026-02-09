@@ -637,6 +637,7 @@ export class AssessmentController {
           description: assessmentData.description,
           questions: assessmentData.questions,
           aiGenerated: true,
+          createdBy: userId,
         });
 
         res.json(assessment);

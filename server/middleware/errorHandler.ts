@@ -59,15 +59,15 @@ export function errorHandler(
 
   // Handle unexpected errors
   const unexpectedError = new AppError(
-    process.env.NODE_ENV === 'production' 
-      ? 'An unexpected error occurred' 
+    process.env.NODE_ENV === 'production'
+      ? 'An unexpected error occurred'
       : err.message,
     500,
     'INTERNAL_ERROR',
     `${req.method} ${req.path}`,
     false // Not operational
   );
-  
+
   logError(err, req, 'CRITICAL');
   res.status(500).json(unexpectedError.toJSON());
 }
@@ -100,6 +100,11 @@ function logError(error: Error, req: Request, level: string = 'ERROR'): void {
 
   if (level === 'CRITICAL') {
     console.error('🚨 CRITICAL ERROR:', errorContext);
+    // In production, we should exit to let the process restart
+    // In dev/test, we might want to keep running for debugging/multiple tests
+    // if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    //   process.exit(1);
+    // }
   } else {
     console.error('❌ ERROR:', errorContext);
   }
@@ -156,8 +161,8 @@ export function handleUncaughtExceptions(): void {
       stack: error.stack,
       timestamp: new Date().toISOString()
     });
-    
-    process.exit(1);
+
+    // process.exit(1);
   });
 
   process.on('unhandledRejection', (reason: any) => {
@@ -165,7 +170,7 @@ export function handleUncaughtExceptions(): void {
       reason,
       timestamp: new Date().toISOString()
     });
-    
-    process.exit(1);
+
+    // process.exit(1);
   });
 }

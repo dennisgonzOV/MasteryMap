@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { NavigationErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   Menu,
   X,
   BookOpen,
@@ -25,7 +25,7 @@ export default function Navigation() {
 
   return (
     <NavigationErrorBoundary>
-      <NavigationContent 
+      <NavigationContent
         user={user}
         location={location}
         mobileMenuOpen={mobileMenuOpen}
@@ -39,6 +39,11 @@ function NavigationContent({ user, location, mobileMenuOpen, setMobileMenuOpen }
 
   const getNavigationItems = () => {
     if (user?.role === 'teacher') {
+      if (user.tier === 'free') {
+        return [
+          { name: 'Projects', href: '/teacher/projects', icon: BookOpen },
+        ];
+      }
       return [
         { name: 'Dashboard', href: '/teacher/dashboard', icon: LayoutDashboard },
         { name: 'Projects', href: '/teacher/projects', icon: BookOpen },
@@ -58,8 +63,6 @@ function NavigationContent({ user, location, mobileMenuOpen, setMobileMenuOpen }
       return [
         { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Users', href: '/admin/users', icon: Users },
-        { name: 'Password Reset', href: '/admin/password-reset', icon: Settings },
-        { name: 'Settings', href: '/admin/settings', icon: Settings },
       ];
     }
 
@@ -90,11 +93,10 @@ function NavigationContent({ user, location, mobileMenuOpen, setMobileMenuOpen }
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex items-center px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-700 hover:text-blue-600'
-                    }`}
+                    className={`flex items-center px-3 py-2 text-sm font-medium transition-colors ${isActive
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-700 hover:text-blue-600'
+                      }`}
                   >
                     <Icon className="h-4 w-4 mr-2" />
                     {item.name}
@@ -107,8 +109,8 @@ function NavigationContent({ user, location, mobileMenuOpen, setMobileMenuOpen }
           {/* Right side items */}
           <div className="flex items-center space-x-4">
             {/* Sign Out Button */}
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={async () => {
                 try {
                   await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -147,11 +149,10 @@ function NavigationContent({ user, location, mobileMenuOpen, setMobileMenuOpen }
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center px-3 py-2 text-base font-medium transition-colors ${
-                    isActive
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
+                  className={`flex items-center px-3 py-2 text-base font-medium transition-colors ${isActive
+                    ? 'text-blue-600 bg-blue-50'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Icon className="h-5 w-5 mr-3" />

@@ -1,0 +1,117 @@
+
+ RUN  v3.2.4 /Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap
+
+stdout | tests/reproduce_issue.test.ts
+9:51:55 PM [express] Testing database connection...
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+Database connection successful
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+Setting up learner-outcomes-hierarchy routes
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+9:51:56 PM [express] serving on port 8080
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction
+9:51:57 PM [express] POST /api/auth/register 201 in 640ms :: {"id":44,"username":"update-test-teache…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m44[39m for /
+RequireRole: User 44 has role 'teacher' for /
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 44 with role 'teacher'
+Creating assessment with questions: [
+  {
+    type: [32m'open-ended'[39m,
+    question: [32m'Explain the greenhouse effect in your own words'[39m,
+    points: [33m10[39m,
+    id: [32m'q_1770519117113_0'[39m
+  },
+  {
+    type: [32m'multiple-choice'[39m,
+    question: [32m'Which greenhouse gas is most abundant in the atmosphere?'[39m,
+    options: [ [32m'Carbon dioxide'[39m, [32m'Methane'[39m, [32m'Water vapor'[39m, [32m'Nitrous oxide'[39m ],
+    correctAnswer: [33m2[39m,
+    points: [33m5[39m,
+    id: [32m'q_1770519117113_1'[39m
+  }
+]
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+9:51:57 PM [express] POST /api/assessments 200 in 294ms :: {"id":96,"milestoneId":null,"title":"Asse…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+Attempting to update assessment 96 with due date: 2026-02-15T02:51:57.315Z
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m44[39m for /96
+RequireRole: User 44 has role 'teacher' for /96
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 44 with role 'teacher'
+[DEBUG] PATCH /api/assessments/96
+[DEBUG] User: 44 (teacher)
+[DEBUG] Updates: {
+  "dueDate": "2026-02-15T02:51:57.315Z"
+}
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Existing Assessment: createdBy=null, milestoneId=null
+[DEBUG] Access granted. Proceeding with update.
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Update successful. New DueDate: Sat Feb 14 2026 21:51:57 GMT-0500 (Eastern Standard Time)
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+9:51:57 PM [express] PATCH /api/assessments/96 200 in 289ms :: {"id":96,"milestoneId":null,"title":"…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m44[39m for /96
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+9:51:57 PM [express] GET /api/assessments/96 200 in 190ms :: {"id":96,"milestoneId":null,"title":"As…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+Original Due Date: 2026-02-08T02:51:57.017Z
+Requested Due Date: 2026-02-15T02:51:57.315Z
+Actual Updated Due Date: 2026-02-15T02:51:57.315Z
+Attempting to clear due date for assessment 96
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m44[39m for /96
+RequireRole: User 44 has role 'teacher' for /96
+RequireRole: Required roles: [teacher, admin]
+RequireRole: Normalized user role 'teacher' included in [teacher, admin]: true
+RequireRole: Access granted for user 44 with role 'teacher'
+[DEBUG] PATCH /api/assessments/96
+[DEBUG] User: 44 (teacher)
+[DEBUG] Updates: {
+  "dueDate": null
+}
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Existing Assessment: createdBy=null, milestoneId=null
+[DEBUG] Access granted. Proceeding with update.
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+[DEBUG] Update successful. New DueDate: null
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+9:51:58 PM [express] PATCH /api/assessments/96 200 in 278ms :: {"id":96,"milestoneId":null,"title":"…
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+RequireAuth: Successfully authenticated user [33m44[39m for /96
+
+stdout | tests/reproduce_issue.test.ts > Assessment Update Reproduction > should create an assessment and fail to update due date
+9:51:58 PM [express] GET /api/assessments/96 200 in 183ms :: {"id":96,"milestoneId":null,"title":"As…
+
+ ✓ tests/reproduce_issue.test.ts (1 test) 2817ms
+   ✓ Assessment Update Reproduction > should create an assessment and fail to update due date  1258ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:51:54
+   Duration  3.59s (transform 217ms, setup 12ms, collect 563ms, tests 2.82s, environment 0ms, prepare 36ms)
+

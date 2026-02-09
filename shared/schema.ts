@@ -65,6 +65,10 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
+  firstName: varchar("first_name", { length: 255 }),
+  lastName: varchar("last_name", { length: 255 }),
+  email: varchar("email", { length: 255 }),
+  schoolName: varchar("school_name", { length: 255 }),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default(UserRole.STUDENT),
   schoolId: integer("school_id").references(() => schools.id),
@@ -607,6 +611,10 @@ export const registerSchema = createInsertSchema(users).omit({
 }).extend({
   username: z.string().min(3, 'Username must be at least 3 characters'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  firstName: z.string().min(1, 'First Name is required'),
+  lastName: z.string().min(1, 'Last Name is required'),
+  email: z.string().email('Invalid email address'),
+  schoolName: z.string().min(1, 'School Name is required'),
   role: z.nativeEnum(UserRole).default(UserRole.STUDENT),
   schoolId: z.number().int().positive().optional(),
 });

@@ -24,7 +24,7 @@ export class ProjectsService {
     const validatedProject = insertProjectSchema.parse({
       ...bodyData,
       teacherId,
-      schoolId: teacherSchoolId,
+      schoolId: teacherSchoolId ?? undefined,
       dueDate: dueDate ? new Date(dueDate) : undefined,
     });
 

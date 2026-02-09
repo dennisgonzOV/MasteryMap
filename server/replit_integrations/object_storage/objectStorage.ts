@@ -11,9 +11,14 @@ import {
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-// The object storage client is used to interact with the object storage service.
-export const objectStorageClient = new Storage({
-  credentials: {
+const isReplit = !!process.env.REPL_ID || !!process.env.REPLIT_ENVIRONMENT;
+
+const storageOptions: any = {
+  projectId: process.env.GOOGLE_CLOUD_PROJECT || "",
+};
+
+if (isReplit) {
+  storageOptions.credentials = {
     audience: "replit",
     subject_token_type: "access_token",
     token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
@@ -26,9 +31,11 @@ export const objectStorageClient = new Storage({
       },
     },
     universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
+  };
+}
+
+// The object storage client is used to interact with the object storage service.
+export const objectStorageClient = new Storage(storageOptions);
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -40,7 +47,7 @@ export class ObjectNotFoundError extends Error {
 
 // The object storage service is used to interact with the object storage service.
 export class ObjectStorageService {
-  constructor() {}
+  constructor() { }
 
   // Gets the public object search paths.
   getPublicObjectSearchPaths(): Array<string> {
@@ -56,7 +63,7 @@ export class ObjectStorageService {
     if (paths.length === 0) {
       throw new Error(
         "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
+        "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
       );
     }
     return paths;
@@ -68,7 +75,7 @@ export class ObjectStorageService {
     if (!dir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+        "tool and set PRIVATE_OBJECT_DIR env var."
       );
     }
     return dir;
@@ -106,9 +113,8 @@ export class ObjectStorageService {
       res.set({
         "Content-Type": metadata.contentType || "application/octet-stream",
         "Content-Length": metadata.size,
-        "Cache-Control": `${
-          isPublic ? "public" : "private"
-        }, max-age=${cacheTtlSec}`,
+        "Cache-Control": `${isPublic ? "public" : "private"
+          }, max-age=${cacheTtlSec}`,
       });
 
       // Stream the file to the response
@@ -136,7 +142,7 @@ export class ObjectStorageService {
     if (!privateObjectDir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+        "tool and set PRIVATE_OBJECT_DIR env var."
       );
     }
 
@@ -173,7 +179,7 @@ export class ObjectStorageService {
       let entityDir = this.getPrivateObjectDir();
       if (!entityDir.endsWith("/")) entityDir = `${entityDir}/`;
       dirsToSearch.push(entityDir);
-    } catch {}
+    } catch { }
 
     try {
       const publicPaths = this.getPublicObjectSearchPaths();
@@ -182,7 +188,7 @@ export class ObjectStorageService {
         if (!p.endsWith("/")) p = `${p}/`;
         dirsToSearch.push(p);
       }
-    } catch {}
+    } catch { }
 
     for (const dir of dirsToSearch) {
       const objectEntityPath = `${dir}${entityId}`;
@@ -204,7 +210,7 @@ export class ObjectStorageService {
     if (!rawPath.startsWith("https://storage.googleapis.com/")) {
       return rawPath;
     }
-  
+
     const url = new URL(rawPath);
     const rawObjectPath = url.pathname;
 
@@ -214,7 +220,7 @@ export class ObjectStorageService {
       let privateDir = this.getPrivateObjectDir();
       if (!privateDir.endsWith("/")) privateDir = `${privateDir}/`;
       dirsToCheck.push(privateDir);
-    } catch {}
+    } catch { }
 
     try {
       const publicPaths = this.getPublicObjectSearchPaths();
@@ -223,7 +229,7 @@ export class ObjectStorageService {
         if (!p.endsWith("/")) p = `${p}/`;
         dirsToCheck.push(p);
       }
-    } catch {}
+    } catch { }
 
     for (const dir of dirsToCheck) {
       if (rawObjectPath.startsWith(dir)) {
@@ -319,7 +325,7 @@ async function signObjectURL({
   if (!response.ok) {
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}, ` +
-        `make sure you're running on Replit`
+      `make sure you're running on Replit`
     );
   }
 

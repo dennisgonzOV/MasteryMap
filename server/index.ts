@@ -8,7 +8,7 @@ import { securityHeaders, apiLimiter } from "./middleware/security";
 import { errorHandler, notFoundHandler, handleUncaughtExceptions } from "./middleware/errorHandler";
 import cookieParser from 'cookie-parser';
 
-const app = express();
+export const app = express();
 
 // Configure trust proxy for proper IP detection (needed for rate limiting)
 app.set('trust proxy', 1);
@@ -58,7 +58,7 @@ app.use((req, res, next) => {
 // Set up uncaught exception handlers
 handleUncaughtExceptions();
 
-(async () => {
+export const appInit = (async () => {
   try {
     // Test database connection first
     log("Testing database connection...");
@@ -97,6 +97,8 @@ handleUncaughtExceptions();
     }, () => {
       log(`serving on port ${port}`);
     });
+
+    return app;
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);

@@ -1,0 +1,464 @@
+
+ RUN  v3.2.4 /Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap
+
+stdout | tests/api/assessments.test.ts
+9:56:12 PM [express] Testing database connection...
+
+stdout | tests/api/assessments.test.ts > Assessments API
+Database connection successful
+
+stdout | tests/api/assessments.test.ts > Assessments API
+Setting up learner-outcomes-hierarchy routes
+
+stdout | tests/api/assessments.test.ts > Assessments API
+9:56:13 PM [express] serving on port 8080
+
+stdout | tests/api/assessments.test.ts > Assessments API
+9:56:13 PM [express] POST /api/auth/register 201 in 646ms :: {"id":45,"username":"assessment-teacher…
+
+stdout | tests/api/assessments.test.ts > Assessments API
+9:56:14 PM [express] POST /api/auth/register 201 in 603ms :: {"id":46,"username":"assessment-student…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should create standalone assessment with questions
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/assessments 401 in 1ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should generate AI questions for assessment
+9:56:14 PM [express] POST /api/assessments/generate-questions 200 in 5ms
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject assessment creation by non-teacher
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/assessments 401 in 0ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation without questions
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/assessments 401 in 0ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/assessments 401 in 1ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/assessments 401 in 0ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+RequireAuth: No access token found for /by-code/undefined
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+9:56:14 PM [express] GET /api/assessments/by-code/undefined 401 in 1ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+RequireAuth: No access token found for /by-code/ZZZZZ
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+9:56:14 PM [express] GET /api/assessments/by-code/ZZZZZ 401 in 0ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+RequireAuth: No access token found for /undefined/regenerate-share-code
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+9:56:14 PM [express] POST /api/assessments/undefined/regenerate-share-code 401 in 0ms :: {"message":…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should create assessment submission
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/submissions 401 in 1ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+RequireAuth: No access token found for /undefined/submissions
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+9:56:14 PM [express] GET /api/assessments/undefined/submissions 401 in 0ms :: {"message":"Unauthoriz…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should prevent duplicate submissions
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/submissions 401 in 0ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading
+RequireAuth: No access token found for /undefined/submissions
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading
+9:56:14 PM [express] GET /api/assessments/undefined/submissions 401 in 0ms :: {"message":"Unauthoriz…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Analytics > should get assessment statistics
+9:56:14 PM [express] GET /api/assessments/undefined/stats 200 in 1ms
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions
+RequireAuth: No access token found for /undefined
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions
+9:56:14 PM [express] DELETE /api/assessments/undefined 401 in 1ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+RequireAuth: No access token found for /
+9:56:14 PM [express] POST /api/assessments 401 in 0ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+RequireAuth: No access token found for /undefined
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+9:56:14 PM [express] DELETE /api/assessments/undefined 401 in 1ms :: {"message":"Unauthorized"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should reject deletion by non-teacher
+RequireAuth: No access token found for /undefined
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should reject deletion by non-teacher
+9:56:14 PM [express] DELETE /api/assessments/undefined 401 in 0ms :: {"message":"Unauthorized"}
+
+ ❯ tests/api/assessments.test.ts (19 tests | 16 failed | 3 skipped) 2183ms
+   × Assessments API > Assessment Creation > should create standalone assessment with questions 9ms
+     → expected 401 to be 200 // Object.is equality
+   × Assessments API > Assessment Creation > should generate AI questions for assessment 9ms
+     → expected false to be true // Object.is equality
+   × Assessments API > Assessment Creation > should reject assessment creation by non-teacher 3ms
+     → expected 401 to be 403 // Object.is equality
+   × Assessments API > Assessment Creation > should reject teacher assessment creation without questions 2ms
+     → expected 401 to be 400 // Object.is equality
+   × Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text 2ms
+     → expected 401 to be 400 // Object.is equality
+   × Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Assessments API > Assessment Share Codes > should access assessment by share code 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Assessments API > Assessment Share Codes > should reject invalid share code 2ms
+     → expected 401 to be 404 // Object.is equality
+   × Assessments API > Assessment Share Codes > should regenerate share code 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Assessments API > Assessment Submissions > should create assessment submission 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Assessments API > Assessment Submissions > should get assessment submissions for teacher 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Assessments API > Assessment Submissions > should prevent duplicate submissions 2ms
+     → expected 401 to be 400 // Object.is equality
+   ↓ Assessments API > Assessment Grading > should grade submission with AI feedback
+   ↓ Assessments API > Assessment Grading > should generate AI feedback for individual question
+   ↓ Assessments API > Assessment Grading > should get graded submission for student
+   × Assessments API > Assessment Analytics > should get assessment statistics 2ms
+     → expected undefined to be defined
+   × Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions 1ms
+     → expected 401 to be 400 // Object.is equality
+   × Assessments API > Assessment Deletion > should allow deletion of assessment without submissions 2ms
+     → expected 401 to be 200 // Object.is equality
+   × Assessments API > Assessment Deletion > should reject deletion by non-teacher 1ms
+     → expected 401 to be 403 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Grading
+TypeError: Cannot read properties of undefined (reading 'id')
+ ❯ tests/api/assessments.test.ts:257:50
+    255|         .get(`/api/assessments/${assessmentId}/submissions`)
+    256|         .set('Authorization', `Bearer ${teacherToken}`);
+    257|       submissionId = submissionsResponse.body[0].id;
+       |                                                  ^
+    258|     });
+    259| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should create standalone assessment with questions
+AssertionError: expected 401 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:58:31
+     56|         .send(testAssessment);
+     57| 
+     58|       expect(response.status).toBe(200);
+       |                               ^
+     59|       expect(response.body.title).toBe(testAssessment.title);
+     60|       expect(response.body.componentSkillIds).toEqual(testAssessment.c…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should generate AI questions for assessment
+AssertionError: expected false to be true // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+ ❯ tests/api/assessments.test.ts:80:44
+     78| 
+     79|       expect(response.status).toBe(200);
+     80|       expect(Array.isArray(response.body)).toBe(true);
+       |                                            ^
+     81|       expect(response.body.length).toBe(3);
+     82| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject assessment creation by non-teacher
+AssertionError: expected 401 to be 403 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 403[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:96:31
+     94|         .send(testAssessment);
+     95| 
+     96|       expect(response.status).toBe(403);
+       |                               ^
+     97|     });
+     98| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation without questions
+AssertionError: expected 401 to be 400 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:110:31
+    108|         .send(assessmentWithoutQuestions);
+    109| 
+    110|       expect(response.status).toBe(400);
+       |                               ^
+    111|       expect(response.body.message).toBe('Validation Error');
+    112|       expect(response.body.error).toContain('must have at least one qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text
+AssertionError: expected 401 to be 400 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:132:31
+    130|         .send(assessmentWithEmptyQuestions);
+    131| 
+    132|       expect(response.status).toBe(400);
+       |                               ^
+    133|       expect(response.body.message).toBe('Validation Error');
+    134|       expect(response.body.error).toContain('must have non-empty text'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions
+AssertionError: expected 401 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:149:31
+    147|         .send(selfEvaluationAssessment);
+    148| 
+    149|       expect(response.status).toBe(200);
+       |                               ^
+    150|       expect(response.body.assessmentType).toBe('self-evaluation');
+    151|       expect(response.body.questions).toEqual([]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+AssertionError: expected 401 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:161:31
+    159|         .set('Authorization', `Bearer ${studentToken}`);
+    160| 
+    161|       expect(response.status).toBe(200);
+       |                               ^
+    162|       expect(response.body.title).toBe(testAssessment.title);
+    163|       expect(response.body.questions).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+AssertionError: expected 401 to be 404 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 404[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:171:31
+    169|         .set('Authorization', `Bearer ${studentToken}`);
+    170| 
+    171|       expect(response.status).toBe(404);
+       |                               ^
+    172|       expect(response.body.message).toContain('not found');
+    173|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+AssertionError: expected 401 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:180:31
+    178|         .set('Authorization', `Bearer ${teacherToken}`);
+    179| 
+    180|       expect(response.status).toBe(200);
+       |                               ^
+    181|       expect(response.body.shareCode).toBeDefined();
+    182|       expect(response.body.shareCode).toMatch(/^[A-Z]{5}$/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should create assessment submission
+AssertionError: expected 401 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:208:31
+    206|         });
+    207| 
+    208|       expect(response.status).toBe(200);
+       |                               ^
+    209|       expect(response.body.assessmentId).toBe(assessmentId);
+    210|       expect(response.body.answers).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+AssertionError: expected 401 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:221:31
+    219|         .set('Authorization', `Bearer ${teacherToken}`);
+    220| 
+    221|       expect(response.status).toBe(200);
+       |                               ^
+    222|       expect(Array.isArray(response.body)).toBe(true);
+    223|       expect(response.body.length).toBeGreaterThan(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should prevent duplicate submissions
+AssertionError: expected 401 to be 400 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:244:31
+    242|         });
+    243| 
+    244|       expect(response.status).toBe(400);
+       |                               ^
+    245|       expect(response.body.message).toContain('already submitted');
+    246|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Analytics > should get assessment statistics
+AssertionError: expected undefined to be defined
+ ❯ tests/api/assessments.test.ts:321:46
+    319| 
+    320|       expect(response.status).toBe(200);
+    321|       expect(response.body.totalSubmissions).toBeDefined();
+       |                                              ^
+    322|       expect(response.body.averageScore).toBeDefined();
+    323|       expect(response.body.completionRate).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions
+AssertionError: expected 401 to be 400 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:333:31
+    331|         .set('Authorization', `Bearer ${teacherToken}`);
+    332| 
+    333|       expect(response.status).toBe(400);
+       |                               ^
+    334|       expect(response.body.message).toContain('Cannot delete assessmen…
+    335|       expect(response.body.message).toContain('existing submissions');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+AssertionError: expected 401 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:355:31
+    353|         .set('Authorization', `Bearer ${teacherToken}`);
+    354| 
+    355|       expect(response.status).toBe(200);
+       |                               ^
+    356|       expect(response.body.message).toContain('deleted successfully');
+    357|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/17]⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should reject deletion by non-teacher
+AssertionError: expected 401 to be 403 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 403[39m
+[31m+ 401[39m
+
+ ❯ tests/api/assessments.test.ts:364:31
+    362|         .set('Authorization', `Bearer ${studentToken}`);
+    363| 
+    364|       expect(response.status).toBe(403);
+       |                               ^
+    365|     });
+    366|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/17]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  16 failed | 3 skipped (19)
+   Start at  21:56:11
+   Duration  3.08s (transform 243ms, setup 11ms, collect 568ms, tests 2.18s, environment 0ms, prepare 38ms)
+

@@ -28,6 +28,10 @@ export default function Register() {
     defaultValues: {
       username: '',
       password: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      schoolName: '',
       role: UserRole.TEACHER, // Default role (will correspond to free tier for individual)
       schoolId: undefined,
     },
@@ -55,7 +59,13 @@ export default function Register() {
       });
       // Invalidate auth query to refetch user data
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
-      setLocation('/');
+
+      // Check if user is free tier for correct redirect
+      if (accountType === 'individual') {
+        setLocation('/teacher/projects');
+      } else {
+        setLocation('/');
+      }
     },
     onError: (error) => {
       toast({
@@ -130,6 +140,63 @@ export default function Register() {
                 </div>
               ) : (
                 <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>First Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="John" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Last Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Doe" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="john.doe@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="schoolName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>School Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Lincoln High School" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="username"

@@ -26,7 +26,6 @@ import TakeAssessment from "@/pages/student/take-assessment";
 import EnterCode from "@/pages/student/enter-code";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
-import AdminPasswordReset from '@/pages/admin/password-reset';
 import PublicPortfolio from "@/pages/public-portfolio";
 import ProjectExplorer from "@/pages/project-explorer";
 import PublicProjectDetail from "@/pages/public-project-detail";
@@ -62,13 +61,16 @@ function Router() {
           <Route path="/" component={Home} />
           {(user as any)?.role === 'teacher' && (
             <>
-              <Route path="/teacher/dashboard" component={TeacherDashboard} />
+              {(user as any)?.tier !== 'free' && (
+                <>
+                  <Route path="/teacher/dashboard" component={TeacherDashboard} />
+                  <Route path="/teacher/assessments" component={TeacherAssessments} />
+                  <Route path="/teacher/assessments/:id/submissions/:submissionId" component={SubmissionReview} />
+                  <Route path="/teacher/assessments/:id/submissions" component={AssessmentSubmissions} />
+                  <Route path="/teacher/assessments/:id" component={AssessmentDetails} />
+                </>
+              )}
               <Route path="/teacher/projects" component={TeacherProjects} />
-              <Route path="/teacher/assessments" component={TeacherAssessments} />
-              <Route path="/teacher/assessments/:id/submissions/:submissionId" component={SubmissionReview} />
-              <Route path="/teacher/assessments/:id/submissions" component={AssessmentSubmissions} />
-
-              <Route path="/teacher/assessments/:id" component={AssessmentDetails} />
             </>
           )}
           {(user as any)?.role === 'student' && (
@@ -86,7 +88,6 @@ function Router() {
             <>
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/users" component={AdminUsers} />
-              <Route path="/admin/password-reset" component={AdminPasswordReset} />
             </>
           )}
         </>

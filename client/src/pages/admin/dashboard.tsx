@@ -7,9 +7,9 @@ import Navigation from "@/components/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  BookOpen, 
+import {
+  Users,
+  BookOpen,
   Target,
   Award,
   TrendingUp,
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
         window.location.href = `/${user.role}/dashboard`;
       }
     }, [user, toast]);
-    
+
     return null;
   }
 
@@ -153,11 +153,11 @@ export default function AdminDashboard() {
         method: 'GET',
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         throw new Error('Export failed');
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Export Complete",
         description: "Analytics data has been downloaded successfully.",
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <Navigation />
-      
+
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -198,10 +198,6 @@ export default function AdminDashboard() {
               </p>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
               <Button onClick={handleExportData} className="bg-blue-600 text-white hover:bg-blue-700 btn-primary">
                 <Download className="h-4 w-4 mr-2" />
                 Export Data

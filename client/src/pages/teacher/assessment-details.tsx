@@ -239,11 +239,16 @@ export default function AssessmentDetails() {
                         variant="ghost"
                         className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                         onClick={() => {
+                          let dateToSave: string | null = null;
+
+                          // If there's a date string, append noon (T12:00:00) to ensure it stays on the same day
+                          // regardless of timezone shifts when converted to UTC/ISO.
                           if (newDueDate) {
-                            // Append time to ensure local date construction, avoiding UTC midnight shift
-                            const date = new Date(newDueDate + 'T00:00:00');
-                            updateAssessmentMutation.mutate({ dueDate: date.toISOString() });
+                            const date = new Date(newDueDate + 'T12:00:00');
+                            dateToSave = date.toISOString();
                           }
+
+                          updateAssessmentMutation.mutate({ dueDate: dateToSave });
                         }}
                       >
                         <Check className="h-4 w-4" />
