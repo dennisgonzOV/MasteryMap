@@ -117,8 +117,9 @@ export class AssessmentStorage implements IAssessmentStorage {
       throw new Error('Unable to generate unique share code after maximum attempts');
     }
 
-    // Calculate expiration date (7 days from now)
-    const expiresAt = new Date();
+    // Calculate expiration date (7 days after due date, or 7 days from now if no due date)
+    const baseDate = data.dueDate ? new Date(data.dueDate) : new Date();
+    const expiresAt = new Date(baseDate);
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     // Ensure questions with options have them properly serialized

@@ -92,6 +92,11 @@ export class AssessmentService {
     if (formattedUpdates.dueDate && typeof formattedUpdates.dueDate === 'string') {
       formattedUpdates.dueDate = new Date(formattedUpdates.dueDate);
     }
+    if (formattedUpdates.dueDate) {
+      const expiresAt = new Date(formattedUpdates.dueDate as Date);
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      (formattedUpdates as any).shareCodeExpiresAt = expiresAt;
+    }
     return await this.storage.updateAssessment(id, formattedUpdates as any);
   }
 
@@ -146,6 +151,11 @@ export class AssessmentService {
     }
 
     const newShareCode = await this.storage.regenerateShareCode(assessmentId);
+
+    const baseDate = assessment.dueDate ? new Date(assessment.dueDate) : new Date();
+    const expiresAt = new Date(baseDate);
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    await this.storage.updateAssessment(assessmentId, { shareCodeExpiresAt: expiresAt } as any);
 
     return {
       shareCode: newShareCode,
