@@ -242,6 +242,7 @@ export const assessments = pgTable("assessments", {
   allowSelfEvaluation: boolean("allow_self_evaluation").default(false),
   shareCode: varchar("share_code", { length: 5 }).unique(), // 5-letter code for sharing
   shareCodeExpiresAt: timestamp("share_code_expires_at"), // Optional expiration for codes
+  pdfUrl: text("pdf_url"), // URL to uploaded PDF in object storage (for teacher assessments with reading material)
   createdBy: integer("created_by").references(() => users.id), // Track who created the assessment for ownership checks
   createdAt: timestamp("created_at").defaultNow(),
 });

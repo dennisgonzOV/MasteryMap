@@ -58,7 +58,7 @@ export interface IAssessmentStorage {
   createGrade(grade: Omit<Grade, "id" | "gradedAt">): Promise<Grade>;
   getGradesBySubmission(submissionId: number): Promise<Grade[]>;
   getComponentSkill(id: number): Promise<any>;
-  generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]): Promise<any[]>;
+  generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string): Promise<any[]>;
   generateStudentFeedback(submission: any, grades: any[]): Promise<string>;
   getExistingGrade(submissionId: number, componentSkillId: number): Promise<any>;
   updateGrade(gradeId: number, updates: any): Promise<any>;
@@ -410,9 +410,9 @@ export class AssessmentStorage implements IAssessmentStorage {
     return componentSkill[0];
   }
 
-  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]): Promise<any[]> {
+  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string): Promise<any[]> {
     const { aiService } = await import("../ai/ai.service");
-    return await aiService.generateComponentSkillGrades(submission, assessment, componentSkills);
+    return await aiService.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
   }
 
   async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {

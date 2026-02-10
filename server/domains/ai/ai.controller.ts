@@ -136,15 +136,25 @@ export class AIController {
       }
     });
 
-    // Generate assessment from component skills
     router.post('/generate-assessment', requireAuth, aiLimiter, async (req: AuthenticatedRequest, res) => {
       try {
-        const { milestoneTitle, milestoneDescription, milestoneDueDate, componentSkills, questionCount = 5, questionTypes = ['open-ended'] } = req.body;
+        const { milestoneTitle, milestoneDescription, milestoneDueDate, componentSkills, questionCount = 5, questionTypes = ['open-ended'], pdfUrl } = req.body;
 
         if (!componentSkills || !Array.isArray(componentSkills) || componentSkills.length === 0) {
           return res.status(400).json({
             error: "Component skills are required for assessment generation"
           });
+        }
+
+        let pdfContent: string | undefined;
+        if (pdfUrl) {
+          try {
+            const { extractTextFromPdfUrl } = await import('../../utils/pdf');
+            pdfContent = await extractTextFromPdfUrl(pdfUrl);
+            console.log(`Extracted ${pdfContent.length} chars from PDF for AI assessment generation`);
+          } catch (pdfError) {
+            console.error('Error extracting PDF text for AI generation:', pdfError);
+          }
         }
 
         const assessment = await this.service.generateAssessmentFromComponentSkills(
@@ -153,7 +163,8 @@ export class AIController {
           milestoneDueDate,
           componentSkills,
           questionCount,
-          questionTypes
+          questionTypes,
+          pdfContent
         );
 
         res.json(assessment);

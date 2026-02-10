@@ -56,7 +56,18 @@ Preferred communication style: Simple, everyday language.
 - **Date Management**: date-fns
 - **Icons**: Lucide React
 
-## Recent Updates (August 2025)
+## Recent Updates (February 2026)
+
+### PDF Upload for Teacher Assessments
+- Teachers can optionally upload a PDF (e.g. reading material, class handout) during assessment creation
+- PDF is stored in Replit Object Storage via presigned URL upload flow
+- When AI assessment generation is used, the PDF content is extracted (via pdf-parse) and included in the AI prompt so questions reference the reading material
+- When AI grading is used, the PDF content is also passed to the grading AI so student responses are evaluated against the actual reading material
+- The PDF URL is stored on the assessment record (`pdf_url` column) for persistence
+- Only available for teacher-type assessments (not self-evaluations)
+- Files: server/utils/pdf.ts, shared/schema.ts (pdfUrl field), AI service/controller updates, create-assessment-modal.tsx
+
+## Previous Updates (August 2025)
 
 ### XQ Competencies Database Synchronization ✅ COMPLETE
 **Data Import Achievement:**

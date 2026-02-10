@@ -62,7 +62,8 @@ export class AIService {
     milestoneDueDate: string,
     componentSkills: any[],
     questionCount: number = 5,
-    questionTypes: string[] = ['open-ended']
+    questionTypes: string[] = ['open-ended'],
+    pdfContent?: string
   ) {
     return await this.openaiService.generateAssessmentFromComponentSkills(
       milestoneTitle,
@@ -70,7 +71,8 @@ export class AIService {
       milestoneDueDate,
       componentSkills,
       questionCount,
-      questionTypes
+      questionTypes,
+      pdfContent
     );
   }
 
@@ -79,17 +81,18 @@ export class AIService {
     return await this.openaiService.generateFeedback(submission, grades);
   }
 
-  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]) {
-    return await this.openaiService.generateComponentSkillGrades(submission, assessment, componentSkills);
+  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string) {
+    return await this.openaiService.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
   }
 
   async generateQuestionGrade(
     questionText: string,
     studentAnswer: string,
     rubricCriteria: string,
-    sampleAnswer: string
+    sampleAnswer: string,
+    pdfContent?: string
   ) {
-    return await this.openaiService.generateQuestionGrade(questionText, studentAnswer, rubricCriteria, sampleAnswer);
+    return await this.openaiService.generateQuestionGrade(questionText, studentAnswer, rubricCriteria, sampleAnswer, pdfContent);
   }
 
   async suggestCredentials(submission: any, grades: any[], projectTitle: string) {

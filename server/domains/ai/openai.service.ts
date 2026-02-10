@@ -391,7 +391,8 @@ Return as JSON with this structure:
     milestoneDueDate: string,
     componentSkills: ComponentSkill[],
     questionCount: number = 5,
-    questionTypes: string[] = ['open-ended']
+    questionTypes: string[] = ['open-ended'],
+    pdfContent?: string
   ): Promise<GeneratedAssessment> {
     const skillsText = componentSkills
       .map(
@@ -418,12 +419,16 @@ Rubric Levels:
       .map(([type, count]) => `${count} ${type} question(s)`)
       .join(', ');
 
+    const pdfSection = pdfContent
+      ? `\n\nREFERENCE DOCUMENT (PDF) CONTENT:\nThe teacher has provided the following reading material/document that students have been working with. Questions MUST be based on or reference this material where appropriate:\n\n${pdfContent}\n`
+      : '';
+
     const prompt = `Generate a comprehensive competency-based assessment for the following milestone:
 
 Milestone Title: ${milestoneTitle}
 Milestone Description: ${milestoneDescription}
 Due Date: ${milestoneDueDate}
-
+${pdfSection}
 TARGET COMPONENT SKILLS TO ASSESS:
 ${detailedSkillsText}
 
@@ -552,6 +557,7 @@ Provide feedback that is:
     submission: Submission,
     assessment: any,
     componentSkills: ComponentSkill[],
+    pdfContent?: string,
   ): Promise<
     Array<{
       componentSkillId: number;
@@ -581,7 +587,7 @@ Learning Outcome: ${skill.learnerOutcomeName}
 
 Student Submission Responses: ${JSON.stringify(submission.responses)}
 Assessment Questions: ${JSON.stringify(assessment.questions)}
-
+${pdfContent ? `\nREFERENCE DOCUMENT (PDF) CONTENT:\nThe assessment was based on the following reading material. Use this to evaluate accuracy and relevance of the student's responses:\n\n${pdfContent}\n` : ''}
 Evaluate the student's performance on this component skill using the XQ Framework rubric levels:
 
 1. EMERGING (Score 1): Student shows initial awareness and attempts at the skill but needs significant support and guidance. Work demonstrates basic understanding but limited application.
@@ -646,8 +652,13 @@ Respond in JSON format:
     studentAnswer: string,
     rubricCriteria: string,
     sampleAnswer: string,
+    pdfContent?: string,
   ): Promise<{ score: number; rationale: string }> {
     try {
+      const pdfSection = pdfContent
+        ? `\n\nREFERENCE DOCUMENT (PDF) CONTENT:\nThe assessment was based on the following reading material. Use this to evaluate the accuracy and relevance of the student's answer:\n\n${pdfContent}\n`
+        : '';
+
       const prompt = `
 You are an expert educator grading a student's response to a specific question. Analyze the quality, accuracy, and depth of the student's answer.
 
@@ -658,6 +669,7 @@ STUDENT ANSWER: ${studentAnswer}
 RUBRIC CRITERIA: ${rubricCriteria || "Evaluate based on accuracy, completeness, and understanding demonstrated"}
 
 SAMPLE/IDEAL ANSWER: ${sampleAnswer || "Not provided"}
+${pdfSection}
 
 Grade this response on a scale of 0-100 based on:
 1. Accuracy and correctness of information

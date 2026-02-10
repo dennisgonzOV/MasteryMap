@@ -269,8 +269,8 @@ export class AssessmentService {
     return await this.storage.getComponentSkill(id);
   }
 
-  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[]): Promise<any[]> {
-    return await this.storage.generateComponentSkillGrades(submission, assessment, componentSkills);
+  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string): Promise<any[]> {
+    return await this.storage.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
   }
 
   async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {

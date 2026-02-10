@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { Loader2, Plus, X, Sparkles, ChevronRight, ChevronDown, Brain, Trash2 } from "lucide-react";
+import { Loader2, Plus, X, Sparkles, ChevronRight, ChevronDown, Brain, Trash2, FileText, Upload } from "lucide-react";
 
 // Enhanced schema with multiple choice options and self-evaluation support
 const assessmentSchema = z.object({
@@ -96,6 +96,9 @@ export default function CreateAssessmentModal({
     "multiple-choice": true,
     "short-answer": false
   });
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfObjectPath, setPdfObjectPath] = useState<string | null>(null);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
 
   const form = useForm<AssessmentForm>({
     resolver: zodResolver(assessmentSchema),
@@ -167,6 +170,8 @@ export default function CreateAssessmentModal({
       onAssessmentCreated?.(assessment.id);
       onOpenChange(false);
       form.reset();
+      setPdfFile(null);
+      setPdfObjectPath(null);
     },
     onError: (error) => {
       console.error("Assessment creation error:", error);
@@ -181,10 +186,10 @@ export default function CreateAssessmentModal({
   const onSubmit = (data: AssessmentForm) => {
     console.log("Submitting assessment:", data);
 
-    // For self-evaluation assessments, we don't need questions
     const submissionData = {
       ...data,
       questions: data.assessmentType === "teacher" ? data.questions : undefined,
+      pdfUrl: data.assessmentType === "teacher" ? pdfObjectPath : undefined,
     };
 
     createAssessmentMutation.mutate(submissionData);
@@ -244,6 +249,70 @@ export default function CreateAssessmentModal({
     form.setValue(`questions.${questionIndex}.options`, newOptions);
   };
 
+  const handlePdfUpload = async (file: File) => {
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: "Invalid File",
+        description: "Please upload a PDF file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "PDF must be under 20MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingPdf(true);
+    setPdfFile(file);
+    try {
+      const urlRes = await fetch('/api/uploads/request-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type,
+        }),
+      });
+      if (!urlRes.ok) throw new Error('Failed to get upload URL');
+      const { uploadURL, objectPath } = await urlRes.json();
+
+      const uploadRes = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      if (!uploadRes.ok) throw new Error('Failed to upload PDF');
+
+      setPdfObjectPath(objectPath);
+      toast({
+        title: "PDF Uploaded",
+        description: `"${file.name}" uploaded successfully. It will be used for AI generation and grading.`,
+      });
+    } catch (error) {
+      console.error('PDF upload error:', error);
+      setPdfFile(null);
+      setPdfObjectPath(null);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingPdf(false);
+    }
+  };
+
+  const removePdf = () => {
+    setPdfFile(null);
+    setPdfObjectPath(null);
+  };
+
   const generateWithAI = async () => {
     const selectedSkills = form.getValues("componentSkillIds");
     if (selectedSkills.length === 0) {
@@ -299,7 +368,8 @@ export default function CreateAssessmentModal({
           milestoneDueDate: form.getValues("dueDate") || new Date().toISOString(),
           componentSkills: selectedSkillsDetails,
           questionCount: aiQuestionCount,
-          questionTypes: selectedTypes
+          questionTypes: selectedTypes,
+          pdfUrl: pdfObjectPath || undefined
         })
       });
 
@@ -768,6 +838,60 @@ export default function CreateAssessmentModal({
               </Card>
             )}
 
+            {/* PDF Upload Section - Only for Teacher Assessments */}
+            {assessmentType === "teacher" && (
+              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 space-y-3">
+                <div className="flex items-center space-x-3">
+                  <FileText className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <p className="font-medium text-purple-900">Reading Material (PDF)</p>
+                    <p className="text-sm text-purple-700">Optionally upload a PDF document (e.g. a reading assignment). The AI will use it to generate questions and grade responses.</p>
+                  </div>
+                </div>
+
+                {!pdfFile ? (
+                  <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors">
+                    <div className="flex flex-col items-center">
+                      <Upload className="h-6 w-6 text-purple-400 mb-1" />
+                      <span className="text-sm text-purple-600">Click to upload a PDF (max 20MB)</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePdfUpload(file);
+                        e.target.value = '';
+                      }}
+                      disabled={isUploadingPdf}
+                    />
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-purple-200">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="h-5 w-5 text-purple-500" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{pdfFile.name}</p>
+                        <p className="text-xs text-gray-500">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                      {isUploadingPdf && <Loader2 className="h-4 w-4 animate-spin text-purple-500" />}
+                      {pdfObjectPath && <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">Uploaded</Badge>}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removePdf}
+                      disabled={isUploadingPdf}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* AI Generation Section - Only for Teacher Assessments */}
             {assessmentType === "teacher" && (
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
@@ -775,7 +899,10 @@ export default function CreateAssessmentModal({
                   <Brain className="h-5 w-5 text-blue-600" />
                   <div>
                     <p className="font-medium text-blue-900">AI-Powered Assessment Generation</p>
-                    <p className="text-sm text-blue-700">Generate questions automatically based on selected component skills</p>
+                    <p className="text-sm text-blue-700">
+                      Generate questions automatically based on selected component skills
+                      {pdfObjectPath && " and uploaded PDF"}
+                    </p>
                   </div>
                 </div>
 

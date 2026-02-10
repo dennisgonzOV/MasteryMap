@@ -134,6 +134,17 @@ export class SubmissionController {
         if (generateAiFeedback) {
           console.log("Generating AI feedback for submission " + submissionId);
 
+          let pdfContent: string | undefined;
+          if (assessment.pdfUrl) {
+            try {
+              const { extractTextFromPdfUrl } = await import('../../utils/pdf');
+              pdfContent = await extractTextFromPdfUrl(assessment.pdfUrl);
+              console.log(`Extracted ${pdfContent.length} chars from PDF for AI grading`);
+            } catch (pdfError) {
+              console.error('Error extracting PDF text for grading:', pdfError);
+            }
+          }
+
           try {
             // If no component skill grades were provided, generate them using AI
             if (!gradeData || gradeData.length === 0) {
@@ -153,7 +164,8 @@ export class SubmissionController {
                   const aiSkillGrades = await this.service.generateComponentSkillGrades(
                     submission,
                     assessment,
-                    validSkills as any[]
+                    validSkills as any[],
+                    pdfContent
                   );
 
                   console.log("Successfully generated AI component skill grades:", aiSkillGrades.map(g => 
