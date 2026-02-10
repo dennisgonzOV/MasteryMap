@@ -1,18 +1,20 @@
 import type { Express } from "express";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import multer from "multer";
+import { randomUUID } from "crypto";
+import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 
-/**
- * Register object storage routes for file uploads.
- *
- * This provides example routes for the presigned URL upload flow:
- * 1. POST /api/uploads/request-url - Get a presigned URL for uploading
- * 2. The client then uploads directly to the presigned URL
- *
- * IMPORTANT: These are example routes. Customize based on your use case:
- * - Add authentication middleware for protected uploads
- * - Add file metadata storage (save to database after upload)
- * - Add ACL policies for access control
- */
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
+
+function parseObjectPathHelper(path: string): { bucketName: string; objectName: string } {
+  if (!path.startsWith("/")) path = `/${path}`;
+  const parts = path.split("/");
+  if (parts.length < 3) throw new Error("Invalid path");
+  return { bucketName: parts[1], objectName: parts.slice(2).join("/") };
+}
+
 export function registerObjectStorageRoutes(app: Express): void {
   const objectStorageService = new ObjectStorageService();
 
@@ -70,6 +72,36 @@ export function registerObjectStorageRoutes(app: Express): void {
    * This serves files from object storage. For public files, no auth needed.
    * For protected files, add authentication middleware and ACL checks.
    */
+  app.post("/api/uploads/file", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const privateDir = objectStorageService.getPrivateObjectDir();
+      const objectId = randomUUID();
+      const fullPath = `${privateDir}/uploads/${objectId}`;
+      const { bucketName, objectName } = parseObjectPathHelper(fullPath);
+
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+
+      await file.save(req.file.buffer, {
+        contentType: req.file.mimetype,
+        metadata: {
+          originalName: req.file.originalname,
+        },
+      });
+
+      const objectPath = `/objects/uploads/${objectId}`;
+
+      res.json({ objectPath });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ error: "Failed to upload file" });
+    }
+  });
+
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);

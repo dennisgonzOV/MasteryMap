@@ -270,24 +270,15 @@ export default function CreateAssessmentModal({
     setIsUploadingPdf(true);
     setPdfFile(file);
     try {
-      const urlRes = await fetch('/api/uploads/request-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: file.name,
-          size: file.size,
-          contentType: file.type,
-        }),
-      });
-      if (!urlRes.ok) throw new Error('Failed to get upload URL');
-      const { uploadURL, objectPath } = await urlRes.json();
+      const formData = new FormData();
+      formData.append('file', file);
 
-      const uploadRes = await fetch(uploadURL, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
+      const uploadRes = await fetch('/api/uploads/file', {
+        method: 'POST',
+        body: formData,
       });
       if (!uploadRes.ok) throw new Error('Failed to upload PDF');
+      const { objectPath } = await uploadRes.json();
 
       setPdfObjectPath(objectPath);
       toast({
