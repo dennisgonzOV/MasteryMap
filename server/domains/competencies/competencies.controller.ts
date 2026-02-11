@@ -9,47 +9,7 @@ export class CompetencyController {
   createRouter(): Router {
     const router = Router();
 
-    // Get all best standards with optional filtering - MOVED TO TOP TO AVOID ROUTE CONFLICTS
-    router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        console.log('B.E.S.T. Standards request received:', {
-          query: req.query,
-          params: req.params,
-          method: req.method,
-          url: req.url
-        });
-
-        const { search, subject, grade } = req.query;
-
-        // Convert query parameters to strings and validate
-        const searchParam = search ? String(search).trim() : '';
-        const subjectParam = subject ? String(subject).trim() : '';
-        const gradeParam = grade ? String(grade).trim() : '';
-
-        console.log('Filter parameters:', { searchParam, subjectParam, gradeParam });
-
-        // Use the new efficient method that handles all filters at the database level
-        const bestStandards = await this.service.getBestStandardsWithFilters({
-          search: searchParam || undefined,
-          subject: subjectParam || undefined,
-          grade: gradeParam || undefined
-        });
-
-        console.log('Final filtered standards count:', bestStandards.length);
-        res.json(bestStandards);
-      } catch (error) {
-        console.error("Error fetching best standards:", error);
-        console.error("Error details:", {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined,
-          query: req.query,
-          params: req.params
-        });
-        res.status(500).json({ message: "Failed to fetch best standards", error: error instanceof Error ? error.message : 'Unknown error' });
-      }
-    });
-
-    // Get best standards metadata for filters
+    // Get best standards metadata for filters - MUST be before /best-standards to avoid route conflicts
     router.get('/best-standards/metadata', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         console.log('B.E.S.T. Standards metadata request received');
@@ -66,7 +26,7 @@ export class CompetencyController {
       }
     });
 
-    // Get best standards by competency
+    // Get best standards by competency - MUST be before /best-standards to avoid route conflicts
     router.get('/best-standards/by-competency/:competencyId', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         const competencyId = parseInt(req.params.competencyId);
@@ -75,6 +35,28 @@ export class CompetencyController {
       } catch (error) {
         console.error("Error fetching best standards by competency:", error);
         res.status(500).json({ message: "Failed to fetch best standards" });
+      }
+    });
+
+    // Get all best standards with optional filtering - AFTER more specific routes
+    router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const { search, subject, grade } = req.query;
+
+        const searchParam = search ? String(search).trim() : '';
+        const subjectParam = subject ? String(subject).trim() : '';
+        const gradeParam = grade ? String(grade).trim() : '';
+
+        const bestStandards = await this.service.getBestStandardsWithFilters({
+          search: searchParam || undefined,
+          subject: subjectParam || undefined,
+          grade: gradeParam || undefined
+        });
+
+        res.json(bestStandards);
+      } catch (error) {
+        console.error("Error fetching best standards:", error);
+        res.status(500).json({ message: "Failed to fetch best standards", error: error instanceof Error ? error.message : 'Unknown error' });
       }
     });
 
