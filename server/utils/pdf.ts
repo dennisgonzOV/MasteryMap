@@ -1,4 +1,3 @@
-import { createRequire } from 'node:module';
 import { ObjectStorageService } from '../replit_integrations/object_storage';
 
 const objectStorageService = new ObjectStorageService();
@@ -7,8 +6,8 @@ const MAX_PDF_TEXT_LENGTH = 15000;
 
 export async function extractTextFromPdfUrl(pdfObjectPath: string): Promise<string> {
   try {
-    const require = createRequire(import.meta.url);
-    const pdfParse = require('pdf-parse');
+    const pdfParseModule: any = await import('pdf-parse');
+    const pdfParse = pdfParseModule.default || pdfParseModule;
     const objectFile = await objectStorageService.getObjectEntityFile(pdfObjectPath);
     const [buffer] = await objectFile.download();
     const pdfData = await pdfParse(buffer);
