@@ -1,5 +1,7 @@
-import pdfParse from 'pdf-parse';
+import * as pdfParseModule from 'pdf-parse';
 import { ObjectStorageService } from '../replit_integrations/object_storage';
+
+const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 
 const objectStorageService = new ObjectStorageService();
 
