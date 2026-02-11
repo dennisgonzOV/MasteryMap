@@ -6,11 +6,11 @@ const MAX_PDF_TEXT_LENGTH = 15000;
 
 export async function extractTextFromPdfUrl(pdfObjectPath: string): Promise<string> {
   try {
-    const pdfParseModule: any = await import('pdf-parse');
-    const pdfParse = pdfParseModule.default || pdfParseModule;
+    const { PDFParse } = await import('pdf-parse') as any;
     const objectFile = await objectStorageService.getObjectEntityFile(pdfObjectPath);
     const [buffer] = await objectFile.download();
-    const pdfData = await pdfParse(buffer);
+    const parser = new PDFParse({ data: buffer });
+    const pdfData = await parser.getText();
     let text = pdfData.text || '';
     if (text.length > MAX_PDF_TEXT_LENGTH) {
       text = text.substring(0, MAX_PDF_TEXT_LENGTH) + '\n\n[PDF content truncated due to length]';
