@@ -78,6 +78,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   const [standardsSearchTerm, setStandardsSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
+  const [standardsDisplayLimit, setStandardsDisplayLimit] = useState(50);
   const [activeTab, setActiveTab] = useState('skills');
   const [isPublic, setIsPublic] = useState(false);
   const [projectSubjectArea, setProjectSubjectArea] = useState('');
@@ -336,6 +337,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     setStandardsSearchTerm('');
     setSelectedSubject('');
     setSelectedGrade('');
+    setStandardsDisplayLimit(50);
     setActiveTab('skills');
     setIsPublic(false);
     setProjectSubjectArea('');
@@ -699,11 +701,11 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                       <Input
                         placeholder="Search standards..."
                         value={standardsSearchTerm}
-                        onChange={(e) => setStandardsSearchTerm(e.target.value)}
+                        onChange={(e) => { setStandardsSearchTerm(e.target.value); setStandardsDisplayLimit(50); }}
                         className="pl-10"
                       />
                     </div>
-                    <Select value={selectedSubject || "all"} onValueChange={(value) => setSelectedSubject(value === "all" ? "" : value)}>
+                    <Select value={selectedSubject || "all"} onValueChange={(value) => { setSelectedSubject(value === "all" ? "" : value); setStandardsDisplayLimit(50); }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Filter by subject" />
                       </SelectTrigger>
@@ -714,7 +716,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                         ))}
                       </SelectContent>
                     </Select>
-                    <Select value={selectedGrade || "all"} onValueChange={(value) => setSelectedGrade(value === "all" ? "" : value)}>
+                    <Select value={selectedGrade || "all"} onValueChange={(value) => { setSelectedGrade(value === "all" ? "" : value); setStandardsDisplayLimit(50); }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Filter by grade" />
                       </SelectTrigger>
@@ -737,40 +739,57 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                       <div className="text-red-500">Error loading B.E.S.T. standards. Please check your search criteria.</div>
                     </div>
                   ) : (
-                    <div className="max-h-[350px] overflow-y-auto border rounded-md p-4">
-                      <div className="space-y-3">
-                        {(bestStandards as any[]).map((standard: any) => (
-                          <div key={standard.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
-                            <div className="flex items-start gap-3">
-                              <Checkbox
-                                checked={selectedStandards.has(standard.id)}
-                                onCheckedChange={() => toggleStandardSelection(standard.id)}
-                                className="mt-1"
-                              />
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-blue-900">{standard.benchmarkNumber}</span>
-                                  {selectedStandards.has(standard.id) && (
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                  )}
-                                </div>
-                                <p className="text-sm text-gray-700">{standard.description}</p>
-                                <div className="flex gap-2 text-xs text-gray-500">
-                                  {standard.subject && <span className="bg-blue-100 px-2 py-1 rounded">{standard.subject}</span>}
-                                  {standard.grade && <span className="bg-green-100 px-2 py-1 rounded">Grade {standard.grade}</span>}
-                                  {standard.bodyOfKnowledge && <span className="bg-purple-100 px-2 py-1 rounded">{standard.bodyOfKnowledge}</span>}
+                    <>
+                      <div className="text-sm text-gray-600 mb-2">
+                        Showing {Math.min(standardsDisplayLimit, (bestStandards as any[]).length)} of {(bestStandards as any[]).length} standards
+                        {selectedStandards.size > 0 && (
+                          <span className="ml-2 font-medium text-green-700">({selectedStandards.size} selected)</span>
+                        )}
+                      </div>
+                      <div className="max-h-[350px] overflow-y-auto border rounded-md p-4">
+                        <div className="space-y-3">
+                          {(bestStandards as any[]).slice(0, standardsDisplayLimit).map((standard: any) => (
+                            <div key={standard.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
+                              <div className="flex items-start gap-3">
+                                <Checkbox
+                                  checked={selectedStandards.has(standard.id)}
+                                  onCheckedChange={() => toggleStandardSelection(standard.id)}
+                                  className="mt-1"
+                                />
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-blue-900">{standard.benchmarkNumber}</span>
+                                    {selectedStandards.has(standard.id) && (
+                                      <CheckCircle className="h-4 w-4 text-green-600" />
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-700">{standard.description}</p>
+                                  <div className="flex gap-2 text-xs text-gray-500">
+                                    {standard.subject && <span className="bg-blue-100 px-2 py-1 rounded">{standard.subject}</span>}
+                                    {standard.grade && <span className="bg-green-100 px-2 py-1 rounded">Grade {standard.grade}</span>}
+                                    {standard.bodyOfKnowledge && <span className="bg-purple-100 px-2 py-1 rounded">{standard.bodyOfKnowledge}</span>}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                        {(bestStandards as any[]).length === 0 && (
-                          <div className="text-center text-gray-500 py-8">
-                            No standards found matching your criteria
-                          </div>
-                        )}
+                          ))}
+                          {(bestStandards as any[]).length === 0 && (
+                            <div className="text-center text-gray-500 py-8">
+                              No standards found matching your criteria
+                            </div>
+                          )}
+                          {(bestStandards as any[]).length > standardsDisplayLimit && (
+                            <button
+                              type="button"
+                              onClick={() => setStandardsDisplayLimit(prev => prev + 50)}
+                              className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                            >
+                              Load More ({(bestStandards as any[]).length - standardsDisplayLimit} remaining)
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </TabsContent>
               </Tabs>
