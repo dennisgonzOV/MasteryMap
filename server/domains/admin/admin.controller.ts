@@ -1,9 +1,15 @@
 import { Router } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { authStorage } from '../auth/auth.storage';
-import { registerSchema, UserRole } from '../../../shared/schema';
+import { UserRole } from '../../../shared/schema';
 import { z } from 'zod';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/auth.controller';
+
+const adminCreateUserSchema = z.object({
+    username: z.string().min(3, 'Username must be at least 3 characters'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    role: z.nativeEnum(UserRole).default(UserRole.STUDENT),
+});
 
 // Create admin router
 export const createAdminRouter = () => {
@@ -53,30 +59,25 @@ export const createAdminRouter = () => {
                 return res.status(400).json({ message: "Admin school not found" });
             }
 
-            // Validate request body
-            const userData = registerSchema.parse(req.body);
+            const parsed = adminCreateUserSchema.parse(req.body);
 
-            // Enforce restrictions
-            if (userData.role === UserRole.ADMIN) {
+            if (parsed.role === UserRole.ADMIN) {
                 return res.status(403).json({ message: "Admins cannot create other admins" });
             }
 
-            // Force schoolId to match admin's school
-            userData.schoolId = admin.schoolId;
-
-            // Check if user already exists
-            const existingUser = await authStorage.getUserByUsername(userData.username);
+            const existingUser = await authStorage.getUserByUsername(parsed.username);
             if (existingUser) {
                 return res.status(400).json({ message: 'Username already exists' });
             }
 
-            // Determine tier (enterprise since created by enterprise admin)
-            const tier = 'enterprise';
-
-            // Register user using service
             const { user } = await AuthService.registerUser({
-                ...userData,
-                tier
+                ...parsed,
+                firstName: null,
+                lastName: null,
+                email: null,
+                schoolName: null,
+                schoolId: admin.schoolId,
+                tier: 'enterprise',
             });
 
             // Return user data (without password)
