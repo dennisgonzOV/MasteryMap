@@ -844,7 +844,7 @@ export default function CreateAssessmentModal({
                   <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors">
                     <div className="flex flex-col items-center">
                       <Upload className="h-6 w-6 text-purple-400 mb-1" />
-                      <span className="text-sm text-purple-600">Click to upload a PDF (max 1.5MB)</span>
+                      <span className="text-sm text-purple-600">Click to upload a PDF (max 20MB)</span>
                     </div>
                     <input
                       type="file"
