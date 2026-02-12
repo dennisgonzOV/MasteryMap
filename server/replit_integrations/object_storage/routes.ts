@@ -5,7 +5,7 @@ import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 1.5 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
 
 function parseObjectPathHelper(path: string): { bucketName: string; objectName: string } {

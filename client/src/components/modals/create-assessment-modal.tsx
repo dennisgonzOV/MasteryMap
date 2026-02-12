@@ -258,10 +258,10 @@ export default function CreateAssessmentModal({
       });
       return;
     }
-    if (file.size > 1.5 * 1024 * 1024) {
+    if (file.size > 20 * 1024 * 1024) {
       toast({
         title: "File Too Large",
-        description: "PDF must be under 1.5MB.",
+        description: "PDF must be under 20MB.",
         variant: "destructive",
       });
       return;
