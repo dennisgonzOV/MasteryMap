@@ -67,6 +67,9 @@ export interface IAssessmentStorage {
 
   // Self-evaluation operations
   getSelfEvaluationsByAssessment(assessmentId: number): Promise<SelfEvaluation[]>;
+  createSelfEvaluation(data: any): Promise<SelfEvaluation>;
+  getSelfEvaluationsByStudent(studentId: number): Promise<SelfEvaluation[]>;
+  flagRiskySelfEvaluation(id: number, flagged: boolean): Promise<void>;
 
   // Dashboard operations
   getUpcomingDeadlines(projectIds: number[]): Promise<any[]>;
@@ -658,6 +661,24 @@ export class AssessmentStorage implements IAssessmentStorage {
       .from(selfEvaluations)
       .where(eq(selfEvaluations.assessmentId, assessmentId))
       .orderBy(desc(selfEvaluations.submittedAt));
+  }
+
+  async createSelfEvaluation(data: any): Promise<SelfEvaluation> {
+    const [result] = await db.insert(selfEvaluations).values(data).returning();
+    return result;
+  }
+
+  async getSelfEvaluationsByStudent(studentId: number): Promise<SelfEvaluation[]> {
+    return await db.select()
+      .from(selfEvaluations)
+      .where(eq(selfEvaluations.studentId, studentId))
+      .orderBy(desc(selfEvaluations.submittedAt));
+  }
+
+  async flagRiskySelfEvaluation(id: number, flagged: boolean): Promise<void> {
+    await db.update(selfEvaluations)
+      .set({ hasRiskyContent: flagged, teacherNotified: flagged })
+      .where(eq(selfEvaluations.id, id));
   }
 
   // Student competency progress

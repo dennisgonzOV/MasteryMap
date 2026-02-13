@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { assessmentService, type AssessmentService } from './assessments.service';
+import { aiService, type AIService } from '../ai/ai.service';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
+import { UserRole } from '../../../shared/schema';
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
@@ -9,7 +11,10 @@ import {
 } from '../../middleware/security';
 
 export class SelfEvaluationController {
-  constructor(private service: AssessmentService = assessmentService) {}
+  constructor(
+    private service: AssessmentService = assessmentService,
+    private ai: AIService = aiService
+  ) {}
 
   // Create Express router with all self-evaluation routes
   createRouter(): Router {
@@ -37,7 +42,7 @@ export class SelfEvaluationController {
         }
 
         // Generate AI feedback and safety check
-        const aiAnalysis = await this.service.generateSelfEvaluationFeedback(
+        const aiAnalysis = await this.ai.generateSelfEvaluationFeedback(
           componentSkill.name,
           componentSkill.rubricLevels,
           data.selfAssessedLevel,
@@ -110,7 +115,7 @@ export class SelfEvaluationController {
     });
 
     // Flag risky self-evaluation
-    router.post('/:id/flag-risky', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    router.post('/:id/flag-risky', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const selfEvaluationId = parseInt(req.params.id);
         await this.service.flagRiskySelfEvaluation(selfEvaluationId, true);

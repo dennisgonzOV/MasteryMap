@@ -256,6 +256,18 @@ export class AssessmentService {
     return await this.storage.getSelfEvaluationsByAssessment(assessmentId);
   }
 
+  async createSelfEvaluation(data: any): Promise<any> {
+    return await this.storage.createSelfEvaluation(data);
+  }
+
+  async getSelfEvaluationsByStudent(studentId: number): Promise<any[]> {
+    return await this.storage.getSelfEvaluationsByStudent(studentId);
+  }
+
+  async flagRiskySelfEvaluation(id: number, flagged: boolean): Promise<void> {
+    return await this.storage.flagRiskySelfEvaluation(id, flagged);
+  }
+
   // Teacher-specific methods for school skills tracking
   async getSchoolComponentSkillsProgress(teacherId: number): Promise<any[]> {
     return await this.storage.getSchoolComponentSkillsProgress(teacherId);
