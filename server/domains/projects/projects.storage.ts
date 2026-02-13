@@ -1,869 +1,286 @@
-import {
-  projects,
-  milestones,
-  projectTeams,
-  projectTeamMembers,
-  projectAssignments,
-  users,
-  credentials,
-  grades,
-  submissions,
-  type Project,
-  type Milestone,
-  type ProjectTeam,
-  type ProjectTeamMember,
-  type ProjectAssignment,
-  type User,
-  type InsertProject,
-  type InsertMilestone,
-  type InsertProjectTeam,
-  portfolioArtifacts,
-  selfEvaluations,
-  safetyIncidents,
+import type {
+  BestStandard,
+  InsertMilestone,
+  InsertProject,
+  InsertProjectTeam,
+  Milestone,
+  Project,
+  ProjectAssignment,
+  ProjectTeam,
+  ProjectTeamMember,
+  User,
 } from "../../../shared/schema";
-import { db } from "../../db";
-import { eq, and, desc, asc, ne, inArray, sql, ilike, or } from "drizzle-orm";
-import { assessments } from "../../../shared/schema";
-import { competencyStorage } from "../competencies/competencies.storage";
+import type {
+  ComponentSkillWithDetailsDTO,
+  TeacherCurrentMilestoneDTO,
+  TeacherDashboardStatsDTO,
+  TeacherPendingTaskDTO,
+  TeacherProjectOverviewDTO,
+} from "../../../shared/contracts/api";
+import { ProjectsCompetencyQueries } from "./projects-storage-competency.queries";
+import { ProjectsCoreQueries } from "./projects-storage-core.queries";
+import { ProjectsDashboardQueries } from "./projects-storage-dashboard.queries";
+import { ProjectsPublicQueries } from "./projects-storage-public.queries";
+import { ProjectsTeamQueries } from "./projects-storage-team.queries";
+import type {
+  LearnerOutcomeWithCompetencies,
+  PublicProjectFilters,
+  SchoolStudentProgressRecord,
+  StudentCompetencyProgressRecord,
+} from "./projects.storage.types";
 
-// Projects storage interface
+export type {
+  LearnerOutcomeWithCompetencies,
+  PublicProjectFilters,
+  SchoolStudentProgressRecord,
+  StudentCompetencyProgressRecord,
+} from "./projects.storage.types";
+
 export interface IProjectsStorage {
-  // Project operations
   createProject(project: InsertProject): Promise<Project>;
   getProject(id: number): Promise<Project | undefined>;
   getProjectsByTeacher(teacherId: number): Promise<Project[]>;
+  getProjectsBySchool(schoolId: number): Promise<Project[]>;
   getProjectsByStudent(studentId: number): Promise<Project[]>;
   updateProject(id: number, updates: Partial<InsertProject>): Promise<Project>;
   deleteProject(id: number): Promise<void>;
 
-  // Milestone operations
   createMilestone(milestone: InsertMilestone): Promise<Milestone>;
   getMilestone(id: number): Promise<Milestone | undefined>;
   getMilestonesByProject(projectId: number): Promise<Milestone[]>;
   updateMilestone(id: number, updates: Partial<InsertMilestone>): Promise<Milestone>;
   deleteMilestone(id: number): Promise<void>;
 
-  // Project team operations
   createProjectTeam(team: InsertProjectTeam): Promise<ProjectTeam>;
   getProjectTeams(projectId: number): Promise<ProjectTeam[]>;
   getProjectTeam(teamId: number): Promise<ProjectTeam | undefined>;
   deleteProjectTeam(teamId: number): Promise<void>;
-  addTeamMember(teamMember: Omit<ProjectTeamMember, 'id' | 'joinedAt'>): Promise<ProjectTeamMember>;
+  addTeamMember(teamMember: Omit<ProjectTeamMember, "id" | "joinedAt">): Promise<ProjectTeamMember>;
   removeTeamMember(memberId: number): Promise<void>;
   getTeamMembers(teamId: number): Promise<ProjectTeamMember[]>;
-  getTeamMembersWithStudentInfo(teamId: number): Promise<Array<ProjectTeamMember & {
-    studentName: string;
-    student: {
-      id: number;
-      username: string;
-    };
-  }>>;
+  getTeamMembersWithStudentInfo(
+    teamId: number,
+  ): Promise<
+    Array<
+      ProjectTeamMember & {
+        studentName: string;
+        student: {
+          id: number;
+          username: string;
+        };
+      }
+    >
+  >;
   getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined>;
   getStudentsBySchool(schoolId: number): Promise<User[]>;
 
-  // Assignment operations
   assignStudentToProject(projectId: number, studentId: number): Promise<ProjectAssignment>;
   getProjectAssignments(projectId: number): Promise<ProjectAssignment[]>;
   updateProjectProgress(projectId: number, studentId: number, progress: number): Promise<void>;
 
-  // User operations
   getUser(id: number): Promise<User | undefined>;
 
-  // Component skills operations
-  getComponentSkillsByIds(ids: number[]): Promise<any[]>;
-  getComponentSkillsWithDetails(): Promise<any[]>;
-  getBestStandardsByIds(ids: number[]): Promise<any[]>;
-  getLearnerOutcomesWithCompetencies(): Promise<any[]>;
+  getComponentSkillsByIds(ids: number[]): Promise<ComponentSkillWithDetailsDTO[]>;
+  getComponentSkillsWithDetails(): Promise<ComponentSkillWithDetailsDTO[]>;
+  getBestStandardsByIds(ids: number[]): Promise<BestStandard[]>;
+  getLearnerOutcomesWithCompetencies(): Promise<LearnerOutcomeWithCompetencies[]>;
 
-  // Assessment operations
   getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>>;
 
-  // Teacher dashboard operations
-  getTeacherDashboardStats(teacherId: number): Promise<any>;
-  getTeacherProjects(teacherId: number): Promise<any[]>;
-  getTeacherPendingTasks(teacherId: number): Promise<any[]>;
-  getTeacherCurrentMilestones(teacherId: number): Promise<any[]>;
-  getSchoolStudentsProgress(teacherId: number): Promise<any[]>;
+  getTeacherDashboardStats(teacherId: number): Promise<TeacherDashboardStatsDTO>;
+  getTeacherProjects(teacherId: number): Promise<TeacherProjectOverviewDTO[]>;
+  getTeacherPendingTasks(teacherId: number): Promise<TeacherPendingTaskDTO[]>;
+  getTeacherCurrentMilestones(teacherId: number): Promise<TeacherCurrentMilestoneDTO[]>;
+  getSchoolStudentsProgress(teacherId: number): Promise<SchoolStudentProgressRecord[]>;
 
-  // Public projects operations
-  getPublicProjects(filters?: {
-    search?: string;
-    subjectArea?: string;
-    gradeLevel?: string;
-    estimatedDuration?: string;
-    componentSkillIds?: number[];
-    bestStandardIds?: number[];
-  }): Promise<Project[]>;
+  getPublicProjects(filters?: PublicProjectFilters): Promise<Project[]>;
   toggleProjectVisibility(projectId: number, isPublic: boolean): Promise<Project>;
 
-  // Rate limiting operations
   incrementProjectGenerationCount(userId: number): Promise<User>;
+
+  getStudentCompetencyProgress(studentId: number): Promise<StudentCompetencyProgressRecord[]>;
 }
 
 export class ProjectsStorage implements IProjectsStorage {
-  // Project operations
+  constructor(
+    private readonly coreQueries: ProjectsCoreQueries = new ProjectsCoreQueries(),
+    private readonly teamQueries: ProjectsTeamQueries = new ProjectsTeamQueries(),
+    private readonly competencyQueries: ProjectsCompetencyQueries = new ProjectsCompetencyQueries(),
+    private readonly dashboardQueries: ProjectsDashboardQueries = new ProjectsDashboardQueries(),
+    private readonly publicQueries: ProjectsPublicQueries = new ProjectsPublicQueries(),
+  ) {}
+
   async createProject(project: InsertProject): Promise<Project> {
-    const [newProject] = await db
-      .insert(projects)
-      .values(project)
-      .returning();
-    return newProject;
+    return this.coreQueries.createProject(project);
   }
 
   async getProject(id: number): Promise<Project | undefined> {
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, id));
-    return project;
+    return this.coreQueries.getProject(id);
   }
 
   async getProjectsByTeacher(teacherId: number): Promise<Project[]> {
-    return await db
-      .select()
-      .from(projects)
-      .where(eq(projects.teacherId, teacherId))
-      .orderBy(desc(projects.createdAt));
+    return this.coreQueries.getProjectsByTeacher(teacherId);
+  }
+
+  async getProjectsBySchool(schoolId: number): Promise<Project[]> {
+    return this.coreQueries.getProjectsBySchool(schoolId);
   }
 
   async getProjectsByStudent(studentId: number): Promise<Project[]> {
-    // Get projects where student is a direct assignment
-    const directProjects = await db
-      .select({
-        id: projects.id,
-        title: projects.title,
-        description: projects.description,
-        teacherId: projects.teacherId,
-        schoolId: projects.schoolId,
-        componentSkillIds: projects.componentSkillIds,
-        bestStandardIds: projects.bestStandardIds,
-        status: projects.status,
-        dueDate: projects.dueDate,
-        thumbnailUrl: projects.thumbnailUrl,
-        isPublic: projects.isPublic,
-        subjectArea: projects.subjectArea,
-        gradeLevel: projects.gradeLevel,
-        estimatedDuration: projects.estimatedDuration,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-      })
-      .from(projects)
-      .innerJoin(projectAssignments, eq(projects.id, projectAssignments.projectId))
-      .where(and(
-        eq(projectAssignments.studentId, studentId),
-        ne(projects.status, 'draft')
-      ));
-
-    // Get projects where student is a team member
-    const teamProjects = await db
-      .select({
-        id: projects.id,
-        title: projects.title,
-        description: projects.description,
-        teacherId: projects.teacherId,
-        schoolId: projects.schoolId,
-        componentSkillIds: projects.componentSkillIds,
-        bestStandardIds: projects.bestStandardIds,
-        status: projects.status,
-        dueDate: projects.dueDate,
-        thumbnailUrl: projects.thumbnailUrl,
-        isPublic: projects.isPublic,
-        subjectArea: projects.subjectArea,
-        gradeLevel: projects.gradeLevel,
-        estimatedDuration: projects.estimatedDuration,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-      })
-      .from(projects)
-      .innerJoin(projectTeams, eq(projects.id, projectTeams.projectId))
-      .innerJoin(projectTeamMembers, eq(projectTeams.id, projectTeamMembers.teamId))
-      .where(and(
-        eq(projectTeamMembers.studentId, studentId),
-        ne(projects.status, 'draft')
-      ));
-
-    // Combine and deduplicate projects
-    const allProjects = [...directProjects, ...teamProjects];
-    const uniqueProjects = Array.from(
-      new Map(allProjects.map(project => [project.id, project])).values()
-    );
-
-    return uniqueProjects.sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
+    return this.coreQueries.getProjectsByStudent(studentId);
   }
 
   async updateProject(id: number, updates: Partial<InsertProject>): Promise<Project> {
-    // Handle date conversion if dueDate is provided as a string
-    const processedUpdates = { ...updates };
-    if (processedUpdates.dueDate && typeof processedUpdates.dueDate === 'string') {
-      processedUpdates.dueDate = new Date(processedUpdates.dueDate);
-    }
-
-    const [updatedProject] = await db
-      .update(projects)
-      .set(processedUpdates)
-      .where(eq(projects.id, id))
-      .returning();
-    return updatedProject;
+    return this.coreQueries.updateProject(id, updates);
   }
 
   async deleteProject(id: number): Promise<void> {
-    // 1. Get all milestone IDs for the project
-    const projectMilestones = await db
-      .select({ id: milestones.id })
-      .from(milestones)
-      .where(eq(milestones.projectId, id));
-
-    const milestoneIds = projectMilestones.map(m => m.id);
-
-    if (milestoneIds.length > 0) {
-      // 2. Get all assessment IDs linked to these milestones
-      const milestoneAssessments = await db
-        .select({ id: assessments.id })
-        .from(assessments)
-        .where(inArray(assessments.milestoneId, milestoneIds));
-
-      const assessmentIds = milestoneAssessments.map(a => a.id);
-
-      if (assessmentIds.length > 0) {
-        // 3. Cleanup Assessment Dependencies
-
-        // Get submissions for these assessments
-        const assessmentSubmissions = await db
-          .select({ id: submissions.id })
-          .from(submissions)
-          .where(inArray(submissions.assessmentId, assessmentIds));
-
-        const submissionIds = assessmentSubmissions.map(s => s.id);
-
-        if (submissionIds.length > 0) {
-          // Delete grades linked to these submissions
-          await db.delete(grades).where(inArray(grades.submissionId, submissionIds));
-
-          // Delete portfolio artifacts linked to these submissions
-          await db.delete(portfolioArtifacts).where(inArray(portfolioArtifacts.submissionId, submissionIds));
-
-          // Delete the submissions
-          await db.delete(submissions).where(inArray(submissions.id, submissionIds));
-        }
-
-        // Delete self-evaluations linked to these assessments
-        await db.delete(selfEvaluations).where(inArray(selfEvaluations.assessmentId, assessmentIds));
-
-        // Delete safety incidents linked to these assessments
-        await db.delete(safetyIncidents).where(inArray(safetyIncidents.assessmentId, assessmentIds));
-
-        // 4. Delete Assessments
-        await db.delete(assessments).where(inArray(assessments.id, assessmentIds));
-      }
-
-      // 5. Delete Milestone Artifacts (portfolio artifacts linked directly to milestones)
-      await db.delete(portfolioArtifacts).where(inArray(portfolioArtifacts.milestoneId, milestoneIds));
-
-      // 6. Delete Milestones
-      await db.delete(milestones).where(inArray(milestones.id, milestoneIds));
-    }
-
-    // 7. Delete project teams and their members
-    const teamIdsResult = await db
-      .select({ id: projectTeams.id })
-      .from(projectTeams)
-      .where(eq(projectTeams.projectId, id));
-
-    if (teamIdsResult.length > 0) {
-      const teamIdValues = teamIdsResult.map(team => team.id);
-      await db.delete(projectTeamMembers).where(inArray(projectTeamMembers.teamId, teamIdValues));
-      await db.delete(projectTeams).where(eq(projectTeams.projectId, id));
-    }
-
-    // 8. Delete project assignments
-    await db.delete(projectAssignments).where(eq(projectAssignments.projectId, id));
-
-    // 9. Finally, delete the project
-    await db.delete(projects).where(eq(projects.id, id));
+    return this.coreQueries.deleteProject(id);
   }
 
-  // Milestone operations
   async createMilestone(milestone: InsertMilestone): Promise<Milestone> {
-    const [newMilestone] = await db
-      .insert(milestones)
-      .values(milestone)
-      .returning();
-    return newMilestone;
+    return this.coreQueries.createMilestone(milestone);
   }
 
   async getMilestone(id: number): Promise<Milestone | undefined> {
-    const [milestone] = await db
-      .select()
-      .from(milestones)
-      .where(eq(milestones.id, id));
-    return milestone;
+    return this.coreQueries.getMilestone(id);
   }
 
   async getMilestonesByProject(projectId: number): Promise<Milestone[]> {
-    return await db
-      .select()
-      .from(milestones)
-      .where(eq(milestones.projectId, projectId))
-      .orderBy(asc(milestones.order));
+    return this.coreQueries.getMilestonesByProject(projectId);
   }
 
   async updateMilestone(id: number, updates: Partial<InsertMilestone>): Promise<Milestone> {
-    // Handle date conversion if dueDate is provided as a string
-    const processedUpdates = { ...updates };
-    if (processedUpdates.dueDate) {
-      if (typeof processedUpdates.dueDate === 'string') {
-        processedUpdates.dueDate = new Date(processedUpdates.dueDate);
-      }
-    }
-
-    const [updatedMilestone] = await db
-      .update(milestones)
-      .set(processedUpdates)
-      .where(eq(milestones.id, id))
-      .returning();
-    return updatedMilestone;
+    return this.coreQueries.updateMilestone(id, updates);
   }
 
   async deleteMilestone(id: number): Promise<void> {
-    await db.delete(milestones).where(eq(milestones.id, id));
+    return this.coreQueries.deleteMilestone(id);
   }
 
-  // Project team operations
-  async createProjectTeam(teamData: InsertProjectTeam): Promise<ProjectTeam> {
-    const [team] = await db.insert(projectTeams).values(teamData).returning();
-    return team;
+  async createProjectTeam(team: InsertProjectTeam): Promise<ProjectTeam> {
+    return this.teamQueries.createProjectTeam(team);
   }
 
   async getProjectTeams(projectId: number): Promise<ProjectTeam[]> {
-    return await db.select().from(projectTeams).where(eq(projectTeams.projectId, projectId));
+    return this.teamQueries.getProjectTeams(projectId);
   }
-
-  async addTeamMember(memberData: Omit<ProjectTeamMember, 'id' | 'joinedAt'>): Promise<ProjectTeamMember> {
-    const [member] = await db.insert(projectTeamMembers).values(memberData).returning();
-    return member;
-  }
-
-  async removeTeamMember(memberId: number): Promise<void> {
-    await db.delete(projectTeamMembers).where(eq(projectTeamMembers.id, memberId));
-  }
-
-  async getTeamMembers(teamId: number): Promise<ProjectTeamMember[]> {
-    return await db.select({
-      id: projectTeamMembers.id,
-      teamId: projectTeamMembers.teamId,
-      studentId: projectTeamMembers.studentId,
-      role: projectTeamMembers.role,
-      joinedAt: projectTeamMembers.joinedAt,
-    }).from(projectTeamMembers)
-      .where(eq(projectTeamMembers.teamId, teamId));
-  }
-
-  async getTeamMembersWithStudentInfo(teamId: number): Promise<Array<ProjectTeamMember & {
-    studentName: string;
-    student: {
-      id: number;
-      username: string;
-    };
-  }>> {
-    const members = await db.select({
-      id: projectTeamMembers.id,
-      teamId: projectTeamMembers.teamId,
-      studentId: projectTeamMembers.studentId,
-      role: projectTeamMembers.role,
-      joinedAt: projectTeamMembers.joinedAt,
-      studentName: users.username,
-      studentUsername: users.username,
-    })
-      .from(projectTeamMembers)
-      .innerJoin(users, eq(projectTeamMembers.studentId, users.id))
-      .where(eq(projectTeamMembers.teamId, teamId));
-
-    return members.map((member) => ({
-      id: member.id,
-      teamId: member.teamId,
-      studentId: member.studentId,
-      role: member.role,
-      joinedAt: member.joinedAt,
-      studentName: member.studentName,
-      student: {
-        id: member.studentId,
-        username: member.studentUsername,
-      },
-    }));
-  }
-
-  async getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined> {
-    const [member] = await db.select({
-      id: projectTeamMembers.id,
-      teamId: projectTeamMembers.teamId,
-      studentId: projectTeamMembers.studentId,
-      role: projectTeamMembers.role,
-      joinedAt: projectTeamMembers.joinedAt,
-    }).from(projectTeamMembers)
-      .where(eq(projectTeamMembers.id, memberId));
-    return member;
-  }
-
-  async getStudentsBySchool(schoolId: number): Promise<User[]> {
-    return await db.select().from(users).where(and(
-      eq(users.schoolId, schoolId),
-      eq(users.role, 'student')
-    )).orderBy(asc(users.username));
-  }
-
-
-
-
 
   async getProjectTeam(teamId: number): Promise<ProjectTeam | undefined> {
-    const [team] = await db.select().from(projectTeams).where(eq(projectTeams.id, teamId));
-    return team;
+    return this.teamQueries.getProjectTeam(teamId);
   }
 
   async deleteProjectTeam(teamId: number): Promise<void> {
-    // First delete all team members
-    await db.delete(projectTeamMembers).where(eq(projectTeamMembers.teamId, teamId));
-    // Then delete the team
-    await db.delete(projectTeams).where(eq(projectTeams.id, teamId));
+    return this.teamQueries.deleteProjectTeam(teamId);
   }
 
-  // Assignment operations
+  async addTeamMember(teamMember: Omit<ProjectTeamMember, "id" | "joinedAt">): Promise<ProjectTeamMember> {
+    return this.teamQueries.addTeamMember(teamMember);
+  }
+
+  async removeTeamMember(memberId: number): Promise<void> {
+    return this.teamQueries.removeTeamMember(memberId);
+  }
+
+  async getTeamMembers(teamId: number): Promise<ProjectTeamMember[]> {
+    return this.teamQueries.getTeamMembers(teamId);
+  }
+
+  async getTeamMembersWithStudentInfo(
+    teamId: number,
+  ): Promise<
+    Array<
+      ProjectTeamMember & {
+        studentName: string;
+        student: {
+          id: number;
+          username: string;
+        };
+      }
+    >
+  > {
+    return this.teamQueries.getTeamMembersWithStudentInfo(teamId);
+  }
+
+  async getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined> {
+    return this.teamQueries.getTeamMember(memberId);
+  }
+
+  async getStudentsBySchool(schoolId: number): Promise<User[]> {
+    return this.teamQueries.getStudentsBySchool(schoolId);
+  }
+
   async assignStudentToProject(projectId: number, studentId: number): Promise<ProjectAssignment> {
-    const [assignment] = await db
-      .insert(projectAssignments)
-      .values({
-        projectId,
-        studentId,
-        progress: "0",
-      })
-      .returning();
-    return assignment;
+    return this.teamQueries.assignStudentToProject(projectId, studentId);
   }
 
   async getProjectAssignments(projectId: number): Promise<ProjectAssignment[]> {
-    return await db
-      .select()
-      .from(projectAssignments)
-      .where(eq(projectAssignments.projectId, projectId));
+    return this.teamQueries.getProjectAssignments(projectId);
   }
 
   async updateProjectProgress(projectId: number, studentId: number, progress: number): Promise<void> {
-    await db
-      .update(projectAssignments)
-      .set({ progress: progress.toString() })
-      .where(
-        and(
-          eq(projectAssignments.projectId, projectId),
-          eq(projectAssignments.studentId, studentId)
-        )
-      );
+    return this.teamQueries.updateProjectProgress(projectId, studentId, progress);
   }
 
-  // User operations
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id));
-    return user;
+    return this.coreQueries.getUser(id);
   }
 
-  // Component skills operations
-  async getComponentSkillsByIds(ids: number[]): Promise<any[]> {
-    return await competencyStorage.getComponentSkillsByIds(ids);
+  async getComponentSkillsByIds(ids: number[]): Promise<ComponentSkillWithDetailsDTO[]> {
+    return this.competencyQueries.getComponentSkillsByIds(ids);
   }
 
-  async getComponentSkillsWithDetails(): Promise<any[]> {
-    return await competencyStorage.getComponentSkillsWithDetails();
+  async getComponentSkillsWithDetails(): Promise<ComponentSkillWithDetailsDTO[]> {
+    return this.competencyQueries.getComponentSkillsWithDetails();
   }
 
-  async getBestStandardsByIds(ids: number[]): Promise<any[]> {
-    return await competencyStorage.getBestStandardsByIds(ids);
+  async getBestStandardsByIds(ids: number[]): Promise<BestStandard[]> {
+    return this.competencyQueries.getBestStandardsByIds(ids);
   }
 
-  async getLearnerOutcomesWithCompetencies(): Promise<any[]> {
-    return await competencyStorage.getLearnerOutcomesWithCompetencies();
+  async getLearnerOutcomesWithCompetencies(): Promise<LearnerOutcomeWithCompetencies[]> {
+    return this.competencyQueries.getLearnerOutcomesWithCompetencies();
   }
 
-  // Assessment operations
   async getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>> {
-    return await db.query.assessments.findMany({
-      where: eq(assessments.milestoneId, milestoneId),
-      with: {
-        milestone: true
-      }
-    });
+    return this.competencyQueries.getAssessmentsByMilestone(milestoneId);
   }
 
-  async getStudentCompetencyProgress(studentId: number): Promise<any[]> {
-    // Get competency progress from grades (which contain the actual scores)
-    return await db.select({
-      componentSkillId: grades.componentSkillId,
-      componentSkillName: sql<string>`'Component Skill'`, // This would need to be joined with componentSkills table
-      averageScore: sql<number>`AVG(CAST(${grades.score} AS DECIMAL))`,
-      submissionCount: sql<number>`COUNT(DISTINCT ${grades.submissionId})`
-    })
-      .from(grades)
-      .innerJoin(submissions, eq(grades.submissionId, submissions.id))
-      .where(eq(submissions.studentId, studentId))
-      .groupBy(grades.componentSkillId);
+  async getTeacherDashboardStats(teacherId: number): Promise<TeacherDashboardStatsDTO> {
+    return this.dashboardQueries.getTeacherDashboardStats(teacherId);
   }
 
-  // Teacher dashboard operations
-  async getTeacherDashboardStats(teacherId: number): Promise<any> {
-    // Get teacher's projects and related data
-    const teacherProjects = await db.select()
-      .from(projects)
-      .where(eq(projects.teacherId, teacherId));
-
-    const activeProjects = teacherProjects.filter(p => p.status === 'active').length;
-
-    // Get total students assigned to teacher's projects
-    const projectIds = teacherProjects.map(p => p.id);
-    const studentAssignments = projectIds.length > 0 ? await db.select()
-      .from(projectAssignments)
-      .where(inArray(projectAssignments.projectId, projectIds)) : [];
-
-    const totalStudents = new Set(studentAssignments.map(a => a.studentId)).size;
-
-    // Get pending submissions for grading
-    const pendingSubmissions = projectIds.length > 0 ? await db.select()
-      .from(submissions)
-      .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
-      .innerJoin(milestones, eq(assessments.milestoneId, milestones.id))
-      .where(and(
-        inArray(milestones.projectId, projectIds),
-        sql`${submissions.gradedAt} IS NULL`
-      )) : [];
-
-    // Get awarded credentials
-    const credentialsAwarded = await db.select()
-      .from(credentials)
-      .where(eq(credentials.approvedBy, teacherId));
-
-    return {
-      activeProjects,
-      totalStudents,
-      pendingGrades: pendingSubmissions.length,
-      credentialsAwarded: credentialsAwarded.length,
-      upcomingDeadlines: 0 // Would need milestone deadline tracking
-    };
+  async getTeacherProjects(teacherId: number): Promise<TeacherProjectOverviewDTO[]> {
+    return this.dashboardQueries.getTeacherProjects(teacherId);
   }
 
-  async getTeacherProjects(teacherId: number): Promise<any[]> {
-    const teacherProjects = await db.select()
-      .from(projects)
-      .where(eq(projects.teacherId, teacherId));
-
-    // Get additional data for each project
-    const projectOverviews = await Promise.all(
-      teacherProjects.map(async (project) => {
-        const assignments = await db.select()
-          .from(projectAssignments)
-          .where(eq(projectAssignments.projectId, project.id));
-
-        const milestonesList = await db.select()
-          .from(milestones)
-          .where(eq(milestones.projectId, project.id))
-          .orderBy(milestones.dueDate);
-
-        const nextDeadline = milestonesList.find(m => m.dueDate && new Date(m.dueDate) > new Date())?.dueDate || null;
-
-        return {
-          id: project.id,
-          title: project.title,
-          description: project.description,
-          studentsAssigned: assignments.length,
-          completionRate: 0, // Would need submission tracking
-          nextDeadline,
-          status: project.status
-        };
-      })
-    );
-
-    return projectOverviews;
+  async getTeacherPendingTasks(teacherId: number): Promise<TeacherPendingTaskDTO[]> {
+    return this.dashboardQueries.getTeacherPendingTasks(teacherId);
   }
 
-  async getTeacherPendingTasks(teacherId: number): Promise<any[]> {
-    // Get pending grading tasks
-    const teacherProjects = await db.select()
-      .from(projects)
-      .where(eq(projects.teacherId, teacherId));
-
-    const projectIds = teacherProjects.map(p => p.id);
-
-    const pendingSubmissions = projectIds.length > 0 ? await db.select({
-      submissionId: submissions.id,
-      assessmentTitle: assessments.title,
-      projectTitle: projects.title,
-      username: users.username,
-      submittedAt: submissions.submittedAt
-    })
-      .from(submissions)
-      .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
-      .innerJoin(milestones, eq(assessments.milestoneId, milestones.id))
-      .innerJoin(projects, eq(milestones.projectId, projects.id))
-      .innerJoin(users, eq(submissions.studentId, users.id))
-      .where(and(
-        inArray(milestones.projectId, projectIds),
-        sql`${submissions.gradedAt} IS NULL`
-      ))
-      .limit(10) : [];
-
-    const tasks = pendingSubmissions.map((submission, index) => ({
-      id: submission.submissionId,
-      type: 'grading' as const,
-      title: "Grade " + submission.assessmentTitle,
-      description: "Review submission for " + submission.username,
-      priority: index < 3 ? 'high' as const : 'medium' as const,
-      dueDate: new Date(Date.now() + (index + 1) * 24 * 60 * 60 * 1000).toISOString(),
-      studentName: submission.username,
-      projectTitle: submission.projectTitle
-    }));
-
-    return tasks;
+  async getTeacherCurrentMilestones(teacherId: number): Promise<TeacherCurrentMilestoneDTO[]> {
+    return this.dashboardQueries.getTeacherCurrentMilestones(teacherId);
   }
 
-  async getTeacherCurrentMilestones(teacherId: number): Promise<any[]> {
-    const teacherProjects = await db.select()
-      .from(projects)
-      .where(eq(projects.teacherId, teacherId));
-
-    const projectIds = teacherProjects.map(p => p.id);
-
-    const currentMilestones = projectIds.length > 0 ? await db.select()
-      .from(milestones)
-      .where(and(
-        inArray(milestones.projectId, projectIds),
-        sql`${milestones.dueDate} >= ${new Date().toISOString()}`)
-      )
-      .orderBy(milestones.dueDate)
-      .limit(5) : [];
-
-    const milestonesWithProgress = currentMilestones.map((milestone) => ({
-      id: milestone.id,
-      title: milestone.title,
-      description: milestone.description,
-      dueDate: milestone.dueDate,
-      status: milestone.dueDate && new Date(milestone.dueDate) > new Date() ? 'not_started' as const : 'in_progress' as const,
-      progress: Math.floor(Math.random() * 100) // Would need actual progress tracking
-    }));
-
-    return milestonesWithProgress;
+  async getSchoolStudentsProgress(teacherId: number): Promise<SchoolStudentProgressRecord[]> {
+    return this.dashboardQueries.getSchoolStudentsProgress(teacherId);
   }
 
-  async getSchoolStudentsProgress(teacherId: number): Promise<any[]> {
-    // Get teacher's school ID
-    const teacher = await db.select().from(users).where(eq(users.id, teacherId)).limit(1);
-    if (!teacher.length || !teacher[0].schoolId) {
-      throw new Error("Teacher school not found");
-    }
-
-    const schoolId = teacher[0].schoolId;
-
-    // Get all students in the school
-    const students = await db.select().from(users).where(and(
-      eq(users.schoolId, schoolId),
-      eq(users.role, 'student')
-    )).orderBy(asc(users.username));
-
-    // Get detailed progress for each student
-    const studentsWithProgress = await Promise.all(
-      students.map(async (student) => {
-        try {
-          // Get student's project assignments with project and teacher details
-          const studentAssignments = await db.select({
-            projectId: projectAssignments.projectId,
-            projectTitle: projects.title,
-            projectDescription: projects.description,
-            projectStatus: projects.status,
-            teacherUsername: users.username
-          })
-            .from(projectAssignments)
-            .innerJoin(projects, eq(projectAssignments.projectId, projects.id))
-            .innerJoin(users, eq(projects.teacherId, users.id))
-            .where(eq(projectAssignments.studentId, student.id));
-
-          const processedAssignments = studentAssignments.map(assignment => ({
-            projectId: assignment.projectId,
-            projectTitle: assignment.projectTitle,
-            projectDescription: assignment.projectDescription,
-            projectStatus: assignment.projectStatus,
-            teacherName: assignment.teacherUsername
-          }));
-
-          // Get student's credentials
-          const studentCredentials = await db.select()
-            .from(credentials)
-            .where(eq(credentials.studentId, student.id))
-            .orderBy(desc(credentials.awardedAt));
-
-          // Get student's submissions and grades for competency progress
-          const studentGrades = await db.select({
-            componentSkillId: grades.componentSkillId,
-            score: grades.score,
-            gradedAt: grades.gradedAt
-          })
-            .from(grades)
-            .innerJoin(submissions, eq(grades.submissionId, submissions.id))
-            .where(eq(submissions.studentId, student.id));
-
-          // Simplified competency progress calculation
-          const competencyAverages = studentGrades.map(grade => {
-            return {
-              competencyId: 1, // Simplified for now
-              competencyName: 'General Progress',
-              componentSkillId: grade.componentSkillId,
-              componentSkillName: `Component Skill ${grade.componentSkillId}`,
-              averageScore: grade.score ? parseFloat(grade.score.toString()) : 0,
-              submissionCount: 1
-            };
-          });
-
-          return {
-            ...student,
-            projects: processedAssignments,
-            credentials: studentCredentials.map(cred => ({
-              id: cred.id,
-              title: cred.title,
-              description: cred.description,
-              type: cred.type,
-              awardedAt: cred.awardedAt
-            })),
-            competencyProgress: competencyAverages,
-            totalCredentials: studentCredentials.length,
-            stickers: studentCredentials.filter(c => c.type === 'sticker').length,
-            badges: studentCredentials.filter(c => c.type === 'badge').length,
-            plaques: studentCredentials.filter(c => c.type === 'plaque').length
-          };
-        } catch (studentError) {
-          console.error(`Error processing student ${student.id}:`, studentError);
-          return {
-            ...student,
-            projects: [],
-            credentials: [],
-            competencyProgress: [],
-            totalCredentials: 0,
-            stickers: 0,
-            badges: 0,
-            plaques: 0
-          };
-        }
-      })
-    );
-
-    return studentsWithProgress;
-  }
-
-  // Public projects operations
-  async getPublicProjects(filters?: {
-    search?: string;
-    subjectArea?: string;
-    gradeLevel?: string;
-    estimatedDuration?: string;
-    componentSkillIds?: number[];
-    bestStandardIds?: number[];
-  }): Promise<Project[]> {
-    let query = db.select().from(projects).where(eq(projects.isPublic, true));
-
-    const conditions: any[] = [eq(projects.isPublic, true)];
-
-    if (filters?.search) {
-      conditions.push(
-        or(
-          ilike(projects.title, `%${filters.search}%`),
-          ilike(projects.description, `%${filters.search}%`)
-        )
-      );
-    }
-
-    if (filters?.subjectArea) {
-      conditions.push(eq(projects.subjectArea, filters.subjectArea));
-    }
-
-    if (filters?.gradeLevel) {
-      conditions.push(eq(projects.gradeLevel, filters.gradeLevel));
-    }
-
-    if (filters?.estimatedDuration) {
-      conditions.push(eq(projects.estimatedDuration, filters.estimatedDuration));
-    }
-
-    const result = await db
-      .select()
-      .from(projects)
-      .where(and(...conditions))
-      .orderBy(desc(projects.createdAt));
-
-    // Filter by component skill IDs if provided (JSONB array contains check)
-    let filteredResults = result;
-    if (filters?.componentSkillIds && filters.componentSkillIds.length > 0) {
-      filteredResults = filteredResults.filter(project => {
-        const projectSkills = Array.isArray(project.componentSkillIds) ? project.componentSkillIds as number[] : [];
-        return filters.componentSkillIds!.some(skillId => projectSkills.includes(skillId));
-      });
-    }
-
-    // Filter by B.E.S.T. standard IDs if provided
-    if (filters?.bestStandardIds && filters.bestStandardIds.length > 0) {
-      filteredResults = filteredResults.filter(project => {
-        const projectStandards = Array.isArray(project.bestStandardIds) ? project.bestStandardIds as number[] : [];
-        return filters.bestStandardIds!.some(standardId => projectStandards.includes(standardId));
-      });
-    }
-
-    return filteredResults;
+  async getPublicProjects(filters?: PublicProjectFilters): Promise<Project[]> {
+    return this.publicQueries.getPublicProjects(filters);
   }
 
   async toggleProjectVisibility(projectId: number, isPublic: boolean): Promise<Project> {
-    const [updatedProject] = await db
-      .update(projects)
-      .set({ isPublic, updatedAt: new Date() })
-      .where(eq(projects.id, projectId))
-      .returning();
-    return updatedProject;
+    return this.publicQueries.toggleProjectVisibility(projectId, isPublic);
   }
 
   async incrementProjectGenerationCount(userId: number): Promise<User> {
-    const now = new Date();
+    return this.coreQueries.incrementProjectGenerationCount(userId);
+  }
 
-    // Atomic update to handle race conditions
-    // SQL Logic:
-    // If last_project_generation_date month/year matches current month/year, increment count
-    // Else (new month), reset count to 1
-    // Always update last_project_generation_date to now
-
-    // Note: Drizzle's sql operator allows us to write raw SQL fragments
-    // We use COALESCE to handle null last_project_generation_date (treat as new month -> 1)
-
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        projectGenerationCount: sql`
-          CASE 
-            WHEN ${users.lastProjectGenerationDate} IS NOT NULL 
-              AND EXTRACT(MONTH FROM ${users.lastProjectGenerationDate}) = EXTRACT(MONTH FROM NOW())
-              AND EXTRACT(YEAR FROM ${users.lastProjectGenerationDate}) = EXTRACT(YEAR FROM NOW())
-            THEN ${users.projectGenerationCount} + 1
-            ELSE 1
-          END
-        `,
-        lastProjectGenerationDate: now
-      })
-      .where(eq(users.id, userId))
-      .returning();
-
-    if (!updatedUser) {
-      throw new Error("User not found");
-    }
-
-    return updatedUser;
+  async getStudentCompetencyProgress(studentId: number): Promise<StudentCompetencyProgressRecord[]> {
+    return this.competencyQueries.getStudentCompetencyProgress(studentId);
   }
 }
 
-// Export singleton instance
 export const projectsStorage = new ProjectsStorage();

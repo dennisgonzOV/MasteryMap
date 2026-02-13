@@ -1,6 +1,21 @@
-import { openAIService } from './openai.service';
+import {
+  openAIService,
+  type GeneratedAssessment,
+  type GeneratedMilestone,
+  type GeneratedProjectIdea,
+} from './openai.service';
 import { notifyTeacherOfSafetyIncident } from '../../services/notifications';
 import OpenAI from "openai";
+import type {
+  Grade,
+  Milestone,
+  Project,
+  Submission,
+} from "../../../shared/schema";
+import type {
+  ComponentSkillWithDetailsDTO,
+  SubmissionGradeItemDTO,
+} from "../../../shared/contracts/api";
 
 // Use the same Azure OpenAI endpoint as openai.service.ts for consistency
 const openai = new OpenAI({
@@ -19,8 +34,106 @@ interface SelfEvaluationAnalysis {
   confidence: number;
 }
 
+type GradeInput = {
+  componentSkillId: number | null;
+  rubricLevel?: string | null;
+  score?: string | number | null;
+};
+
+type AssessmentWithQuestions = {
+  questions?: unknown;
+};
+
+type AssessmentQuestion = {
+  text: string;
+  type: "open-ended" | "short-answer" | "multiple-choice" | string;
+  rubricCriteria?: string;
+  sampleAnswer?: string;
+  choices?: string[];
+  correctAnswer?: string;
+  [key: string]: unknown;
+};
+
+type TutorConversationMessage = {
+  role?: string;
+  content?: string;
+  [key: string]: unknown;
+};
+
+type TutorComponentSkill = {
+  id?: number;
+  name?: string;
+  emerging?: string | null;
+  developing?: string | null;
+  proficient?: string | null;
+  applying?: string | null;
+};
+
+type TutorEvaluation = {
+  selfAssessedLevel?: string;
+  confidence?: number;
+  [key: string]: unknown;
+};
+
+type TutorResponsePayload = {
+  response?: string;
+  suggestedEvaluation?: TutorEvaluation;
+  shouldTerminate?: boolean;
+  safetyFlag?: string;
+};
+
+type CredentialSuggestion = {
+  type: string;
+  title: string;
+  description: string;
+};
+
 export class AIService {
   constructor(private openaiService = openAIService) { }
+
+  private parseRubricLevel(level: string | null | undefined): Grade["rubricLevel"] {
+    if (level === "emerging" || level === "developing" || level === "proficient" || level === "applying") {
+      return level;
+    }
+    return null;
+  }
+
+  private normalizeGradesForAI(submission: Submission, grades: GradeInput[]): Grade[] {
+    return grades.map((grade, index) => ({
+      id: -(index + 1),
+      submissionId: submission.id,
+      componentSkillId: grade.componentSkillId ?? null,
+      rubricLevel: this.parseRubricLevel(grade.rubricLevel),
+      score: grade.score === undefined ? null : String(grade.score),
+      feedback: null,
+      gradedBy: null,
+      gradedAt: null,
+    }));
+  }
+
+  private parseErrorDetails(error: unknown): {
+    message?: string;
+    status?: number;
+    code?: string;
+    type?: string;
+  } {
+    if (typeof error === "object" && error !== null) {
+      const err = error as {
+        message?: string;
+        status?: number;
+        code?: string;
+        type?: string;
+      };
+      return {
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        type: err.type,
+      };
+    }
+
+    return {};
+  }
 
   // High-level project generation methods
   async generateProjectIdeas(criteria: {
@@ -28,12 +141,14 @@ export class AIService {
     topic: string;
     gradeLevel: string;
     duration: string;
-    componentSkills: any[];
-  }) {
-    return await this.openaiService.generateProjectIdeas(criteria);
+    componentSkills: ComponentSkillWithDetailsDTO[];
+  }): Promise<GeneratedProjectIdea[]> {
+    return await this.openaiService.generateProjectIdeas(
+      criteria as Parameters<typeof this.openaiService.generateProjectIdeas>[0],
+    );
   }
 
-  async generateProjectMilestones(project: any) {
+  async generateProjectMilestones(project: Project): Promise<GeneratedMilestone[]> {
     return await this.openaiService.generateMilestones(project);
   }
 
@@ -41,18 +156,18 @@ export class AIService {
     projectTitle: string,
     projectDescription: string,
     projectDueDate: string,
-    componentSkills: any[]
-  ) {
+    componentSkills: ComponentSkillWithDetailsDTO[]
+  ): Promise<GeneratedMilestone[]> {
     return await this.openaiService.generateMilestonesFromComponentSkills(
       projectTitle,
       projectDescription,
       projectDueDate,
-      componentSkills
+      componentSkills as Parameters<typeof this.openaiService.generateMilestonesFromComponentSkills>[3],
     );
   }
 
   // High-level assessment methods
-  async generateAssessment(milestone: any) {
+  async generateAssessment(milestone: Milestone): Promise<GeneratedAssessment> {
     return await this.openaiService.generateAssessment(milestone);
   }
 
@@ -60,16 +175,16 @@ export class AIService {
     milestoneTitle: string,
     milestoneDescription: string,
     milestoneDueDate: string,
-    componentSkills: any[],
+    componentSkills: ComponentSkillWithDetailsDTO[],
     questionCount: number = 5,
     questionTypes: string[] = ['open-ended'],
     pdfContent?: string
-  ) {
+  ): Promise<GeneratedAssessment> {
     return await this.openaiService.generateAssessmentFromComponentSkills(
       milestoneTitle,
       milestoneDescription,
       milestoneDueDate,
-      componentSkills,
+      componentSkills as Parameters<typeof this.openaiService.generateAssessmentFromComponentSkills>[3],
       questionCount,
       questionTypes,
       pdfContent
@@ -77,12 +192,23 @@ export class AIService {
   }
 
   // High-level grading and feedback methods
-  async generateStudentFeedback(submission: any, grades: any[]) {
-    return await this.openaiService.generateFeedback(submission, grades);
+  async generateStudentFeedback(submission: Submission, grades: GradeInput[]): Promise<string> {
+    const normalizedGrades = this.normalizeGradesForAI(submission, grades);
+    return await this.openaiService.generateFeedback(submission, normalizedGrades);
   }
 
-  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string) {
-    return await this.openaiService.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
+  async generateComponentSkillGrades(
+    submission: Submission,
+    assessment: AssessmentWithQuestions,
+    componentSkills: ComponentSkillWithDetailsDTO[],
+    pdfContent?: string,
+  ): Promise<SubmissionGradeItemDTO[]> {
+    return await this.openaiService.generateComponentSkillGrades(
+      submission,
+      assessment,
+      componentSkills as Parameters<typeof this.openaiService.generateComponentSkillGrades>[2],
+      pdfContent,
+    );
   }
 
   async generateQuestionGrade(
@@ -95,23 +221,39 @@ export class AIService {
     return await this.openaiService.generateQuestionGrade(questionText, studentAnswer, rubricCriteria, sampleAnswer, pdfContent);
   }
 
-  async suggestCredentials(submission: any, grades: any[], projectTitle: string) {
-    return await this.openaiService.suggestCredentials(submission, grades, projectTitle);
+  async suggestCredentials(
+    submission: Submission,
+    grades: GradeInput[],
+    projectTitle: string,
+  ): Promise<CredentialSuggestion[]> {
+    const normalizedGrades = this.normalizeGradesForAI(submission, grades);
+    return await this.openaiService.suggestCredentials(
+      submission,
+      normalizedGrades,
+      projectTitle,
+    ) as CredentialSuggestion[];
   }
 
   // Self-evaluation and safety-aware feedback
   async generateSelfEvaluationFeedback(
     componentSkillName: string,
-    rubricLevels: any,
+    rubricLevels: unknown,
     selfAssessedLevel: string,
     justification: string,
     examples: string,
   ): Promise<SelfEvaluationAnalysis> {
     try {
+      const rubricEntries = typeof rubricLevels === "object" && rubricLevels !== null
+        ? Object.entries(rubricLevels as Record<string, unknown>).filter((entry): entry is [string, string] => {
+          const [, description] = entry;
+          return typeof description === "string";
+        })
+        : [];
+
       const prompt = `You are an AI tutor helping students improve their competency in "${componentSkillName}".
 
 RUBRIC LEVELS:
-${Object.entries(rubricLevels || {})
+${rubricEntries
           .map(([level, description]) => `${level.toUpperCase()}: ${description}`)
           .join("\n")}
 
@@ -182,7 +324,7 @@ Respond in JSON format:
     milestoneDescription: string,
     learningObjectives: string,
     difficulty: string = "intermediate"
-  ): Promise<any[]> {
+  ): Promise<AssessmentQuestion[]> {
     try {
       const prompt = `Generate 5-7 educational assessment questions for this learning milestone:
 
@@ -240,11 +382,11 @@ Example JSON structure:
         temperature: 0.7,
       });
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
-      const questions = result.questions || [];
+      const result = JSON.parse(response.choices[0].message.content || "{}") as { questions?: AssessmentQuestion[] };
+      const questions = Array.isArray(result.questions) ? result.questions : [];
 
       // Post-processing to ensure correctAnswer is valid for multiple-choice questions
-      return questions.map((question: any) => {
+      return questions.map((question) => {
         if (question.type === 'multiple-choice' && question.choices) {
           // Ensure we have a correct answer for multiple choice
           if (!question.correctAnswer && question.choices.length > 0) {
@@ -264,18 +406,13 @@ Example JSON structure:
   }
 
   async generateTutorResponse(
-    componentSkill: any,
-    conversationHistory: any[] = [],
-    currentEvaluation?: any
-  ): Promise<{
-    response: string;
-    suggestedEvaluation?: any;
-    shouldTerminate?: boolean;
-    safetyFlag?: string;
-  }> {
+    componentSkill: TutorComponentSkill,
+    conversationHistory: TutorConversationMessage[] = [],
+    currentEvaluation?: TutorEvaluation
+  ): Promise<TutorResponsePayload> {
     try {
       const historyText = conversationHistory
-        .map(msg => `${msg.role}: ${msg.content}`)
+        .map((msg) => `${String(msg.role || "unknown")}: ${String(msg.content || "")}`)
         .join('\n');
 
       const studentMessageCount = conversationHistory.filter(msg => msg.role === 'student').length;
@@ -359,7 +496,7 @@ If safety concerns are detected:
         max_tokens: 800,
       });
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
+      const result = JSON.parse(response.choices[0].message.content || "{}") as TutorResponsePayload;
 
       return {
         response: result.response || "I'm here to help you develop this skill!",
@@ -367,13 +504,14 @@ If safety concerns are detected:
         shouldTerminate: result.shouldTerminate || false,
         safetyFlag: result.safetyFlag || undefined
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorDetails = this.parseErrorDetails(error);
       console.error("Error generating tutor response:", {
-        message: error?.message,
-        status: error?.status,
-        code: error?.code,
-        type: error?.type,
-        error: error
+        message: errorDetails.message,
+        status: errorDetails.status,
+        code: errorDetails.code,
+        type: errorDetails.type,
+        error,
       });
       return {
         response: "I'm here to help you develop this skill! Can you tell me more about what you're working on?",
@@ -385,7 +523,7 @@ If safety concerns are detected:
   // Safety incident handling with AI analysis
   async processSelfEvaluationForSafety(analysis: SelfEvaluationAnalysis, studentId: number, teacherId: number): Promise<void> {
     if (analysis.hasRiskyContent && analysis.confidence > 0.7) {
-      console.warn(`Safety incident detected for student ${studentId}:`, {
+      console.error(`Safety incident detected for student ${studentId}:`, {
         riskType: analysis.riskType,
         confidence: analysis.confidence
       });

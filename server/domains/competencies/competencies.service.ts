@@ -5,6 +5,9 @@ import {
   type BestStandard,
   type LearnerOutcome
 } from "../../../shared/schema";
+import type { ComponentSkillWithDetailsDTO } from "../../../shared/contracts/api";
+
+type CompetencyWithSkills = Competency & { componentSkills: ComponentSkill[] };
 
 export interface ICompetencyService {
   getAllCompetencies(): Promise<Competency[]>;
@@ -22,9 +25,10 @@ export interface ICompetencyService {
   getLearnerOutcomes(): Promise<LearnerOutcome[]>;
   getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>>;
   getCompetenciesByLearnerOutcome(learnerOutcomeId: number): Promise<Competency[]>;
-  getComponentSkillsWithDetails(): Promise<any[]>;
-  getComponentSkillsByIds(skillIds: number[]): Promise<any[]>;
-  getEnrichedComponentSkills(): Promise<any[]>;
+  getComponentSkillsWithDetails(): Promise<ComponentSkillWithDetailsDTO[]>;
+  getComponentSkillsByIds(skillIds: number[]): Promise<ComponentSkillWithDetailsDTO[]>;
+  getCompetenciesWithSkills(): Promise<CompetencyWithSkills[]>;
+  getEnrichedComponentSkills(): Promise<ComponentSkillWithDetailsDTO[]>;
 }
 
 export class CompetencyService implements ICompetencyService {
@@ -83,19 +87,19 @@ export class CompetencyService implements ICompetencyService {
     return await this.storage.getCompetenciesByLearnerOutcome(learnerOutcomeId);
   }
 
-  async getComponentSkillsWithDetails(): Promise<any[]> {
+  async getComponentSkillsWithDetails(): Promise<ComponentSkillWithDetailsDTO[]> {
     return await this.storage.getComponentSkillsWithDetails();
   }
 
-  async getComponentSkillsByIds(skillIds: number[]): Promise<any[]> {
+  async getComponentSkillsByIds(skillIds: number[]): Promise<ComponentSkillWithDetailsDTO[]> {
     return await this.storage.getComponentSkillsByIds(skillIds);
   }
 
-  async getCompetenciesWithSkills(): Promise<any[]> {
+  async getCompetenciesWithSkills(): Promise<CompetencyWithSkills[]> {
     return await this.storage.getCompetenciesWithSkills();
   }
 
-  async getEnrichedComponentSkills(): Promise<any[]> {
+  async getEnrichedComponentSkills(): Promise<ComponentSkillWithDetailsDTO[]> {
     return await this.storage.getAllComponentSkills();
   }
 }

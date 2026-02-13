@@ -94,6 +94,7 @@ export default function TeacherAssessments() {
   const [showCreateAssessment, setShowCreateAssessment] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
+  const [assessmentScope, setAssessmentScope] = useState<"mine" | "school">("mine");
   const userRole = user?.role;
   const canManageAssessments = userRole === UserRole.TEACHER || userRole === UserRole.ADMIN;
 
@@ -111,14 +112,16 @@ export default function TeacherAssessments() {
 
   // Fetch projects for filter
   const { data: projects = [] } = useQuery<ProjectDTO[]>({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects", assessmentScope],
+    queryFn: () => api.getProjects(assessmentScope),
     enabled: isAuthenticated && canManageAssessments,
     retry: false,
   });
 
   // Fetch all assessments (including milestone-linked ones)
   const { data: assessments = [], refetch: refetchAssessments } = useQuery<AssessmentDTO[]>({
-    queryKey: ["/api/assessments"],
+    queryKey: ["/api/assessments", assessmentScope],
+    queryFn: () => api.getAllAssessments(assessmentScope),
     enabled: isAuthenticated && canManageAssessments,
     retry: false,
   });
@@ -276,6 +279,28 @@ export default function TeacherAssessments() {
   const totalAssessments = assessments.length;
   const aiGeneratedCount = assessments.filter(a => a.aiGenerated).length;
 
+  const canManageAssessment = (assessment: AssessmentDTO): boolean => {
+    if (user?.role === UserRole.ADMIN) {
+      return true;
+    }
+
+    if (assessment.createdBy) {
+      return assessment.createdBy === user?.id;
+    }
+
+    if (!assessment.milestoneId) {
+      return true;
+    }
+
+    const milestone = milestones.find((m) => m.id === assessment.milestoneId);
+    if (!milestone) {
+      return false;
+    }
+
+    const project = projects.find((p) => p.id === milestone.projectId);
+    return project?.teacherId === user?.id;
+  };
+
   // Handler functions
   const handleCopyShareCode = async (shareCode: string) => {
     try {
@@ -309,6 +334,7 @@ export default function TeacherAssessments() {
       });
       // Invalidate the main assessments query to refresh the list
       queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments", assessmentScope] });
     },
     onError: (error: unknown) => {
       const message = error instanceof Error ? error.message : "Failed to delete assessment";
@@ -337,10 +363,12 @@ export default function TeacherAssessments() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                  Assessments
+                  {assessmentScope === "mine" ? "Assessments" : "School Assessments"}
                 </h1>
                 <p className="text-lg text-gray-600">
-                  Create and manage competency-based assessments for your projects
+                  {assessmentScope === "mine"
+                    ? "Create and manage competency-based assessments for your projects"
+                    : "Browse assessments created by teachers in your school"}
                 </p>
               </div>
               <Button 
@@ -402,6 +430,17 @@ export default function TeacherAssessments() {
           <Card className="bg-white border-0 shadow-sm mb-8">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row gap-4">
+                <div className="sm:w-64">
+                  <Select value={assessmentScope} onValueChange={(value) => setAssessmentScope(value as "mine" | "school")}>
+                    <SelectTrigger className="focus-ring">
+                      <SelectValue placeholder="Assessment scope" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mine">My Assessments</SelectItem>
+                      <SelectItem value="school">All School Assessments</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex-1 relative">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -466,6 +505,7 @@ export default function TeacherAssessments() {
                 const questionCount = Array.isArray(assessment.questions) ? assessment.questions.length : 0;
                 const competencyInfo = getCompetencyInfo(assessment);
                 const submissionStats = getSubmissionStats(assessment.id);
+                const isManageable = canManageAssessment(assessment);
 
                 return (
                   <Card key={assessment.id} className="bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group">
@@ -604,6 +644,7 @@ export default function TeacherAssessments() {
                           <Button
                             size="sm"
                             className="bg-blue-600 text-white hover:bg-blue-700 h-8 px-3 text-xs"
+                            disabled={!isManageable}
                             onClick={() => setLocation(`/teacher/assessments/${assessment.id}/submissions`)}
                           >
                             Grade
@@ -615,13 +656,19 @@ export default function TeacherAssessments() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
-                                className="text-red-600 focus:text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Assessment
-                              </DropdownMenuItem>
+                              {isManageable ? (
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
+                                  className="text-red-600 focus:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Assessment
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem disabled>
+                                  Only creator can manage this assessment
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

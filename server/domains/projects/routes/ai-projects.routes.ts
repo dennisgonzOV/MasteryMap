@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
 import { aiLimiter, createErrorResponse } from "../../../middleware/security";
 import { validateIdParam } from "../../../middleware/routeValidation";
@@ -25,6 +25,24 @@ const thumbnailPreviewSchema = z.object({
 });
 
 export function registerProjectAIRoutes(router: Router) {
+  const ensureFreeTierAdminProjectAccess = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    projectId: number,
+  ): Promise<boolean> => {
+    if (!(req.user?.role === "admin" && req.user.tier === "free")) {
+      return true;
+    }
+
+    const project = await projectsService.getProject(projectId);
+    if (!project || project.teacherId !== req.user.id) {
+      res.status(403).json({ message: "Access denied" });
+      return false;
+    }
+
+    return true;
+  };
+
   router.post('/generate-ideas', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
@@ -64,6 +82,11 @@ export function registerProjectAIRoutes(router: Router) {
       const projectId = parseInt(req.params.id);
       const userId = req.user!.id;
       const userRole = req.user!.role;
+
+      const hasAccess = await ensureFreeTierAdminProjectAccess(req, res, projectId);
+      if (!hasAccess) {
+        return;
+      }
 
       const parseResult = thumbnailOptionsSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -118,6 +141,11 @@ export function registerProjectAIRoutes(router: Router) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
+      const hasAccess = await ensureFreeTierAdminProjectAccess(req, res, projectId);
+      if (!hasAccess) {
+        return;
+      }
+
       const savedMilestones: MilestoneDTO[] = await projectsService.generateMilestonesForProject(projectId, userId, userRole);
 
       res.json(savedMilestones);
@@ -146,6 +174,11 @@ export function registerProjectAIRoutes(router: Router) {
       const projectId = parseInt(req.params.id);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const hasAccess = await ensureFreeTierAdminProjectAccess(req, res, projectId);
+      if (!hasAccess) {
+        return;
       }
 
       const result = await projectsService.generateMilestonesAndAssessmentsForProject(

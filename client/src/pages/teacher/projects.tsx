@@ -46,6 +46,7 @@ export default function TeacherProjects() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [projectScope, setProjectScope] = useState<"mine" | "school">("mine");
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -62,8 +63,8 @@ export default function TeacherProjects() {
 
   // Fetch projects
   const { data: projects = [], isLoading: projectsLoading, error: projectsError, refetch } = useQuery<TeacherProject[]>({
-    queryKey: ["/api/projects"],
-    queryFn: api.getProjects,
+    queryKey: ["/api/projects", projectScope],
+    queryFn: () => api.getProjects(projectScope),
     enabled: isAuthenticated && user?.role === 'teacher',
     retry: false,
   });
@@ -180,10 +181,12 @@ export default function TeacherProjects() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                My Projects
+                {projectScope === "mine" ? "My Projects" : "School Projects"}
               </h1>
               <p className="text-gray-600">
-                Create, manage, and track your project-based learning initiatives.
+                {projectScope === "mine"
+                  ? "Create, manage, and track your project-based learning initiatives."
+                  : "Browse projects created by teachers in your school."}
               </p>
             </div>
             <div className="flex items-center space-x-3">
@@ -254,6 +257,17 @@ export default function TeacherProjects() {
           <Card className="apple-shadow border-0 mb-8">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row gap-4">
+                <div className="sm:w-72">
+                  <Select value={projectScope} onValueChange={(value) => setProjectScope(value as "mine" | "school")}>
+                    <SelectTrigger className="focus-ring">
+                      <SelectValue placeholder="Project scope" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mine">My Projects</SelectItem>
+                      <SelectItem value="school">All School Projects</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -338,6 +352,7 @@ export default function TeacherProjects() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProjects.map((project) => {
                 const stats = projectStats[project.id] || { studentCount: 0, progress: 0 };
+                const isOwner = project.teacherId === user?.id;
                 return (
                   <ProjectCard
                     key={project.id}
@@ -345,7 +360,16 @@ export default function TeacherProjects() {
                     progress={stats.progress}
                     studentCount={stats.studentCount}
                     userRole="teacher"
+                    actionLabel={isOwner ? "Manage Project" : "View Only"}
+                    actionDisabled={!isOwner}
                     onViewProject={(id) => {
+                      if (!isOwner) {
+                        toast({
+                          title: "View only",
+                          description: "You can manage only projects you created.",
+                        });
+                        return;
+                      }
                       setSelectedProjectId(id);
                       setShowProjectManagement(true);
                     }}

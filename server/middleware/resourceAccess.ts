@@ -12,7 +12,7 @@ export interface ResourceAccessOptions {
   paramName?: string;
   checkOwnership?: boolean;
   allowedRoles?: string[];
-  customAccessCheck?: (user: { id: number; role: string }, resource: Record<string, unknown>) => boolean;
+  customAccessCheck?: (user: { id: number; role: string; tier?: string }, resource: Record<string, unknown>) => boolean;
 }
 
 /**
@@ -76,8 +76,8 @@ export function checkResourceAccess(options: ResourceAccessOptions) {
         return handleAuthorizationError(res, "Access denied");
       }
 
-      // Standard ownership check for teachers
-      if (checkOwnership && user.role === 'teacher') {
+      // Standard ownership check for teachers, and free-tier admins
+      if (checkOwnership && (user.role === 'teacher' || (user.role === 'admin' && user.tier === 'free'))) {
         const teacherId = resource.teacherId;
         if (typeof teacherId !== "number" || teacherId !== user.id) {
           return handleAuthorizationError(res, `Access denied - you can only access your own ${resourceType}s`);

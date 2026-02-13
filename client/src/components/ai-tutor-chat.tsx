@@ -185,8 +185,6 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
 
       // Handle safety flags and conversation termination
       if (data.shouldTerminate && data.safetyFlag) {
-        console.log("Conversation terminated due to safety concerns:", data.safetyFlag);
-
         // Add appropriate system message based on safety flag
         let systemMessage = "This conversation has ended. Please complete your self-evaluation or speak with your teacher if you need assistance.";
 

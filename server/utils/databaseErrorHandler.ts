@@ -151,10 +151,6 @@ export async function checkDatabaseHealth(db: any, maxRetries = 3): Promise<bool
       return true;
     } catch (error) {
       attempt++;
-      console.warn(`Database health check failed (attempt ${attempt}/${maxRetries}):`, {
-        error: error instanceof Error ? error.message : error,
-        timestamp: new Date().toISOString()
-      });
       
       if (attempt < maxRetries) {
         // Wait before retrying (exponential backoff)
@@ -203,11 +199,8 @@ export async function safeMigration(
   migration: (tx: DatabaseTransaction) => Promise<void>,
   migrationName: string
 ): Promise<void> {
-  console.log(`🔄 Running migration: ${migrationName}`);
-  
   try {
     await withTransaction(db, migration, `migration.${migrationName}`);
-    console.log(`✅ Migration completed: ${migrationName}`);
   } catch (error) {
     console.error(`❌ Migration failed: ${migrationName}`, {
       error: error instanceof Error ? error.message : error,

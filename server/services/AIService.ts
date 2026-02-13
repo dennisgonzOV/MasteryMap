@@ -4,6 +4,9 @@ import { sanitizeForPrompt } from "../middleware/security";
 import { AIServiceError, parseAIServiceError, createErrorContext } from "../utils/errorTypes";
 
 /**
+ * @deprecated Legacy AI abstraction kept for backward compatibility.
+ * New AI behavior should live under /server/domains/ai.
+ *
  * Base AI service class to eliminate duplication across AI integrations
  */
 

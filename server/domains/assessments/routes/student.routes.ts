@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { requireAuth, type AuthenticatedRequest } from "../../auth";
 import { validateIntParam } from "../../../middleware/security";
-import { projectsService } from "../../projects/projects.service";
 import type { AssessmentService } from "../assessments.service";
+import type { AssessmentProjectGateway } from "../assessment-project-gateway";
 
 export function registerAssessmentStudentRoutes(
   router: Router,
   service: AssessmentService,
+  projectGateway: AssessmentProjectGateway,
 ) {
   router.get("/competency-progress/student/:studentId", requireAuth, validateIntParam('studentId'), async (req: AuthenticatedRequest, res) => {
     try {
@@ -17,6 +18,10 @@ export function registerAssessmentStudentRoutes(
       }
 
       const { role, id: userId } = req.user;
+
+      if (req.user.tier === "free" && role !== "student") {
+        return res.status(403).json({ message: "Access denied" });
+      }
 
       if (role === 'student' && userId !== studentId) {
         return res.status(403).json({ message: "Access denied" });
@@ -38,6 +43,10 @@ export function registerAssessmentStudentRoutes(
 
       const { role, id: userId } = req.user;
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : userId;
+
+      if (req.user.tier === "free" && role !== "student") {
+        return res.status(403).json({ message: "Access denied" });
+      }
 
       if (role === 'student' && userId !== studentId) {
         return res.status(403).json({ message: "Access denied" });
@@ -62,15 +71,15 @@ export function registerAssessmentStudentRoutes(
       }
 
       const studentId = req.user.id;
-      const projects = await projectsService.getProjectsByUser(studentId, 'student');
-      const projectIds = projects.map((p) => p.id);
+      const projectIds = await projectGateway.getStudentProjectIds(studentId);
 
       const upcomingDeadlines = projectIds.length > 0
         ? await service.getUpcomingDeadlines(projectIds)
         : [];
 
       const deadlines = upcomingDeadlines.map((deadline) => {
-        const daysUntil = Math.ceil((new Date(deadline.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        const dueDate = deadline.dueDate ?? new Date();
+        const daysUntil = Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
         return {
           id: deadline.milestoneId,
@@ -97,6 +106,10 @@ export function registerAssessmentStudentRoutes(
       }
 
       const { role, id: userId } = req.user;
+
+      if (req.user.tier === "free" && role !== "student") {
+        return res.status(403).json({ message: "Access denied" });
+      }
 
       if (role === 'student' && userId !== studentId) {
         return res.status(403).json({ message: "Access denied" });

@@ -13,6 +13,10 @@ export function registerAssessmentTeacherSkillsRoutes(
 ) {
   router.get('/teacher/school-component-skills-progress', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
+      if (req.user?.tier === "free") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       const teacherId = req.user!.id;
       const skillsProgress = await service.getSchoolComponentSkillsProgress(teacherId);
       res.json(skillsProgress);
@@ -24,6 +28,10 @@ export function registerAssessmentTeacherSkillsRoutes(
 
   router.get('/teacher/school-skills-stats', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
+      if (req.user?.tier === "free") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       const teacherId = req.user!.id;
       const stats = await service.getSchoolSkillsStats(teacherId);
       res.json(stats);

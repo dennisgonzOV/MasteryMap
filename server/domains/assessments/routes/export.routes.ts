@@ -1,6 +1,10 @@
 import { Router } from "express";
-import { requireAuth, type AuthenticatedRequest } from "../../auth";
+import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
+import { UserRole } from "../../../../shared/schema";
+import { validateIntParam } from "../../../middleware/security";
 import type { AssessmentService } from "../assessments.service";
+import type { AssessmentProjectGateway } from "../assessment-project-gateway";
+import { canTeacherManageAssessment } from "../assessment-ownership";
 
 type CsvCell = string | number | Date | null | undefined;
 type CsvRow = CsvCell[];
@@ -31,14 +35,33 @@ function toResponseMap(value: unknown): SubmissionResponseMap {
   return value as SubmissionResponseMap;
 }
 
-export function registerAssessmentExportRoutes(router: Router, service: AssessmentService) {
-  router.get("/:id/export-results", requireAuth, async (req: AuthenticatedRequest, res) => {
+export function registerAssessmentExportRoutes(
+  router: Router,
+  service: AssessmentService,
+  projectGateway: AssessmentProjectGateway,
+) {
+  router.get("/:id/export-results", requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
       const assessment = await service.getAssessment(assessmentId);
 
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (req.user.role === "teacher" || req.user.tier === "free") {
+        const canManage = await canTeacherManageAssessment(
+          assessment,
+          req.user.id,
+          projectGateway,
+        );
+        if (!canManage) {
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
 
       const submissionResults = await service.getSubmissionsByAssessment(assessmentId);
@@ -63,13 +86,28 @@ export function registerAssessmentExportRoutes(router: Router, service: Assessme
     }
   });
 
-  router.get("/:id/export-submissions", requireAuth, async (req: AuthenticatedRequest, res) => {
+  router.get("/:id/export-submissions", requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
       const assessment = await service.getAssessment(assessmentId);
 
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (req.user.role === "teacher" || req.user.tier === "free") {
+        const canManage = await canTeacherManageAssessment(
+          assessment,
+          req.user.id,
+          projectGateway,
+        );
+        if (!canManage) {
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
 
       const detailedSubmissions = await service.getSubmissionsByAssessment(assessmentId);
@@ -95,13 +133,28 @@ export function registerAssessmentExportRoutes(router: Router, service: Assessme
     }
   });
 
-  router.get("/:id/export-detailed-results", requireAuth, async (req: AuthenticatedRequest, res) => {
+  router.get("/:id/export-detailed-results", requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
       const assessment = await service.getAssessment(assessmentId);
 
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (req.user.role === "teacher" || req.user.tier === "free") {
+        const canManage = await canTeacherManageAssessment(
+          assessment,
+          req.user.id,
+          projectGateway,
+        );
+        if (!canManage) {
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
 
       const detailedResults = await service.getSubmissionsByAssessment(assessmentId);

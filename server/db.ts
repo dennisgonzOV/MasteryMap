@@ -31,7 +31,6 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
       error.message.includes('FATAL') ||
       error.code === '57P01' // Neon connection termination code
     )) {
-      console.warn('Neon connection error handled gracefully:', error.message);
       return; // Don't crash the process for database connection issues
     }
 
@@ -46,7 +45,6 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled rejection at:', promise, 'reason:', reason);
   // For database-related rejections, don't crash the process
   if (reason && typeof reason === 'object' && 'code' in reason && reason.code === '57P01') {
-    console.warn('Database connection rejection handled gracefully');
     return;
   }
 });
@@ -57,8 +55,7 @@ export const db = drizzle({ client: pool, schema });
 // Test database connection
 export async function testDatabaseConnection() {
   try {
-    const result = await pool.query('SELECT 1');
-    console.log('Database connection successful');
+    await pool.query('SELECT 1');
     return true;
   } catch (error) {
     console.error('Database connection failed:', error);

@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
 import { validateIntParam } from "../../../middleware/security";
-import { projectsService } from "../../projects/projects.service";
 import { UserRole } from "../../../../shared/schema";
 import type {
   AssessmentCreateRequestDTO,
@@ -9,25 +8,59 @@ import type {
   AssessmentUpdateRequestDTO,
 } from "../../../../shared/contracts/api";
 import type { AssessmentService } from "../assessments.service";
+import type { AssessmentProjectGateway } from "../assessment-project-gateway";
+import { canTeacherManageAssessment } from "../assessment-ownership";
+import { canUserAccessAssessment, filterAccessibleAssessments } from "../assessment-access";
 
 export function registerAssessmentCoreRoutes(
   router: Router,
   service: AssessmentService,
+  projectGateway: AssessmentProjectGateway,
 ) {
-  router.get('/standalone', requireAuth, async (_req: AuthenticatedRequest, res) => {
+  router.get('/standalone', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       const assessments = await service.getStandaloneAssessments();
-      res.json(assessments);
+      const visibleAssessments = await filterAccessibleAssessments(assessments, req.user, projectGateway);
+      res.json(visibleAssessments);
     } catch (error) {
       console.error("Error fetching standalone assessments:", error);
       res.status(500).json({ message: "Failed to fetch standalone assessments" });
     }
   });
 
-  router.get('/', requireAuth, async (_req: AuthenticatedRequest, res) => {
+  router.get('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const scope = req.query.scope === "school" ? "school" : "mine";
+
+      if (req.user.role === UserRole.TEACHER) {
+        if (req.user.tier === "free") {
+          const ownAssessments = await service.getAssessmentsForTeacher(req.user.id);
+          return res.json(ownAssessments);
+        }
+
+        if (scope === "school") {
+          if (!req.user.schoolId) {
+            return res.json([]);
+          }
+          const schoolAssessments = await service.getAssessmentsForSchool(req.user.schoolId);
+          return res.json(schoolAssessments);
+        }
+
+        const ownAssessments = await service.getAssessmentsForTeacher(req.user.id);
+        return res.json(ownAssessments);
+      }
+
       const assessments = await service.getAllAssessments();
-      res.json(assessments);
+      const visibleAssessments = await filterAccessibleAssessments(assessments, req.user, projectGateway);
+      res.json(visibleAssessments);
     } catch (error) {
       console.error("Error fetching all assessments:", error);
       res.status(500).json({ message: "Failed to fetch assessments" });
@@ -41,6 +74,15 @@ export function registerAssessmentCoreRoutes(
 
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const canAccess = await canUserAccessAssessment(assessment, req.user, projectGateway);
+      if (!canAccess) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       res.json(assessment);
@@ -64,15 +106,16 @@ export function registerAssessmentCoreRoutes(
         if (!req.user || (assessment.createdBy !== req.user.id && req.user.role !== "admin")) {
           return res.status(403).json({ message: "Access denied - you can only update assessments you created" });
         }
-      } else if (assessment.milestoneId) {
-        const milestone = await projectsService.getMilestone(assessment.milestoneId);
-        if (milestone?.projectId) {
-          const project = await projectsService.getProject(milestone.projectId);
-          if (project?.teacherId && (!req.user || (project.teacherId !== req.user.id && req.user.role !== "admin"))) {
-            return res.status(403).json({
-              message: "Access denied - you can only update assessments from your own projects"
-            });
-          }
+      } else if (req.user?.role === "teacher") {
+        const canManage = await canTeacherManageAssessment(
+          assessment,
+          req.user.id,
+          projectGateway,
+        );
+        if (!canManage) {
+          return res.status(403).json({
+            message: "Access denied - you can only update assessments from your own projects"
+          });
         }
       }
 
@@ -101,7 +144,10 @@ export function registerAssessmentCoreRoutes(
         return res.status(403).json({ message: "Only teachers can create assessments" });
       }
 
-      const payload: AssessmentCreateRequestDTO = req.body;
+      const payload: AssessmentCreateRequestDTO = {
+        ...req.body,
+        createdBy: req.user.id,
+      };
       const assessment: AssessmentDTO = await service.createAssessment(payload);
       res.json(assessment);
     } catch (error) {

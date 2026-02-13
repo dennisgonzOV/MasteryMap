@@ -12,6 +12,20 @@ import {
 import { db } from "../../db";
 import { eq, and, ne, sql } from "drizzle-orm";
 
+interface AnalyticsDashboardData {
+  totalUsers: number;
+  activeUsers: number;
+  totalProjects: number;
+  activeProjects: number;
+  totalAssessments: number;
+  gradedAssessments: number;
+  totalCredentials: number;
+  recentActivity: unknown[];
+  userGrowth: unknown[];
+  projectStats: unknown[];
+  competencyProgress: unknown[];
+}
+
 // Interface for auth-specific storage operations
 export interface IAuthStorage {
   // User operations
@@ -28,7 +42,7 @@ export interface IAuthStorage {
 
   // Admin operations
   getUsersBySchool(schoolId: number, excludeUserId: number): Promise<User[]>;
-  getAnalyticsDashboard(): Promise<any>;
+  getAnalyticsDashboard(schoolId?: number): Promise<AnalyticsDashboardData>;
   deleteUser(id: number): Promise<void>;
 }
 
@@ -90,34 +104,48 @@ export class AuthStorage implements IAuthStorage {
       ));
   }
 
-  async getAnalyticsDashboard(): Promise<any> {
-    // Get analytics data
+  async getAnalyticsDashboard(schoolId?: number): Promise<AnalyticsDashboardData> {
     const [allUsers, allProjects, allAssessments, allCredentials] = await Promise.all([
-      db.select().from(users),
-      db.select().from(projects),
-      db.select().from(assessments),
-      db.select().from(credentials)
+      schoolId
+        ? db.select().from(users).where(eq(users.schoolId, schoolId))
+        : db.select().from(users),
+      schoolId
+        ? db.select().from(projects).where(eq(projects.schoolId, schoolId))
+        : db.select().from(projects),
+      schoolId
+        ? db
+            .select({ id: assessments.id })
+            .from(assessments)
+            .innerJoin(users, eq(assessments.createdBy, users.id))
+            .where(eq(users.schoolId, schoolId))
+        : db.select({ id: assessments.id }).from(assessments),
+      schoolId
+        ? db
+            .select({ id: credentials.id })
+            .from(credentials)
+            .innerJoin(users, eq(credentials.studentId, users.id))
+            .where(eq(users.schoolId, schoolId))
+        : db.select({ id: credentials.id }).from(credentials),
     ]);
 
-    const analyticsData = {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    return {
       totalUsers: allUsers.length,
-      activeUsers: allUsers.filter(u => {
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        return u.updatedAt ? new Date(u.updatedAt) > oneMonthAgo : false;
+      activeUsers: allUsers.filter((user) => {
+        return user.updatedAt ? new Date(user.updatedAt) > oneMonthAgo : false;
       }).length,
       totalProjects: allProjects.length,
-      activeProjects: allProjects.filter(p => p.status === 'active').length,
+      activeProjects: allProjects.filter((project) => project.status === 'active').length,
       totalAssessments: allAssessments.length,
-      gradedAssessments: allAssessments.length, // Simplified since we don't have a graded field
+      gradedAssessments: allAssessments.length,
       totalCredentials: allCredentials.length,
-      recentActivity: [], // Could be implemented with activity tracking
-      userGrowth: [], // Would need historical data
-      projectStats: [], // Would need completion tracking
-      competencyProgress: [] // Would need progress tracking
+      recentActivity: [],
+      userGrowth: [],
+      projectStats: [],
+      competencyProgress: []
     };
-
-    return analyticsData;
   }
 
   async deleteUser(id: number): Promise<void> {

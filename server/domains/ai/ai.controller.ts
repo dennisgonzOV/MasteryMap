@@ -145,7 +145,6 @@ export class AIController {
           try {
             const { extractTextFromPdfUrl } = await import('../../utils/pdf');
             pdfContent = await extractTextFromPdfUrl(pdfUrl);
-            console.log(`Extracted ${pdfContent.length} chars from PDF for AI assessment generation`);
           } catch (pdfError) {
             console.error('Error extracting PDF text for AI generation:', pdfError);
           }

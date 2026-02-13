@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { buildBestStandardsUrl } from "@/lib/standards";
 import {
   Lightbulb,
   Loader2,
@@ -44,7 +45,8 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronRight,
-  Search
+  Search,
+  Download
 } from "lucide-react";
 
 const projectIdeaSchema = z.object({
@@ -150,21 +152,11 @@ export default function ProjectIdeasModal({
   // Subject area options matching project creation modal
   const subjectAreaOptions = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
 
-  // Build URL with query parameters for B.E.S.T. Standards filtering
-  const bestStandardsUrl = (() => {
-    const params = new URLSearchParams();
-    if (standardsSearchTerm?.trim()) {
-      params.set('search', standardsSearchTerm.trim());
-    }
-    if (selectedSubject && selectedSubject !== 'all') {
-      params.set('subject', selectedSubject);
-    }
-    if (selectedGrade && selectedGrade !== 'all') {
-      params.set('grade', selectedGrade);
-    }
-    const queryString = params.toString();
-    return queryString ? `/api/competencies/best-standards?${queryString}` : '/api/competencies/best-standards';
-  })();
+  const bestStandardsUrl = buildBestStandardsUrl({
+    searchTerm: standardsSearchTerm,
+    subject: selectedSubject,
+    grade: selectedGrade,
+  });
 
   // Fetch B.E.S.T. Standards based on search/filter criteria
   const { data: bestStandards = [], isLoading: isLoadingStandards, error: standardsError } = useQuery({
@@ -177,10 +169,6 @@ export default function ProjectIdeasModal({
       return failureCount < 3;
     },
   });
-
-  // Debug logging
-  console.log('Project Ideas Modal - hierarchyData:', hierarchyData);
-  console.log('Project Ideas Modal - isLoading:', isLoading);
 
   const form = useForm<ProjectIdeaForm>({
     resolver: zodResolver(projectIdeaSchema),
@@ -359,6 +347,49 @@ export default function ProjectIdeasModal({
       description: "You can now create a project based on this idea.",
     });
     onClose();
+  };
+
+  const handleDownloadIdea = (idea: ProjectIdea, index: number) => {
+    try {
+      const formValues = form.getValues();
+      const exportPayload = {
+        idea,
+        criteria: {
+          subject: formValues.subject,
+          topic: formValues.topic,
+          gradeLevel: formValues.gradeLevel,
+          duration: formValues.duration,
+        },
+        selectedComponentSkillIds: Array.from(selectedSkills),
+        selectedBestStandardIds: Array.from(selectedStandards),
+        exportedAt: new Date().toISOString(),
+      };
+
+      const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeTitle = idea.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || `project-idea-${index + 1}`;
+      a.download = `${safeTitle}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Idea Downloaded",
+        description: "Project idea exported as JSON.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Unable to export this project idea.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleClose = () => {
@@ -795,14 +826,24 @@ export default function ProjectIdeasModal({
                       <CardTitle className="text-lg text-blue-900">{idea.title}</CardTitle>
                       <p className="text-sm text-gray-600 mt-1">{idea.overview}</p>
                     </div>
-                    <Button
-                      onClick={() => handleSelectIdea(idea)}
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700 ml-4"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Use This Idea
-                    </Button>
+                    <div className="flex flex-col gap-2 ml-4">
+                      <Button
+                        onClick={() => handleSelectIdea(idea)}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Use This Idea
+                      </Button>
+                      <Button
+                        onClick={() => handleDownloadIdea(idea, index)}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

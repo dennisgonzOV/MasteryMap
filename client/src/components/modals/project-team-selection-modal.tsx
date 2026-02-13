@@ -45,8 +45,6 @@ export default function ProjectTeamSelectionModal({
     retry: false,
   });
 
-  console.log('Students data:', students, 'Loading:', isLoading, 'Error:', error);
-
   const studentsArray = Array.isArray(students) ? students : [];
 
   // Filter students based on search query

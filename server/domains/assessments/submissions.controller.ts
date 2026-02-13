@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { assessmentService, type AssessmentService } from './assessments.service';
+import { type AssessmentService } from './assessments.service';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
 import { UserRole } from '../../../shared/schema';
 import type {
@@ -9,12 +9,24 @@ import type {
 } from '../../../shared/contracts/api';
 import { 
   validateIntParam, 
-  sanitizeForPrompt, 
   aiLimiter
 } from '../../middleware/security';
+import { SubmissionGradingService, SubmissionHttpError } from './submission-grading.service';
+import {
+  assessmentProjectGateway,
+  type AssessmentProjectGateway,
+} from "./assessment-project-gateway";
+import { canUserAccessAssessment } from "./assessment-access";
 
 export class SubmissionController {
-  constructor(private service: AssessmentService = assessmentService) {}
+  private gradingService: SubmissionGradingService;
+
+  constructor(
+    private service: AssessmentService,
+    private projectGateway: AssessmentProjectGateway = assessmentProjectGateway,
+  ) {
+    this.gradingService = new SubmissionGradingService(this.service);
+  }
 
   // Create Express router with all submission routes
   createRouter(): Router {
@@ -56,16 +68,15 @@ export class SubmissionController {
     });
 
     // Get individual submission by ID
-    router.get('/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    router.get('/:id', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
-        const submission = await this.service.getSubmission(submissionId);
-
-        if (!submission) {
-          return res.status(404).json({ message: "Submission not found" });
+        const access = await this.checkSubmissionAccess(req.user, submissionId);
+        if (!access.allowed) {
+          return res.status(access.status).json({ message: access.message });
         }
 
-        res.json(submission);
+        res.json(access.submission);
       } catch (error) {
         console.error("Error fetching submission:", error);
         res.status(500).json({ message: "Failed to fetch submission" });
@@ -77,191 +88,41 @@ export class SubmissionController {
       try {
         const submissionId = parseInt(req.params.submissionId);
         const gradeRequest: SubmissionGradeRequestDTO = req.body;
-        const { grades: gradeData, feedback, grade, generateAiFeedback } = gradeRequest;
+        const rawBody = this.toRecord(req.body);
+        const generateAiFeedback =
+          gradeRequest.generateAiFeedback === true || rawBody.generateAIFeedback === true;
 
-        // Save grades - support both detailed component skill grading and simple overall grading
-        // Check for existing grades and update them instead of creating duplicates
-        let savedGrades: any[] = [];
-        if (gradeData && Array.isArray(gradeData)) {
-          savedGrades = await Promise.all(
-            gradeData.map(async (gradeItem: any) => {
-              // Check if grade already exists for this submission and component skill
-              const existingGrades = await this.service.getExistingGrade(submissionId, gradeItem.componentSkillId);
-
-              if (existingGrades) {
-                // Update existing grade
-                const updatedGrade = await this.service.updateGrade(existingGrades.id, {
-                  rubricLevel: gradeItem.rubricLevel,
-                  score: gradeItem.score?.toString() || "0",
-                  feedback: gradeItem.feedback,
-                  gradedBy: req.user!.id,
-                });
-                return updatedGrade;
-              } else {
-                // Create new grade if none exists
-                return this.service.createGrade({
-                  submissionId,
-                  componentSkillId: gradeItem.componentSkillId,
-                  rubricLevel: gradeItem.rubricLevel,
-                  score: gradeItem.score,
-                  feedback: gradeItem.feedback,
-                  gradedBy: req.user!.id,
-                });
-              }
-            })
-          );
-        }
-
-        // Get submission and assessment data
-        const submission = await this.service.getSubmission(submissionId);
-        if (!submission) {
-          return res.status(404).json({ message: "Submission not found" });
-        }
-
-        if (submission.assessmentId == null) {
-          return res.status(400).json({ message: "Submission has no assessmentId" });
-        }
-
-        const assessment = await this.service.getAssessment(submission.assessmentId);
-        if (!assessment) {
-          return res.status(404).json({ message: "Assessment not found" });
-        }
-
-        // Generate AI feedback and grade if requested
-        let finalFeedback = feedback;
-        let finalGrade = grade;
-
-        if (generateAiFeedback) {
-          let pdfContent: string | undefined;
-          if (assessment.pdfUrl) {
-            try {
-              const { extractTextFromPdfUrl } = await import('../../utils/pdf');
-              pdfContent = await extractTextFromPdfUrl(assessment.pdfUrl);
-            } catch (pdfError) {
-              console.error('Error extracting PDF text for grading:', pdfError);
-            }
-          }
-
-          try {
-            // If no component skill grades were provided, generate them using AI
-            if (!gradeData || gradeData.length === 0) {
-              // Get component skills for this assessment
-              const componentSkillIds = (assessment.componentSkillIds as number[]) || [];
-              if (componentSkillIds.length > 0) {
-                // Fetch component skills with their rubric levels
-                const componentSkills = await Promise.all(
-                  componentSkillIds.map(id => this.service.getComponentSkill(id))
-                );
-                const validSkills = componentSkills.filter(skill => skill !== undefined);
-
-                if (validSkills.length > 0) {
-                  // Generate AI-based component skill grades
-                  const aiSkillGrades = await this.service.generateComponentSkillGrades(
-                    submission,
-                    assessment,
-                    validSkills as any[],
-                    pdfContent
-                  );
-
-                  // Save or update the AI-generated component skill grades
-                  savedGrades = await Promise.all(
-                    aiSkillGrades.map(async (gradeItem) => {
-                      // Check if grade already exists for this submission and component skill
-                      const existingGrade = await this.service.getExistingGrade(submissionId, gradeItem.componentSkillId);
-
-                      if (existingGrade) {
-                        // Update existing grade
-                        return await this.service.updateGrade(existingGrade.id, {
-                          rubricLevel: gradeItem.rubricLevel,
-                          score: gradeItem.score?.toString() || "0",
-                          feedback: gradeItem.feedback,
-                          gradedBy: req.user!.id,
-                        });
-                      } else {
-                        // Create new grade if none exists
-                        return await this.service.createGrade({
-                          submissionId,
-                          componentSkillId: gradeItem.componentSkillId,
-                          rubricLevel: gradeItem.rubricLevel,
-                          score: gradeItem.score?.toString() || "0",
-                          feedback: gradeItem.feedback,
-                          gradedBy: req.user!.id,
-                        });
-                      }
-                    })
-                  );
-                }
-              }
-            }
-
-            // Generate comprehensive AI feedback based on the component skill grades
-            finalFeedback = await this.service.generateStudentFeedback(submission, savedGrades);
-
-          } catch (aiError) {
-            console.error("Error generating AI feedback:", aiError);
-            finalFeedback = "AI feedback generation failed. Please provide manual feedback.";
-          }
-        }
-
-        // Update submission with feedback and grade
-        const updateData: any = {
-          gradedAt: new Date(),
-        };
-
-        if (finalFeedback !== undefined) {
-          updateData.feedback = finalFeedback;
-        }
-
-        if (finalGrade !== undefined) {
-          updateData.grade = finalGrade;
-        }
-
-        if (generateAiFeedback) {
-          updateData.aiGeneratedFeedback = true;
-        }
-
-        const updatedSubmission = await this.service.updateSubmission(submissionId, updateData);
-
-        // Award stickers for component skill grades
-        let awardedStickers: any[] = [];
-        if (savedGrades.length > 0) {
-          const submission = await this.service.getSubmission(submissionId);
-          if (submission && submission.studentId != null) {
-            awardedStickers = await this.service.awardStickersForGrades(submission.studentId, savedGrades);
-          }
-        }
-
-        res.json({ 
-          grades: savedGrades, 
-          feedback: finalFeedback,
-          submission: updatedSubmission,
-          stickersAwarded: awardedStickers
+        const result = await this.gradingService.gradeSubmission({
+          submissionId,
+          graderId: req.user!.id,
+          gradeRequest,
+          generateAiFeedback,
         });
+
+        res.json(result);
       } catch (error) {
+        if (error instanceof SubmissionHttpError) {
+          return res.status(error.statusCode).json({ message: error.message });
+        }
+
         console.error("Error grading submission:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
         res.status(500).json({ 
           message: "Failed to grade submission", 
           error: errorMessage,
-          context: "Submission ID: " + req.params.id,
+          context: "Submission ID: " + req.params.submissionId,
           details: process.env.NODE_ENV === 'development' ? error : undefined
         });
       }
     });
 
     // Get grades for submission
-    router.get('/:id/grades', requireAuth, async (req: AuthenticatedRequest, res) => {
+    router.get('/:id/grades', requireAuth, validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
-
-        const submission = await this.service.getSubmission(submissionId);
-        if (!submission) {
-          return res.status(404).json({ message: "Submission not found" });
-        }
-
-        // Check if user has access to view grades
-        if (req.user?.role === 'student' && req.user.id !== submission.studentId) {
-          return res.status(403).json({ message: "Access denied" });
+        const access = await this.checkSubmissionAccess(req.user, submissionId);
+        if (!access.allowed) {
+          return res.status(access.status).json({ message: access.message });
         }
 
         const grades = await this.service.getGradesBySubmission(submissionId);
@@ -276,52 +137,31 @@ export class SubmissionController {
     router.post('/:id/generate-question-feedback', requireAuth, validateIntParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.id);
-        const { questionIndex, rubricLevel } = req.body;
+        const access = await this.checkSubmissionAccess(req.user, submissionId);
+        if (!access.allowed) {
+          return res.status(access.status).json({ message: access.message });
+        }
 
-        if (questionIndex === undefined || !rubricLevel) {
+        const payload = this.toRecord(req.body);
+        const questionIndex = payload.questionIndex;
+        const rubricLevel = payload.rubricLevel;
+
+        if (typeof questionIndex !== "number" || typeof rubricLevel !== "string" || !rubricLevel.trim()) {
           return res.status(400).json({ message: "Question index and rubric level are required" });
         }
 
-        const submission = await this.service.getSubmission(submissionId);
-        if (!submission) {
-          return res.status(404).json({ message: "Submission not found" });
-        }
-
-        if (submission.assessmentId == null) {
-          return res.status(400).json({ message: "Submission has no assessmentId" });
-        }
-
-        const assessment = await this.service.getAssessment(submission.assessmentId);
-        if (!assessment) {
-          return res.status(404).json({ message: "Assessment not found" });
-        }
-
-        const questions = assessment.questions as any[];
-        const responses = submission.responses as any;
-
-        if (!questions || questionIndex >= questions.length) {
-          return res.status(400).json({ message: "Invalid question index" });
-        }
-
-        const question = questions[questionIndex];
-        const studentResponse = responses[questionIndex] || "";
-
-        // Validate and sanitize input
-        const sanitizedResponse = sanitizeForPrompt(studentResponse);
-        const sanitizedQuestion = sanitizeForPrompt(question.text || "");
-
-        if (!sanitizedResponse || !sanitizedQuestion) {
-          return res.status(400).json({ message: "Question and response cannot be empty" });
-        }
-
-        const feedback = await this.service.generateFeedbackForQuestion(
-          sanitizedQuestion,
-          sanitizedResponse,
-          rubricLevel
-        );
+        const feedback = await this.gradingService.generateQuestionFeedback({
+          submissionId,
+          questionIndex,
+          rubricLevel: rubricLevel.trim(),
+        });
 
         res.json({ feedback: feedback || "Unable to generate feedback at this time" });
       } catch (error) {
+        if (error instanceof SubmissionHttpError) {
+          return res.status(error.statusCode).json({ message: error.message });
+        }
+
         console.error("Error generating question feedback:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
         res.status(500).json({
@@ -333,8 +173,61 @@ export class SubmissionController {
 
     return router;
   }
-}
 
-// Create and export the router
-export const submissionController = new SubmissionController();
-export const submissionsRouter = submissionController.createRouter();
+  private toRecord(value: unknown): Record<string, unknown> {
+    if (typeof value === "object" && value !== null) {
+      return value as Record<string, unknown>;
+    }
+    return {};
+  }
+
+  private async checkSubmissionAccess(
+    user: AuthenticatedRequest["user"],
+    submissionId: number,
+  ): Promise<{
+    allowed: boolean;
+    status: number;
+    message: string;
+    submission?: Awaited<ReturnType<AssessmentService["getSubmission"]>>;
+  }> {
+    if (!user) {
+      return { allowed: false, status: 401, message: "Unauthorized" };
+    }
+
+    const submission = await this.service.getSubmission(submissionId);
+    if (!submission) {
+      return { allowed: false, status: 404, message: "Submission not found" };
+    }
+
+    if (user.role === "student") {
+      if (submission.studentId !== user.id) {
+        return { allowed: false, status: 403, message: "Access denied" };
+      }
+      return { allowed: true, status: 200, message: "OK", submission };
+    }
+
+    if (user.role === "teacher" || user.role === "admin") {
+      if (!submission.assessmentId) {
+        return { allowed: false, status: 403, message: "Access denied" };
+      }
+
+      const assessment = await this.service.getAssessment(submission.assessmentId);
+      if (!assessment) {
+        return { allowed: false, status: 404, message: "Assessment not found" };
+      }
+
+      const canAccess = await canUserAccessAssessment(
+        assessment,
+        user as typeof user & { role: "teacher" | "admin" | "student" },
+        this.projectGateway,
+      );
+      if (!canAccess) {
+        return { allowed: false, status: 403, message: "Access denied" };
+      }
+
+      return { allowed: true, status: 200, message: "OK", submission };
+    }
+
+    return { allowed: false, status: 403, message: "Access denied" };
+  }
+}

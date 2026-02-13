@@ -35,6 +35,16 @@ import { apiJsonRequest } from "./queryClient";
 import { apiUploadFile } from "./apiHelpers";
 
 type UnknownRecord = Record<string, unknown>;
+type TeacherContentScope = "mine" | "school";
+
+function normalizeScope(scope: unknown): TeacherContentScope {
+  return scope === "school" ? "school" : "mine";
+}
+
+function withScope(path: string, scope: unknown): string {
+  const normalizedScope = normalizeScope(scope);
+  return `${path}?scope=${normalizedScope}`;
+}
 
 export const api = {
   // Student assessment submissions
@@ -45,7 +55,8 @@ export const api = {
   getCurrentUser: () => apiJsonRequest<AuthCurrentUserResponseDTO>("/api/auth/user", "GET"),
 
   // Projects
-  getProjects: () => apiJsonRequest<ProjectDTO[]>("/api/projects", "GET"),
+  getProjects: (...args: unknown[]) =>
+    apiJsonRequest<ProjectDTO[]>(withScope("/api/projects", args[0]), "GET"),
   createProject: (data: ProjectCreateRequestDTO) =>
     apiJsonRequest<ProjectDTO>("/api/projects", "POST", data),
   updateProject: (id: number, data: ProjectUpdateRequestDTO) =>
@@ -93,6 +104,8 @@ export const api = {
     apiJsonRequest<ApiMessageResponse>(`/api/project-team-members/${id}`, "DELETE"),
 
   // Assessments
+  getAllAssessments: (...args: unknown[]) =>
+    apiJsonRequest<AssessmentDTO[]>(withScope("/api/assessments", args[0]), "GET"),
   getAssessments: (milestoneId: number) =>
     apiJsonRequest<AssessmentDTO[]>(`/api/milestones/${milestoneId}/assessments`, "GET"),
   getAssessment: (assessmentId: number) =>

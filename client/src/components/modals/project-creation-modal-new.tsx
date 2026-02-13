@@ -13,6 +13,7 @@ import { ChevronDown, ChevronRight, CheckCircle, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { buildBestStandardsUrl } from '@/lib/standards';
 
 interface ComponentSkill {
   id: number;
@@ -97,59 +98,22 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     queryKey: ['/api/competencies/learner-outcomes-hierarchy/complete'],
     enabled: isOpen,
     queryFn: async () => {
-      console.log('Custom queryFn: Making request to /api/learner-outcomes-hierarchy/complete');
       const response = await fetch('/api/competencies/learner-outcomes-hierarchy/complete', {
         credentials: 'include',
       });
-      console.log('Custom queryFn: Response status:', response.status);
-      console.log('Custom queryFn: Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const text = await response.text();
-        console.log('Custom queryFn: Error response text:', text);
         throw new Error(`${response.status}: ${text}`);
       }
 
       const data = await response.json();
-      console.log('Custom queryFn: Raw response data:', JSON.stringify(data, null, 2));
-      console.log('Custom queryFn: Data type:', typeof data);
-      console.log('Custom queryFn: Is array:', Array.isArray(data));
-
-      if (Array.isArray(data)) {
-        console.log('Custom queryFn: Array length:', data.length);
-        if (data.length > 0) {
-          console.log('Custom queryFn: First item:', JSON.stringify(data[0], null, 2));
-          console.log('Custom queryFn: First item competencies:', data[0].competencies?.length);
-        }
-      } else {
-        console.log('Custom queryFn: Data keys:', Object.keys(data));
-        console.log('Converting non-array response to empty array');
+      if (!Array.isArray(data)) {
         return [];
       }
       return data;
     },
   });
-
-  // Debug logging
-  useEffect(() => {
-    if (isOpen) {
-      console.log('Modal opened - hierarchyData:', hierarchyData);
-      console.log('Modal opened - isLoading:', isLoading);
-      console.log('Modal opened - error:', error);
-      console.log('Modal opened - error details:', error?.message);
-      console.log('Modal opened - hierarchyData length:', hierarchyData?.length);
-      if (error) {
-        console.log('Error object:', error);
-        console.log('Error message:', error.message);
-        console.log('Error cause:', error.cause);
-      }
-      if (hierarchyData && hierarchyData.length > 0) {
-        console.log('First outcome:', hierarchyData[0]);
-        console.log('First outcome competencies:', hierarchyData[0]?.competencies);
-        console.log('First competency skills:', hierarchyData[0]?.competencies?.[0]?.componentSkills);
-      }
-    }
-  }, [isOpen, hierarchyData, isLoading, error]);
 
   // Fetch B.E.S.T. Standards metadata for filters
   const { data: standardsMetadata } = useQuery({
@@ -157,21 +121,11 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     enabled: isOpen,
   });
 
-  // Build URL with query parameters for B.E.S.T. Standards filtering
-  const bestStandardsUrl = (() => {
-    const params = new URLSearchParams();
-    if (standardsSearchTerm?.trim()) {
-      params.set('search', standardsSearchTerm.trim());
-    }
-    if (selectedSubject && selectedSubject !== 'all') {
-      params.set('subject', selectedSubject);
-    }
-    if (selectedGrade && selectedGrade !== 'all') {
-      params.set('grade', selectedGrade);
-    }
-    const queryString = params.toString();
-    return queryString ? `/api/competencies/best-standards?${queryString}` : '/api/competencies/best-standards';
-  })();
+  const bestStandardsUrl = buildBestStandardsUrl({
+    searchTerm: standardsSearchTerm,
+    subject: selectedSubject,
+    grade: selectedGrade,
+  });
 
   // Fetch B.E.S.T. Standards based on search/filter criteria
   const { data: bestStandards = [], isLoading: isLoadingStandards, error: standardsError } = useQuery({

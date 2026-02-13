@@ -1,5 +1,6 @@
 // Test application setup for API testing
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import { setupRoutes } from '../../server/routes';
 
 export async function createTestApp() {
@@ -7,6 +8,7 @@ export async function createTestApp() {
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
+  app.use(cookieParser());
 
   setupRoutes(app);
 

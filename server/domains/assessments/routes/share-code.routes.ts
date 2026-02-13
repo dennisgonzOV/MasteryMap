@@ -1,20 +1,46 @@
 import { Router } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
-import { UserRole } from "../../../../shared/schema";
+import { UserRole, type Assessment } from "../../../../shared/schema";
+import { validateIntParam } from "../../../middleware/security";
+import type { AssessmentProjectGateway } from "../assessment-project-gateway";
+import { canTeacherManageAssessment } from "../assessment-ownership";
+import { canUserAccessAssessment } from "../assessment-access";
 
 interface AssessmentShareCodeService {
+  getAssessment(assessmentId: number): Promise<Assessment | undefined>;
   generateShareCode(assessmentId: number): Promise<{ shareCode: string; message: string }>;
-  getAssessmentByShareCode(shareCode: string): Promise<unknown>;
+  getAssessmentByShareCode(shareCode: string): Promise<Assessment>;
   regenerateShareCode(assessmentId: number): Promise<{ shareCode: string; message: string }>;
 }
 
 export function registerAssessmentShareCodeRoutes(
   router: Router,
   service: AssessmentShareCodeService,
+  projectGateway: AssessmentProjectGateway,
 ) {
-  router.post('/:id/generate-share-code', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
+  router.post('/:id/generate-share-code', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
+      const assessment = await service.getAssessment(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (req.user.role === "teacher" || req.user.tier === "free") {
+        const canManage = await canTeacherManageAssessment(
+          assessment,
+          req.user.id,
+          projectGateway,
+        );
+        if (!canManage) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
       const result = await service.generateShareCode(assessmentId);
       res.json(result);
     } catch (error) {
@@ -31,7 +57,21 @@ export function registerAssessmentShareCodeRoutes(
     try {
       const shareCode = req.params.code;
       const assessment = await service.getAssessmentByShareCode(shareCode);
-      res.json(assessment);
+
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const canAccess = await canUserAccessAssessment(assessment, req.user, projectGateway);
+      if (!canAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (req.user.role === "student") {
+        return res.json(assessment);
+      }
+
+      return res.json(assessment);
     } catch (error) {
       console.error("Error accessing assessment by code:", error);
       if (error instanceof Error) {
@@ -49,9 +89,29 @@ export function registerAssessmentShareCodeRoutes(
     }
   });
 
-  router.post('/:id/regenerate-share-code', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
+  router.post('/:id/regenerate-share-code', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       const assessmentId = parseInt(req.params.id);
+      const assessment = await service.getAssessment(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (req.user.role === "teacher" || req.user.tier === "free") {
+        const canManage = await canTeacherManageAssessment(
+          assessment,
+          req.user.id,
+          projectGateway,
+        );
+        if (!canManage) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
       const result = await service.regenerateShareCode(assessmentId);
       res.json(result);
     } catch (error) {

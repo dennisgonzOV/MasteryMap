@@ -244,8 +244,11 @@ export const createAnalyticsRouter = () => {
   // Analytics endpoint for admin dashboard
   router.get('/dashboard', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
     try {
-      // Get analytics data
-      const analyticsData = await authStorage.getAnalyticsDashboard();
+      if (!req.user || !req.user.schoolId) {
+        return res.status(400).json({ message: "Admin school not found" });
+      }
+
+      const analyticsData = await authStorage.getAnalyticsDashboard(req.user.schoolId);
 
       res.json(analyticsData);
     } catch (error) {

@@ -1,9 +1,12 @@
-// Export all assessment domain components
-export { assessmentsRouter } from './assessments.controller';
-export { assessmentStudentRouter } from './assessments.controller';
-export { submissionsRouter } from './submissions.controller';
-export { selfEvaluationsRouter } from './self-evaluations.controller';
+import { createAssessmentsDomain } from "./composition";
 
-export { assessmentService } from './assessments.service';
+const assessmentsDomain = createAssessmentsDomain();
 
-export type { AssessmentService } from './assessments.service';
+export const assessmentsRouter = assessmentsDomain.assessmentsRouter;
+export const assessmentStudentRouter = assessmentsDomain.assessmentStudentRouter;
+export const submissionsRouter = assessmentsDomain.submissionsRouter;
+export const selfEvaluationsRouter = assessmentsDomain.selfEvaluationsRouter;
+export const assessmentService = assessmentsDomain.service;
+
+export { createAssessmentsDomain } from "./composition";
+export type { AssessmentService } from "./assessments.service";

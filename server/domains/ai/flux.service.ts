@@ -15,10 +15,6 @@ export class FluxImageService {
   constructor() {
     this.apiKey = process.env.FLUX_API_KEY || "";
     this.apiUri = process.env.FLUX_API_URI || "";
-
-    if (!this.apiKey || !this.apiUri) {
-      console.warn("FLUX_API_KEY or FLUX_API_URI not configured. Image generation will be disabled.");
-    }
   }
 
   private sanitizePromptInput(input: string): string {
@@ -53,14 +49,11 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
   async generateThumbnail(options: GenerateThumbnailOptions): Promise<string | null> {
     if (!this.apiKey || !this.apiUri) {
-      console.log("FLUX API not configured, skipping thumbnail generation");
       return null;
     }
 
     try {
       const prompt = this.createSchoolAppropriatePrompt(options);
-      console.log("Generating thumbnail with FLUX API...");
-      console.log("API URI:", this.apiUri);
 
       const response = await fetch(this.apiUri, {
         method: "POST",
@@ -82,26 +75,21 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
       }
 
       const result = await response.json();
-      console.log("FLUX API response structure:", JSON.stringify(result, null, 2).substring(0, 500));
 
       if (result.data && result.data[0]) {
         const imageData = result.data[0];
         if (imageData.b64_json) {
-          console.log("FLUX returned base64, saving to storage...");
           return await this.saveBase64ToStorage(imageData.b64_json);
         } else if (imageData.url) {
-          console.log("FLUX returned direct URL, downloading and saving to storage...");
           return await this.saveUrlToStorage(imageData.url);
         }
       }
 
       if (result.image) {
-        console.log("FLUX returned image at root level, saving to storage...");
         return await this.saveBase64ToStorage(result.image);
       }
 
       if (result.url) {
-        console.log("FLUX returned URL at root level, downloading and saving to storage...");
         return await this.saveUrlToStorage(result.url);
       }
 
@@ -156,9 +144,7 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       await setObjectAclPolicy(file, { owner: "system", visibility: "public" });
 
-      const localPath = `/objects/${fileName}`;
-      console.log("Thumbnail saved, serving at:", localPath);
-      return localPath;
+      return `/objects/${fileName}`;
     } catch (error) {
       console.error("Error saving thumbnail to storage:", error);
       return null;

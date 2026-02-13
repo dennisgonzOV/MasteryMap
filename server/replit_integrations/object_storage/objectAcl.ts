@@ -86,17 +86,6 @@ function createObjectAccessGroup(
   group: ObjectAccessGroup,
 ): BaseObjectAccessGroup {
   switch (group.type) {
-    // Implement the case for each type of access group to instantiate.
-    //
-    // For example:
-    // case "USER_LIST":
-    //   return new UserListAccessGroup(group.id);
-    // case "EMAIL_DOMAIN":
-    //   return new EmailDomainAccessGroup(group.id);
-    // case "GROUP_MEMBER":
-    //   return new GroupMemberAccessGroup(group.id);
-    // case "SUBSCRIBER":
-    //   return new SubscriberAccessGroup(group.id);
     default:
       throw new Error(`Unknown access group type: ${group.type}`);
   }
@@ -178,4 +167,3 @@ export async function canAccessObject({
 
   return false;
 }
-

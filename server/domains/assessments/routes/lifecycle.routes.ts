@@ -1,13 +1,16 @@
 import { Router } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
 import { validateIntParam, aiLimiter } from "../../../middleware/security";
-import { projectsService } from "../../projects/projects.service";
 import { UserRole } from "../../../../shared/schema";
 import type { AssessmentService } from "../assessments.service";
+import type { AssessmentProjectGateway } from "../assessment-project-gateway";
+import { canTeacherManageAssessment } from "../assessment-ownership";
+import { canUserAccessAssessment } from "../assessment-access";
 
 export function registerAssessmentLifecycleRoutes(
   router: Router,
   service: AssessmentService,
+  projectGateway: AssessmentProjectGateway,
 ) {
   router.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
@@ -19,21 +22,16 @@ export function registerAssessmentLifecycleRoutes(
         return res.status(404).json({ message: "Assessment not found" });
       }
 
-      if (req.user?.role === 'teacher') {
-        if (assessment.createdBy) {
-          if (assessment.createdBy !== userId) {
-            return res.status(403).json({ message: "Access denied - you can only delete assessments you created" });
-          }
-        } else if (assessment.milestoneId) {
-          const milestone = await projectsService.getMilestone(assessment.milestoneId);
-          if (milestone?.projectId) {
-            const project = await projectsService.getProject(milestone.projectId);
-            if (project?.teacherId && project.teacherId !== userId) {
-              return res.status(403).json({
-                message: "Access denied - you can only delete assessments from your own projects"
-              });
-            }
-          }
+      if (req.user?.role === 'teacher' || req.user?.tier === 'free') {
+        const canManage = await canTeacherManageAssessment(
+          assessment,
+          userId,
+          projectGateway,
+        );
+        if (!canManage) {
+          return res.status(403).json({
+            message: "Access denied - you can only delete assessments from your own projects"
+          });
         }
       }
 
@@ -57,7 +55,7 @@ export function registerAssessmentLifecycleRoutes(
     }
   });
 
-  router.post('/milestones/:id/generate-assessment', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), aiLimiter, async (req: AuthenticatedRequest, res) => {
+  router.post('/milestones/:id/generate-assessment', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user!.id;
 
@@ -66,7 +64,12 @@ export function registerAssessmentLifecycleRoutes(
       }
 
       const milestoneId = parseInt(req.params.id);
-      const assessment = await service.generateAssessmentForMilestone(milestoneId, userId);
+      const assessment = await service.generateAssessmentForMilestone(
+        milestoneId,
+        userId,
+        req.user.role,
+        req.user.tier,
+      );
 
       res.json(assessment);
     } catch (error) {
@@ -83,13 +86,23 @@ export function registerAssessmentLifecycleRoutes(
     }
   });
 
-  router.get('/:id/submissions', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
+  router.get('/:id/submissions', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
     try {
       if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
         return res.status(403).json({ message: "Only teachers can view submissions" });
       }
 
       const assessmentId = parseInt(req.params.id);
+      const assessment = await service.getAssessment(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      const canAccess = await canUserAccessAssessment(assessment, req.user, projectGateway);
+      if (!canAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       const submissions = await service.getSubmissionsByAssessment(assessmentId);
 
       res.json(submissions);

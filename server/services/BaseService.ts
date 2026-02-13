@@ -3,6 +3,9 @@ import { db } from "../db";
 import { PgTableWithColumns, PgColumn } from "drizzle-orm/pg-core";
 
 /**
+ * @deprecated Legacy base abstraction kept for backward compatibility.
+ * New service code should use domain-specific repositories/services.
+ *
  * Base service class to eliminate duplication across service implementations
  */
 

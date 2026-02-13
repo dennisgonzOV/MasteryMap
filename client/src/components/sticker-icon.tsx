@@ -415,7 +415,6 @@ export default function StickerIcon({ level, size = 24, className = "" }: Sticke
         );
       
       default:
-        console.warn(`Unknown sticker level: ${level}, falling back to default green sticker`);
         return (
           <svg {...commonProps}>
             <circle cx="12" cy="12" r="10" fill="#e2e8f0" stroke="#a0aec0" strokeWidth="1"/>

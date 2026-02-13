@@ -42,8 +42,9 @@ export function registerProjectCoreRoutes(router: Router) {
   router.get('/', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
     const userId = req.user!.id;
     const userRole = req.user!.role;
+    const scope = req.query.scope === "school" ? "school" : "mine";
 
-    const projects = await projectsService.getProjectsForDashboard(userId, userRole, req.user!.tier);
+    const projects = await projectsService.getProjectsForDashboard(userId, userRole, req.user!.tier, scope);
     createSuccessResponse(res, projects);
   }));
 
@@ -54,6 +55,10 @@ export function registerProjectCoreRoutes(router: Router) {
         return project.teacherId === user.id;
       }
       if (user.role === 'admin') {
+        const userTier = (user as { tier?: string }).tier;
+        if (userTier === 'free') {
+          return project.teacherId === user.id;
+        }
         return true;
       }
       if (user.role === 'student') {
@@ -101,7 +106,7 @@ export function registerProjectCoreRoutes(router: Router) {
     createSuccessResponse(res, { message: "Project deleted successfully" });
   }));
 
-  router.post('/:id/start', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+  router.post('/:id/start', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam('id'), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -116,6 +121,10 @@ export function registerProjectCoreRoutes(router: Router) {
 
     if (userRole !== 'teacher' && userRole !== 'admin') {
       return res.status(403).json({ message: "Only teachers can assign projects" });
+    }
+
+    if (req.user?.tier === 'free') {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     const projectId = parseInt(req.params.id);

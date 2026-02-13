@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
+import { getRubricLevelColor } from "@/lib/rubric";
 import { useAuthErrorHandling, useQueryErrorHandling } from "@/hooks/useErrorHandling";
 import { FullscreenLoader } from "@/components/ui/loading-spinner";
 import Navigation from "@/components/navigation";
@@ -743,17 +744,6 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }: Asse
                       <div className="mt-4 space-y-3">
                         <h6 className="text-xs font-medium text-gray-700">Component Skill Results:</h6>
                         {submission.grades.map((grade) => {
-                          // Get rubric level color based on level
-                          const getRubricLevelColor = (level: string) => {
-                            switch (level?.toLowerCase()) {
-                              case 'applying': return 'bg-green-100 text-green-800 border-green-200';
-                              case 'proficient': return 'bg-blue-100 text-blue-800 border-blue-200';
-                              case 'developing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                              case 'emerging': return 'bg-orange-100 text-orange-800 border-orange-200';
-                              default: return 'bg-gray-100 text-gray-800 border-gray-200';
-                            }
-                          };
-
                           return (
                             <div key={grade.id} className="bg-white border border-gray-200 rounded p-3">
                               <div className="flex items-center justify-between mb-2">
@@ -762,7 +752,7 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }: Asse
                                     {grade.componentSkillName || 'Component Skill'}
                                   </span>
                                   <Badge 
-                                    className={`capitalize px-1 py-0.5 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel ?? "")}`}
+                                    className={`capitalize px-1 py-0.5 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel ?? "", "student")}`}
                                   >
                                     {grade.rubricLevel
                                       ? `${grade.rubricLevel.charAt(0).toUpperCase()}${grade.rubricLevel.slice(1)} ⭐`
@@ -914,17 +904,6 @@ function AssessmentSubmissionCard({ submission }: { submission: StudentSubmissio
                 </h4>
                 <div className="space-y-4">
                   {submission.grades.map((grade) => {
-                    // Get rubric level color based on level
-                    const getRubricLevelColor = (level: string) => {
-                      switch (level?.toLowerCase()) {
-                        case 'applying': return 'bg-green-100 text-green-800 border-green-200';
-                        case 'proficient': return 'bg-blue-100 text-blue-800 border-blue-200';
-                        case 'developing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                        case 'emerging': return 'bg-orange-100 text-orange-800 border-orange-200';
-                        default: return 'bg-gray-100 text-gray-800 border-gray-200';
-                      }
-                    };
-
                     return (
                       <div key={grade.id} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -934,7 +913,7 @@ function AssessmentSubmissionCard({ submission }: { submission: StudentSubmissio
                             </h6>
                             {grade.rubricLevel && (
                               <Badge 
-                                className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel ?? "")}`}
+                                className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel ?? "", "student")}`}
                               >
                                 {grade.rubricLevel
                                   ? `${grade.rubricLevel.charAt(0).toUpperCase()}${grade.rubricLevel.slice(1)} ⭐`

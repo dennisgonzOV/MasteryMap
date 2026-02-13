@@ -1,9 +1,14 @@
 import { Router } from "express";
 import { wrapRoute, createSuccessResponse } from "../../../utils/routeHelpers";
+import { requireAuth, type AuthenticatedRequest } from "../../auth";
 import { projectsService } from "../projects.service";
 
 export function registerPublicProjectRoutes(router: Router) {
-  router.get('/public', wrapRoute(async (req, res) => {
+  router.get('/public', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === "free") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const { search, subjectArea, gradeLevel, estimatedDuration, componentSkillIds, bestStandardIds } = req.query;
 
     const filters: {
@@ -34,12 +39,20 @@ export function registerPublicProjectRoutes(router: Router) {
     createSuccessResponse(res, projectsWithStandards);
   }));
 
-  router.get('/public-filters', wrapRoute(async (_req, res) => {
+  router.get('/public-filters', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === "free") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const filters = await projectsService.getPublicFilters();
     createSuccessResponse(res, filters);
   }));
 
-  router.get('/public/:id', wrapRoute(async (req, res) => {
+  router.get('/public/:id', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === "free") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const projectId = parseInt(req.params.id);
     if (isNaN(projectId)) {
       return res.status(400).json({ message: "Invalid project ID" });

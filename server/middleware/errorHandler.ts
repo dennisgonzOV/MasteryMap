@@ -100,24 +100,11 @@ function logError(error: Error, req: Request, level: string = 'ERROR'): void {
 
   if (level === 'CRITICAL') {
     console.error('🚨 CRITICAL ERROR:', errorContext);
-    // In production, we should exit to let the process restart
-    // In dev/test, we might want to keep running for debugging/multiple tests
-    // if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-    //   process.exit(1);
-    // }
   } else {
     console.error('❌ ERROR:', errorContext);
   }
 
-  // In production, send to error monitoring service
-  if (process.env.NODE_ENV === 'production' && !isOperationalError(error)) {
-    // Example: Send to error tracking service
-    // errorTrackingService.captureException(error, { 
-    //   tags: { level, path: req.path },
-    //   user: { id: (req as any).user?.id },
-    //   extra: errorContext 
-    // });
-  }
+  if (process.env.NODE_ENV === 'production' && !isOperationalError(error)) {}
 }
 
 /**
@@ -162,7 +149,6 @@ export function handleUncaughtExceptions(): void {
       timestamp: new Date().toISOString()
     });
 
-    // process.exit(1);
   });
 
   process.on('unhandledRejection', (reason: any) => {
@@ -171,6 +157,5 @@ export function handleUncaughtExceptions(): void {
       timestamp: new Date().toISOString()
     });
 
-    // process.exit(1);
   });
 }

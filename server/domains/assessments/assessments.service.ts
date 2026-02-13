@@ -1,6 +1,9 @@
 import { assessmentStorage, type IAssessmentStorage } from './assessments.storage';
 import {
   type Assessment,
+  type ComponentSkill,
+  type Credential,
+  type InsertSelfEvaluation,
   type Submission,
   type SubmissionWithAssessment,
   type Grade,
@@ -9,11 +12,32 @@ import {
   insertAssessmentSchema,
   insertSubmissionSchema
 } from "../../../shared/schema";
-import type { AssessmentCreateRequestDTO } from '../../../shared/contracts/api';
+import type {
+  AssessmentCreateRequestDTO,
+  SubmissionGradeItemDTO,
+  SubmissionCreateRequestDTO,
+} from '../../../shared/contracts/api';
 import { aiService } from '../ai/ai.service';
+import {
+  assessmentProjectGateway,
+  type AssessmentProjectGateway,
+} from "./assessment-project-gateway";
+import type {
+  AssessmentSubmissionSummaryRecord,
+  GradeUpdateInput,
+  SchoolComponentSkillProgressDTO,
+  SchoolSkillsStatsDTO,
+  StudentAssessmentSubmissionRecord,
+  SubmissionGradeRecord,
+  SubmissionGradeSummaryRecord,
+  UpcomingDeadlineDTO,
+} from "./assessments.contracts";
 
 export class AssessmentService {
-  constructor(private storage: IAssessmentStorage = assessmentStorage) { }
+  constructor(
+    private storage: IAssessmentStorage = assessmentStorage,
+    private projectGateway: AssessmentProjectGateway = assessmentProjectGateway,
+  ) { }
 
   // Assessment business logic
   async createAssessment(data: AssessmentCreateRequestDTO): Promise<Assessment> {
@@ -80,6 +104,14 @@ export class AssessmentService {
     return await this.storage.getAssessmentsByMilestone(milestoneId);
   }
 
+  async getAssessmentsForTeacher(teacherId: number): Promise<Assessment[]> {
+    return await this.storage.getAssessmentsForTeacher(teacherId);
+  }
+
+  async getAssessmentsForSchool(schoolId: number): Promise<Assessment[]> {
+    return await this.storage.getAssessmentsForSchool(schoolId);
+  }
+
   async getStandaloneAssessments(): Promise<Assessment[]> {
     return await this.storage.getStandaloneAssessments();
   }
@@ -96,9 +128,9 @@ export class AssessmentService {
     if (formattedUpdates.dueDate) {
       const expiresAt = new Date(formattedUpdates.dueDate as Date);
       expiresAt.setDate(expiresAt.getDate() + 7);
-      (formattedUpdates as any).shareCodeExpiresAt = expiresAt;
+      formattedUpdates.shareCodeExpiresAt = expiresAt;
     }
-    return await this.storage.updateAssessment(id, formattedUpdates as any);
+    return await this.storage.updateAssessment(id, formattedUpdates);
   }
 
   async deleteAssessment(id: number): Promise<void> {
@@ -156,7 +188,7 @@ export class AssessmentService {
     const baseDate = assessment.dueDate ? new Date(assessment.dueDate) : new Date();
     const expiresAt = new Date(baseDate);
     expiresAt.setDate(expiresAt.getDate() + 7);
-    await this.storage.updateAssessment(assessmentId, { shareCodeExpiresAt: expiresAt } as any);
+    await this.storage.updateAssessment(assessmentId, { shareCodeExpiresAt: expiresAt });
 
     return {
       shareCode: newShareCode,
@@ -165,7 +197,7 @@ export class AssessmentService {
   }
 
   // Submission business logic
-  async createSubmission(data: any, studentId: number): Promise<Submission> {
+  async createSubmission(data: SubmissionCreateRequestDTO, studentId: number): Promise<Submission> {
     const submissionData = insertSubmissionSchema.parse({
       ...data,
       studentId,
@@ -182,7 +214,7 @@ export class AssessmentService {
     return await this.storage.getSubmissionsByStudent(studentId);
   }
 
-  async getSubmissionsByAssessment(assessmentId: number): Promise<any[]> {
+  async getSubmissionsByAssessment(assessmentId: number): Promise<AssessmentSubmissionSummaryRecord[]> {
     try {
       // Validate input
       if (!assessmentId || isNaN(assessmentId)) {
@@ -237,7 +269,7 @@ export class AssessmentService {
     return this.storage.getStudentCompetencyProgress(studentId);
   }
 
-  async getStudentAssessmentSubmissions(studentId: number) {
+  async getStudentAssessmentSubmissions(studentId: number): Promise<StudentAssessmentSubmissionRecord[]> {
     return this.storage.getStudentAssessmentSubmissions(studentId);
   }
 
@@ -250,20 +282,20 @@ export class AssessmentService {
     return await this.storage.createGrade(grade);
   }
 
-  async getGradesBySubmission(submissionId: number): Promise<Grade[]> {
+  async getGradesBySubmission(submissionId: number): Promise<SubmissionGradeSummaryRecord[]> {
     return await this.storage.getGradesBySubmission(submissionId);
   }
 
   // Self-evaluation business logic
-  async getSelfEvaluationsByAssessment(assessmentId: number): Promise<any[]> {
+  async getSelfEvaluationsByAssessment(assessmentId: number) {
     return await this.storage.getSelfEvaluationsByAssessment(assessmentId);
   }
 
-  async createSelfEvaluation(data: any): Promise<any> {
+  async createSelfEvaluation(data: InsertSelfEvaluation) {
     return await this.storage.createSelfEvaluation(data);
   }
 
-  async getSelfEvaluationsByStudent(studentId: number): Promise<any[]> {
+  async getSelfEvaluationsByStudent(studentId: number) {
     return await this.storage.getSelfEvaluationsByStudent(studentId);
   }
 
@@ -272,23 +304,31 @@ export class AssessmentService {
   }
 
   // Teacher-specific methods for school skills tracking
-  async getSchoolComponentSkillsProgress(teacherId: number): Promise<any[]> {
+  async getSchoolComponentSkillsProgress(teacherId: number): Promise<SchoolComponentSkillProgressDTO[]> {
     return await this.storage.getSchoolComponentSkillsProgress(teacherId);
   }
 
-  async getSchoolSkillsStats(teacherId: number): Promise<any> {
+  async getSchoolSkillsStats(teacherId: number): Promise<SchoolSkillsStatsDTO> {
     return await this.storage.getSchoolSkillsStats(teacherId);
   }
 
-  async getComponentSkill(id: number): Promise<any> {
+  async getComponentSkill(id: number): Promise<ComponentSkill | undefined> {
     return await this.storage.getComponentSkill(id);
   }
 
-  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string): Promise<any[]> {
+  async generateComponentSkillGrades(
+    submission: Submission,
+    assessment: Assessment,
+    componentSkills: ComponentSkill[],
+    pdfContent?: string,
+  ): Promise<SubmissionGradeItemDTO[]> {
     return await aiService.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
   }
 
-  async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {
+  async generateStudentFeedback(
+    submission: Submission,
+    grades: Array<SubmissionGradeRecord | SubmissionGradeItemDTO>,
+  ): Promise<string> {
     return await aiService.generateStudentFeedback(submission, grades);
   }
 
@@ -308,28 +348,42 @@ export class AssessmentService {
     return aiFeedbackService.generateFeedbackForQuestion(question, response, rubricLevel);
   }
 
-  async getExistingGrade(submissionId: number, componentSkillId: number): Promise<any> {
+  async getExistingGrade(submissionId: number, componentSkillId: number): Promise<Grade | undefined> {
     return await this.storage.getExistingGrade(submissionId, componentSkillId);
   }
 
-  async updateGrade(gradeId: number, updates: any): Promise<any> {
+  async updateGrade(gradeId: number, updates: GradeUpdateInput): Promise<Grade> {
     return await this.storage.updateGrade(gradeId, updates);
   }
 
-  async awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]> {
+  async awardStickersForGrades(studentId: number, grades: SubmissionGradeRecord[]): Promise<Credential[]> {
     return await this.storage.awardStickersForGrades(studentId, grades);
   }
 
-  async getUpcomingDeadlines(projectIds: number[]): Promise<any[]> {
+  async getUpcomingDeadlines(projectIds: number[]): Promise<UpcomingDeadlineDTO[]> {
     return await this.storage.getUpcomingDeadlines(projectIds);
   }
 
-  async generateAssessmentForMilestone(milestoneId: number, userId: number) {
-    const { projectsService } = await import('../projects/projects.service');
-    const milestone = await projectsService.getMilestone(milestoneId);
+  async generateAssessmentForMilestone(
+    milestoneId: number,
+    userId: number,
+    userRole: string,
+    userTier?: string,
+  ) {
+    const milestone = await this.projectGateway.getMilestone(milestoneId);
 
     if (!milestone) {
       throw new Error("Milestone not found");
+    }
+
+    const mustOwnProject =
+      (userRole === "teacher" || (userRole === "admin" && userTier === "free")) &&
+      Boolean(milestone.projectId);
+    if (mustOwnProject && milestone.projectId) {
+      const project = await this.projectGateway.getProject(milestone.projectId);
+      if (!project || project.teacherId !== userId) {
+        throw new Error("Access denied");
+      }
     }
 
     const assessmentData = await aiService.generateAssessment(milestone);
@@ -343,5 +397,3 @@ export class AssessmentService {
     });
   }
 }
-
-export const assessmentService = new AssessmentService();

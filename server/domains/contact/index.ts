@@ -33,7 +33,6 @@ router.post('/', contactLimiter, async (req, res) => {
 
     // Honeypot check - if the hidden field is filled, it's likely a bot
     if (website && website.trim() !== '') {
-      console.log('Honeypot triggered - bot detected');
       // Return success to not alert bots, but don't save
       return res.status(200).json({ message: 'Thank you for your message!' });
     }
@@ -45,9 +44,8 @@ router.post('/', contactLimiter, async (req, res) => {
     }
 
     // Insert into database
-    const [newRequest] = await db.insert(contactRequests).values(contactData).returning();
+    await db.insert(contactRequests).values(contactData).returning();
 
-    console.log('Contact request saved:', newRequest.id);
     res.status(201).json({ message: 'Thank you for your message! We will get back to you soon.' });
   } catch (error) {
     console.error('Error saving contact request:', error);

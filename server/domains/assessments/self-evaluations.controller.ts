@@ -1,8 +1,13 @@
 import { Router } from 'express';
-import { assessmentService, type AssessmentService } from './assessments.service';
+import { type AssessmentService } from './assessments.service';
 import { aiService, type AIService } from '../ai/ai.service';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
 import { UserRole } from '../../../shared/schema';
+import {
+  assessmentProjectGateway,
+  type AssessmentProjectGateway,
+} from "./assessment-project-gateway";
+import { canUserAccessAssessment } from "./assessment-access";
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
@@ -12,8 +17,9 @@ import {
 
 export class SelfEvaluationController {
   constructor(
-    private service: AssessmentService = assessmentService,
-    private ai: AIService = aiService
+    private service: AssessmentService,
+    private ai: AIService = aiService,
+    private projectGateway: AssessmentProjectGateway = assessmentProjectGateway,
   ) {}
 
   // Create Express router with all self-evaluation routes
@@ -77,9 +83,23 @@ export class SelfEvaluationController {
     });
 
     // Get self evaluations for assessment
-    router.get('/assessment/:assessmentId', requireAuth, async (req: AuthenticatedRequest, res) => {
+    router.get('/assessment/:assessmentId', requireAuth, validateIntParam('assessmentId'), async (req: AuthenticatedRequest, res) => {
       try {
         const assessmentId = parseInt(req.params.assessmentId);
+        const assessment = await this.service.getAssessment(assessmentId);
+        if (!assessment) {
+          return res.status(404).json({ message: "Assessment not found" });
+        }
+
+        if (!req.user) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const canAccess = await canUserAccessAssessment(assessment, req.user, this.projectGateway);
+        if (!canAccess) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
         const selfEvaluations = await this.service.getSelfEvaluationsByAssessment(assessmentId);
 
         // Filter based on role
@@ -115,8 +135,12 @@ export class SelfEvaluationController {
     });
 
     // Flag risky self-evaluation
-    router.post('/:id/flag-risky', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
+    router.post('/:id/flag-risky', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('id'), async (req: AuthenticatedRequest, res) => {
       try {
+        if (req.user?.tier === "free") {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
         const selfEvaluationId = parseInt(req.params.id);
         await this.service.flagRiskySelfEvaluation(selfEvaluationId, true);
         res.json({ message: "Self-evaluation flagged and teacher notified" });
@@ -129,7 +153,3 @@ export class SelfEvaluationController {
     return router;
   }
 }
-
-// Create and export the router
-export const selfEvaluationController = new SelfEvaluationController();
-export const selfEvaluationsRouter = selfEvaluationController.createRouter();

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { DragEvent } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,6 +59,7 @@ export default function CreateAssessmentModal({
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfObjectPath, setPdfObjectPath] = useState<string | null>(null);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const form = useForm<AssessmentForm>({
     resolver: zodResolver(assessmentSchema),
@@ -266,6 +268,34 @@ export default function CreateAssessmentModal({
     setPdfObjectPath(null);
   };
 
+  const handlePdfDragOver = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    if (!isUploadingPdf) {
+      setIsDragActive(true);
+    }
+  };
+
+  const handlePdfDragLeave = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+  };
+
+  const handlePdfDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+    if (isUploadingPdf) {
+      return;
+    }
+
+    const droppedFiles = Array.from(event.dataTransfer.files || []);
+    const pdfFromDrop = droppedFiles.find((file) => file.type === "application/pdf");
+    const fileToUpload = pdfFromDrop ?? droppedFiles[0];
+
+    if (fileToUpload) {
+      void handlePdfUpload(fileToUpload);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -456,10 +486,22 @@ export default function CreateAssessmentModal({
                 </div>
 
                 {!pdfFile ? (
-                  <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors">
+                  <label
+                    className={`flex items-center justify-center w-full h-24 border-2 border-dashed rounded-lg transition-colors ${
+                      isUploadingPdf
+                        ? "cursor-not-allowed border-purple-200 bg-purple-50/60"
+                        : isDragActive
+                          ? "cursor-pointer border-purple-500 bg-purple-100"
+                          : "cursor-pointer border-purple-300 hover:bg-purple-100"
+                    }`}
+                    onDragOver={handlePdfDragOver}
+                    onDragEnter={handlePdfDragOver}
+                    onDragLeave={handlePdfDragLeave}
+                    onDrop={handlePdfDrop}
+                  >
                     <div className="flex flex-col items-center">
                       <Upload className="h-6 w-6 text-purple-400 mb-1" />
-                      <span className="text-sm text-purple-600">Click to upload a PDF (max 20MB)</span>
+                      <span className="text-sm text-purple-600">Drag and drop a PDF here, or click to upload (max 20MB)</span>
                     </div>
                     <input
                       type="file"

@@ -13,6 +13,8 @@ interface ProjectCardProps {
   studentCount?: number;
   onViewProject?: (projectId: number) => void;
   userRole?: string;
+  actionLabel?: string;
+  actionDisabled?: boolean;
 }
 
 export default function ProjectCard({ 
@@ -20,7 +22,9 @@ export default function ProjectCard({
   progress = 0, 
   studentCount = 0,
   onViewProject,
-  userRole 
+  userRole,
+  actionLabel,
+  actionDisabled = false,
 }: ProjectCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -113,9 +117,10 @@ export default function ProjectCard({
         {/* Action Button */}
         <Button 
           onClick={() => onViewProject?.(project.id)}
+          disabled={actionDisabled}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white btn-primary"
         >
-          {userRole === 'teacher' ? 'Manage Project' : 'View Project'}
+          {actionLabel ?? (userRole === 'teacher' ? 'Manage Project' : 'View Project')}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
         </CardContent>
