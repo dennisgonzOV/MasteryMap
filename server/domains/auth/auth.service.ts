@@ -25,8 +25,8 @@ export class AuthService {
   }
 
   static generateTokens(payload: JWTPayload) {
-    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: '7d' });
+    const accessToken = jwt.sign({ ...payload, jti: randomBytes(16).toString('hex') }, JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ ...payload, jti: randomBytes(16).toString('hex') }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
     return { accessToken, refreshToken };
   }
 
@@ -69,25 +69,25 @@ export class AuthService {
     if (!tokenRecord || tokenRecord.type !== 'refresh') {
       return false;
     }
-    
+
     if (tokenRecord.expiresAt < new Date()) {
       await authStorage.deleteAuthToken(token);
       return false;
     }
-    
+
     return true;
   }
 
   static setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
     const isProduction = process.env.NODE_ENV === 'production';
-    
+
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'strict',
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
-    
+
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: isProduction,
@@ -111,7 +111,7 @@ export class AuthService {
 
     // Hash password
     const hashedPassword = await this.hashPassword(userData.password);
-    
+
     // Create user
     const user = await authStorage.createUser({
       ...userData,
@@ -209,7 +209,7 @@ export class AuthService {
 
     // Hash the new password
     const hashedPassword = await this.hashPassword(newPassword);
-    
+
     // Update the user's password
     await authStorage.updateUser(userId, { password: hashedPassword });
   }

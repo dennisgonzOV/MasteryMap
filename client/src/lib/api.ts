@@ -3,25 +3,20 @@ import { apiRequest } from "./queryClient";
 export const api = {
   // Student assessment submissions
   async getStudentAssessmentSubmissions(studentId: number) {
-    const response = await fetch(`/api/student/assessment-submissions/${studentId}`, {
-      credentials: 'include'
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch assessment submissions');
-    }
+    const response = await apiRequest(`/api/student/assessment-submissions/${studentId}`, 'GET');
     return response.json();
   },
 
   // Auth endpoints
-  getCurrentUser: () => fetch("/api/auth/user", { credentials: "include" }).then(res => res.json()),
+  getCurrentUser: () => apiRequest("/api/auth/user", "GET").then(res => res.json()),
 
   // Projects
-  getProjects: () => fetch("/api/projects", { credentials: "include" }).then(res => res.json()),
+  getProjects: () => apiRequest("/api/projects", "GET").then(res => res.json()),
   createProject: async (data: any) => {
     const response = await apiRequest("/api/projects", "POST", data);
     return response.json();
   },
-  getProject: (id: number) => fetch(`/api/projects/${id}`, { credentials: "include" }).then(res => res.json()),
+  getProject: (id: number) => apiRequest(`/api/projects/${id}`, "GET").then(res => res.json()),
   generateMilestones: async (projectId: number) => {
 
     const response = await apiRequest(`/api/projects/${projectId}/generate-milestones`, "POST");
@@ -32,14 +27,14 @@ export const api = {
 
   // Milestones
   getMilestones: (projectId: number) =>
-    fetch(`/api/projects/${projectId}/milestones`, { credentials: "include" }).then(res => res.json()),
+    apiRequest(`/api/projects/${projectId}/milestones`, "GET").then(res => res.json()),
   createMilestone: (data: any) => apiRequest("/api/milestones", "POST", data),
 
   // Assessments
   getAssessments: (milestoneId: number) =>
-    fetch(`/api/milestones/${milestoneId}/assessments`, { credentials: "include" }).then(res => res.json()),
+    apiRequest(`/api/milestones/${milestoneId}/assessments`, "GET").then(res => res.json()),
   getStandaloneAssessments: () =>
-    fetch("/api/assessments/standalone", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/assessments/standalone", "GET").then(res => res.json()),
   createAssessment: (data: any) => apiRequest("/api/assessments", "POST", data),
   updateAssessment: (id: number, data: any) => apiRequest(`/api/assessments/${id}`, "PATCH", data),
   generateAssessment: (milestoneId: number) =>
@@ -48,9 +43,9 @@ export const api = {
   // Submissions
   createSubmission: (data: any) => apiRequest("/api/submissions", "POST", data),
   getStudentSubmissions: () =>
-    fetch("/api/submissions/student", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/submissions/student", "GET").then(res => res.json()),
   getAssessmentSubmissions: (assessmentId: number) =>
-    fetch(`/api/assessments/${assessmentId}/submissions`, { credentials: "include" }).then(res => res.json()),
+    apiRequest(`/api/assessments/${assessmentId}/submissions`, "GET").then(res => res.json()),
   // The line below is the updated version of the original getStudentAssessmentSubmissions
   // getStudentAssessmentSubmissions: (studentId: number) => 
   //   fetch(`/api/student/assessment-submissions/${studentId}`, { credentials: "include" }).then(res => res.json()),
@@ -59,33 +54,33 @@ export const api = {
 
   // Credentials
   getStudentCredentials: () =>
-    fetch("/api/credentials/student", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/credentials/student", "GET").then(res => res.json()),
   awardCredential: (data: any) => apiRequest("/api/credentials", "POST", data),
 
   // Portfolio
   getPortfolioArtifacts: () =>
-    fetch("/api/portfolio/artifacts", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/portfolio/artifacts", "GET").then(res => res.json()),
   createPortfolioArtifact: (data: any) => apiRequest("/api/portfolio/artifacts", "POST", data),
 
   // Competencies
   getCompetencies: () =>
-    fetch("/api/competencies", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/competencies", "GET").then(res => res.json()),
   getOutcomes: (competencyId: number) =>
-    fetch(`/api/competencies/${competencyId}/outcomes`, { credentials: "include" }).then(res => res.json()),
+    apiRequest(`/api/competencies/${competencyId}/outcomes`, "GET").then(res => res.json()),
   getLearnerOutcomes: () =>
-    fetch("/api/learner-outcomes", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/learner-outcomes", "GET").then(res => res.json()),
 
   // Dashboard endpoints
   getTeacherDashboardStats: () =>
-    fetch("/api/teacher/dashboard-stats", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/teacher/dashboard-stats", "GET").then(res => res.json()),
   getTeacherProjects: () =>
-    fetch("/api/teacher/projects", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/teacher/projects", "GET").then(res => res.json()),
   getTeacherPendingTasks: () =>
-    fetch("/api/teacher/pending-tasks", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/teacher/pending-tasks", "GET").then(res => res.json()),
   getTeacherCurrentMilestones: () =>
-    fetch("/api/teacher/current-milestones", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/teacher/current-milestones", "GET").then(res => res.json()),
   getStudentDeadlines: () =>
-    fetch("/api/deadlines/student", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/deadlines/student", "GET").then(res => res.json()),
   getSchoolStudentsProgress: () =>
-    fetch("/api/schools/students-progress", { credentials: "include" }).then(res => res.json()),
+    apiRequest("/api/schools/students-progress", "GET").then(res => res.json()),
 };

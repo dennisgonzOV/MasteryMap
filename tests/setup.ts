@@ -1,5 +1,6 @@
+import 'dotenv/config';
 import { beforeAll, afterAll, beforeEach } from 'vitest';
-import { storage } from '../server/storage';
+
 
 // Test database setup
 beforeAll(async () => {

@@ -10,7 +10,7 @@ import {
   UpsertUser,
 } from "../../../shared/schema";
 import { db } from "../../db";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, sql } from "drizzle-orm";
 
 // Interface for auth-specific storage operations
 export interface IAuthStorage {
@@ -40,7 +40,7 @@ export class AuthStorage implements IAuthStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db.select().from(users).where(sql`lower(${users.username}) = lower(${username})`);
     return user;
   }
 

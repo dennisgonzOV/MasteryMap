@@ -5,7 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 // Rate limiting configurations
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
+  max: 20, // 20 attempts per window
   message: {
     error: 'Too many authentication attempts',
     message: 'Please try again in 15 minutes',
@@ -72,14 +72,14 @@ export const securityHeaders = helmet({
 export const validateIntParam = (paramName: string) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const value = parseInt(req.params[paramName]);
-    
+
     if (isNaN(value) || value <= 0 || !Number.isInteger(value)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: `Invalid ${paramName} parameter`,
         error: 'Parameter must be a positive integer'
       });
     }
-    
+
     // Additional safety: Check for extremely large numbers
     if (value > Number.MAX_SAFE_INTEGER) {
       return res.status(400).json({
@@ -87,7 +87,7 @@ export const validateIntParam = (paramName: string) => {
         error: 'Parameter exceeds safe integer range'
       });
     }
-    
+
     // Store validated value back to params
     req.params[paramName] = value.toString();
     next();
@@ -99,23 +99,23 @@ export const sanitizeForPrompt = (input: string): string => {
   if (!input || typeof input !== 'string') {
     return '';
   }
-  
+
   return input
     // Remove potential instruction injection attempts
     .replace(/ignore\s+(previous\s+)?instructions?/gi, '[INSTRUCTION_BLOCKED]')
     .replace(/system\s*:/gi, '[SYSTEM_BLOCKED]')
     .replace(/assistant\s*:/gi, '[ASSISTANT_BLOCKED]')
     .replace(/user\s*:/gi, '[USER_BLOCKED]')
-    
+
     // Remove script tags and other dangerous content
     .replace(/<script.*?>/gi, '[SCRIPT_BLOCKED]')
     .replace(/<\/script>/gi, '[/SCRIPT_BLOCKED]')
     .replace(/<iframe.*?>/gi, '[IFRAME_BLOCKED]')
     .replace(/javascript:/gi, '[JAVASCRIPT_BLOCKED]')
-    
+
     // Limit length to prevent abuse
     .substring(0, 2000)
-    
+
     // Trim whitespace
     .trim();
 };
@@ -127,13 +127,13 @@ export const createErrorResponse = (error: any, message: string, statusCode: num
     statusCode,
     timestamp: new Date().toISOString()
   };
-  
+
   // Only include error details in development, and even then, limit exposure
   if (process.env.NODE_ENV === 'development') {
     response.error = error?.message || 'Unknown error occurred';
     // Never expose full stack traces or sensitive data
   }
-  
+
   return response;
 };
 
@@ -144,14 +144,14 @@ export const validatePassword = (password: string): { valid: boolean; message?: 
   if (!password || typeof password !== 'string') {
     return { valid: false, message: 'Password is required' };
   }
-  
+
   if (password.length < 8) {
     return { valid: false, message: 'Password must be at least 8 characters long' };
   }
-  
+
   if (password.length > 128) {
     return { valid: false, message: 'Password is too long' };
   }
-  
+
   return { valid: true };
 };

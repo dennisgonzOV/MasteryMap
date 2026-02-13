@@ -92,6 +92,74 @@ export const createAdminRouter = () => {
         }
     });
 
+    // Bulk create users
+    router.post('/users/bulk', async (req: AuthenticatedRequest, res) => {
+        try {
+            const adminId = req.user!.id;
+            const admin = await authStorage.getUser(adminId);
+
+            if (!admin || !admin.schoolId) {
+                return res.status(400).json({ message: "Admin school not found" });
+            }
+
+            // Expecting array of objects { username, password, role }
+            const bulkSchema = z.array(adminCreateUserSchema).max(50, "Maximum 50 users per bulk request");
+            const parsedUsers = bulkSchema.parse(req.body);
+
+            const results = {
+                created: [] as any[],
+                failed: [] as any[]
+            };
+
+            // Process sequentially to avoid race conditions or DB locks if strictly serial
+            // Parallel is fine too but easier to track errors sequentially for now or Promise.all
+            // Let's use loop for better error isolation per user
+            for (const userData of parsedUsers) {
+                try {
+                    if (userData.role === UserRole.ADMIN) {
+                        results.failed.push({ username: userData.username, reason: "Cannot create admin in bulk" });
+                        continue;
+                    }
+
+                    // Check existence
+                    // Optimization: could fetch all existing usernames in one query if list is long, 
+                    // but for <50 and minimal load, individual checks are acceptable simplicity.
+                    const existingUser = await authStorage.getUserByUsername(userData.username);
+                    if (existingUser) {
+                        results.failed.push({ username: userData.username, reason: "Username already exists" });
+                        continue;
+                    }
+
+                    const { user } = await AuthService.registerUser({
+                        ...userData,
+                        firstName: null,
+                        lastName: null,
+                        email: null,
+                        schoolName: null,
+                        schoolId: admin.schoolId,
+                        tier: 'enterprise',
+                    });
+
+                    const { password: _, ...userWithoutPassword } = user;
+                    results.created.push(userWithoutPassword);
+
+                } catch (err: any) {
+                    console.error(`Failed to create user ${userData.username}:`, err);
+                    results.failed.push({ username: userData.username, reason: err.message || "Unknown error" });
+                }
+            }
+
+            res.status(200).json(results);
+
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                return res.status(400).json({ message: 'Invalid input', errors: error.errors });
+            }
+            console.error('Bulk create user error:', error);
+            res.status(500).json({ message: "Failed to process bulk creation" });
+        }
+    });
+
     // Delete user
     router.delete('/users/:id', async (req: AuthenticatedRequest, res) => {
         try {

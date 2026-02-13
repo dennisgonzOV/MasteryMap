@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,6 +82,7 @@ export default function AdminUsers() {
     const [searchTerm, setSearchTerm] = useState('');
     const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'student' | 'teacher'>('all');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
 
@@ -180,13 +181,23 @@ export default function AdminUsers() {
                                 Manage students and teachers in your organization.
                             </p>
                         </div>
-                        <Button
-                            onClick={() => setIsCreateOpen(true)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add User
-                        </Button>
+                        <div className="flex space-x-2">
+                            <Button
+                                onClick={() => setIsBulkCreateOpen(true)}
+                                variant="outline"
+                                className="bg-white hover:bg-gray-50 text-blue-600 border-blue-200"
+                            >
+                                <Users className="h-4 w-4 mr-2" />
+                                Bulk Create
+                            </Button>
+                            <Button
+                                onClick={() => setIsCreateOpen(true)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add User
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Filters and Search */}
@@ -283,6 +294,12 @@ export default function AdminUsers() {
                 onOpenChange={setIsCreateOpen}
                 onSubmit={(data) => createUserMutation.mutate(data)}
                 isPending={createUserMutation.isPending}
+            />
+
+            <BulkCreateUserDialog
+                open={isBulkCreateOpen}
+                onOpenChange={setIsBulkCreateOpen}
+                isPending={false} // Managed internally by the dialog's mutation
             />
 
             {/* Delete User Alert */}
@@ -452,6 +469,131 @@ function ResetPasswordDialog({ user, onOpenChange, onSubmit, isPending }: {
                         </Button>
                     </DialogFooter>
                 </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function BulkCreateUserDialog({ open, onOpenChange, isPending }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    isPending: boolean;
+}) {
+    const [csvContent, setCsvContent] = useState('');
+    const { toast } = useToast();
+    const queryClient = useQueryClient();
+
+    const bulkCreateMutation = useMutation({
+        mutationFn: async (users: any[]) => {
+            const res = await apiRequest('/api/admin/users/bulk', 'POST', users);
+            return res.json();
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+
+            const successCount = data.created.length;
+            const failCount = data.failed.length;
+
+            if (failCount === 0) {
+                toast({
+                    title: "Success",
+                    description: `Successfully created ${successCount} users.`,
+                });
+                onOpenChange(false);
+                setCsvContent('');
+            } else {
+                toast({
+                    title: "Partial Success",
+                    description: `Created ${successCount} users. Failed to create ${failCount} users. Check console for details.`,
+                    // variant: "default",
+                });
+                console.error("Failed users:", data.failed);
+                // Keep dialog open to let user fix failed ones if we were advanced, 
+                // but for now creating simple feedback is okay.
+                // Maybe clear valid ones? 
+                // Let's just close for now to keep it simple as per plan.
+            }
+        },
+        onError: (error: Error) => {
+            toast({
+                title: "Error",
+                description: error.message || "Failed to bulk create users",
+                variant: "destructive",
+            });
+        },
+    });
+
+    const handleSubmit = () => {
+        // Parse CSV
+        const lines = csvContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        const users = [];
+        const errors = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const parts = lines[i].split(',').map(p => p.trim());
+            if (parts.length < 3) {
+                errors.push(`Line ${i + 1}: Invalid format (expected username,password,role)`);
+                continue;
+            }
+
+            const [username, password, role] = parts;
+            // Basic validation
+            if (!['student', 'teacher'].includes(role.toLowerCase())) {
+                errors.push(`Line ${i + 1}: Invalid role '${role}' (expected student or teacher)`);
+                continue;
+            }
+
+            users.push({ username, password, role: role.toLowerCase() });
+        }
+
+        if (errors.length > 0) {
+            toast({
+                title: "Validation Error",
+                description: `Found ${errors.length} errors. First error: ${errors[0]}`,
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (users.length === 0) {
+            toast({
+                title: "Warning",
+                description: "No valid users found to create",
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        bulkCreateMutation.mutate(users);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                    <DialogTitle>Bulk Create Users</DialogTitle>
+                    <DialogDescription>
+                        Enter users in CSV format: <code>username, password, role</code> (one per line).<br />
+                        Role must be 'student' or 'teacher'.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <textarea
+                        className="flex min-h-[300px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder={`student1,password123,student\nteacher1,password123,teacher`}
+                        value={csvContent}
+                        onChange={(e) => setCsvContent(e.target.value)}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                        Max 50 users at a time.
+                    </p>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button type="button" onClick={handleSubmit} disabled={isPending || bulkCreateMutation.isPending}>
+                        {bulkCreateMutation.isPending ? "Creating..." : "Create Users"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
