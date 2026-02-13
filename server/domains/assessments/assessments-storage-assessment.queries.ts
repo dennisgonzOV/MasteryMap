@@ -9,7 +9,7 @@ import {
   type InsertAssessment,
 } from "../../../shared/schema";
 import { db } from "../../db";
-import { eq, and, desc, isNull, inArray, sql, or } from "drizzle-orm";
+import { eq, and, desc, isNull, sql, or } from "drizzle-orm";
 
 type ErrorWithCode = { code?: string };
 
@@ -183,33 +183,5 @@ export class AssessmentAssessmentQueries {
 
   async regenerateShareCode(assessmentId: number): Promise<string> {
     return this.generateShareCode(assessmentId);
-  }
-
-  async getUpcomingDeadlines(projectIds: number[]) {
-    if (!projectIds.length) {
-      return [];
-    }
-
-    const now = new Date();
-    const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-
-    return db
-      .select({
-        milestoneId: milestones.id,
-        title: milestones.title,
-        dueDate: milestones.dueDate,
-        projectTitle: projects.title,
-        projectId: projects.id,
-      })
-      .from(milestones)
-      .innerJoin(projects, eq(milestones.projectId, projects.id))
-      .where(
-        and(
-          inArray(milestones.projectId, projectIds),
-          sql`${milestones.dueDate} >= ${now}`,
-          sql`${milestones.dueDate} <= ${twoWeeksFromNow}`,
-        ),
-      )
-      .orderBy(desc(milestones.dueDate));
   }
 }
