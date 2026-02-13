@@ -6,7 +6,7 @@ import {
 } from "../../../shared/schema";
 import { db } from "../../db";
 import { eq, sql } from "drizzle-orm";
-import { competencyStorage } from "../competencies/competencies.storage";
+import { competencyStorage } from "../competencies";
 import type {
   ComponentSkillWithDetailsDTO,
 } from "../../../shared/contracts/api";

@@ -1,4 +1,4 @@
-import { aiService, type AIService } from "../ai/ai.service";
+import { aiService, type AIService } from "../ai";
 import {
   assessmentProjectGateway,
   type AssessmentProjectGateway,

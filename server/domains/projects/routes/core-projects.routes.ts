@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
-import { createSuccessResponse, wrapRoute } from "../../../utils/routeHelpers";
+import { createSuccessResponse, sendErrorResponse, wrapRoute } from "../../../utils/routeHelpers";
 import { validateIdParam } from "../../../middleware/routeValidation";
 import { checkProjectAccess } from "../../../middleware/resourceAccess";
 import { UserRole } from "../../../../shared/schema";
@@ -9,17 +9,20 @@ import type {
   ProjectDTO,
   ProjectUpdateRequestDTO,
 } from "../../../../shared/contracts/api";
-import { projectsService } from "../projects.service";
+import type { ProjectsService } from "../projects.service";
 
 type ProjectRequest = AuthenticatedRequest & { project: ProjectDTO };
 
-export function registerProjectCoreRoutes(router: Router) {
+export function registerProjectCoreRoutes(router: Router, projectsService: ProjectsService) {
   router.patch('/:id/visibility', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
     const projectId = parseInt(req.params.id);
     const { isPublic } = req.body;
 
     if (typeof isPublic !== 'boolean') {
-      return res.status(400).json({ message: "isPublic must be a boolean" });
+      return sendErrorResponse(res, {
+        message: "isPublic must be a boolean",
+        statusCode: 400,
+      });
     }
 
     const updatedProject = await projectsService.toggleProjectVisibility(
@@ -75,7 +78,10 @@ export function registerProjectCoreRoutes(router: Router) {
       const studentProjects = await projectsService.getProjectsByUser(userId, userRole);
       const hasAccess = studentProjects.some((p) => p.id === project.id);
       if (!hasAccess) {
-        return res.status(403).json({ message: "You don't have access to this project" });
+        return sendErrorResponse(res, {
+          message: "You don't have access to this project",
+          statusCode: 403,
+        });
       }
     }
 
@@ -120,11 +126,17 @@ export function registerProjectCoreRoutes(router: Router) {
     const userRole = req.user!.role;
 
     if (userRole !== 'teacher' && userRole !== 'admin') {
-      return res.status(403).json({ message: "Only teachers can assign projects" });
+      return sendErrorResponse(res, {
+        message: "Only teachers can assign projects",
+        statusCode: 403,
+      });
     }
 
     if (req.user?.tier === 'free') {
-      return res.status(403).json({ message: "Access denied" });
+      return sendErrorResponse(res, {
+        message: "Access denied",
+        statusCode: 403,
+      });
     }
 
     const projectId = parseInt(req.params.id);

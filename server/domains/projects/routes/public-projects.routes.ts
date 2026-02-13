@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { wrapRoute, createSuccessResponse } from "../../../utils/routeHelpers";
+import { wrapRoute, createSuccessResponse, sendErrorResponse } from "../../../utils/routeHelpers";
 import { requireAuth, type AuthenticatedRequest } from "../../auth";
-import { projectsService } from "../projects.service";
+import type { ProjectsService } from "../projects.service";
 
-export function registerPublicProjectRoutes(router: Router) {
+export function registerPublicProjectRoutes(router: Router, projectsService: ProjectsService) {
   router.get('/public', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
     if (req.user?.tier === "free") {
-      return res.status(403).json({ message: "Access denied" });
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
     }
 
     const { search, subjectArea, gradeLevel, estimatedDuration, componentSkillIds, bestStandardIds } = req.query;
@@ -41,7 +41,7 @@ export function registerPublicProjectRoutes(router: Router) {
 
   router.get('/public-filters', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
     if (req.user?.tier === "free") {
-      return res.status(403).json({ message: "Access denied" });
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
     }
 
     const filters = await projectsService.getPublicFilters();
@@ -50,12 +50,12 @@ export function registerPublicProjectRoutes(router: Router) {
 
   router.get('/public/:id', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
     if (req.user?.tier === "free") {
-      return res.status(403).json({ message: "Access denied" });
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
     }
 
     const projectId = parseInt(req.params.id);
     if (isNaN(projectId)) {
-      return res.status(400).json({ message: "Invalid project ID" });
+      return sendErrorResponse(res, { message: "Invalid project ID", statusCode: 400 });
     }
 
     try {
@@ -63,10 +63,10 @@ export function registerPublicProjectRoutes(router: Router) {
       createSuccessResponse(res, project);
     } catch (error) {
       if (error instanceof Error && error.message.includes("Project not found")) {
-        return res.status(404).json({ message: error.message });
+        return sendErrorResponse(res, { message: error.message, statusCode: 404 });
       }
       if (error instanceof Error && error.message.includes("not publicly available")) {
-        return res.status(403).json({ message: error.message });
+        return sendErrorResponse(res, { message: error.message, statusCode: 403 });
       }
       throw error;
     }

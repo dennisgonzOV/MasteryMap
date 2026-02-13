@@ -1,14 +1,59 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../domains/auth';
+import type { ApiErrorPayload } from '../../shared/contracts/api';
 
 /**
  * Standardized error response utility to eliminate duplicated error handling
  */
 export interface ErrorResponseOptions {
   message: string;
-  error?: Error | string;
+  error?: unknown;
+  details?: unknown;
   statusCode?: number;
   includeDetails?: boolean;
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return "Unknown error occurred";
+}
+
+export function createErrorPayload(options: ErrorResponseOptions): ApiErrorPayload {
+  const {
+    message,
+    error,
+    details,
+    includeDetails = process.env.NODE_ENV === 'development',
+  } = options;
+
+  const payload: ApiErrorPayload = { message };
+
+  if (error !== undefined) {
+    payload.error = toErrorMessage(error);
+  }
+
+  if (includeDetails) {
+    if (details !== undefined) {
+      payload.details = details;
+    } else if (error !== undefined && typeof error === "object" && error !== null) {
+      payload.details = error;
+    }
+  }
+
+  return payload;
+}
+
+export function sendErrorResponse(
+  res: Response,
+  options: ErrorResponseOptions,
+): void {
+  const { statusCode = 500 } = options;
+  res.status(statusCode).json(createErrorPayload(options));
 }
 
 export function createStandardErrorResponse(
@@ -23,19 +68,12 @@ export function createStandardErrorResponse(
   } = options;
 
   console.error(`Error: ${message}`, error);
-
-  const errorMessage = error instanceof Error ? error.message : (error || "Unknown error occurred");
-  
-  const responseBody: any = {
+  sendErrorResponse(res, {
     message,
-    error: errorMessage
-  };
-
-  if (includeDetails && error) {
-    responseBody.details = error;
-  }
-
-  res.status(statusCode).json(responseBody);
+    error,
+    statusCode,
+    includeDetails,
+  });
 }
 
 /**
@@ -61,8 +99,10 @@ export function handleEntityNotFound(
   res: Response,
   entityName: string
 ): void {
-  res.status(404).json({
+  sendErrorResponse(res, {
     message: `${entityName} not found`
+    ,
+    statusCode: 404,
   });
 }
 
@@ -74,8 +114,10 @@ export function handleValidationError(
   field: string,
   value?: string | number
 ): void {
-  res.status(400).json({
+  sendErrorResponse(res, {
     message: `Invalid ${field}${value ? `: ${value}` : ''}`
+    ,
+    statusCode: 400,
   });
 }
 
@@ -86,7 +128,7 @@ export function handleAuthorizationError(
   res: Response,
   message: string = "Access denied"
 ): void {
-  res.status(403).json({ message });
+  sendErrorResponse(res, { message, statusCode: 403 });
 }
 
 /**

@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
 import { validateIdParam } from "../../../middleware/routeValidation";
-import { createSuccessResponse, wrapRoute } from "../../../utils/routeHelpers";
-import { projectsService } from "../projects.service";
+import { createSuccessResponse, sendErrorResponse, wrapRoute } from "../../../utils/routeHelpers";
+import type { ProjectsService } from "../projects.service";
 import { UserRole } from "../../../../shared/schema";
 
 async function canUserAccessProject(
+  projectsService: ProjectsService,
   user: NonNullable<AuthenticatedRequest["user"]>,
   projectId: number,
 ): Promise<boolean> {
@@ -31,6 +32,7 @@ async function canUserAccessProject(
 }
 
 async function resolveMilestoneWithAccess(
+  projectsService: ProjectsService,
   user: NonNullable<AuthenticatedRequest["user"]>,
   milestoneId: number,
 ) {
@@ -43,7 +45,7 @@ async function resolveMilestoneWithAccess(
     return { status: 403 as const, message: "Access denied" };
   }
 
-  const allowed = await canUserAccessProject(user, milestone.projectId);
+  const allowed = await canUserAccessProject(projectsService, user, milestone.projectId);
   if (!allowed) {
     return { status: 403 as const, message: "Access denied" };
   }
@@ -51,14 +53,14 @@ async function resolveMilestoneWithAccess(
   return { status: 200 as const, milestone };
 }
 
-export function registerProjectMilestoneRoutes(router: Router) {
+export function registerProjectMilestoneRoutes(router: Router, projectsService: ProjectsService) {
   router.get('/:id/milestones', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
     const projectId = parseInt(req.params.id);
     const user = req.user!;
 
-    const canAccess = await canUserAccessProject(user, projectId);
+    const canAccess = await canUserAccessProject(projectsService, user, projectId);
     if (!canAccess) {
-      return res.status(403).json({ message: "You don't have access to this project" });
+      return sendErrorResponse(res, { message: "You don't have access to this project", statusCode: 403 });
     }
 
     const milestones = await projectsService.getMilestonesByProject(projectId);
@@ -67,16 +69,16 @@ export function registerProjectMilestoneRoutes(router: Router) {
 
   router.get('/milestones/:id', requireAuth, validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
     const milestoneId = parseInt(req.params.id);
-    const resolvedMilestone = await resolveMilestoneWithAccess(req.user!, milestoneId);
+    const resolvedMilestone = await resolveMilestoneWithAccess(projectsService, req.user!, milestoneId);
     if (resolvedMilestone.status !== 200) {
-      return res.status(resolvedMilestone.status).json({ message: resolvedMilestone.message });
+      return sendErrorResponse(res, { message: resolvedMilestone.message, statusCode: resolvedMilestone.status });
     }
 
     createSuccessResponse(res, resolvedMilestone.milestone);
   }));
 }
 
-export function registerProjectTeamRoutes(router: Router) {
+export function registerProjectTeamRoutes(router: Router, projectsService: ProjectsService) {
   router.post('/:id/teams', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -89,9 +91,9 @@ export function registerProjectTeamRoutes(router: Router) {
 
   router.get('/:id/teams', requireAuth, wrapRoute(async (req: AuthenticatedRequest, res) => {
     const projectId = parseInt(req.params.id);
-    const canAccess = await canUserAccessProject(req.user!, projectId);
+    const canAccess = await canUserAccessProject(projectsService, req.user!, projectId);
     if (!canAccess) {
-      return res.status(403).json({ message: "Access denied" });
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
     }
 
     const teams = await projectsService.getProjectTeams(projectId);
@@ -99,135 +101,137 @@ export function registerProjectTeamRoutes(router: Router) {
   }));
 }
 
-export const milestonesRouter = Router();
+export function createProjectWorkflowRouters(projectsService: ProjectsService) {
+  const milestonesRouter = Router();
+  const projectTeamsRouter = Router();
+  const projectTeamMembersRouter = Router();
 
-milestonesRouter.get('/:id/assessments', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const milestoneId = parseInt(req.params.id);
-  const resolvedMilestone = await resolveMilestoneWithAccess(req.user!, milestoneId);
-  if (resolvedMilestone.status !== 200) {
-    return res.status(resolvedMilestone.status).json({ message: resolvedMilestone.message });
-  }
+  milestonesRouter.get('/:id/assessments', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const milestoneId = parseInt(req.params.id);
+    const resolvedMilestone = await resolveMilestoneWithAccess(projectsService, req.user!, milestoneId);
+    if (resolvedMilestone.status !== 200) {
+      return sendErrorResponse(res, { message: resolvedMilestone.message, statusCode: resolvedMilestone.status });
+    }
 
-  const assessments = await projectsService.getAssessmentsByMilestone(milestoneId);
-  createSuccessResponse(res, assessments);
-}));
+    const assessments = await projectsService.getAssessmentsByMilestone(milestoneId);
+    createSuccessResponse(res, assessments);
+  }));
 
-milestonesRouter.get('/:id', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const milestoneId = parseInt(req.params.id);
-  const resolvedMilestone = await resolveMilestoneWithAccess(req.user!, milestoneId);
-  if (resolvedMilestone.status !== 200) {
-    return res.status(resolvedMilestone.status).json({ message: resolvedMilestone.message });
-  }
+  milestonesRouter.get('/:id', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const milestoneId = parseInt(req.params.id);
+    const resolvedMilestone = await resolveMilestoneWithAccess(projectsService, req.user!, milestoneId);
+    if (resolvedMilestone.status !== 200) {
+      return sendErrorResponse(res, { message: resolvedMilestone.message, statusCode: resolvedMilestone.status });
+    }
 
-  createSuccessResponse(res, resolvedMilestone.milestone);
-}));
+    createSuccessResponse(res, resolvedMilestone.milestone);
+  }));
 
-milestonesRouter.patch('/:id/deliverable', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const milestoneId = parseInt(req.params.id);
-  const { deliverableUrl, deliverableFileName, deliverableDescription, includeInPortfolio } = req.body;
-  const resolvedMilestone = await resolveMilestoneWithAccess(req.user!, milestoneId);
-  if (resolvedMilestone.status !== 200) {
-    return res.status(resolvedMilestone.status).json({ message: resolvedMilestone.message });
-  }
+  milestonesRouter.patch('/:id/deliverable', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const milestoneId = parseInt(req.params.id);
+    const { deliverableUrl, deliverableFileName, deliverableDescription, includeInPortfolio } = req.body;
+    const resolvedMilestone = await resolveMilestoneWithAccess(projectsService, req.user!, milestoneId);
+    if (resolvedMilestone.status !== 200) {
+      return sendErrorResponse(res, { message: resolvedMilestone.message, statusCode: resolvedMilestone.status });
+    }
 
-  const updatedMilestone = await projectsService.updateMilestoneDeliverable(
-    milestoneId,
-    {
-      deliverableUrl,
-      deliverableFileName,
-      deliverableDescription,
-      includeInPortfolio,
-    },
-    req.user?.id,
-  );
+    const updatedMilestone = await projectsService.updateMilestoneDeliverable(
+      milestoneId,
+      {
+        deliverableUrl,
+        deliverableFileName,
+        deliverableDescription,
+        includeInPortfolio,
+      },
+      req.user?.id,
+    );
 
-  createSuccessResponse(res, updatedMilestone);
-}));
+    createSuccessResponse(res, updatedMilestone);
+  }));
 
-milestonesRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const userId = req.user!.id;
-  const userRole = req.user!.role;
+  milestonesRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-  const milestone = await projectsService.createMilestone(req.body, userId, userRole);
-  createSuccessResponse(res, milestone);
-}));
+    const milestone = await projectsService.createMilestone(req.body, userId, userRole);
+    createSuccessResponse(res, milestone);
+  }));
 
-milestonesRouter.put('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const milestoneId = parseInt(req.params.id);
-  const userId = req.user!.id;
-  const userRole = req.user!.role;
+  milestonesRouter.put('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const milestoneId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-  const updatedMilestone = await projectsService.updateMilestone(milestoneId, req.body, userId, userRole);
-  createSuccessResponse(res, updatedMilestone);
-}));
+    const updatedMilestone = await projectsService.updateMilestone(milestoneId, req.body, userId, userRole);
+    createSuccessResponse(res, updatedMilestone);
+  }));
 
-milestonesRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const milestoneId = parseInt(req.params.id);
-  const userId = req.user!.id;
-  const userRole = req.user!.role;
+  milestonesRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const milestoneId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-  await projectsService.deleteMilestone(milestoneId, userId, userRole);
-  createSuccessResponse(res, { message: "Milestone deleted successfully" });
-}));
+    await projectsService.deleteMilestone(milestoneId, userId, userRole);
+    createSuccessResponse(res, { message: "Milestone deleted successfully" });
+  }));
 
-export const projectTeamsRouter = Router();
+  projectTeamsRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-projectTeamsRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const userId = req.user!.id;
-  const userRole = req.user!.role;
+    const team = await projectsService.createProjectTeam(req.body, userId, userRole);
+    createSuccessResponse(res, team);
+  }));
 
-  const team = await projectsService.createProjectTeam(req.body, userId, userRole);
-  createSuccessResponse(res, team);
-}));
+  projectTeamsRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const teamId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-projectTeamsRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const teamId = parseInt(req.params.id);
-  const userId = req.user!.id;
-  const userRole = req.user!.role;
+    await projectsService.deleteProjectTeam(teamId, userId, userRole);
+    createSuccessResponse(res, { message: "Team deleted successfully" });
+  }));
 
-  await projectsService.deleteProjectTeam(teamId, userId, userRole);
-  createSuccessResponse(res, { message: "Team deleted successfully" });
-}));
+  projectTeamsRouter.get('/:teamId/members', requireAuth, validateIdParam('teamId'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === "free") {
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
+    }
 
-projectTeamsRouter.get('/:teamId/members', requireAuth, validateIdParam('teamId'), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  if (req.user?.tier === "free") {
-    return res.status(403).json({ message: "Access denied" });
-  }
+    const teamId = parseInt(req.params.teamId);
+    const team = await projectsService.getProjectTeam(teamId);
+    if (!team?.projectId) {
+      return sendErrorResponse(res, { message: "Team not found", statusCode: 404 });
+    }
 
-  const teamId = parseInt(req.params.teamId);
-  const team = await projectsService.getProjectTeam(teamId);
-  if (!team?.projectId) {
-    return res.status(404).json({ message: "Team not found" });
-  }
+    const canAccess = await canUserAccessProject(projectsService, req.user!, team.projectId);
+    if (!canAccess) {
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
+    }
 
-  const canAccess = await canUserAccessProject(req.user!, team.projectId);
-  if (!canAccess) {
-    return res.status(403).json({ message: "Access denied" });
-  }
+    const members = await projectsService.getTeamMembersWithStudentInfo(teamId);
+    createSuccessResponse(res, members);
+  }));
 
-  const members = await projectsService.getTeamMembersWithStudentInfo(teamId);
-  createSuccessResponse(res, members);
-}));
+  projectTeamMembersRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === "free") {
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
+    }
 
-export const projectTeamMembersRouter = Router();
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-projectTeamMembersRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  if (req.user?.tier === "free") {
-    return res.status(403).json({ message: "Access denied" });
-  }
+    const member = await projectsService.addTeamMember(req.body, userId, userRole);
+    createSuccessResponse(res, member);
+  }));
 
-  const userId = req.user!.id;
-  const userRole = req.user!.role;
+  projectTeamMembersRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const memberId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
-  const member = await projectsService.addTeamMember(req.body, userId, userRole);
-  createSuccessResponse(res, member);
-}));
+    await projectsService.removeTeamMember(memberId, userId, userRole);
+    createSuccessResponse(res, { message: "Team member removed successfully" });
+  }));
 
-projectTeamMembersRouter.delete('/:id', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
-  const memberId = parseInt(req.params.id);
-  const userId = req.user!.id;
-  const userRole = req.user!.role;
-
-  await projectsService.removeTeamMember(memberId, userId, userRole);
-  createSuccessResponse(res, { message: "Team member removed successfully" });
-}));
+  return { milestonesRouter, projectTeamsRouter, projectTeamMembersRouter };
+}

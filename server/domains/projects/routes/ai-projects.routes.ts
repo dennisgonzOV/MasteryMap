@@ -1,10 +1,11 @@
 import { Router, type Response } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
-import { aiLimiter, createErrorResponse } from "../../../middleware/security";
+import { aiLimiter } from "../../../middleware/security";
 import { validateIdParam } from "../../../middleware/routeValidation";
 import { UserRole } from "../../../../shared/schema";
 import type { AssessmentDTO, MilestoneDTO } from "../../../../shared/contracts/api";
-import { projectsService } from "../projects.service";
+import type { ProjectsService } from "../projects.service";
+import { createSuccessResponse, sendErrorResponse } from "../../../utils/routeHelpers";
 import { z } from "zod";
 
 type GeneratedMilestoneWithAssessment = {
@@ -24,7 +25,7 @@ const thumbnailPreviewSchema = z.object({
   topic: z.string().max(200).optional(),
 });
 
-export function registerProjectAIRoutes(router: Router) {
+export function registerProjectAIRoutes(router: Router, projectsService: ProjectsService) {
   const ensureFreeTierAdminProjectAccess = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -36,7 +37,7 @@ export function registerProjectAIRoutes(router: Router) {
 
     const project = await projectsService.getProject(projectId);
     if (!project || project.teacherId !== req.user.id) {
-      res.status(403).json({ message: "Access denied" });
+      sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
       return false;
     }
 
@@ -48,11 +49,11 @@ export function registerProjectAIRoutes(router: Router) {
       const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
 
       if (!subject || !topic || !gradeLevel || !duration || !componentSkillIds?.length) {
-        return res.status(400).json({ message: "Missing required fields" });
+        return sendErrorResponse(res, { message: "Missing required fields", statusCode: 400 });
       }
 
       if (!Array.isArray(componentSkillIds) || !componentSkillIds.every(id => typeof id === 'number')) {
-        return res.status(400).json({ message: "Invalid component skill IDs format" });
+        return sendErrorResponse(res, { message: "Invalid component skill IDs format", statusCode: 400 });
       }
 
       const result = await projectsService.generateProjectIdeasForUser(req.user!.id, {
@@ -63,17 +64,25 @@ export function registerProjectAIRoutes(router: Router) {
         componentSkillIds
       });
 
-      res.json(result);
+      createSuccessResponse(res, result);
     } catch (error) {
       console.error("Error generating project ideas:", error);
       if (error instanceof Error && error.message.includes("Free tier limit reached")) {
-        return res.status(403).json({ message: error.message, limitReached: true });
+        return sendErrorResponse(res, {
+          message: error.message,
+          statusCode: 403,
+          error: "Forbidden",
+          details: { limitReached: true },
+        });
       }
       if (error instanceof Error && error.message.includes("No valid component skills")) {
-        return res.status(400).json({ message: error.message });
+        return sendErrorResponse(res, { message: error.message, statusCode: 400 });
       }
-      const errorResponse = createErrorResponse(error, "Failed to generate project ideas", 500);
-      res.status(500).json(errorResponse);
+      sendErrorResponse(res, {
+        message: "Failed to generate project ideas",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
@@ -90,22 +99,30 @@ export function registerProjectAIRoutes(router: Router) {
 
       const parseResult = thumbnailOptionsSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({ message: "Invalid request body", errors: parseResult.error.errors });
+        return sendErrorResponse(res, {
+          message: "Invalid request body",
+          statusCode: 400,
+          error: "Validation failed",
+          details: parseResult.error.errors,
+        });
       }
       const { subject, topic } = parseResult.data;
 
       const result = await projectsService.generateProjectThumbnail(projectId, userId, userRole, { subject, topic });
-      res.json(result);
+      createSuccessResponse(res, result);
     } catch (error) {
       console.error("Error generating thumbnail:", error);
       if (error instanceof Error && error.message.includes("Project not found")) {
-        return res.status(404).json({ message: error.message });
+        return sendErrorResponse(res, { message: error.message, statusCode: 404 });
       }
       if (error instanceof Error && error.message.includes("Access denied")) {
-        return res.status(403).json({ message: error.message });
+        return sendErrorResponse(res, { message: error.message, statusCode: 403 });
       }
-      const errorResponse = createErrorResponse(error, "Failed to generate thumbnail", 500);
-      res.status(500).json(errorResponse);
+      sendErrorResponse(res, {
+        message: "Failed to generate thumbnail",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
@@ -113,16 +130,24 @@ export function registerProjectAIRoutes(router: Router) {
     try {
       const parseResult = thumbnailPreviewSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({ message: "Invalid request body", errors: parseResult.error.errors });
+        return sendErrorResponse(res, {
+          message: "Invalid request body",
+          statusCode: 400,
+          error: "Validation failed",
+          details: parseResult.error.errors,
+        });
       }
       const { title, description, subject, topic } = parseResult.data;
 
       const result = await projectsService.generateThumbnailPreview({ title, description, subject, topic });
-      res.json(result);
+      createSuccessResponse(res, result);
     } catch (error) {
       console.error("Error generating thumbnail preview:", error);
-      const errorResponse = createErrorResponse(error, "Failed to generate thumbnail preview", 500);
-      res.status(500).json(errorResponse);
+      sendErrorResponse(res, {
+        message: "Failed to generate thumbnail preview",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
@@ -132,13 +157,13 @@ export function registerProjectAIRoutes(router: Router) {
       const userRole = req.user!.role;
 
       if (userRole !== 'teacher' && userRole !== 'admin') {
-        return res.status(403).json({ message: "Only teachers can generate milestones" });
+        return sendErrorResponse(res, { message: "Only teachers can generate milestones", statusCode: 403 });
       }
 
       const projectId = parseInt(req.params.id);
 
       if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
+        return sendErrorResponse(res, { message: "Invalid project ID", statusCode: 400 });
       }
 
       const hasAccess = await ensureFreeTierAdminProjectAccess(req, res, projectId);
@@ -148,17 +173,20 @@ export function registerProjectAIRoutes(router: Router) {
 
       const savedMilestones: MilestoneDTO[] = await projectsService.generateMilestonesForProject(projectId, userId, userRole);
 
-      res.json(savedMilestones);
+      createSuccessResponse(res, savedMilestones);
     } catch (error) {
       console.error("Error generating milestones:", error);
       if (error instanceof Error && error.message.includes("Project not found")) {
-        return res.status(404).json({ message: error.message });
+        return sendErrorResponse(res, { message: error.message, statusCode: 404 });
       }
       if (error instanceof Error && error.message.includes("Access denied")) {
-        return res.status(403).json({ message: error.message });
+        return sendErrorResponse(res, { message: error.message, statusCode: 403 });
       }
-      const errorResponse = createErrorResponse(error, "Failed to generate milestones", 500);
-      res.status(500).json(errorResponse);
+      sendErrorResponse(res, {
+        message: "Failed to generate milestones",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
@@ -168,12 +196,12 @@ export function registerProjectAIRoutes(router: Router) {
       const userRole = req.user!.role;
 
       if (userRole !== 'teacher' && userRole !== 'admin') {
-        return res.status(403).json({ message: "Only teachers can generate milestones and assessments" });
+        return sendErrorResponse(res, { message: "Only teachers can generate milestones and assessments", statusCode: 403 });
       }
 
       const projectId = parseInt(req.params.id);
       if (isNaN(projectId)) {
-        return res.status(400).json({ message: "Invalid project ID" });
+        return sendErrorResponse(res, { message: "Invalid project ID", statusCode: 400 });
       }
 
       const hasAccess = await ensureFreeTierAdminProjectAccess(req, res, projectId);
@@ -187,18 +215,18 @@ export function registerProjectAIRoutes(router: Router) {
         userRole,
       ) as GeneratedMilestoneWithAssessment[];
 
-      res.json({
+      createSuccessResponse(res, {
         milestones: result.map((item) => item.milestone),
         assessments: result.map((item) => item.assessment).filter(Boolean),
         message: `Generated ${result.length} milestones and ${result.filter((item) => item.assessment).length} assessments`
       });
     } catch (error) {
       console.error("Error generating milestones and assessments:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
+      sendErrorResponse(res, {
         message: "Failed to generate milestones and assessments",
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
+        statusCode: 500,
+        error,
+        details: process.env.NODE_ENV === 'development' ? error : undefined,
       });
     }
   });

@@ -1,265 +1,356 @@
-import { Router } from 'express';
-import { AuthService, type JWTPayload } from './auth.service';
-import { authStorage } from './auth.storage';
-import { registerSchema, loginSchema, type User, UserRole } from '../../../shared/schema';
+import { Router, type NextFunction, type Request, type Response } from "express";
+import { z } from "zod";
+import {
+  loginSchema,
+  registerSchema,
+  type UpsertUser,
+  type User,
+  UserRole,
+} from "../../../shared/schema";
 import type {
   AuthCurrentUserResponseDTO,
   AuthLoginRequestDTO,
   AuthLoginResponseDTO,
   AuthRegisterRequestDTO,
   AuthRegisterResponseDTO,
-} from '../../../shared/contracts/api';
-import { z } from 'zod';
-import { authLimiter, createErrorResponse } from '../../middleware/security';
-import type { Request, Response, NextFunction } from 'express';
+} from "../../../shared/contracts/api";
+import { authLimiter } from "../../middleware/security";
+import { createSuccessResponse, sendErrorResponse } from "../../utils/routeHelpers";
+import type { IAuthStorage } from "./auth.storage";
+import type { JWTPayload } from "./auth.service";
 
-// Define AuthenticatedRequest interface
 export interface AuthenticatedRequest extends Request {
   user?: User;
 }
+
+export interface AuthServicePort {
+  verifyAccessToken(token: string): JWTPayload | null;
+  registerUser(userData: UpsertUser): Promise<{
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+  }>;
+  loginUser(username: string, password: string): Promise<{
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+  }>;
+  setAuthCookies(res: Response, accessToken: string, refreshToken: string): void;
+  revokeRefreshToken(token: string): Promise<void>;
+  clearAuthCookies(res: Response): void;
+  refreshUserTokens(refreshToken: string): Promise<{
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+  }>;
+  resetUserPassword(userId: number, newPassword: string, adminUser: User): Promise<void>;
+}
+
+export type AuthStoragePort = Pick<
+  IAuthStorage,
+  "getUser" | "getUserByUsername" | "getAnalyticsDashboard"
+>;
+
+export type RequireAuthMiddleware = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) => Promise<void> | void;
+
+export type RequireRoleMiddlewareFactory = (
+  ...roles: UserRole[]
+) => (req: AuthenticatedRequest, res: Response, next: NextFunction) => void;
 
 function toAuthUserDTO(user: User): AuthLoginResponseDTO {
   const { password: _password, ...userWithoutPassword } = user;
   return userWithoutPassword;
 }
 
-// Authentication middleware
-export const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const accessToken = req.cookies.access_token;
-    if (!accessToken) {
-      return res.status(401).json({ message: 'Unauthorized' });
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
+export function createRequireAuth(dependencies: {
+  authService: Pick<AuthServicePort, "verifyAccessToken">;
+  authStorage: Pick<AuthStoragePort, "getUser">;
+}): RequireAuthMiddleware {
+  const { authService, authStorage } = dependencies;
+
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const accessToken = req.cookies.access_token;
+      if (!accessToken) {
+        sendErrorResponse(res, { message: "Unauthorized", statusCode: 401 });
+        return;
+      }
+
+      const payload = authService.verifyAccessToken(accessToken);
+      if (!payload) {
+        sendErrorResponse(res, { message: "Invalid token", statusCode: 401 });
+        return;
+      }
+
+      const user = await authStorage.getUser(payload.userId);
+      if (!user) {
+        sendErrorResponse(res, { message: "User not found", statusCode: 401 });
+        return;
+      }
+
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error("Auth middleware error for", req.path, ":", error);
+      sendErrorResponse(res, { message: "Unauthorized", statusCode: 401 });
     }
-
-    const payload = AuthService.verifyAccessToken(accessToken);
-    if (!payload) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    const user = await authStorage.getUser(payload.userId);
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    console.error('Auth middleware error for', req.path, ':', error);
-    res.status(401).json({ message: 'Unauthorized' });
-  }
-};
-
-// Role-based authorization middleware
-export const requireRole = (...roles: UserRole[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    const userRole = req.user.role as UserRole;
-
-    // Ensure both user role and required roles are properly typed
-    const normalizedUserRole = userRole?.toLowerCase().trim() as UserRole;
-    const normalizedRequiredRoles = roles.map(role => role?.toLowerCase().trim() as UserRole);
-
-    const hasAccess = normalizedRequiredRoles.includes(normalizedUserRole);
-
-    if (!hasAccess) {
-      return res.status(403).json({
-        message: 'Forbidden',
-        details: process.env.NODE_ENV === 'development' ? {
-          userRole: normalizedUserRole,
-          requiredRoles: normalizedRequiredRoles
-        } : undefined
-      });
-    }
-
-    next();
   };
-};
+}
 
-// Create auth router
-export const createAuthRouter = () => {
+export function createRequireRole(): RequireRoleMiddlewareFactory {
+  return (...roles: UserRole[]) => {
+    return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+      if (!req.user) {
+        sendErrorResponse(res, { message: "Unauthorized", statusCode: 401 });
+        return;
+      }
+
+      const userRole = req.user.role as UserRole;
+      const normalizedUserRole = userRole?.toLowerCase().trim() as UserRole;
+      const normalizedRequiredRoles = roles.map((role) => role?.toLowerCase().trim() as UserRole);
+      const hasAccess = normalizedRequiredRoles.includes(normalizedUserRole);
+
+      if (!hasAccess) {
+        sendErrorResponse(res, {
+          message: "Forbidden",
+          statusCode: 403,
+          details:
+            process.env.NODE_ENV === "development"
+              ? {
+                  userRole: normalizedUserRole,
+                  requiredRoles: normalizedRequiredRoles,
+                }
+              : undefined,
+        });
+        return;
+      }
+
+      next();
+    };
+  };
+}
+
+interface AuthRouterDependencies {
+  authService: AuthServicePort;
+  authStorage: AuthStoragePort;
+  requireAuth: RequireAuthMiddleware;
+}
+
+interface AnalyticsRouterDependencies {
+  authStorage: AuthStoragePort;
+  requireAuth: RequireAuthMiddleware;
+  requireRole: RequireRoleMiddlewareFactory;
+}
+
+export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
+  const { authService, authStorage, requireAuth } = dependencies;
   const router = Router();
 
-  // Apply auth-specific rate limiting
-  router.use('/login', authLimiter);
-  router.use('/register', authLimiter);
+  router.use("/login", authLimiter);
+  router.use("/register", authLimiter);
 
-  // Register route
-  router.post('/register', async (req, res) => {
+  router.post("/register", async (req, res) => {
     try {
-      // Validate request body against schema
       const userData: AuthRegisterRequestDTO = registerSchema.parse(req.body);
 
-      // Check if user already exists
       const existingUser = await authStorage.getUserByUsername(userData.username);
       if (existingUser) {
-        return res.status(400).json({ message: 'Username already exists' });
+        sendErrorResponse(res, { message: "Username already exists", statusCode: 400 });
+        return;
       }
 
-      // If schoolId is provided, verify it exists
-      if (userData.schoolId) {
-        // We might want to verify school exists here, but foreign key constraint handles it too
-        // For now, we trust the input validation
-      }
-
-      // Determine tier based on schoolId presence (no school = free tier)
-      // Note: This logic can be refined later if we have paid individual tiers
-      const tier = userData.schoolId ? 'enterprise' : 'free';
-
-      // Register user using service
-      const { user, accessToken, refreshToken } = await AuthService.registerUser({
+      const tier = userData.schoolId ? "enterprise" : "free";
+      const { user, accessToken, refreshToken } = await authService.registerUser({
         ...userData,
-        tier
+        tier,
       });
 
-      // Set cookies
-      AuthService.setAuthCookies(res, accessToken, refreshToken);
-
-      // Return user data (without password)
+      authService.setAuthCookies(res, accessToken, refreshToken);
       const userWithoutPassword: AuthRegisterResponseDTO = toAuthUserDTO(user);
-      res.status(201).json(userWithoutPassword);
+      createSuccessResponse(res, userWithoutPassword, undefined, 201);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: 'Invalid input', errors: error.errors });
+        sendErrorResponse(res, {
+          message: "Invalid input",
+          statusCode: 400,
+          details: error.errors,
+        });
+        return;
       }
-      console.error('Registration error:', error);
-      res.status(500).json({ message: 'Registration failed' });
+
+      console.error("Registration error:", error);
+      sendErrorResponse(res, {
+        message: "Registration failed",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
-  // Login route
-  router.post('/login', async (req, res) => {
+  router.post("/login", async (req, res) => {
     try {
       const { username, password }: AuthLoginRequestDTO = loginSchema.parse(req.body);
 
-      const { user, accessToken, refreshToken } = await AuthService.loginUser(username, password);
+      const { user, accessToken, refreshToken } = await authService.loginUser(username, password);
+      authService.setAuthCookies(res, accessToken, refreshToken);
 
-      // Set cookies
-      AuthService.setAuthCookies(res, accessToken, refreshToken);
-
-      // Return user data (without password)
       const userWithoutPassword: AuthLoginResponseDTO = toAuthUserDTO(user);
-      res.json(userWithoutPassword);
+      createSuccessResponse(res, userWithoutPassword);
     } catch (error) {
-      console.error('Login error:', error);
-      // Return generic error message for security
-      res.status(401).json({ message: 'Invalid credentials' });
+      console.error("Login error:", error);
+      sendErrorResponse(res, {
+        message: "Invalid credentials",
+        statusCode: 401,
+        error,
+      });
     }
   });
 
-  // Logout route
-  router.post('/logout', async (req, res) => {
+  router.post("/logout", async (req, res) => {
     try {
       const refreshToken = req.cookies.refresh_token;
       if (refreshToken) {
-        await AuthService.revokeRefreshToken(refreshToken);
+        await authService.revokeRefreshToken(refreshToken);
       }
 
-      AuthService.clearAuthCookies(res);
-      res.json({ message: 'Logged out successfully' });
+      authService.clearAuthCookies(res);
+      createSuccessResponse(res, { message: "Logged out successfully" });
     } catch (error) {
-      console.error('Logout error:', error);
-      res.status(500).json({ message: 'Logout failed' });
+      console.error("Logout error:", error);
+      sendErrorResponse(res, {
+        message: "Logout failed",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
-  // Refresh token route
-  router.post('/refresh', async (req, res) => {
+  router.post("/refresh", async (req, res) => {
     try {
       const refreshToken = req.cookies.refresh_token;
       if (!refreshToken) {
-        return res.status(401).json({ message: 'No refresh token' });
+        sendErrorResponse(res, { message: "No refresh token", statusCode: 401 });
+        return;
       }
 
-      const { accessToken, refreshToken: newRefreshToken } = await AuthService.refreshUserTokens(refreshToken);
+      const { accessToken, refreshToken: newRefreshToken } = await authService.refreshUserTokens(refreshToken);
+      authService.setAuthCookies(res, accessToken, newRefreshToken);
 
-      // Set new cookies
-      AuthService.setAuthCookies(res, accessToken, newRefreshToken);
-
-      res.json({ message: 'Tokens refreshed' });
+      createSuccessResponse(res, { message: "Tokens refreshed" });
     } catch (error) {
-      console.error('Refresh error:', error);
-      res.status(401).json({ message: 'Token refresh failed' });
+      console.error("Refresh error:", error);
+      sendErrorResponse(res, {
+        message: "Token refresh failed",
+        statusCode: 401,
+        error,
+      });
     }
   });
 
-  // Admin password reset route
-  router.post('/admin-reset-password', requireAuth, async (req: AuthenticatedRequest, res) => {
+  router.post("/admin-reset-password", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        sendErrorResponse(res, { message: "Not authenticated", statusCode: 401 });
+        return;
       }
 
-      const { userId, newPassword } = req.body;
+      const { userId, newPassword } = req.body as {
+        userId?: number;
+        newPassword?: string;
+      };
 
       if (!userId || !newPassword) {
-        return res.status(400).json({ message: 'User ID and new password are required' });
+        sendErrorResponse(res, {
+          message: "User ID and new password are required",
+          statusCode: 400,
+        });
+        return;
       }
 
-      await AuthService.resetUserPassword(userId, newPassword, req.user);
-
-      res.json({ message: 'Password reset successfully' });
+      await authService.resetUserPassword(userId, newPassword, req.user);
+      createSuccessResponse(res, { message: "Password reset successfully" });
     } catch (error) {
-      console.error('Admin password reset error:', error);
-      if (error instanceof Error) {
-        if (error.message === 'Admin access required') {
-          return res.status(403).json({ message: error.message });
-        }
-        if (error.message === 'User not found') {
-          return res.status(404).json({ message: error.message });
-        }
-        if (error.message === 'Can only reset passwords for users in your school') {
-          return res.status(403).json({ message: error.message });
-        }
+      console.error("Admin password reset error:", error);
+      const errorMessage = getErrorMessage(error);
+
+      if (errorMessage === "Admin access required") {
+        sendErrorResponse(res, { message: errorMessage, statusCode: 403 });
+        return;
       }
-      res.status(500).json({ message: 'Password reset failed' });
+      if (errorMessage === "User not found") {
+        sendErrorResponse(res, { message: errorMessage, statusCode: 404 });
+        return;
+      }
+      if (errorMessage === "Can only reset passwords for users in your school") {
+        sendErrorResponse(res, { message: errorMessage, statusCode: 403 });
+        return;
+      }
+
+      sendErrorResponse(res, {
+        message: "Password reset failed",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
-  // Get current user route
-  router.get('/user', requireAuth, async (req: AuthenticatedRequest, res) => {
+  router.get("/user", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        sendErrorResponse(res, { message: "Not authenticated", statusCode: 401 });
+        return;
       }
 
-      // Return user data (without password)
       const userWithoutPassword: AuthCurrentUserResponseDTO = toAuthUserDTO(req.user);
-      res.json(userWithoutPassword);
+      createSuccessResponse(res, userWithoutPassword);
     } catch (error) {
-      console.error('Get user error:', error);
-      res.status(500).json({ message: 'Failed to get user' });
+      console.error("Get user error:", error);
+      sendErrorResponse(res, {
+        message: "Failed to get user",
+        statusCode: 500,
+        error,
+      });
     }
   });
 
   return router;
-};
+}
 
-// Create analytics router
-export const createAnalyticsRouter = () => {
+export function createAnalyticsRouter(dependencies: AnalyticsRouterDependencies): Router {
+  const { authStorage, requireAuth, requireRole } = dependencies;
   const router = Router();
 
-  // Analytics endpoint for admin dashboard
-  router.get('/dashboard', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
-    try {
-      if (!req.user || !req.user.schoolId) {
-        return res.status(400).json({ message: "Admin school not found" });
+  router.get(
+    "/dashboard",
+    requireAuth,
+    requireRole(UserRole.ADMIN),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        if (!req.user || !req.user.schoolId) {
+          sendErrorResponse(res, { message: "Admin school not found", statusCode: 400 });
+          return;
+        }
+
+        const analyticsData = await authStorage.getAnalyticsDashboard(req.user.schoolId);
+        createSuccessResponse(res, analyticsData);
+      } catch (error) {
+        console.error("Analytics error:", error);
+        sendErrorResponse(res, {
+          message: "Failed to fetch analytics data",
+          statusCode: 500,
+          error,
+        });
       }
-
-      const analyticsData = await authStorage.getAnalyticsDashboard(req.user.schoolId);
-
-      res.json(analyticsData);
-    } catch (error) {
-      console.error('Analytics error:', error);
-      res.status(500).json({ message: "Failed to fetch analytics data" });
-    }
-  });
+    },
+  );
 
   return router;
-};
-
-// Export the configured routers
-export const authRouter = createAuthRouter();
-export const analyticsRouter = createAnalyticsRouter();
+}

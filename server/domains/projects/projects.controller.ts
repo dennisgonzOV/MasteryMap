@@ -5,20 +5,42 @@ import { registerProjectAIRoutes } from "./routes/ai-projects.routes";
 import {
   registerProjectMilestoneRoutes,
   registerProjectTeamRoutes,
-  milestonesRouter,
-  projectTeamsRouter,
-  projectTeamMembersRouter,
+  createProjectWorkflowRouters,
 } from "./routes/project-workflow.routes";
-import { schoolsRouter } from "./routes/schools.routes";
-import { teacherRouter } from "./routes/teacher-dashboard.routes";
+import { createSchoolsRouter } from "./routes/schools.routes";
+import { createTeacherRouter } from "./routes/teacher-dashboard.routes";
+import type { ProjectsService } from "./projects.service";
 
-const router = Router();
+export interface ProjectsRouterBundle {
+  projectsRouter: Router;
+  milestonesRouter: Router;
+  projectTeamsRouter: Router;
+  projectTeamMembersRouter: Router;
+  schoolsRouter: Router;
+  teacherRouter: Router;
+}
 
-registerPublicProjectRoutes(router);
-registerProjectCoreRoutes(router);
-registerProjectAIRoutes(router);
-registerProjectMilestoneRoutes(router);
-registerProjectTeamRoutes(router);
+export function createProjectsRouters(projectsService: ProjectsService): ProjectsRouterBundle {
+  const projectsRouter = Router();
 
-export { milestonesRouter, projectTeamsRouter, projectTeamMembersRouter, schoolsRouter, teacherRouter };
-export default router;
+  registerPublicProjectRoutes(projectsRouter, projectsService);
+  registerProjectCoreRoutes(projectsRouter, projectsService);
+  registerProjectAIRoutes(projectsRouter, projectsService);
+  registerProjectMilestoneRoutes(projectsRouter, projectsService);
+  registerProjectTeamRoutes(projectsRouter, projectsService);
+
+  const {
+    milestonesRouter,
+    projectTeamsRouter,
+    projectTeamMembersRouter,
+  } = createProjectWorkflowRouters(projectsService);
+
+  return {
+    projectsRouter,
+    milestonesRouter,
+    projectTeamsRouter,
+    projectTeamMembersRouter,
+    schoolsRouter: createSchoolsRouter(projectsService),
+    teacherRouter: createTeacherRouter(projectsService),
+  };
+}

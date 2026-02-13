@@ -15,7 +15,7 @@ import type {
   ProjectCreateRequestDTO,
   ComponentSkillWithDetailsDTO,
 } from "../../../shared/contracts/api";
-import { portfolioStorage } from "../portfolio/portfolio.storage";
+import { portfolioStorage } from "../portfolio";
 import { assertProjectId, assertTeacherProjectAccess } from "./project-access";
 import { ProjectsAIService } from "./projects-ai.service";
 

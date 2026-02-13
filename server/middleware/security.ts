@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
+import { createErrorPayload } from '../utils/routeHelpers';
 
 // Rate limiting configurations
 export const authLimiter = rateLimit({
@@ -121,20 +122,12 @@ export const sanitizeForPrompt = (input: string): string => {
 };
 
 // Error response sanitization
-export const createErrorResponse = (error: any, message: string, statusCode: number = 500) => {
-  const response: any = {
+export const createErrorResponse = (error: unknown, message: string, _statusCode: number = 500) => {
+  return createErrorPayload({
     message,
-    statusCode,
-    timestamp: new Date().toISOString()
-  };
-
-  // Only include error details in development, and even then, limit exposure
-  if (process.env.NODE_ENV === 'development') {
-    response.error = error?.message || 'Unknown error occurred';
-    // Never expose full stack traces or sensitive data
-  }
-
-  return response;
+    error,
+    details: error,
+  });
 };
 
 // Validation middleware for common patterns

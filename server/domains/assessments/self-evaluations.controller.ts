@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { type AssessmentService } from './assessments.service';
-import { aiService, type AIService } from '../ai/ai.service';
+import { aiService, type AIService } from '../ai';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
 import { UserRole } from '../../../shared/schema';
 import {

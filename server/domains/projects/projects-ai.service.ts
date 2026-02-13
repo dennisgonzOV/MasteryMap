@@ -1,6 +1,5 @@
 import type { Project, Milestone } from "../../../shared/schema";
-import { aiService } from "../ai/ai.service";
-import { fluxImageService } from "../ai/flux.service";
+import { aiService, fluxImageService } from "../ai";
 import { sanitizeForPrompt } from "../../middleware/security";
 import type { IProjectsStorage } from "./projects.storage";
 

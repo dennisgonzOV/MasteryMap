@@ -1,4 +1,20 @@
-// Export all auth domain components
-export { authRouter, analyticsRouter, requireAuth, requireRole, type AuthenticatedRequest } from './auth.controller';
-export { AuthService, type JWTPayload } from './auth.service';
-export { authStorage, type IAuthStorage } from './auth.storage';
+import { createAuthDomain } from "./composition";
+
+const authDomain = createAuthDomain();
+
+export const authRouter = authDomain.authRouter;
+export const analyticsRouter = authDomain.analyticsRouter;
+export const requireAuth = authDomain.requireAuth;
+export const requireRole = authDomain.requireRole;
+export const authService = authDomain.authService;
+export const authStorage = authDomain.authStorage;
+
+export { createAuthDomain } from "./composition";
+export { AuthService, type JWTPayload } from "./auth.service";
+export { type IAuthStorage } from "./auth.storage";
+export type {
+  AuthenticatedRequest,
+  AuthServicePort,
+  RequireAuthMiddleware,
+  RequireRoleMiddlewareFactory,
+} from "./auth.controller";

@@ -1,5 +1,5 @@
 import type { Milestone, Project } from "../../../shared/schema";
-import { projectsService } from "../projects/projects.service";
+import { projectsService } from "../projects";
 
 interface AssessmentProjectsAdapter {
   getMilestone(id: number): Promise<Milestone | undefined>;

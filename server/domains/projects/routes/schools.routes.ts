@@ -1,37 +1,42 @@
 import { Router } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
-import { createSuccessResponse, wrapRoute } from "../../../utils/routeHelpers";
+import { createSuccessResponse, sendErrorResponse, wrapRoute } from "../../../utils/routeHelpers";
 import { UserRole } from "../../../../shared/schema";
-import { projectsService } from "../projects.service";
+import type { ProjectsService } from "../projects.service";
 
-export const schoolsRouter = Router();
+export function createSchoolsRouter(projectsService: ProjectsService): Router {
+const schoolsRouter = Router();
 
 schoolsRouter.get('/:id/students', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return sendErrorResponse(res, { message: "Unauthorized", statusCode: 401 });
     }
 
     if (req.user.tier === "free") {
-      return res.status(403).json({ message: "Access denied" });
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
     }
 
     const schoolId = parseInt(req.params.id);
     if (!req.user.schoolId || req.user.schoolId !== schoolId) {
-      return res.status(403).json({ message: "Access denied" });
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
     }
 
     const students = await projectsService.getStudentsBySchool(schoolId);
-    res.json(students);
+    createSuccessResponse(res, students);
   } catch (error) {
-    console.error("Error fetching students:", error);
-    res.status(500).json({ message: "Failed to fetch students" });
+    return sendErrorResponse(res, {
+      message: "Failed to fetch students",
+      statusCode: 500,
+      error,
+      details: error,
+    });
   }
 });
 
 schoolsRouter.get('/students-progress', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   if (req.user?.tier === "free") {
-    return res.status(403).json({ message: "Access denied" });
+    return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
   }
 
   const teacherId = req.user!.id;
@@ -39,3 +44,6 @@ schoolsRouter.get('/students-progress', requireAuth, requireRole(UserRole.TEACHE
   const studentsProgress = await projectsService.getSchoolStudentsProgress(teacherId);
   createSuccessResponse(res, studentsProgress);
 }));
+
+return schoolsRouter;
+}

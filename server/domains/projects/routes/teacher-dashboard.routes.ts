@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth";
-import { createSuccessResponse, wrapRoute } from "../../../utils/routeHelpers";
+import { createSuccessResponse, sendErrorResponse, wrapRoute } from "../../../utils/routeHelpers";
 import { UserRole } from "../../../../shared/schema";
-import { projectsService } from "../projects.service";
+import type { ProjectsService } from "../projects.service";
 
-export const teacherRouter = Router();
+export function createTeacherRouter(projectsService: ProjectsService): Router {
+const teacherRouter = Router();
 
 teacherRouter.get('/dashboard-stats', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   if (req.user?.tier === "free") {
-    return res.status(403).json({ message: "Access denied" });
+    return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
   }
 
   const teacherId = req.user!.id;
@@ -19,7 +20,7 @@ teacherRouter.get('/dashboard-stats', requireAuth, requireRole(UserRole.TEACHER,
 
 teacherRouter.get('/projects', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   if (req.user?.tier === "free") {
-    return res.status(403).json({ message: "Access denied" });
+    return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
   }
 
   const teacherId = req.user!.id;
@@ -30,7 +31,7 @@ teacherRouter.get('/projects', requireAuth, requireRole(UserRole.TEACHER, UserRo
 
 teacherRouter.get('/pending-tasks', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   if (req.user?.tier === "free") {
-    return res.status(403).json({ message: "Access denied" });
+    return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
   }
 
   const teacherId = req.user!.id;
@@ -41,7 +42,7 @@ teacherRouter.get('/pending-tasks', requireAuth, requireRole(UserRole.TEACHER, U
 
 teacherRouter.get('/current-milestones', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
   if (req.user?.tier === "free") {
-    return res.status(403).json({ message: "Access denied" });
+    return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
   }
 
   const teacherId = req.user!.id;
@@ -49,3 +50,6 @@ teacherRouter.get('/current-milestones', requireAuth, requireRole(UserRole.TEACH
   const milestones = await projectsService.getTeacherCurrentMilestones(teacherId);
   createSuccessResponse(res, milestones);
 }));
+
+return teacherRouter;
+}

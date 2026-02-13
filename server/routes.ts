@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 // Import all domain routers
-import { createAdminRouter } from "./domains/admin";
+import { adminRouter } from "./domains/admin";
 import { authRouter, analyticsRouter } from "./domains/auth";
 import { projectsRouter, milestonesRouter, projectTeamsRouter, projectTeamMembersRouter, schoolsRouter, teacherRouter } from "./domains/projects";
 import { assessmentsRouter, assessmentStudentRouter, submissionsRouter, selfEvaluationsRouter } from "./domains/assessments";
@@ -38,7 +38,7 @@ export function setupRoutes(app: Express) {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/safety-incidents", safetyIncidentsRouter);
   app.use("/api/teacher", teacherRouter);
-  app.use("/api/admin", createAdminRouter());
+  app.use("/api/admin", adminRouter);
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/contact", contactRouter);
 

@@ -17,7 +17,7 @@ import type {
   SubmissionGradeItemDTO,
   SubmissionCreateRequestDTO,
 } from '../../../shared/contracts/api';
-import { aiService } from '../ai/ai.service';
+import { aiService } from '../ai';
 import {
   assessmentProjectGateway,
   type AssessmentProjectGateway,
