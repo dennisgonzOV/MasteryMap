@@ -1,25 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
 
 export function useAuth() {
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/auth/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     retry: (failureCount, error) => {
-      // Don't retry on 401/403 errors (authentication issues)
       if (error.message.includes('401') || error.message.includes('403')) {
         return false;
       }
-      // Retry network errors up to 2 times
       return failureCount < 2;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
     refetchInterval: false,
   });
 
-  // Check for network errors
   const isNetworkError = error && (
     error.message.includes('fetch') ||
     error.message.includes('NetworkError') ||
@@ -27,7 +26,6 @@ export function useAuth() {
     error.message.toLowerCase().includes('network')
   );
 
-  // Check for authentication errors
   const isAuthError = error && (
     error.message.includes('401') ||
     error.message.includes('403') ||

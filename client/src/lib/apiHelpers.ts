@@ -1,4 +1,4 @@
-import { apiRequest } from './queryClient';
+import { apiRequest, fetchWithAutoRefresh } from './queryClient';
 
 /**
  * Standardized API request patterns to eliminate duplicated fetch code
@@ -23,7 +23,7 @@ export async function apiGet<T = any>(
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithAutoRefresh(url, {
       method: 'GET',
       credentials,
       headers,
@@ -124,7 +124,7 @@ export async function apiUploadFile(
     formData.append(key, String(value));
   });
   
-  const response = await fetch(url, {
+  const response = await fetchWithAutoRefresh(url, {
     method: 'POST',
     credentials: 'include',
     body: formData,
