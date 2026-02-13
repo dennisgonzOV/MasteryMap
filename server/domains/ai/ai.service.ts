@@ -20,7 +20,7 @@ interface SelfEvaluationAnalysis {
 }
 
 export class AIService {
-  constructor(private openaiService = openAIService) {}
+  constructor(private openaiService = openAIService) { }
 
   // High-level project generation methods
   async generateProjectIdeas(criteria: {
@@ -112,8 +112,8 @@ export class AIService {
 
 RUBRIC LEVELS:
 ${Object.entries(rubricLevels || {})
-  .map(([level, description]) => `${level.toUpperCase()}: ${description}`)
-  .join("\n")}
+          .map(([level, description]) => `${level.toUpperCase()}: ${description}`)
+          .join("\n")}
 
 STUDENT SELF-EVALUATION:
 - Self-assessed level: ${selfAssessedLevel}
@@ -244,7 +244,7 @@ Example JSON structure:
       const questions = result.questions || [];
 
       // Post-processing to ensure correctAnswer is valid for multiple-choice questions
-      return questions.map(question => {
+      return questions.map((question: any) => {
         if (question.type === 'multiple-choice' && question.choices) {
           // Ensure we have a correct answer for multiple choice
           if (!question.correctAnswer && question.choices.length > 0) {
@@ -278,9 +278,12 @@ Example JSON structure:
         .map(msg => `${msg.role}: ${msg.content}`)
         .join('\n');
 
+      const studentMessageCount = conversationHistory.filter(msg => msg.role === 'student').length;
+      const isFinalTurn = studentMessageCount >= 3;
+
       const currentLevel = currentEvaluation?.selfAssessedLevel || 'unknown';
       const skillName = componentSkill.name || 'this skill';
-      
+
       // Build rubric levels from individual component skill fields
       const rubricLevels = {
         emerging: componentSkill.emerging || '',
@@ -293,12 +296,13 @@ Example JSON structure:
 
 COMPONENT SKILL: ${skillName}
 CURRENT LEVEL: ${currentLevel}
+${isFinalTurn ? "NOTE: This is the FINAL turn. You must provide a summarizing statement and conclude the session. Do NOT ask any follow-up questions." : ""}
 
 RUBRIC LEVELS:
 ${Object.entries(rubricLevels)
-  .filter(([_, description]) => description) // Only include non-empty levels
-  .map(([level, description]) => `${level.toUpperCase()}: ${description}`)
-  .join("\n")}
+          .filter(([_, description]) => description) // Only include non-empty levels
+          .map(([level, description]) => `${level.toUpperCase()}: ${description}`)
+          .join("\n")}
 
 Previous conversation:
 ${historyText}
@@ -316,7 +320,9 @@ TASKS:
 1. Safety Analysis: Check for risky content
 2. Educational Response: Provide helpful guidance to progress their skill
 3. Suggested Evaluation: Suggest their current level based on the conversation
+3. Suggested Evaluation: Suggest their current level based on the conversation
 4. Continue/Terminate: Determine if the conversation should continue
+5. Summary: If this is the 3rd student response, provide a comprehensive summary and concluding statement. Do not ask a follow-up question.
 
 Respond in JSON format:
 {
@@ -385,12 +391,14 @@ If safety concerns are detected:
       });
 
       // Trigger safety incident workflow
-      await notifyTeacherOfSafetyIncident(
+      // Trigger safety incident workflow
+      await notifyTeacherOfSafetyIncident({
         studentId,
         teacherId,
-        `AI detected potentially concerning content in student self-evaluation: ${analysis.riskType}`,
-        analysis.confidence
-      );
+        message: `AI detected potentially concerning content in student self-evaluation: ${analysis.riskType}`,
+        incidentType: 'inappropriate_language', // Default fallback as specific type mapping might be needed
+        timestamp: new Date()
+      });
     }
   }
 }
