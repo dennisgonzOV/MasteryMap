@@ -20,7 +20,7 @@ export interface UseMutationOptions<TData = any, TVariables = any> {
   onSuccess?: (data: TData, variables: TVariables) => void;
   onError?: (error: Error, variables: TVariables) => void;
   onSettled?: (data: TData | undefined, error: Error | null, variables: TVariables) => void;
-  invalidateQueries?: QueryKey[];
+  invalidateQueries?: Array<QueryKey | string>;
   showSuccessToast?: boolean;
   showErrorToast?: boolean;
   successMessage?: string;
@@ -135,6 +135,9 @@ export function useDataMutation<TData = any, TVariables = any>(
     successMessage = "Operation completed successfully"
   } = options;
 
+  const toQueryKey = (queryKey: QueryKey | string): QueryKey =>
+    typeof queryKey === "string" ? [queryKey] : queryKey;
+
   return useMutation({
     mutationFn,
     onSuccess: async (data, variables, context) => {
@@ -142,7 +145,7 @@ export function useDataMutation<TData = any, TVariables = any>(
       if (invalidateQueries.length > 0) {
         await Promise.all(
           invalidateQueries.map(queryKey => 
-            queryClient.invalidateQueries({ queryKey })
+            queryClient.invalidateQueries({ queryKey: toQueryKey(queryKey) })
           )
         );
       }
@@ -294,7 +297,7 @@ export function useCreateSubmission(options: UseMutationOptions = {}) {
 
 export function useMarkNotificationRead(options: UseMutationOptions = {}) {
   return useDataMutation(
-    (notificationId: number) => apiPut(`/api/notifications/${notificationId}/read`, {}),
+    (notificationId: number) => apiPost(`/api/notifications/${notificationId}/mark-read`, {}),
     {
       invalidateQueries: ['/api/notifications'],
       showSuccessToast: false,

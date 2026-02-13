@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUpload } from "@/hooks/use-upload";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
+import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,15 @@ import {
   FolderOpen,
   ExternalLink
 } from "lucide-react";
+import type { AssessmentDTO, MilestoneDTO, ProjectDTO, SubmissionWithAssessmentDTO } from "@shared/contracts/api";
+
+type MilestoneDetailDTO = MilestoneDTO & {
+  deliverableUrl?: string | null;
+  deliverableFileName?: string | null;
+  deliverableDescription?: string | null;
+  includeInPortfolio?: boolean | null;
+  status?: string | null;
+};
 
 export default function StudentMilestoneDetail({ params }: { params: { id: string } }) {
   const { toast } = useToast();
@@ -116,47 +126,31 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
   };
 
   // Fetch milestone details
-  const { data: milestone, isLoading: milestoneLoading } = useQuery({
+  const { data: milestone, isLoading: milestoneLoading } = useQuery<MilestoneDetailDTO>({
     queryKey: ["/api/milestones", milestoneId],
     enabled: isAuthenticated && !isNaN(milestoneId),
-    queryFn: async () => {
-      const response = await fetch(`/api/milestones/${milestoneId}`);
-      if (!response.ok) throw new Error('Failed to fetch milestone');
-      return response.json();
-    },
+    queryFn: () => api.getMilestone(milestoneId),
   });
 
   // Fetch assessments for this milestone
-  const { data: assessments = [], isLoading: assessmentsLoading } = useQuery({
+  const { data: assessments = [], isLoading: assessmentsLoading } = useQuery<AssessmentDTO[]>({
     queryKey: ["/api/milestones", milestoneId, "assessments"],
     enabled: isAuthenticated && !isNaN(milestoneId),
-    queryFn: async () => {
-      const response = await fetch(`/api/milestones/${milestoneId}/assessments`);
-      if (!response.ok) throw new Error('Failed to fetch assessments');
-      return response.json();
-    },
+    queryFn: () => api.getAssessments(milestoneId),
   });
 
   // Fetch student submissions to check completion status
-  const { data: studentSubmissions = [] } = useQuery({
+  const { data: studentSubmissions = [] } = useQuery<SubmissionWithAssessmentDTO[]>({
     queryKey: ["/api/submissions/student"],
     enabled: isAuthenticated,
-    queryFn: async () => {
-      const response = await fetch(`/api/submissions/student`);
-      if (!response.ok) throw new Error('Failed to fetch submissions');
-      return response.json();
-    },
+    queryFn: api.getStudentSubmissions,
   });
 
   // Fetch project details if milestone has a project
-  const { data: project } = useQuery({
+  const { data: project } = useQuery<ProjectDTO>({
     queryKey: ["/api/projects", milestone?.projectId],
-    enabled: isAuthenticated && milestone?.projectId,
-    queryFn: async () => {
-      const response = await fetch(`/api/projects/${milestone.projectId}`);
-      if (!response.ok) throw new Error('Failed to fetch project');
-      return response.json();
-    },
+    enabled: isAuthenticated && Boolean(milestone?.projectId),
+    queryFn: () => api.getProject(milestone!.projectId as number),
   });
 
   if (isLoading || milestoneLoading) {
@@ -341,7 +335,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {assessments.map((assessment: any) => (
+                  {assessments.map((assessment) => (
                     <div 
                       key={assessment.id}
                       className="flex items-start space-x-4 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
@@ -362,7 +356,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                               </span>
                             )}
                             {(() => {
-                              const hasSubmission = studentSubmissions.some((sub: any) => sub.assessmentId === assessment.id);
+                              const hasSubmission = studentSubmissions.some((sub) => sub.assessmentId === assessment.id);
                               return (
                                 <Button
                                   size="sm"
@@ -378,7 +372,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                           </div>
                         </div>
                         <p className="text-sm text-gray-600">{assessment.description}</p>
-                        {assessment.questions && (
+                        {Array.isArray(assessment.questions) && (
                           <p className="text-xs text-gray-500 mt-2">
                             {assessment.questions.length} questions
                           </p>

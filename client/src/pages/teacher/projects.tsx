@@ -31,6 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ProjectDTO } from "@shared/contracts/api";
+
+type TeacherProject = ProjectDTO;
 
 export default function TeacherProjects() {
   const { toast } = useToast();
@@ -58,14 +61,15 @@ export default function TeacherProjects() {
   }, [isAuthenticated, isLoading, setLocation]);
 
   // Fetch projects
-  const { data: projects = [], isLoading: projectsLoading, error: projectsError, refetch } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError, refetch } = useQuery<TeacherProject[]>({
     queryKey: ["/api/projects"],
+    queryFn: api.getProjects,
     enabled: isAuthenticated && user?.role === 'teacher',
     retry: false,
   });
 
   // Fetch project statistics (student counts, progress, etc.)
-  const { data: projectStats = {} } = useQuery({
+  const { data: projectStats = {} } = useQuery<Record<number, { studentCount: number; progress: number }>>({
     queryKey: ["/api/projects/stats", projects.map(p => p.id)],
     enabled: isAuthenticated && projects.length > 0,
     queryFn: async () => {
@@ -75,15 +79,18 @@ export default function TeacherProjects() {
           // Fetch teams and members for this project
           const teamsResponse = await fetch(`/api/projects/${project.id}/teams`);
           if (teamsResponse.ok) {
-            const teams = await teamsResponse.json();
-            const studentCount = teams.reduce((total: number, team: any) => 
-              total + (team.members?.length || 0), 0
+            const teams = (await teamsResponse.json()) as Array<{ members?: unknown[] }>;
+            const studentCount = teams.reduce(
+              (total, team) => total + (Array.isArray(team.members) ? team.members.length : 0),
+              0
             );
 
             // Calculate progress based on milestones
             const milestonesResponse = await fetch(`/api/projects/${project.id}/milestones`);
-            const milestones = milestonesResponse.ok ? await milestonesResponse.json() : [];
-            const completedMilestones = milestones.filter((m: any) => m.completed).length;
+            const milestones = milestonesResponse.ok
+              ? (await milestonesResponse.json()) as Array<{ completed?: boolean }>
+              : [];
+            const completedMilestones = milestones.filter((milestone) => Boolean(milestone.completed)).length;
             const progress = milestones.length > 0 ? (completedMilestones / milestones.length) * 100 : 0;
 
             statsData[project.id] = { studentCount, progress };

@@ -127,13 +127,12 @@ export class CompetencyStorage implements ICompetencyStorage {
       conditions.push(eq(bestStandards.grade, filters.grade));
     }
 
-    let query = db.select().from(bestStandards);
+    const baseQuery = db.select().from(bestStandards);
+    const filteredQuery = conditions.length > 0
+      ? baseQuery.where(and(...conditions))
+      : baseQuery;
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    return (await query.orderBy(asc(bestStandards.benchmarkNumber))) as BestStandard[];
+    return (await filteredQuery.orderBy(asc(bestStandards.benchmarkNumber))) as BestStandard[];
   }
 
   async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }> {
@@ -171,7 +170,6 @@ export class CompetencyStorage implements ICompetencyStorage {
 
   async getLearnerOutcomesWithCompetencies(): Promise<Array<LearnerOutcome & { competencies: Array<Competency & { componentSkills: ComponentSkill[] }> }>> {
     const outcomes = await db.select().from(learnerOutcomes).orderBy(learnerOutcomes.name);
-    console.log('Storage - Found outcomes:', outcomes.length);
 
     const result = [];
     for (const outcome of outcomes) {
@@ -181,8 +179,6 @@ export class CompetencyStorage implements ICompetencyStorage {
         .where(eq(competencies.learnerOutcomeId, outcome.id))
         .orderBy(competencies.name);
 
-      console.log(`Storage - Outcome "${outcome.name}" has ${competenciesData.length} competencies`);
-
       const competenciesWithSkills = [];
       for (const competency of competenciesData) {
         const skills = await db
@@ -190,8 +186,6 @@ export class CompetencyStorage implements ICompetencyStorage {
           .from(componentSkills)
           .where(eq(componentSkills.competencyId, competency.id))
           .orderBy(componentSkills.name);
-
-        console.log(`Storage - Competency "${competency.name}" has ${skills.length} component skills`);
 
         competenciesWithSkills.push({
           ...competency,
@@ -204,8 +198,6 @@ export class CompetencyStorage implements ICompetencyStorage {
         competencies: competenciesWithSkills,
       });
     }
-
-    console.log('Storage - Final result has', result.length, 'outcomes');
     return result;
   }
 
@@ -223,7 +215,6 @@ export class CompetencyStorage implements ICompetencyStorage {
       const skills = await db.select().from(componentSkills).orderBy(componentSkills.id);
 
       if (!skills || skills.length === 0) {
-        console.log("No component skills found in database");
         return [];
       }
 
@@ -251,7 +242,6 @@ export class CompetencyStorage implements ICompetencyStorage {
         };
       });
 
-      console.log(`Successfully enriched ${enrichedSkills.length} component skills`);
       return enrichedSkills.filter(skill => skill.id && skill.name !== 'Unknown Skill');
     } catch (error) {
       console.error("Error in getComponentSkillsWithDetails:", error);

@@ -36,6 +36,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import type { CredentialDTO, PortfolioArtifactDTO } from "@shared/contracts/api";
+
+type PortfolioArtifactView = PortfolioArtifactDTO & {
+  tags?: unknown;
+};
 
 export default function StudentPortfolio() {
   const { toast } = useToast();
@@ -58,15 +63,17 @@ export default function StudentPortfolio() {
   }, [isAuthenticated, isLoading, toast]);
 
   // Fetch student credentials
-  const { data: credentials = [], isLoading: credentialsLoading, error: credentialsError } = useQuery({
+  const { data: credentials = [], isLoading: credentialsLoading, error: credentialsError } = useQuery<CredentialDTO[]>({
     queryKey: ["/api/credentials/student", user?.id],
+    queryFn: api.getStudentCredentials,
     enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
     retry: false,
   });
 
   // Fetch portfolio artifacts
-  const { data: artifacts = [], isLoading: artifactsLoading, error: artifactsError } = useQuery({
+  const { data: artifacts = [], isLoading: artifactsLoading, error: artifactsError } = useQuery<PortfolioArtifactView[]>({
     queryKey: ["/api/portfolio/artifacts", user?.id],
+    queryFn: api.getPortfolioArtifacts,
     enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
     retry: false,
   });
@@ -129,9 +136,11 @@ export default function StudentPortfolio() {
 
   // Filter artifacts
   const filteredArtifacts = allArtifacts.filter(artifact => {
+    const description = artifact.description ?? "";
+    const tags = normalizeTags(artifact.tags);
     const matchesSearch = artifact.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         artifact.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         artifact.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                         description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesType = typeFilter === "all" || artifact.artifactType === typeFilter;
     return matchesSearch && matchesType;
   });
@@ -338,7 +347,8 @@ export default function StudentPortfolio() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredArtifacts.map((artifact) => {
-                    const Icon = getArtifactIcon(artifact.artifactType);
+                    const Icon = getArtifactIcon(artifact.artifactType || "document");
+                    const artifactTags = normalizeTags(artifact.tags);
                     return (
                       <Card key={artifact.id} className="apple-shadow border-0 card-hover">
                         <CardContent className="p-6">
@@ -369,11 +379,9 @@ export default function StudentPortfolio() {
                           </p>
 
                           <div className="space-y-2 mb-4">
-                            <p className="text-xs text-blue-600 font-medium">
-                              {artifact.projectTitle}
-                            </p>
+                            <p className="text-xs text-blue-600 font-medium">Portfolio Artifact</p>
                             <div className="flex flex-wrap gap-1">
-                              {artifact.tags?.map((tag: string, index: number) => (
+                              {artifactTags.map((tag, index) => (
                                 <Badge key={index} variant="outline" className="text-xs">
                                   {tag}
                                 </Badge>
@@ -383,7 +391,7 @@ export default function StudentPortfolio() {
 
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-500">
-                              {format(new Date(artifact.createdAt), 'MMM d, yyyy')}
+                              {artifact.createdAt ? format(new Date(artifact.createdAt), 'MMM d, yyyy') : 'No date'}
                             </span>
                             <Button size="sm" variant="outline">
                               <ExternalLink className="h-3 w-3 mr-1" />
@@ -508,3 +516,9 @@ export default function StudentPortfolio() {
     </div>
   );
 }
+  const normalizeTags = (tags: unknown): string[] => {
+    if (!Array.isArray(tags)) {
+      return [];
+    }
+    return tags.filter((tag): tag is string => typeof tag === "string");
+  };

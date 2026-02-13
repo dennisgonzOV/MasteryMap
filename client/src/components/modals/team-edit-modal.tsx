@@ -1,21 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, User, X, Search, UserX } from 'lucide-react';
+import { Users, User, Search, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
+import { api } from '@/lib/api';
+import type { ProjectTeamDTO, ProjectTeamMemberDTO, StudentSummaryDTO } from '@shared/contracts/api';
 
 interface TeamEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  team: any;
+  team: ProjectTeamDTO | null;
   schoolId?: number;
   onTeamUpdated: () => void;
 }
@@ -25,31 +25,26 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch students from the school
-  const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
+  const { data: allStudents = [], isLoading: studentsLoading } = useQuery<StudentSummaryDTO[]>({
     queryKey: [`/api/schools/${schoolId}/students`],
+    queryFn: () => api.getSchoolStudents(Number(schoolId)),
     enabled: open && !!schoolId,
   });
 
   // Fetch current team members
-  const { data: teamMembers = [], isLoading: membersLoading } = useQuery({
+  const { data: teamMembers = [], isLoading: membersLoading } = useQuery<ProjectTeamMemberDTO[]>({
     queryKey: [`/api/project-teams/${team?.id}/members`],
+    queryFn: () => api.getProjectTeamMembers(Number(team?.id)),
     enabled: open && !!team?.id,
   });
 
   // Mutation to add team member
   const addMemberMutation = useMutation({
-    mutationFn: async (studentId: number) => {
-      const response = await fetch('/api/project-team-members', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          teamId: team.id,
-          studentId
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to add team member');
-      return response.json();
-    },
+    mutationFn: (studentId: number) =>
+      api.createProjectTeamMember({
+        teamId: team!.id,
+        studentId
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/project-teams/${team?.id}/members`] });
       onTeamUpdated();
@@ -58,10 +53,10 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
         description: "Student added to team successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add student to team",
+        description: error instanceof Error ? error.message : "Failed to add student to team",
         variant: "destructive",
       });
     },
@@ -69,13 +64,7 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
 
   // Mutation to remove team member
   const removeMemberMutation = useMutation({
-    mutationFn: async (memberId: number) => {
-      const response = await fetch(`/api/project-team-members/${memberId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to remove team member');
-      return response.json();
-    },
+    mutationFn: (memberId: number) => api.deleteProjectTeamMember(memberId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/project-teams/${team?.id}/members`] });
       onTeamUpdated();
@@ -84,17 +73,17 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
         description: "Student removed from team successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to remove student from team",
+        description: error instanceof Error ? error.message : "Failed to remove student from team",
         variant: "destructive",
       });
     },
   });
 
-  const currentMemberIds = teamMembers.map((member: any) => member.studentId);
-  const availableStudents = allStudents.filter((student: any) => 
+  const currentMemberIds = teamMembers.map((member) => member.studentId);
+  const availableStudents = allStudents.filter((student) =>
     !currentMemberIds.includes(student.id) &&
     student.username?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -144,7 +133,7 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {teamMembers.map((member: any) => (
+                    {teamMembers.map((member) => (
                       <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -206,7 +195,7 @@ export default function TeamEditModal({ open, onOpenChange, team, schoolId, onTe
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {availableStudents.map((student: any) => (
+                    {availableStudents.map((student) => (
                       <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,53 +25,20 @@ import {
   FormLabel,
   FormMessage
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { Loader2, Plus, X, Sparkles, ChevronRight, ChevronDown, Brain, Trash2, FileText, Upload } from "lucide-react";
-
-// Enhanced schema with multiple choice options and self-evaluation support
-const assessmentSchema = z.object({
-  title: z.string().min(1, "Assessment title is required"),
-  description: z.string().min(1, "Assessment description is required"),
-  dueDate: z.string().min(1, "Due date is required").refine(
-    (date) => {
-      const selectedDate = new Date(date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-      return selectedDate >= today;
-    },
-    {
-      message: "Due date must be today or in the future",
-    }
-  ),
-  componentSkillIds: z.array(z.number()).min(1, "At least one component skill must be selected"),
-  assessmentType: z.enum(["teacher", "self-evaluation"]).default("teacher"),
-  allowSelfEvaluation: z.boolean().default(false),
-  questions: z.array(z.object({
-    text: z.string().min(1, "Question text is required"),
-    type: z.enum(["open-ended", "multiple-choice", "short-answer"]),
-    rubricCriteria: z.string().optional(),
-    options: z.array(z.string()).optional(), // For multiple choice
-    correctAnswer: z.string().optional(), // For multiple choice
-  })).optional(),
-}).refine((data) => {
-  if (data.assessmentType === "teacher") {
-    return data.questions && data.questions.length > 0 && data.questions.every(q => q.text.trim().length > 0);
-  }
-  return true;
-}, {
-  message: "Questions are required for teacher assessments",
-  path: ["questions"]
-});
-
-type AssessmentForm = z.infer<typeof assessmentSchema>;
+import { Loader2, X, Sparkles, Brain, FileText, Upload } from "lucide-react";
+import type {
+  LearnerOutcomeHierarchyItemDTO,
+} from "@shared/contracts/api";
+import { AssessmentCompetencySelector } from "@/components/modals/create-assessment/assessment-competency-selector";
+import { AssessmentQuestionsEditor } from "@/components/modals/create-assessment/assessment-questions-editor";
+import {
+  assessmentSchema,
+  collectSelectedSkills,
+  type AssessmentForm,
+} from "@/components/modals/create-assessment/assessment-form";
+import { useAssessmentAiGeneration } from "@/components/modals/create-assessment/use-assessment-ai-generation";
 
 interface CreateAssessmentModalProps {
   open: boolean;
@@ -89,13 +55,6 @@ export default function CreateAssessmentModal({
   const queryClient = useQueryClient();
   const [expandedOutcomes, setExpandedOutcomes] = useState<Set<number>>(new Set());
   const [expandedCompetencies, setExpandedCompetencies] = useState<Set<number>>(new Set());
-  const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
-  const [aiQuestionCount, setAiQuestionCount] = useState(5);
-  const [aiQuestionTypes, setAiQuestionTypes] = useState({
-    "open-ended": true,
-    "multiple-choice": true,
-    "short-answer": false
-  });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfObjectPath, setPdfObjectPath] = useState<string | null>(null);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
@@ -150,16 +109,29 @@ export default function CreateAssessmentModal({
   });
 
   // Fetch the complete hierarchy
-  const { data: hierarchy = [], isLoading: hierarchyLoading } = useQuery<any[]>({
+  const { data: hierarchy = [], isLoading: hierarchyLoading } = useQuery<LearnerOutcomeHierarchyItemDTO[]>({
     queryKey: ["/api/competencies/learner-outcomes-hierarchy/complete"],
+    queryFn: api.getLearnerOutcomesHierarchyComplete,
     enabled: open,
+  });
+
+  const {
+    aiQuestionCount,
+    aiQuestionTypes,
+    generateWithAI,
+    isGeneratingWithAI,
+    setAiQuestionCount,
+    setAiQuestionTypes,
+  } = useAssessmentAiGeneration({
+    form,
+    hierarchy,
+    pdfObjectPath,
   });
 
   // Create assessment mutation
   const createAssessmentMutation = useMutation({
     mutationFn: async (data: AssessmentForm) => {
-      const response = await api.createAssessment(data);
-      return await response.json();
+      return api.createAssessment(data);
     },
     onSuccess: (assessment) => {
       toast({
@@ -184,8 +156,6 @@ export default function CreateAssessmentModal({
   });
 
   const onSubmit = (data: AssessmentForm) => {
-    console.log("Submitting assessment:", data);
-
     const submissionData = {
       ...data,
       questions: data.assessmentType === "teacher" ? data.questions : undefined,
@@ -270,15 +240,7 @@ export default function CreateAssessmentModal({
     setIsUploadingPdf(true);
     setPdfFile(file);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const uploadRes = await fetch('/api/uploads/file', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!uploadRes.ok) throw new Error('Failed to upload PDF');
-      const { objectPath } = await uploadRes.json();
+      const { objectPath } = await api.uploadFile(file);
 
       setPdfObjectPath(objectPath);
       toast({
@@ -302,255 +264,6 @@ export default function CreateAssessmentModal({
   const removePdf = () => {
     setPdfFile(null);
     setPdfObjectPath(null);
-  };
-
-  const generateWithAI = async () => {
-    const selectedSkills = form.getValues("componentSkillIds");
-    if (selectedSkills.length === 0) {
-      toast({
-        title: "Select Component Skills",
-        description: "Please select at least one component skill to generate AI assessment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Get AI generation preferences from state
-    const selectedTypes = Object.entries(aiQuestionTypes)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([type, _]) => type);
-
-    if (selectedTypes.length === 0) {
-      toast({
-        title: "Select Question Types",
-        description: "Please select at least one question type for AI generation.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsGeneratingWithAI(true);
-    try {
-      // Get detailed component skill information
-      const selectedSkillsDetails = hierarchy.flatMap((outcome: any) =>
-        outcome.competencies?.flatMap((competency: any) =>
-          competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
-            .map((skill: any) => ({
-              ...skill,
-              competencyName: competency.name,
-              learnerOutcomeName: outcome.name
-            }))
-        ) || []
-      ) || [];
-
-      if (selectedSkillsDetails.length === 0) {
-        throw new Error("Could not find detailed information for selected skills");
-      }
-
-      // Make API call to generate assessment with AI
-      const response = await fetch('/api/ai/generate-assessment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          milestoneTitle: form.getValues("title") || "Assessment",
-          milestoneDescription: form.getValues("description") || "AI-generated assessment",
-          milestoneDueDate: form.getValues("dueDate") || new Date().toISOString(),
-          componentSkills: selectedSkillsDetails,
-          questionCount: aiQuestionCount,
-          questionTypes: selectedTypes,
-          pdfUrl: pdfObjectPath || undefined
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI generation failed: ${response.statusText}`);
-      }
-
-      const aiAssessment = await response.json();
-
-      if (aiAssessment.questions && aiAssessment.questions.length > 0) {
-        // Convert AI questions to form format
-        const formattedQuestions = aiAssessment.questions.map((q: any) => {
-          let correctAnswer = q.correctAnswer || "";
-
-          // For multiple choice questions, ensure correct answer is set
-          if (q.type === "multiple-choice" && q.choices && q.choices.length > 0) {
-            if (!correctAnswer) {
-              correctAnswer = q.choices[0]; // Default to first choice if not provided
-            } else if (!q.choices.includes(correctAnswer)) {
-              correctAnswer = q.choices[0]; // Fallback if provided answer isn't in choices
-            }
-          }
-
-          return {
-            text: q.text,
-            type: q.type,
-            rubricCriteria: q.rubricCriteria || "",
-            options: q.choices || [],
-            correctAnswer: correctAnswer
-          };
-        });
-
-        // Get existing questions and filter out any blank ones
-        const existingQuestions = form.getValues("questions") || [];
-        const nonBlankQuestions = existingQuestions.filter(q => q.text.trim().length > 0);
-        const allQuestions = [...nonBlankQuestions, ...formattedQuestions];
-        form.setValue("questions", allQuestions);
-
-        toast({
-          title: "AI Questions Added",
-          description: `Added ${formattedQuestions.length} new AI-generated questions. Total: ${allQuestions.length} questions.`,
-        });
-
-        // Invalidate queries after successful AI generation
-        queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
-
-        // Reset loading state on success
-        setIsGeneratingWithAI(false);
-        return;
-      } else {
-        throw new Error("No questions generated");
-      }
-    } catch (error) {
-      console.error("AI generation error:", error);
-
-      // Fallback to mock generation with skill-aligned questions
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Get selected skill details for fallback
-        const selectedSkillsDetails = hierarchy.flatMap((outcome: any) =>
-          outcome.competencies?.flatMap((competency: any) =>
-            competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
-          ) || []
-        ) || [];
-
-        // Generate sample questions based on preferences
-        const questionTemplates = {
-          "open-ended": [
-            {
-              text: "Describe how you would collaborate effectively with team members from different backgrounds.",
-              type: "open-ended" as const,
-              rubricCriteria: "Look for evidence of cultural awareness, communication strategies, and inclusive practices.",
-            },
-            {
-              text: "Explain how you would approach solving a complex problem in your field.",
-              type: "open-ended" as const,
-              rubricCriteria: "Assess problem-solving methodology, critical thinking, and systematic approach.",
-            },
-            {
-              text: "Discuss the importance of ethical considerations in your work.",
-              type: "open-ended" as const,
-              rubricCriteria: "Evaluate understanding of ethics, moral reasoning, and professional responsibility.",
-            }
-          ],
-          "multiple-choice": [
-            {
-              text: "Which of the following best describes effective cross-cultural communication?",
-              type: "multiple-choice" as const,
-              options: [
-                "Using the same approach with everyone",
-                "Adapting communication style to cultural context",
-                "Avoiding cultural differences",
-                "Speaking louder to overcome barriers"
-              ],
-              correctAnswer: "Adapting communication style to cultural context",
-              rubricCriteria: "Assesses understanding of cultural adaptability in communication.",
-            },
-            {
-              text: "What is the most important factor in successful teamwork?",
-              type: "multiple-choice" as const,
-              options: [
-                "Having similar personalities",
-                "Clear communication and shared goals",
-                "Working independently",
-                "Avoiding conflict at all costs"
-              ],
-              correctAnswer: "Clear communication and shared goals",
-              rubricCriteria: "Evaluates understanding of collaborative principles.",
-            }
-          ],
-          "short-answer": [
-            {
-              text: "List three key strategies for effective time management.",
-              type: "short-answer" as const,
-              rubricCriteria: "Look for practical, actionable strategies and understanding of time management principles.",
-            },
-            {
-              text: "What are two main benefits of diverse perspectives in problem-solving?",
-              type: "short-answer" as const,
-              rubricCriteria: "Assess understanding of diversity's value and its impact on outcomes.",
-            }
-          ]
-        };
-
-        // Validate selectedTypes is not empty to prevent infinite loop
-        if (selectedTypes.length === 0) {
-          toast({
-            title: "Error",
-            description: "Please select at least one question type before generating.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Generate questions based on selected types and count
-        const generatedQuestions = [];
-        const questionsPerType = Math.ceil(aiQuestionCount / selectedTypes.length);
-
-        for (const type of selectedTypes) {
-          const templates = questionTemplates[type as keyof typeof questionTemplates];
-          const questionsToAdd = Math.min(questionsPerType, templates.length);
-
-          // Add questions from this type's templates, cycling through if needed
-          for (let i = 0; i < questionsToAdd && generatedQuestions.length < aiQuestionCount; i++) {
-            const templateIndex = i % templates.length; // Cycle through templates if we need more questions
-            generatedQuestions.push({
-              ...templates[templateIndex],
-              text: `${templates[templateIndex].text} (Question ${generatedQuestions.length + 1})`
-            });
-          }
-        }
-
-        // If we still need more questions, cycle through all types again
-        while (generatedQuestions.length < aiQuestionCount) {
-          for (const type of selectedTypes) {
-            if (generatedQuestions.length >= aiQuestionCount) break;
-
-            const templates = questionTemplates[type as keyof typeof questionTemplates];
-            const templateIndex = generatedQuestions.length % templates.length;
-            generatedQuestions.push({
-              ...templates[templateIndex],
-              text: `${templates[templateIndex].text} (Question ${generatedQuestions.length + 1})`
-            });
-          }
-        }
-
-        // Ensure we have exactly the requested count
-        const finalQuestions = generatedQuestions.slice(0, aiQuestionCount);
-
-        // Get existing questions and filter out any blank ones for fallback too
-        const existingQuestions = form.getValues("questions") || [];
-        const nonBlankQuestions = existingQuestions.filter(q => q.text.trim().length > 0);
-        const allQuestions = [...nonBlankQuestions, ...finalQuestions];
-        form.setValue("questions", allQuestions);
-
-        toast({
-          title: "AI Questions Added",
-          description: `Added ${finalQuestions.length} new questions based on your preferences. Total: ${allQuestions.length} questions.`,
-        });
-      } catch (error) {
-        toast({
-          title: "AI Generation Failed",
-          description: "Unable to generate assessment. Please create questions manually.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsGeneratingWithAI(false);
-      }
-    }
   };
 
   return (
@@ -667,111 +380,18 @@ export default function CreateAssessmentModal({
                     Choose the specific component skills students will develop in this assessment
                   </p>
                   <FormControl>
-                    <div className="border rounded-lg p-4 max-h-80 overflow-y-auto bg-gray-50">
-                      {hierarchyLoading ? (
-                        <div className="text-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Loading component skills...</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {hierarchy.map((outcome: any) => (
-                            <div key={outcome.id} className="bg-white rounded-lg border border-gray-200">
-                              <button
-                                type="button"
-                                onClick={() => toggleOutcome(outcome.id)}
-                                className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 rounded-lg transition-colors"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  {expandedOutcomes.has(outcome.id) ? (
-                                    <ChevronDown className="h-4 w-4 text-gray-500" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-gray-500" />
-                                  )}
-                                  <span className="font-medium text-gray-900">{outcome.name}</span>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {outcome.competencies?.length || 0} competencies
-                                  </Badge>
-                                </div>
-                              </button>
-
-                              {expandedOutcomes.has(outcome.id) && (
-                                <div className="px-4 pb-3 space-y-2">
-                                  {outcome.competencies?.map((competency: any) => (
-                                    <div key={competency.id} className="bg-gray-50 rounded-md border">
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleCompetency(competency.id)}
-                                        className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-gray-100 rounded-md transition-colors"
-                                      >
-                                        <div className="flex items-center space-x-2">
-                                          {expandedCompetencies.has(competency.id) ? (
-                                            <ChevronDown className="h-3 w-3 text-gray-400" />
-                                          ) : (
-                                            <ChevronRight className="h-3 w-3 text-gray-400" />
-                                          )}
-                                          <span className="text-sm font-medium text-gray-700">{competency.name}</span>
-                                          <Badge variant="outline" className="text-xs">
-                                            {competency.componentSkills?.length || 0} skills
-                                          </Badge>
-                                        </div>
-                                      </button>
-
-                                      {expandedCompetencies.has(competency.id) && (
-                                        <div className="px-3 pb-2 space-y-1">
-                                          {competency.componentSkills?.map((skill: any) => (
-                                            <div key={`skill-${skill.id}`} className="flex items-start space-x-2 py-1">
-                                              {assessmentType === "self-evaluation" ? (
-                                                <>
-                                                  <input
-                                                    type="radio"
-                                                    id={`skill-${skill.id}`}
-                                                    name="componentSkill"
-                                                    checked={field.value?.includes(skill.id)}
-                                                    onChange={() => {
-                                                      // For self-evaluation, only allow one selection
-                                                      form.setValue("componentSkillIds", [skill.id]);
-                                                    }}
-                                                    className="mt-0.5"
-                                                  />
-                                                  <label
-                                                    htmlFor={`skill-${skill.id}`}
-                                                    className="text-xs text-gray-600 cursor-pointer leading-tight"
-                                                  >
-                                                    {skill.name}
-                                                  </label>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  <Checkbox
-                                                    id={`skill-${skill.id}`}
-                                                    checked={field.value?.includes(skill.id)}
-                                                    onCheckedChange={(checked) =>
-                                                      handleComponentSkillChange(skill.id, checked as boolean)
-                                                    }
-                                                    className="mt-0.5"
-                                                  />
-                                                  <label
-                                                    htmlFor={`skill-${skill.id}`}
-                                                    className="text-xs text-gray-600 cursor-pointer leading-tight"
-                                                  >
-                                                    {skill.name}
-                                                  </label>
-                                                </>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <AssessmentCompetencySelector
+                      hierarchy={hierarchy}
+                      hierarchyLoading={hierarchyLoading}
+                      assessmentType={assessmentType}
+                      selectedSkillIds={field.value || []}
+                      expandedOutcomes={expandedOutcomes}
+                      expandedCompetencies={expandedCompetencies}
+                      onToggleOutcome={toggleOutcome}
+                      onToggleCompetency={toggleCompetency}
+                      onTeacherSkillToggle={handleComponentSkillChange}
+                      onSelfEvaluationSkillSelect={(skillId) => form.setValue("componentSkillIds", [skillId])}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -805,17 +425,12 @@ export default function CreateAssessmentModal({
                         Students will self-evaluate on {selectedSkills.length} component skill{selectedSkills.length > 1 ? 's' : ''}:
                       </p>
                       <div className="space-y-1">
-                        {hierarchy.flatMap((outcome: any) =>
-                          outcome.competencies?.flatMap((competency: any) =>
-                            competency.componentSkills?.filter((skill: any) => selectedSkills.includes(skill.id))
-                              .map((skill: any) => (
-                                <div key={skill.id} className="text-xs text-green-700 flex items-center">
-                                  <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                                  {skill.name}
-                                </div>
-                              ))
-                          )
-                        ) || []}
+                        {collectSelectedSkills(hierarchy, selectedSkills).map((skill) => (
+                          <div key={skill.id} className="text-xs text-green-700 flex items-center">
+                            <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                            {skill.name}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -978,163 +593,14 @@ export default function CreateAssessmentModal({
 
             {/* Assessment Questions - Only for Teacher Assessments */}
             {assessmentType === "teacher" && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-medium">Assessment Questions</Label>
-                  <Button
-                    type="button"
-                    onClick={addQuestion}
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Question
-                  </Button>
-                </div>
-
-                {questionFields.map((question, index) => (
-                  <Card key={question.id} className="border border-gray-200">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium">Question {index + 1}</CardTitle>
-                        {questionFields.length > 1 && (
-                          <Button
-                            type="button"
-                            onClick={() => removeQuestion(index)}
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name={`questions.${index}.text`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Question Text</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Enter your question"
-                                {...field}
-                                rows={3}
-                                className="focus-ring"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`questions.${index}.type`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Question Type</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="focus-ring">
-                                  <SelectValue placeholder="Select question type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="open-ended">Open-ended</SelectItem>
-                                <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                                <SelectItem value="short-answer">Short Answer</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* Multiple Choice Options */}
-                      {form.watch(`questions.${index}.type`) === "multiple-choice" && (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm font-medium">Answer Options</Label>
-                            <Button
-                              type="button"
-                              onClick={() => addMultipleChoiceOption(index)}
-                              size="sm"
-                              variant="outline"
-                            >
-                              <Plus className="mr-2 h-3 w-3" />
-                              Add Option
-                            </Button>
-                          </div>
-
-                          {(form.watch(`questions.${index}.options`) || []).map((option: string, optionIndex: number) => (
-                            <div key={`option-${index}-${optionIndex}`} className="flex items-center space-x-2">
-                              <Input
-                                placeholder={`Option ${optionIndex + 1}`}
-                                value={option}
-                                onChange={(e) => {
-                                  const currentOptions = form.getValues(`questions.${index}.options`) || [];
-                                  const newOptions = [...currentOptions];
-                                  newOptions[optionIndex] = e.target.value;
-                                  form.setValue(`questions.${index}.options`, newOptions);
-                                }}
-                                className="flex-1"
-                              />
-                              <Button
-                                type="button"
-                                onClick={() => removeMultipleChoiceOption(index, optionIndex)}
-                                size="sm"
-                                variant="ghost"
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-
-                          <FormField
-                            control={form.control}
-                            name={`questions.${index}.correctAnswer`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Correct Answer</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="Enter the correct answer"
-                                    {...field} className="focus-ring"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      )}
-
-                      <FormField
-                        control={form.control}
-                        name={`questions.${index}.rubricCriteria`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Rubric Criteria (Optional)</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Describe how this question will be evaluated"
-                                {...field}
-                                rows={2}
-                                className="focus-ring"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <AssessmentQuestionsEditor
+                form={form}
+                questionFields={questionFields}
+                onAddQuestion={addQuestion}
+                onRemoveQuestion={removeQuestion}
+                onAddMultipleChoiceOption={addMultipleChoiceOption}
+                onRemoveMultipleChoiceOption={removeMultipleChoiceOption}
+              />
             )}
 
             <DialogFooter className="flex items-center space-x-4 pt-6">

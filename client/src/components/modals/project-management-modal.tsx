@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,24 +13,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import ProjectTeamSelectionModal from "./project-team-selection-modal";
 import TeamEditModal from "./team-edit-modal";
-import DiscussionForum from "../discussion-forum";
 import { 
-  BookOpen, 
   Users, 
-  FileText, 
   Target, 
-  Calendar, 
-  Clock,
-  CheckCircle,
-  AlertTriangle,
   Plus,
   Edit,
   Trash2,
   Eye,
   X,
-  Play,
-  Archive,
-  MessageCircle
+  Play
 } from "lucide-react";
 import ConfirmationModal from '@/components/ui/confirmation-modal';
 import {
@@ -44,34 +36,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type {
+  MilestoneDTO,
+  ProjectDTO,
+  ProjectTeamDTO,
+  ProjectUpdateRequestDTO,
+} from '@shared/contracts/api';
 
 interface ProjectManagementModalProps {
   projectId: number;
   isOpen: boolean;
   onClose: () => void;
-}
-
-interface Milestone {
-  id: number;
-  title: string;
-  description: string;
-  dueDate: string;
-  projectId: number;
-  order: number;
-  createdAt: string;
-}
-
-interface Project {
-  id: number;
-  title: string;
-  description: string;
-  teacherId: number;
-  componentSkillIds: number[];
-  createdAt: string;
-  isPublic?: boolean;
-  subjectArea?: string;
-  gradeLevel?: string;
-  estimatedDuration?: string;
 }
 
 export default function ProjectManagementModal({ projectId, isOpen, onClose }: ProjectManagementModalProps) {
@@ -89,7 +64,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     dueDate: ''
   });
   const [showTeamModal, setShowTeamModal] = useState(false);
-  const [editingTeam, setEditingTeam] = useState<any>(null);
+  const [editingTeam, setEditingTeam] = useState<ProjectTeamDTO | null>(null);
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -105,44 +80,39 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
   });
 
   // Fetch project details
-  const { data: project, isLoading: projectLoading } = useQuery<Project>({
+  const { data: project, isLoading: projectLoading } = useQuery<ProjectDTO>({
     queryKey: [`/api/projects/${projectId}`],
+    queryFn: () => api.getProject(projectId),
     enabled: isOpen && !!projectId,
   });
 
   // Fetch project milestones
-  const { data: milestones = [], isLoading: milestonesLoading } = useQuery<Milestone[]>({
+  const { data: milestones = [], isLoading: milestonesLoading } = useQuery<MilestoneDTO[]>({
     queryKey: [`/api/projects/${projectId}/milestones`],
+    queryFn: () => api.getMilestones(projectId),
     enabled: isOpen && !!projectId,
   });
 
   // Fetch project teams
-  const { data: teams = [], isLoading: teamsLoading } = useQuery<any[]>({
+  const { data: teams = [], isLoading: teamsLoading } = useQuery<ProjectTeamDTO[]>({
     queryKey: [`/api/projects/${projectId}/teams`],
+    queryFn: () => api.getProjectTeams(projectId),
     enabled: isOpen && !!projectId,
   });
 
   // Update project mutation
   const updateProjectMutation = useMutation({
-    mutationFn: async (updates: { title: string; description: string }) => {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-      if (!response.ok) throw new Error('Failed to update project');
-      return response.json();
-    },
+    mutationFn: (updates: ProjectUpdateRequestDTO) => api.updateProject(projectId, updates),
     onSuccess: () => {
       toast({ title: "Project updated successfully" });
       setEditingProject(false);
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Update failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to update project",
         variant: "destructive",
       });
     },
@@ -150,15 +120,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
   // Toggle project visibility mutation
   const toggleVisibilityMutation = useMutation({
-    mutationFn: async (isPublic: boolean) => {
-      const response = await fetch(`/api/projects/${projectId}/visibility`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublic }),
-      });
-      if (!response.ok) throw new Error('Failed to update visibility');
-      return response.json();
-    },
+    mutationFn: (isPublic: boolean) => api.toggleProjectVisibility(projectId, isPublic),
     onSuccess: (_, isPublic) => {
       toast({ 
         title: isPublic ? "Project is now public" : "Project is now private",
@@ -168,10 +130,10 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects/public"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Failed to update visibility",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to update visibility",
         variant: "destructive",
       });
     },
@@ -179,30 +141,18 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
   // Delete project mutation
   const deleteProjectMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to delete project' }));
-        throw new Error(errorData.message || 'Failed to delete project');
-      }
-      return response.json();
-    },
+    mutationFn: () => api.deleteProject(projectId),
     onSuccess: () => {
       toast({ title: "Project deleted successfully" });
       setConfirmationModal(prev => ({ ...prev, isOpen: false }));
       onClose();
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       setConfirmationModal(prev => ({ ...prev, isOpen: false }));
       toast({
         title: "Delete failed",
-        description: error.message || "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     },
@@ -210,24 +160,17 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
   // Update milestone mutation
   const updateMilestoneMutation = useMutation({
-    mutationFn: async ({ milestoneId, updates }: { milestoneId: number; updates: any }) => {
-      const response = await fetch(`/api/milestones/${milestoneId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-      if (!response.ok) throw new Error('Failed to update milestone');
-      return response.json();
-    },
+    mutationFn: ({ milestoneId, updates }: { milestoneId: number; updates: Record<string, unknown> }) =>
+      api.updateMilestone(milestoneId, updates),
     onSuccess: () => {
       toast({ title: "Milestone updated successfully" });
       setEditingMilestone(null);
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Update failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to update milestone",
         variant: "destructive",
       });
     },
@@ -235,21 +178,15 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
   // Delete milestone mutation
   const deleteMilestoneMutation = useMutation({
-    mutationFn: async (milestoneId: number) => {
-      const response = await fetch(`/api/milestones/${milestoneId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete milestone');
-      return response.json();
-    },
+    mutationFn: (milestoneId: number) => api.deleteMilestone(milestoneId),
     onSuccess: () => {
       toast({ title: "Milestone deleted successfully" });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete milestone",
         variant: "destructive",
       });
     },
@@ -257,14 +194,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
   // Generate milestones and assessments mutation
   const generateMilestonesAndAssessmentsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/generate-milestones-and-assessments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) throw new Error('Failed to generate milestones and assessments');
-      return response.json();
-    },
+    mutationFn: () => api.generateMilestonesAndAssessments(projectId),
     onSuccess: (data) => {
       toast({ 
         title: "Generation successful",
@@ -273,10 +203,10 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
       queryClient.invalidateQueries({ queryKey: ["/api/assessments/standalone"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Generation failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to generate milestones and assessments",
         variant: "destructive",
       });
     },
@@ -284,14 +214,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
   // Start project mutation
   const startProjectMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) throw new Error('Failed to start project');
-      return response.json();
-    },
+    mutationFn: () => api.startProject(projectId),
     onSuccess: () => {
       toast({ 
         title: "Project started successfully",
@@ -300,10 +223,10 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Failed to start project",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to start project",
         variant: "destructive",
       });
     },
@@ -311,21 +234,15 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
     // Delete team mutation
     const deleteTeamMutation = useMutation({
-      mutationFn: async (teamId: number) => {
-        const response = await fetch(`/api/project-teams/${teamId}`, {
-          method: 'DELETE',
-        });
-        if (!response.ok) throw new Error('Failed to delete team');
-        return response.json();
-      },
+      mutationFn: (teamId: number) => api.deleteProjectTeam(teamId),
       onSuccess: () => {
         toast({ title: "Team deleted successfully" });
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/teams`] });
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         toast({
           title: "Delete failed",
-          description: error.message,
+          description: error instanceof Error ? error.message : "Failed to delete team",
           variant: "destructive",
         });
       },
@@ -335,7 +252,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     if (project) {
       setProjectForm({
         title: project.title,
-        description: project.description,
+        description: project.description ?? '',
         dueDate: project.dueDate ? format(new Date(project.dueDate), 'yyyy-MM-dd') : ''
       });
       setEditingProject(true);
@@ -361,7 +278,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
       // Validate that project due date is after all milestone due dates
       if (milestones.length > 0) {
         const latestMilestone = milestones
-          .filter(m => m.dueDate)
+          .filter((m): m is MilestoneDTO & { dueDate: Date | string } => m.dueDate != null)
           .reduce((latest, milestone) => {
             const milestoneDate = new Date(milestone.dueDate);
             return milestoneDate > latest ? milestoneDate : latest;
@@ -381,14 +298,14 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
     updateProjectMutation.mutate({
       title: projectForm.title,
       description: projectForm.description,
-      dueDate: projectForm.dueDate || null
+      dueDate: projectForm.dueDate || null,
     });
   };
 
-  const handleEditMilestone = (milestone: Milestone) => {
+  const handleEditMilestone = (milestone: MilestoneDTO) => {
     setMilestoneForm({
       title: milestone.title,
-      description: milestone.description,
+      description: milestone.description ?? '',
       dueDate: milestone.dueDate ? format(new Date(milestone.dueDate), 'yyyy-MM-dd') : ''
     });
     setEditingMilestone(milestone.id);
@@ -430,7 +347,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
       updates: {
         title: milestoneForm.title,
         description: milestoneForm.description,
-        dueDate: milestoneForm.dueDate ? milestoneForm.dueDate : null
+        dueDate: milestoneForm.dueDate || null,
       }
     });
   };
@@ -601,9 +518,9 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                            project.status === 'completed' ? 'Completed' : 'Archived'}
                         </Badge>
                       </div>
-                      <p className="text-gray-600 mb-4">{project.description}</p>
+                      <p className="text-gray-600 mb-4">{project.description ?? ""}</p>
                       <div className="flex items-center justify-between text-sm text-gray-500">
-                        <span>Created: {format(new Date(project.createdAt), 'MMM d, yyyy')}</span>
+                        <span>Created: {project.createdAt ? format(new Date(project.createdAt), 'MMM d, yyyy') : 'Unknown'}</span>
                         {project.dueDate && (
                           <span>Due: {format(new Date(project.dueDate), 'MMM d, yyyy')}</span>
                         )}
@@ -693,7 +610,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {teams.map((team: any) => (
+                      {teams.map((team) => (
                         <div key={team.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -771,7 +688,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                   ) : (
                     <div className="space-y-4">
                       {milestones
-                        .sort((a, b) => a.order - b.order)
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                         .map((milestone, index) => (
                           <div key={milestone.id} className="relative">
                             {/* Timeline connector */}
@@ -882,7 +799,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
             open={showTeamModal}
             onOpenChange={setShowTeamModal}
             projectId={projectId}
-            schoolId={project.schoolId}
+            schoolId={project.schoolId ?? undefined}
             onTeamCreated={() => {
               queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/teams`] });
             }}
@@ -895,7 +812,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
             open={!!editingTeam}
             onOpenChange={(open) => !open && setEditingTeam(null)}
             team={editingTeam}
-            schoolId={project.schoolId}
+            schoolId={project.schoolId ?? undefined}
             onTeamUpdated={() => {
               queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/teams`] });
             }}

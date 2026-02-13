@@ -30,6 +30,11 @@ import ProjectManagementModal from "@/components/modals/project-management-modal
 import StudentProgressView from "@/components/student-progress-view";
 import SchoolSkillsTracker from "@/components/school-skills-tracker";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { CredentialDTO, ProjectDTO } from "@shared/contracts/api";
+
+type TeacherDashboardProject = ProjectDTO & {
+  studentCount?: number | null;
+};
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
@@ -46,15 +51,17 @@ export default function TeacherDashboard() {
   useAuthErrorHandling(isLoading, isAuthenticated, { isNetworkError, isAuthError, hasError });
 
   // Fetch projects
-  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery<TeacherDashboardProject[]>({
     queryKey: ["/api/projects"],
+    queryFn: api.getProjects,
     enabled: isAuthenticated && user?.role === 'teacher',
     retry: false,
   });
 
   // Fetch credentials for stats
-  const { data: credentials = [] } = useQuery({
+  const { data: credentials = [] } = useQuery<CredentialDTO[]>({
     queryKey: ["/api/credentials/teacher-stats"],
+    queryFn: api.getTeacherCredentialStats,
     enabled: isAuthenticated && user?.role === 'teacher',
     retry: false,
   });
@@ -70,7 +77,7 @@ export default function TeacherDashboard() {
     return null;
   }
 
-  const activeProjects = projects.filter(p => p.status === 'active').length;
+  const activeProjects = projects.filter((project) => project.status === 'active').length;
   const totalStudents = projects.reduce((sum, project) => sum + (project.studentCount || 0), 0);
   const pendingGrades = 8; // This would come from submissions API
   const credentialsAwarded = credentials.length || 45;

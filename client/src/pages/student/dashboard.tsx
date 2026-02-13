@@ -31,6 +31,52 @@ import {
   FileText,
   Search
 } from "lucide-react";
+import type {
+  AssessmentDTO,
+  CredentialDTO,
+  MilestoneDTO,
+  PortfolioArtifactDTO,
+  ProjectDTO,
+  StudentAssessmentSubmissionDTO,
+} from "@shared/contracts/api";
+
+type StudentProject = ProjectDTO;
+
+interface StudentAssessmentQuestion {
+  id: string | number;
+  text: string;
+  type?: string;
+  options?: string[];
+}
+
+interface StudentAssessmentResponse {
+  questionId: string | number;
+  answer: string;
+}
+
+interface StudentAssessmentGrade {
+  id: number;
+  componentSkillName?: string | null;
+  rubricLevel?: string | null;
+  score?: string | number | null;
+  feedback?: string | null;
+}
+
+type StudentSubmission = StudentAssessmentSubmissionDTO;
+
+type MilestoneAssessment = AssessmentDTO & {
+  description?: string | null;
+  dueDate?: string | Date | null;
+  xqRubricLevel?: string | null;
+};
+
+type ProjectMilestoneWithAssessments = MilestoneDTO & {
+  status?: string | null;
+  isCompleted?: boolean;
+  assessments?: MilestoneAssessment[];
+  deliverables?: string[] | null;
+  xqRubricLevel?: string | null;
+};
 
 export default function StudentDashboard() {
   const { toast } = useToast();
@@ -43,23 +89,26 @@ export default function StudentDashboard() {
   useAuthErrorHandling(isLoading, isAuthenticated, { isNetworkError, isAuthError, hasError });
 
   // Fetch student projects
-  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery<StudentProject[]>({
     queryKey: ["/api/projects"],
-    enabled: isAuthenticated && (user as any)?.role === 'student',
+    queryFn: api.getProjects,
+    enabled: isAuthenticated && user?.role === 'student',
     retry: false,
   });
 
   // Fetch student credentials
-  const { data: credentials = [], isLoading: credentialsLoading } = useQuery({
+  const { data: credentials = [], isLoading: credentialsLoading } = useQuery<CredentialDTO[]>({
     queryKey: ["/api/credentials/student"],
-    enabled: isAuthenticated && (user as any)?.role === 'student',
+    queryFn: api.getStudentCredentials,
+    enabled: isAuthenticated && user?.role === 'student',
     retry: false,
   });
 
   // Fetch portfolio artifacts
-  const { data: artifacts = [] } = useQuery({
+  const { data: artifacts = [] } = useQuery<PortfolioArtifactDTO[]>({
     queryKey: ["/api/portfolio/artifacts"],
-    enabled: isAuthenticated && (user as any)?.role === 'student',
+    queryFn: api.getPortfolioArtifacts,
+    enabled: isAuthenticated && user?.role === 'student',
     retry: false,
   });
 
@@ -75,7 +124,7 @@ export default function StudentDashboard() {
     return <FullscreenLoader text="Authenticating..." />;
   }
 
-  if ((user as any)?.role !== 'student') {
+  if (user?.role !== 'student') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="text-center">
@@ -87,21 +136,22 @@ export default function StudentDashboard() {
   }
 
   // Use real competency progress data from API
-  const { data: competencyProgress = [] } = useQuery({
-    queryKey: ["/api/competency-progress/student", (user as any)?.id],
-    enabled: isAuthenticated && (user as any)?.role === 'student' && !!(user as any)?.id,
+  const { data: competencyProgress = [] } = useQuery<Record<string, unknown>[]>({
+    queryKey: ["/api/competency-progress/student", user?.id],
+    enabled: isAuthenticated && user?.role === 'student' && !!user?.id,
     retry: false,
   });
 
   // Fetch upcoming deadlines
-  const { data: upcomingDeadlines = [] } = useQuery({
+  const { data: upcomingDeadlines = [] } = useQuery<Record<string, unknown>[]>({
     queryKey: ["/api/deadlines/student"],
-    enabled: isAuthenticated && (user as any)?.role === 'student',
+    queryFn: api.getStudentDeadlines,
+    enabled: isAuthenticated && user?.role === 'student',
     retry: false,
   });
 
-  const recentCredentials = (credentials as any[]).slice(0, 3);
-  const activeProjects = (projects as any[]).filter((p: any) => p.status === 'active');
+  const recentCredentials = credentials.slice(0, 3);
+  const activeProjects = projects.filter((project) => project.status === 'active');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -114,7 +164,7 @@ export default function StudentDashboard() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Welcome back, {(user as any).username}!
+                  Welcome back, {user.username}!
                 </h1>
                 <p className="text-gray-600">
                   Continue your learning journey and track your progress across all projects.
@@ -212,45 +262,27 @@ export default function StudentDashboard() {
 function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
   const { user } = useAuth();
 
-  // Fetch student's projects to determine active/completed project IDs
-  const { data: projects = [] } = useQuery({
-    queryKey: ["/api/projects"],
-    enabled: !!(user as any)?.id && (user as any)?.role === 'student',
-    retry: false,
-  });
-
   // Fetch student's assessment submissions
-  const { data: submissions = [], isLoading } = useQuery({
-    queryKey: ["/api/student/assessment-submissions", (user as any)?.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/student/assessment-submissions/${(user as any).id}`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch submissions');
-      return response.json();
-    },
-    enabled: !!(user as any)?.id,
+  const { data: submissions = [], isLoading } = useQuery<StudentSubmission[]>({
+    queryKey: ["/api/student/assessment-submissions", user?.id],
+    queryFn: () => api.getStudentAssessmentSubmissions(user!.id),
+    enabled: !!user?.id,
     retry: false,
   });
-
-  // Get project IDs for active and completed projects the student is part of
-  const eligibleProjectIds = (projects as any[])
-    .filter((project: any) => project.status === 'active' || project.status === 'completed')
-    .map((project: any) => project.id);
 
   // Filter submissions to show only standalone assessments (not linked to any project/milestone)
-  const filteredSubmissions = submissions.filter((submission) => {
+  const filteredSubmissions = submissions.filter((submission: StudentSubmission) => {
     // Only show assessments that are NOT linked to any project (standalone assessments)
     return !submission.projectTitle;
   });
 
   // Apply search filter
-  const searchFilteredSubmissions = filteredSubmissions.filter((submission) => {
+  const searchFilteredSubmissions = filteredSubmissions.filter((submission: StudentSubmission) => {
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
     return (
-      submission.assessmentTitle.toLowerCase().includes(query) ||
+      submission.assessmentTitle?.toLowerCase().includes(query) ||
       (submission.projectTitle && submission.projectTitle.toLowerCase().includes(query))
     );
   });
@@ -298,35 +330,32 @@ function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
 const matchesSearch = (text: string, query: string): boolean => 
   text.toLowerCase().includes(query);
 
-const assessmentMatches = (assessment: any, query: string): boolean =>
-  matchesSearch(assessment.title, query) || 
-  matchesSearch(assessment.description, query);
+const assessmentMatches = (assessment: MilestoneAssessment, query: string): boolean =>
+  matchesSearch(assessment.title, query) ||
+  matchesSearch(assessment.description ?? "", query);
 
-const milestoneMatches = (milestone: any, query: string): boolean =>
+const milestoneMatches = (milestone: ProjectMilestoneWithAssessments, query: string): boolean =>
   matchesSearch(milestone.title, query) ||
-  matchesSearch(milestone.description, query) ||
-  milestone.assessments.some((assessment: any) => assessmentMatches(assessment, query));
+  matchesSearch(milestone.description ?? "", query) ||
+  (milestone.assessments ?? []).some((assessment) => assessmentMatches(assessment, query));
 
 // Project Milestones Tab Component
 function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
   const { user } = useAuth();
 
   // Fetch student's projects
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading } = useQuery<StudentProject[]>({
     queryKey: ["/api/projects"],
+    queryFn: api.getProjects,
     enabled: !!user?.id && user?.role === 'student',
     retry: false,
   });
 
   // Fetch student assessment submissions to check completion status
-  const { data: studentSubmissions = [] } = useQuery({
-    queryKey: ["/api/student/assessment-submissions", (user as any)?.id],
-    enabled: !!(user as any)?.id,
-    queryFn: async () => {
-      const response = await fetch(`/api/student/assessment-submissions/${(user as any).id}`);
-      if (!response.ok) throw new Error('Failed to fetch assessment submissions');
-      return response.json();
-    },
+  const { data: studentSubmissions = [] } = useQuery<StudentSubmission[]>({
+    queryKey: ["/api/student/assessment-submissions", user?.id],
+    enabled: !!user?.id,
+    queryFn: () => api.getStudentAssessmentSubmissions(user!.id),
     // Add polling to automatically refresh submissions data every 30 seconds
     // This ensures students see updated completion status when teachers grade their submissions
     refetchInterval: 30000, // 30 seconds
@@ -334,51 +363,36 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
   });
 
   // Fetch milestones and their assessments for all student projects
-  const { data: projectMilestonesWithAssessments = {} } = useQuery({
+  const { data: projectMilestonesWithAssessments = {} } = useQuery<Record<number, ProjectMilestoneWithAssessments[]>>({
     queryKey: ["/api/projects/milestones-with-assessments", projects.map(p => p.id)],
     enabled: !!user?.id && projects.length > 0,
     queryFn: async () => {
-      const milestonesData: Record<number, any[]> = {};
+      const milestonesData: Record<number, ProjectMilestoneWithAssessments[]> = {};
       for (const project of projects) {
         try {
-          const response = await fetch(`/api/projects/${project.id}/milestones`);
-          if (response.ok) {
-            const milestones = await response.json();
-            // Add completion status and assessments to each milestone
-            const milestonesWithStatusAndAssessments = await Promise.all(
-              milestones.map(async (milestone: any) => {
-                const milestoneSubmissions = studentSubmissions.filter((submission: any) => {
-                  return submission.assessment?.milestoneId === milestone.id;
-                });
+          const milestones = await api.getMilestones(project.id);
+          const milestonesWithStatusAndAssessments = await Promise.all(
+            milestones.map(async (milestone) => {
+              const milestoneAssessments = await api.getAssessments(milestone.id);
+              const milestoneAssessmentIds = new Set(milestoneAssessments.map((assessment) => assessment.id));
+              const milestoneSubmissions = studentSubmissions.filter(
+                (submission) =>
+                  submission.assessmentId != null && milestoneAssessmentIds.has(submission.assessmentId)
+              );
 
-                const hasGradedSubmissions = milestoneSubmissions.some((submission: any) => 
-                  submission.gradedAt || submission.feedback
-                );
+              const hasGradedSubmissions = milestoneSubmissions.some((submission) =>
+                Boolean((submission.grades && submission.grades.length > 0) || submission.feedback)
+              );
 
-                // Fetch assessments for this milestone
-                let milestoneAssessments = [];
-                try {
-                  const assessmentsResponse = await fetch(`/api/milestones/${milestone.id}/assessments`);
-                  if (assessmentsResponse.ok) {
-                    milestoneAssessments = await assessmentsResponse.json();
-                  }
-                } catch (error) {
-                  console.error(`Error fetching assessments for milestone ${milestone.id}:`, error);
-                }
-
-                return {
-                  ...milestone,
-                  isCompleted: hasGradedSubmissions || milestone.status === 'completed',
-                  assessments: milestoneAssessments
-                };
-              })
-            );
-            milestonesData[project.id] = milestonesWithStatusAndAssessments;
-          } else {
-            milestonesData[project.id] = [];
-          }
+              return {
+                ...milestone,
+                isCompleted: hasGradedSubmissions,
+                assessments: milestoneAssessments
+              };
+            })
+          );
+          milestonesData[project.id] = milestonesWithStatusAndAssessments;
         } catch (error) {
-          console.error(`Error fetching milestones for project ${project.id}:`, error);
           milestonesData[project.id] = [];
         }
       }
@@ -387,12 +401,12 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
   });
 
   // Filter projects to show only active and completed ones
-  const eligibleProjects = projects.filter(project => 
+  const eligibleProjects = projects.filter((project) => 
     project.status === 'active' || project.status === 'completed'
   );
 
   // Apply search filter
-  const searchFilteredProjects = eligibleProjects.filter((project) => {
+  const searchFilteredProjects = eligibleProjects.filter((project: StudentProject) => {
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
@@ -400,8 +414,8 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
 
     return (
       project.title.toLowerCase().includes(query) ||
-      project.description.toLowerCase().includes(query) ||
-      projectMilestonesList.some(milestone => 
+      (project.description ?? "").toLowerCase().includes(query) ||
+      projectMilestonesList.some((milestone) =>
         milestoneMatches(milestone, query)
       )
     );
@@ -449,7 +463,14 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
 }
 
 // Project Milestone Card Component
-function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSubmissions = [] }) {
+interface ProjectMilestoneCardProps {
+  project: StudentProject;
+  milestones?: ProjectMilestoneWithAssessments[];
+  searchQuery: string;
+  studentSubmissions?: StudentSubmission[];
+}
+
+function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSubmissions = [] }: ProjectMilestoneCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const getStatusBadge = (status: string) => {
@@ -463,18 +484,18 @@ function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSu
     }
   };
 
-  const getMilestoneStatusBadge = (milestone) => {
+  const getMilestoneStatusBadge = (milestone: ProjectMilestoneWithAssessments) => {
     if (milestone.isCompleted) {
       return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
     }
-    if (new Date(milestone.dueDate) < new Date()) {
+    if (milestone.dueDate && new Date(milestone.dueDate) < new Date()) {
       return <Badge className="bg-red-100 text-red-800">Overdue</Badge>;
     }
     return <Badge className="bg-yellow-100 text-yellow-800">In Progress</Badge>;
   };
 
   // Filter milestones based on search query
-  const filteredMilestones = milestones.filter(milestone => {
+  const filteredMilestones = milestones.filter((milestone) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return milestoneMatches(milestone, query);
@@ -497,7 +518,7 @@ function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSu
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {getStatusBadge(project.status)}
+            {getStatusBadge(project.status ?? "draft")}
             <Button variant="ghost" size="sm">
               {isExpanded ? 'Collapse' : 'View Milestones'}
             </Button>
@@ -520,7 +541,7 @@ function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSu
                       <div className="flex items-center text-xs text-gray-500 space-x-4">
                         <div className="flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
-                          Due: {new Date(milestone.dueDate).toLocaleDateString()}
+                          Due: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'No due date'}
                         </div>
                         {milestone.xqRubricLevel && (
                           <div className="flex items-center">
@@ -582,19 +603,25 @@ function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSu
   );
 }
 
+interface AssessmentCardProps {
+  assessment: MilestoneAssessment;
+  milestone: ProjectMilestoneWithAssessments;
+  studentSubmissions?: StudentSubmission[];
+}
+
 // Assessment Card Component for Project Milestones
-function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
+function AssessmentCard({ assessment, milestone, studentSubmissions = [] }: AssessmentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [, setLocation] = useLocation();
 
   // Find submission for this assessment
-  const submission = studentSubmissions.find((sub: any) => 
+  const submission = studentSubmissions.find((sub) =>
     sub.assessmentId === assessment.id
   );
 
 
 
-  const getStatusBadge = (submission) => {
+  const getStatusBadge = (submission: StudentSubmission | undefined) => {
     if (!submission) {
       return <Badge className="bg-gray-100 text-gray-800">Not Started</Badge>;
     }
@@ -637,7 +664,7 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
           <div className="flex items-center text-xs text-gray-500 space-x-4">
             <div className="flex items-center">
               <Clock className="h-3 w-3 mr-1" />
-              Due: {new Date(assessment.dueDate).toLocaleDateString()}
+              Due: {assessment.dueDate ? new Date(assessment.dueDate).toLocaleDateString() : 'No due date'}
             </div>
             {assessment.xqRubricLevel && (
               <div className="flex items-center">
@@ -665,7 +692,7 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
           <div className="mb-3">
             <h6 className="text-sm font-medium text-gray-700 mb-2">Submission Details</h6>
             <div className="text-xs text-gray-600 space-y-1">
-              <p>Submitted: {new Date(submission.submittedAt).toLocaleString()}</p>
+              <p>Submitted: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'Not submitted yet'}</p>
             </div>
           </div>
 
@@ -735,13 +762,15 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
                                     {grade.componentSkillName || 'Component Skill'}
                                   </span>
                                   <Badge 
-                                    className={`capitalize px-1 py-0.5 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
+                                    className={`capitalize px-1 py-0.5 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel ?? "")}`}
                                   >
-                                    {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
+                                    {grade.rubricLevel
+                                      ? `${grade.rubricLevel.charAt(0).toUpperCase()}${grade.rubricLevel.slice(1)} ⭐`
+                                      : 'Unrated'}
                                   </Badge>
                                 </div>
                                 <div className="text-xs font-bold text-gray-900">
-                                  Score: {parseFloat(grade.score) || 0}/4
+                                  Score: {Number(grade.score ?? 0) || 0}/4
                                 </div>
                               </div>
                               {grade.feedback && (
@@ -769,10 +798,10 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }) {
 }
 
 // Assessment Submission Card Component
-function AssessmentSubmissionCard({ submission }) {
+function AssessmentSubmissionCard({ submission }: { submission: StudentSubmission }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const getStatusBadge = (submission) => {
+  const getStatusBadge = (submission: StudentSubmission) => {
     // Check if graded (has grades or explicit graded status)
     if (submission.status === 'graded' || 
         (submission.grades && submission.grades.length > 0) ||
@@ -813,7 +842,7 @@ function AssessmentSubmissionCard({ submission }) {
                 {submission.projectTitle && `From: ${submission.projectTitle}`}
               </p>
               <p className="text-xs text-gray-500">
-                Submitted: {new Date(submission.submittedAt).toLocaleString()}
+                Submitted: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'Not submitted yet'}
               </p>
               {/* Show feedback preview */}
               {isGraded && submission.feedback && (
@@ -841,13 +870,13 @@ function AssessmentSubmissionCard({ submission }) {
             <div>
               <h4 className="font-semibold text-gray-900 mb-3">Questions & Your Responses</h4>
               <div className="space-y-4">
-                {submission.questions.map((question, index) => (
+                {(submission.questions ?? []).map((question, index) => (
                   <div key={question.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="mb-3">
                       <h5 className="font-medium text-gray-900 mb-2">
                         Question {index + 1}: {question.text}
                       </h5>
-                      {question.type === 'multiple-choice' && question.options && (
+                      {question.type === 'multiple-choice' && Array.isArray(question.options) && (
                         <p className="text-sm text-gray-600">
                           Options: {question.options.join(", ")}
                         </p>
@@ -860,7 +889,7 @@ function AssessmentSubmissionCard({ submission }) {
                         {(() => {
                           // Handle both array format (new) and object format (legacy)
                           if (Array.isArray(submission.responses)) {
-                            const response = submission.responses.find(r => r.questionId === question.id);
+                            const response = submission.responses.find((response) => response.questionId === question.id);
                             return response?.answer || "No answer provided";
                           } else if (submission.responses && typeof submission.responses === 'object') {
                             return submission.responses[question.id] || "No answer provided";
@@ -905,14 +934,16 @@ function AssessmentSubmissionCard({ submission }) {
                             </h6>
                             {grade.rubricLevel && (
                               <Badge 
-                                className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel)}`}
+                                className={`capitalize px-2 py-1 text-xs font-medium border ${getRubricLevelColor(grade.rubricLevel ?? "")}`}
                               >
-                                {grade.rubricLevel?.charAt(0).toUpperCase() + grade.rubricLevel?.slice(1)} ⭐
+                                {grade.rubricLevel
+                                  ? `${grade.rubricLevel.charAt(0).toUpperCase()}${grade.rubricLevel.slice(1)} ⭐`
+                                  : 'Unrated'}
                               </Badge>
                             )}
                           </div>
                           <div className="text-lg font-semibold text-gray-900">
-                            Score: {parseFloat(grade.score) || 0}/4
+                            Score: {Number(grade.score ?? 0) || 0}/4
                           </div>
                         </div>
                         {grade.feedback && (

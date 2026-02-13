@@ -19,6 +19,7 @@ import {
   ArrowDownRight,
   Minus
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface ComponentSkillProgress {
   id: number;
@@ -51,6 +52,11 @@ interface SchoolSkillsStats {
   totalStudents: number;
 }
 
+interface LearnerOutcomeOption {
+  id: number;
+  name: string;
+}
+
 export default function SchoolSkillsTracker() {
   const [selectedOutcome, setSelectedOutcome] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'performance' | 'struggling' | 'assessed'>('struggling');
@@ -61,16 +67,12 @@ export default function SchoolSkillsTracker() {
     retry: false,
   });
 
-  const { data: statsData } = useQuery<SchoolSkillsStats>({
-    queryKey: ["/api/teacher/school-skills-stats"],
-    retry: false,
-  });
-
   // Use actual API data only - no mock data fallback
   const skillsData = apiSkillsData;
 
-  const { data: learnerOutcomes = [] } = useQuery({
+  const { data: learnerOutcomes = [] } = useQuery<LearnerOutcomeOption[]>({
     queryKey: ["/api/learner-outcomes-hierarchy/complete"],
+    queryFn: api.getLearnerOutcomesHierarchyComplete,
     retry: false,
   });
 
@@ -89,6 +91,18 @@ export default function SchoolSkillsTracker() {
   // Mock school stats if API fails
 
   const schoolStats = apiSchoolStats
+
+  const handleSortByChange = (value: string) => {
+    if (value === 'performance' || value === 'struggling' || value === 'assessed') {
+      setSortBy(value);
+    }
+  };
+
+  const handleViewModeChange = (value: string) => {
+    if (value === 'overview' || value === 'details') {
+      setViewMode(value);
+    }
+  };
 
   // Filter and sort skills data
   const filteredSkills = skillsData.filter(skill => 
@@ -292,7 +306,7 @@ export default function SchoolSkillsTracker() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Outcomes</SelectItem>
-              {learnerOutcomes.map((outcome: any) => (
+              {learnerOutcomes.map((outcome) => (
                 <SelectItem key={outcome.id} value={outcome.name}>
                   {outcome.name}
                 </SelectItem>
@@ -303,7 +317,7 @@ export default function SchoolSkillsTracker() {
 
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
-          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+          <Select value={sortBy} onValueChange={handleSortByChange}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -317,7 +331,7 @@ export default function SchoolSkillsTracker() {
       </div>
 
       {/* Skills Performance List */}
-      <Tabs value={viewMode} onValueChange={(value: any) => setViewMode(value)}>
+      <Tabs value={viewMode} onValueChange={handleViewModeChange}>
         <TabsContent value="overview">
           <div className="grid gap-4">
             {sortedSkills.map((skill) => {

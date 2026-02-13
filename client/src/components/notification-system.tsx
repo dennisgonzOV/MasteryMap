@@ -7,6 +7,8 @@ import { Bell, X, CheckCircle, Clock, AlertTriangle, FileText, Users, Award } fr
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
+import type { NotificationDTO } from '@shared/contracts/api';
 
 interface Notification {
   id: number;
@@ -20,7 +22,7 @@ interface Notification {
     projectId?: number;
     assessmentId?: number;
     submissionId?: number;
-  };
+  } | null;
 }
 
 interface NotificationSystemProps {
@@ -33,11 +35,19 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
   const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const mapNotificationType = (type: string): Notification['type'] => {
+    if (type === 'safety_alert') return 'system';
+    if (type === 'assignment' || type === 'deadline' || type === 'feedback' || type === 'grade' || type === 'credential' || type === 'system') {
+      return type;
+    }
+    return 'system';
+  };
 
   // Fetch notifications from API
-  const { data: apiNotifications = [], isLoading: notificationsLoading } = useQuery({
+  const { data: apiNotifications = [], isLoading: notificationsLoading } = useQuery<NotificationDTO[]>({
     queryKey: ["/api/notifications"],
+    queryFn: api.getNotifications,
     enabled: isAuthenticated,
     retry: false,
   });
@@ -45,19 +55,18 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
   useEffect(() => {
     if (apiNotifications && !notificationsLoading) {
       // Transform API notifications to match component interface
-      const transformedNotifications = apiNotifications.map((notif: any) => ({
+      const transformedNotifications = apiNotifications.map((notif) => ({
         id: notif.id,
-        type: notif.type === 'safety_alert' ? 'system' : notif.type,
+        type: mapNotificationType(notif.type),
         title: notif.title,
         message: notif.message,
-        timestamp: notif.createdAt,
-        read: notif.read,
+        timestamp: notif.createdAt ? String(notif.createdAt) : new Date().toISOString(),
+        read: Boolean(notif.read),
         actionUrl: notif.type === 'safety_alert' ? '/teacher/safety-incidents' : undefined,
         metadata: notif.metadata
       }));
       setNotifications(transformedNotifications);
     }
-    setIsLoading(notificationsLoading);
   }, [apiNotifications, notificationsLoading]);
 
   const getNotificationIcon = (type: string) => {
@@ -95,12 +104,7 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
 
   const markAsRead = async (notificationId: number) => {
     try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      await api.markNotificationAsRead(notificationId);
       
       setNotifications(prev => 
         prev.map(notif => 
@@ -114,12 +118,7 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
 
   const markAllAsRead = async () => {
     try {
-      await fetch('/api/notifications/mark-all-read', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      await api.markAllNotificationsAsRead();
       
       setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
       toast({
@@ -202,7 +201,7 @@ export default function NotificationSystem({ userId, userRole }: NotificationSys
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-96">
-              {isLoading ? (
+              {notificationsLoading ? (
                 <div className="p-4 text-center text-gray-500">
                   Loading notifications...
                 </div>

@@ -12,16 +12,10 @@ export class CompetencyController {
     // Get best standards metadata for filters - MUST be before /best-standards to avoid route conflicts
     router.get('/best-standards/metadata', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
-        console.log('B.E.S.T. Standards metadata request received');
         const metadata = await this.service.getBestStandardsMetadata();
-        console.log('Metadata result:', metadata);
         res.json(metadata);
       } catch (error) {
         console.error("Error fetching best standards metadata:", error);
-        console.error("Error details:", {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        });
         res.status(500).json({ message: "Failed to fetch best standards metadata", error: error instanceof Error ? error.message : 'Unknown error' });
       }
     });
@@ -131,13 +125,6 @@ export class CompetencyController {
     router.get('/learner-outcomes-hierarchy/complete', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
         const learnerOutcomes = await this.service.getLearnerOutcomesWithCompetencies();
-        console.log('API Response - Learner Outcomes count:', learnerOutcomes.length);
-        console.log('API Response - First outcome:', learnerOutcomes[0]);
-        console.log('API Response - First outcome competencies count:', learnerOutcomes[0]?.competencies?.length);
-        console.log('API Response - First competency component skills count:', learnerOutcomes[0]?.competencies?.[0]?.componentSkills?.length);
-        console.log('API Response - About to send JSON:', JSON.stringify(learnerOutcomes).substring(0, 200) + '...');
-        console.log('API Response - Is array:', Array.isArray(learnerOutcomes));
-        console.log('API Response - Type of learnerOutcomes:', typeof learnerOutcomes);
         res.json(learnerOutcomes);
       } catch (error) {
         console.error("Error fetching complete learner outcomes hierarchy:", error);
@@ -185,17 +172,6 @@ export class CompetencyController {
       } catch (error) {
         console.error("Error fetching component skills by IDs:", error);
         res.status(500).json({ message: "Failed to fetch component skills by IDs" });
-      }
-    });
-
-    // Get all component skills with details
-    router.get('/component-skills/details', requireAuth, async (req: AuthenticatedRequest, res) => {
-      try {
-        const skills = await this.service.getAllComponentSkills();
-        res.json(skills);
-      } catch (error) {
-        console.error("Error fetching component skills details:", error);
-        res.status(500).json({ message: "Failed to fetch component skills" });
       }
     });
 

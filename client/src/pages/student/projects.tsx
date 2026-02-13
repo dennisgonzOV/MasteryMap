@@ -31,6 +31,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import type { MilestoneDTO, ProjectDTO, SubmissionWithAssessmentDTO } from "@shared/contracts/api";
+
+type StudentProject = ProjectDTO;
+type StudentSubmission = SubmissionWithAssessmentDTO;
+type MilestoneWithCompletion = MilestoneDTO & {
+  isCompleted: boolean;
+};
 
 export default function StudentProjects() {
   const { toast } = useToast();
@@ -48,21 +55,18 @@ export default function StudentProjects() {
   }, [isAuthenticated, isLoading, setLocation]);
 
   // Fetch student projects (includes team projects)
-  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery<StudentProject[]>({
     queryKey: ["/api/projects"],
+    queryFn: api.getProjects,
     enabled: isAuthenticated && user?.role === 'student',
     retry: false,
   });
 
   // Fetch student submissions to check completion status
-  const { data: studentSubmissions = [] } = useQuery({
+  const { data: studentSubmissions = [] } = useQuery<StudentSubmission[]>({
     queryKey: ["/api/submissions/student"],
     enabled: isAuthenticated,
-    queryFn: async () => {
-      const response = await fetch(`/api/submissions/student`);
-      if (!response.ok) throw new Error('Failed to fetch submissions');
-      return response.json();
-    },
+    queryFn: api.getStudentSubmissions,
     // Add polling to automatically refresh submissions data every 30 seconds
     // This ensures students see updated completion status when teachers grade their submissions
     refetchInterval: 30000, // 30 seconds
@@ -70,37 +74,30 @@ export default function StudentProjects() {
   });
 
   // Fetch milestones for all student projects
-  const { data: projectMilestones = {} } = useQuery({
+  const { data: projectMilestones = {} } = useQuery<Record<number, MilestoneWithCompletion[]>>({
     queryKey: ["/api/projects/milestones", projects.map(p => p.id)],
     enabled: isAuthenticated && projects.length > 0,
     queryFn: async () => {
-      const milestonesData: Record<number, any[]> = {};
+      const milestonesData: Record<number, MilestoneWithCompletion[]> = {};
       for (const project of projects) {
         try {
-          const response = await fetch(`/api/projects/${project.id}/milestones`);
-          if (response.ok) {
-            const milestones = await response.json();
-            // Add completion status to each milestone
-            const milestonesWithStatus = milestones.map((milestone: any) => {
-              const milestoneSubmissions = studentSubmissions.filter((submission: any) => {
-                return submission.assessment?.milestoneId === milestone.id;
-              });
+          const milestones = await api.getMilestones(project.id);
+          const milestonesWithStatus = milestones.map((milestone) => {
+            const milestoneSubmissions = studentSubmissions.filter((submission) =>
+              submission.assessment?.milestoneId === milestone.id
+            );
 
-              const hasGradedSubmissions = milestoneSubmissions.some((submission: any) => 
-                submission.gradedAt || submission.feedback
-              );
+            const hasGradedSubmissions = milestoneSubmissions.some((submission) =>
+              Boolean(submission.gradedAt || submission.feedback)
+            );
 
-              return {
-                ...milestone,
-                isCompleted: hasGradedSubmissions || milestone.status === 'completed'
-              };
-            });
-            milestonesData[project.id] = milestonesWithStatus;
-          } else {
-            milestonesData[project.id] = [];
-          }
+            return {
+              ...milestone,
+              isCompleted: hasGradedSubmissions
+            };
+          });
+          milestonesData[project.id] = milestonesWithStatus;
         } catch (error) {
-    
           milestonesData[project.id] = [];
         }
       }
@@ -210,7 +207,7 @@ export default function StudentProjects() {
                   <span className="text-lg font-bold text-gray-900">
                     {projects.reduce((sum, p) => {
                       const milestones = projectMilestones[p.id] || [];
-                      return sum + milestones.filter((m: any) => m.isCompleted).length;
+                      return sum + milestones.filter((milestone) => milestone.isCompleted).length;
                     }, 0)}
                   </span>
                 </div>

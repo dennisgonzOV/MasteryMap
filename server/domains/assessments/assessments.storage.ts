@@ -51,6 +51,7 @@ export interface IAssessmentStorage {
   getSubmission(id: number): Promise<Submission | undefined>;
   getSubmissionsByStudent(studentId: number): Promise<SubmissionWithAssessment[]>;
   getSubmissionsByAssessment(assessmentId: number): Promise<any[]>;
+  getStudentAssessmentSubmissions(studentId: number): Promise<any[]>;
   updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission>;
   hasSubmissions(assessmentId: number): Promise<boolean>;
 
@@ -58,8 +59,6 @@ export interface IAssessmentStorage {
   createGrade(grade: Omit<Grade, "id" | "gradedAt">): Promise<Grade>;
   getGradesBySubmission(submissionId: number): Promise<Grade[]>;
   getComponentSkill(id: number): Promise<any>;
-  generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string): Promise<any[]>;
-  generateStudentFeedback(submission: any, grades: any[]): Promise<string>;
   getExistingGrade(submissionId: number, componentSkillId: number): Promise<any>;
   updateGrade(gradeId: number, updates: any): Promise<any>;
   awardStickersForGrades(studentId: number, grades: any[]): Promise<any[]>;
@@ -354,6 +353,108 @@ export class AssessmentStorage implements IAssessmentStorage {
     }
   }
 
+  async getStudentAssessmentSubmissions(studentId: number): Promise<any[]> {
+    const submissionResults = await db
+      .select({
+        id: submissions.id,
+        assessmentId: submissions.assessmentId,
+        assessmentTitle: assessments.title,
+        assessmentDescription: assessments.description,
+        questions: assessments.questions,
+        responses: submissions.responses,
+        submittedAt: submissions.submittedAt,
+        feedback: submissions.feedback,
+        projectTitle: projects.title,
+        milestoneTitle: milestones.title,
+      })
+      .from(submissions)
+      .innerJoin(assessments, eq(submissions.assessmentId, assessments.id))
+      .leftJoin(milestones, eq(assessments.milestoneId, milestones.id))
+      .leftJoin(projects, eq(milestones.projectId, projects.id))
+      .where(eq(submissions.studentId, studentId))
+      .orderBy(desc(submissions.submittedAt));
+
+    return Promise.all(
+      submissionResults.map(async (submission) => {
+        const submissionGrades = await db
+          .select({
+            componentSkillId: grades.componentSkillId,
+            gradedAt: grades.gradedAt,
+          })
+          .from(grades)
+          .where(eq(grades.submissionId, submission.id));
+
+        const earnedCredentials = [];
+        if (submissionGrades.length > 0) {
+          const componentSkillIds = submissionGrades
+            .map((g) => g.componentSkillId)
+            .filter((id): id is number => id !== null);
+          const gradeDate = submissionGrades[0].gradedAt;
+
+          if (gradeDate && componentSkillIds.length > 0) {
+            const dayBefore = new Date(gradeDate.getTime() - 24 * 60 * 60 * 1000);
+            const dayAfter = new Date(gradeDate.getTime() + 24 * 60 * 60 * 1000);
+
+            const submissionCredentials = await db
+              .select({
+                id: credentials.id,
+                title: credentials.title,
+                description: credentials.description,
+                type: credentials.type,
+                awardedAt: credentials.awardedAt,
+              })
+              .from(credentials)
+              .where(and(
+                eq(credentials.studentId, studentId),
+                inArray(credentials.componentSkillId, componentSkillIds),
+                gte(credentials.awardedAt, dayBefore),
+                sql`${credentials.awardedAt} <= ${dayAfter}`,
+              ));
+
+            earnedCredentials.push(...submissionCredentials);
+          }
+        }
+
+        const questionGrades = await db
+          .select({
+            id: grades.id,
+            submissionId: grades.submissionId,
+            componentSkillId: grades.componentSkillId,
+            rubricLevel: grades.rubricLevel,
+            score: grades.score,
+            feedback: grades.feedback,
+            gradedBy: grades.gradedBy,
+            gradedAt: grades.gradedAt,
+            componentSkillName: componentSkills.name,
+            competencyName: competencies.name,
+          })
+          .from(grades)
+          .leftJoin(componentSkills, eq(grades.componentSkillId, componentSkills.id))
+          .leftJoin(competencies, eq(componentSkills.competencyId, competencies.id))
+          .where(eq(grades.submissionId, submission.id));
+
+        const isGraded = questionGrades.length > 0;
+
+        return {
+          ...submission,
+          earnedCredentials,
+          status: isGraded ? 'graded' : (submission.submittedAt ? 'submitted' : 'draft'),
+          questionGrades: questionGrades.reduce((acc: Record<number, { score: number; rubricLevel: string | null; feedback: string | null }>, grade) => {
+            if (grade.componentSkillId !== null) {
+              acc[grade.componentSkillId] = {
+                score: grade.score ? parseFloat(grade.score) : 0,
+                rubricLevel: grade.rubricLevel,
+                feedback: grade.feedback,
+              };
+            }
+            return acc;
+          }, {}),
+          grades: questionGrades,
+        };
+      }),
+    );
+  }
+
   async updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission> {
     const [updatedSubmission] = await db
       .update(submissions)
@@ -411,16 +512,6 @@ export class AssessmentStorage implements IAssessmentStorage {
       .limit(1);
 
     return componentSkill[0];
-  }
-
-  async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string): Promise<any[]> {
-    const { aiService } = await import("../ai/ai.service");
-    return await aiService.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
-  }
-
-  async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {
-    const { aiService } = await import("../ai/ai.service");
-    return await aiService.generateStudentFeedback(submission, grades);
   }
 
   async getExistingGrade(submissionId: number, componentSkillId: number): Promise<any> {

@@ -11,14 +11,31 @@ import {
   type InsertMilestone,
   type InsertProjectTeam
 } from "../../../shared/schema";
+import type {
+  ProjectCreateRequestDTO,
+  ComponentSkillWithDetailsDTO,
+} from "../../../shared/contracts/api";
 import { aiService } from "../ai/ai.service";
+import { fluxImageService } from "../ai/flux.service";
 import { sanitizeForPrompt } from "../../middleware/security";
+import { portfolioStorage } from "../portfolio/portfolio.storage";
+
+type PublicProjectFilters = {
+  search?: string;
+  subjectArea?: string;
+  gradeLevel?: string;
+  estimatedDuration?: string;
+  componentSkillIds?: number[];
+  bestStandardIds?: number[];
+};
+
+type IdRecord = { id: number; [key: string]: unknown };
 
 export class ProjectsService {
   constructor(private storage: IProjectsStorage = projectsStorage) { }
 
   // Project operations
-  async createProject(projectData: any, teacherId: number, teacherSchoolId: number | null): Promise<Project> {
+  async createProject(projectData: ProjectCreateRequestDTO, teacherId: number, teacherSchoolId: number | null): Promise<Project> {
     const { dueDate, ...bodyData } = projectData;
 
     const validatedProject = insertProjectSchema.parse({
@@ -28,12 +45,13 @@ export class ProjectsService {
       dueDate: dueDate ? new Date(dueDate) : undefined,
     });
 
-    // Ensure componentSkillIds is properly handled
-    if (!validatedProject.componentSkillIds || validatedProject.componentSkillIds.length === 0) {
-      console.warn('Project created without component skills');
-    }
-
     return this.storage.createProject(validatedProject);
+  }
+
+  async createProjectForCurrentTeacher(projectData: ProjectCreateRequestDTO, teacherId: number): Promise<Project> {
+    const teacher = await this.storage.getUser(teacherId);
+    const teacherSchoolId = teacher?.schoolId ?? null;
+    return this.createProject(projectData, teacherId, teacherSchoolId);
   }
 
   async getProject(id: number): Promise<Project | undefined> {
@@ -48,6 +66,26 @@ export class ProjectsService {
     } else {
       throw new Error("Access denied");
     }
+  }
+
+  async getProjectsForDashboard(userId: number, userRole: string, userTier?: string): Promise<Project[]> {
+    if (userTier === 'free' && userRole === 'teacher') {
+      return this.storage.getProjectsByTeacher(userId);
+    }
+    return this.getProjectsByUser(userId, userRole);
+  }
+
+  async toggleProjectVisibility(projectId: number, isPublic: boolean, userId: number, userRole: string): Promise<Project> {
+    const project = await this.storage.getProject(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    if (userRole === 'teacher' && project.teacherId !== userId) {
+      throw new Error("Access denied");
+    }
+
+    return this.storage.toggleProjectVisibility(projectId, isPublic);
   }
 
   async updateProject(id: number, updates: Partial<InsertProject>, userId: number, userRole: string): Promise<Project> {
@@ -112,7 +150,7 @@ export class ProjectsService {
   }
 
   // Milestone operations
-  async createMilestone(milestoneData: any, userId: number, userRole: string): Promise<Milestone> {
+  async createMilestone(milestoneData: unknown, userId: number, userRole: string): Promise<Milestone> {
     const validatedMilestone = insertMilestoneSchema.parse(milestoneData);
 
     // Check if user owns the project this milestone belongs to
@@ -139,6 +177,10 @@ export class ProjectsService {
     return this.storage.getMilestonesByProject(projectId);
   }
 
+  async getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>> {
+    return this.storage.getAssessmentsByMilestone(milestoneId);
+  }
+
   async updateMilestone(id: number, updates: Partial<InsertMilestone>, userId: number, userRole: string): Promise<Milestone> {
     const milestone = await this.storage.getMilestone(id);
     if (!milestone) {
@@ -159,6 +201,46 @@ export class ProjectsService {
     }
 
     return this.storage.updateMilestone(id, updates);
+  }
+
+  async updateMilestoneDeliverable(
+    milestoneId: number,
+    updates: {
+      deliverableUrl?: string;
+      deliverableFileName?: string;
+      deliverableDescription?: string;
+      includeInPortfolio?: boolean;
+    },
+    studentId?: number,
+  ): Promise<Milestone> {
+    const milestone = await this.storage.getMilestone(milestoneId);
+    if (!milestone) {
+      throw new Error("Milestone not found");
+    }
+
+    const milestoneUpdates: Partial<InsertMilestone> = {};
+    if (updates.deliverableUrl !== undefined) milestoneUpdates.deliverableUrl = updates.deliverableUrl;
+    if (updates.deliverableFileName !== undefined) milestoneUpdates.deliverableFileName = updates.deliverableFileName;
+    if (updates.deliverableDescription !== undefined) milestoneUpdates.deliverableDescription = updates.deliverableDescription;
+    if (updates.includeInPortfolio !== undefined) milestoneUpdates.includeInPortfolio = updates.includeInPortfolio;
+
+    const updatedMilestone = await this.storage.updateMilestone(milestoneId, milestoneUpdates);
+
+    if (updates.includeInPortfolio && updates.deliverableUrl && studentId) {
+      await portfolioStorage.upsertPortfolioArtifact({
+        studentId,
+        milestoneId,
+        title: milestone.title,
+        description: updates.deliverableDescription || milestone.description || '',
+        artifactUrl: updates.deliverableUrl,
+        artifactType: this.getArtifactType(updates.deliverableFileName || ''),
+        tags: [],
+        isPublic: true,
+        isApproved: false,
+      });
+    }
+
+    return updatedMilestone;
   }
 
   async deleteMilestone(id: number, userId: number, userRole: string): Promise<void> {
@@ -253,6 +335,10 @@ export class ProjectsService {
     return this.storage.getTeamMembers(teamId);
   }
 
+  async getTeamMembersWithStudentInfo(teamId: number) {
+    return this.storage.getTeamMembersWithStudentInfo(teamId);
+  }
+
   async removeTeamMember(memberId: number, userId: number, userRole: string): Promise<void> {
     // Get the specific team member to find the team
     const teamMember = await this.storage.getTeamMember(memberId);
@@ -294,7 +380,7 @@ export class ProjectsService {
     gradeLevel: string;
     duration: string;
     componentSkillIds: number[];
-  }): Promise<any> {
+  }): Promise<{ ideas: Awaited<ReturnType<typeof aiService.generateProjectIdeas>> }> {
     const { subject, topic, gradeLevel, duration, componentSkillIds } = ideaParams;
 
     // Sanitize AI inputs
@@ -322,7 +408,54 @@ export class ProjectsService {
     return { ideas };
   }
 
-  async generateMilestonesForProject(projectId: number, userId: number, userRole: string, competencies: any[]): Promise<Milestone[]> {
+  async generateProjectIdeasForUser(
+    userId: number,
+    ideaParams: {
+      subject: string;
+      topic: string;
+      gradeLevel: string;
+      duration: string;
+      componentSkillIds: number[];
+    },
+  ): Promise<{ ideas: Awaited<ReturnType<typeof aiService.generateProjectIdeas>> }> {
+    const componentSkills = await this.storage.getComponentSkillsByIds(ideaParams.componentSkillIds);
+    if (!componentSkills.length) {
+      throw new Error("No valid component skills found for the provided IDs");
+    }
+
+    const user = await this.storage.getUser(userId);
+    if (user?.tier === 'free') {
+      const now = new Date();
+      const lastDate = user.lastProjectGenerationDate;
+      let currentCount = user.projectGenerationCount || 0;
+
+      if (lastDate) {
+        const lastMonth = lastDate.getMonth();
+        const lastYear = lastDate.getFullYear();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        if (lastMonth !== currentMonth || lastYear !== currentYear) {
+          currentCount = 0;
+        }
+      }
+
+      if (currentCount >= 5) {
+        throw new Error("Free tier limit reached. You can generate up to 5 project ideas per month.");
+      }
+
+      await this.storage.incrementProjectGenerationCount(userId);
+    }
+
+    return this.generateProjectIdeas(ideaParams);
+  }
+
+  async generateProjectThumbnail(
+    projectId: number,
+    userId: number,
+    userRole: string,
+    options: { subject?: string; topic?: string },
+  ): Promise<{ thumbnailUrl: string; project: Project }> {
     const project = await this.storage.getProject(projectId);
     if (!project) {
       throw new Error("Project not found");
@@ -332,9 +465,59 @@ export class ProjectsService {
       throw new Error("Access denied");
     }
 
-    const selectedCompetencies = competencies.filter(c =>
-      (project.componentSkillIds as number[])?.includes(c.id)
-    );
+    const thumbnailUrl = await fluxImageService.generateThumbnail({
+      projectTitle: project.title,
+      projectDescription: project.description || "",
+      subject: options.subject,
+      topic: options.topic,
+    });
+
+    if (!thumbnailUrl) {
+      throw new Error("Failed to generate thumbnail");
+    }
+
+    const updatedProject = await this.storage.updateProject(projectId, { thumbnailUrl });
+    return { thumbnailUrl, project: updatedProject };
+  }
+
+  async generateThumbnailPreview(options: {
+    title: string;
+    description?: string;
+    subject?: string;
+    topic?: string;
+  }): Promise<{ thumbnailUrl: string }> {
+    const thumbnailUrl = await fluxImageService.generateThumbnail({
+      projectTitle: options.title,
+      projectDescription: options.description || "",
+      subject: options.subject,
+      topic: options.topic,
+    });
+
+    if (!thumbnailUrl) {
+      throw new Error("Failed to generate thumbnail");
+    }
+
+    return { thumbnailUrl };
+  }
+
+  async generateMilestonesForProject(
+    projectId: number,
+    userId: number,
+    userRole: string,
+  ): Promise<Milestone[]> {
+    const project = await this.storage.getProject(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    if (userRole === 'teacher' && project.teacherId !== userId) {
+      throw new Error("Access denied");
+    }
+
+    const projectComponentSkillIds = project.componentSkillIds as number[] | null;
+    if (!projectComponentSkillIds?.length) {
+      throw new Error("Project has no component skills for milestone generation");
+    }
 
     const milestones = await aiService.generateProjectMilestones(project);
 
@@ -355,7 +538,11 @@ export class ProjectsService {
     return savedMilestones;
   }
 
-  async generateMilestonesAndAssessmentsForProject(projectId: number, userId: number, userRole: string, componentSkillsDetails: any[]): Promise<any> {
+  async generateMilestonesAndAssessmentsForProject(
+    projectId: number,
+    userId: number,
+    userRole: string,
+  ): Promise<Array<{ milestone: Milestone; assessment: Awaited<ReturnType<typeof aiService.generateAssessmentFromComponentSkills>> }>> {
     const project = await this.storage.getProject(projectId);
     if (!project) {
       throw new Error("Project not found");
@@ -370,8 +557,9 @@ export class ProjectsService {
       throw new Error("Project has no component skills");
     }
 
+    const componentSkillsDetails = await this.storage.getComponentSkillsWithDetails() as IdRecord[];
     const projectComponentSkills = componentSkillsDetails.filter(
-      skill => projectComponentSkillIds.includes(skill.id)
+      (skill) => projectComponentSkillIds.includes(skill.id)
     );
 
     if (projectComponentSkills.length === 0) {
@@ -415,6 +603,72 @@ export class ProjectsService {
     return savedMilestones;
   }
 
+  async getPublicProjectsWithStandards(filters: PublicProjectFilters = {}) {
+    const publicProjects = await this.storage.getPublicProjects(filters);
+
+    const allBestStandardIds = new Set<number>();
+    publicProjects.forEach((project) => {
+      if (Array.isArray(project.bestStandardIds)) {
+        project.bestStandardIds.forEach((id) => allBestStandardIds.add(id));
+      }
+    });
+
+    const bestStandardsMap = new Map<number, IdRecord>();
+    if (allBestStandardIds.size > 0) {
+      const standards = await this.storage.getBestStandardsByIds(Array.from(allBestStandardIds)) as IdRecord[];
+      standards.forEach((standard) => bestStandardsMap.set(standard.id, standard));
+    }
+
+    return publicProjects.map((project) => ({
+      ...project,
+      bestStandards: (project.bestStandardIds as number[] | null)?.map((id) => bestStandardsMap.get(id)).filter(Boolean) || [],
+    }));
+  }
+
+  async getPublicFilters() {
+    const subjectAreas = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
+    const gradeLevels = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+    const durations = ['1-2 weeks', '3-4 weeks', '5-6 weeks', '7-8 weeks', '9+ weeks'];
+    const competencyFrameworks = await this.storage.getLearnerOutcomesWithCompetencies();
+
+    return {
+      subjectAreas,
+      gradeLevels,
+      durations,
+      competencyFrameworks,
+    };
+  }
+
+  async getPublicProjectDetails(projectId: number) {
+    const project = await this.storage.getProject(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    if (!project.isPublic) {
+      throw new Error("This project is not publicly available");
+    }
+
+    const projectMilestones = await this.storage.getMilestonesByProject(projectId);
+
+    let componentSkills: ComponentSkillWithDetailsDTO[] = [];
+    if (Array.isArray(project.componentSkillIds) && project.componentSkillIds.length > 0) {
+      componentSkills = await this.storage.getComponentSkillsByIds(project.componentSkillIds as number[]) as ComponentSkillWithDetailsDTO[];
+    }
+
+    let bestStandards: IdRecord[] = [];
+    if (Array.isArray(project.bestStandardIds) && project.bestStandardIds.length > 0) {
+      bestStandards = await this.storage.getBestStandardsByIds(project.bestStandardIds as number[]) as IdRecord[];
+    }
+
+    return {
+      ...project,
+      milestones: projectMilestones,
+      componentSkills,
+      bestStandards,
+    };
+  }
+
   // Teacher dashboard methods
   async getTeacherDashboardStats(teacherId: number) {
     return await this.storage.getTeacherDashboardStats(teacherId);
@@ -434,6 +688,15 @@ export class ProjectsService {
 
   async getSchoolStudentsProgress(teacherId: number) {
     return await this.storage.getSchoolStudentsProgress(teacherId);
+  }
+
+  private getArtifactType(fileName: string): string {
+    const ext = fileName.toLowerCase().split('.').pop() || '';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
+    if (['mp4', 'webm', 'mov', 'avi'].includes(ext)) return 'video';
+    if (['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext)) return 'document';
+    if (['ppt', 'pptx', 'key'].includes(ext)) return 'presentation';
+    return 'file';
   }
 }
 

@@ -25,20 +25,19 @@ export class AIController {
         }
 
         const { componentSkill, conversationHistory, currentEvaluation, assessmentId } = req.body;
+        const conversationHistoryList: Array<Record<string, unknown>> = Array.isArray(conversationHistory)
+          ? conversationHistory.filter(
+            (msg: unknown): msg is Record<string, unknown> =>
+              typeof msg === "object" && msg !== null,
+          )
+          : [];
 
-        if (!componentSkill || !conversationHistory) {
+        if (!componentSkill || conversationHistoryList.length === 0) {
           return res.status(400).json({ message: "Missing required fields" });
         }
 
-        console.log("AI Tutor Chat Request:", {
-          userId,
-          componentSkillName: componentSkill.name,
-          messageCount: conversationHistory.length,
-          currentLevel: currentEvaluation?.selfAssessedLevel
-        });
-
         // Add studentId to conversation history for safety incident tracking
-        const enhancedConversationHistory = conversationHistory.map((msg: any) => ({
+        const enhancedConversationHistory = conversationHistoryList.map((msg: Record<string, unknown>) => ({
           ...msg,
           studentId: req.user?.role === 'student' ? userId : msg.studentId
         }));
@@ -52,34 +51,32 @@ export class AIController {
 
         // Handle safety flags by creating notifications
         if (tutorResponse.safetyFlag) {
-          console.log("SAFETY FLAG RAISED:", {
-            userId,
-            flag: tutorResponse.safetyFlag,
-            componentSkill: componentSkill.name,
-            timestamp: new Date().toISOString()
-          });
-
           // Create safety incident and notify teachers
           const studentId = userId; // Simplified - both branches were returning userId
-          const latestMessage = conversationHistory.filter((msg: any) => msg.role === 'student').pop()?.content || '';
+          const latestMessage = String(conversationHistoryList
+            .filter((msg: Record<string, unknown>) => msg.role === 'student')
+            .map((msg) => msg.content)
+            .pop() || '');
 
           try {
-            // Import the notification service
-            const { notificationService } = await import('../notifications');
+            // Import notification helper
+            const { notifyTeacherOfSafetyIncident } = await import('../../services/notifications');
 
             // Map safety flags to incident types using a mapping object
-            const safetyFlagMapping: Record<string, string> = {
+            const safetyFlagMapping = {
               'homicidal_ideation': 'homicidal_ideation',
               'suicidal_ideation': 'suicidal_ideation',
               'inappropriate_language': 'inappropriate_language',
               'homicidal_ideation_fallback': 'homicidal_ideation_fallback',
               'suicidal_ideation_fallback': 'suicidal_ideation_fallback',
               'inappropriate_language_fallback': 'inappropriate_language_fallback'
-            };
+            } as const;
 
-            const incidentType = safetyFlagMapping[tutorResponse.safetyFlag] || 'inappropriate_language';
+            type SafetyIncidentType = typeof safetyFlagMapping[keyof typeof safetyFlagMapping];
+            const incidentType: SafetyIncidentType =
+              safetyFlagMapping[tutorResponse.safetyFlag as keyof typeof safetyFlagMapping] || 'inappropriate_language';
 
-            await notificationService.notifyTeacherOfSafetyIncident({
+            await notifyTeacherOfSafetyIncident({
               studentId: studentId,
               assessmentId: assessmentId || undefined,
               componentSkillId: componentSkill.id,
@@ -89,13 +86,10 @@ export class AIController {
               conversationHistory: enhancedConversationHistory
             });
 
-            console.log("Safety incident notification created successfully");
           } catch (notificationError) {
             console.error("Error creating safety incident notification:", notificationError);
           }
         }
-
-        console.log("AI Tutor Response generated successfully");
 
         res.json({
           response: tutorResponse.response,

@@ -9,12 +9,14 @@ import {
   insertAssessmentSchema,
   insertSubmissionSchema
 } from "../../../shared/schema";
+import type { AssessmentCreateRequestDTO } from '../../../shared/contracts/api';
+import { aiService } from '../ai/ai.service';
 
 export class AssessmentService {
   constructor(private storage: IAssessmentStorage = assessmentStorage) { }
 
   // Assessment business logic
-  async createAssessment(data: any): Promise<Assessment> {
+  async createAssessment(data: AssessmentCreateRequestDTO): Promise<Assessment> {
     // Handle date conversion manually
     const { dueDate, ...bodyData } = data;
 
@@ -25,7 +27,9 @@ export class AssessmentService {
       }
 
       // Check for questions with empty text
-      const emptyQuestions = bodyData.questions.filter((q: any) => !q.text || q.text.trim().length === 0);
+      const emptyQuestions = bodyData.questions.filter(
+        (q): boolean => typeof q?.text !== "string" || q.text.trim().length === 0,
+      );
       if (emptyQuestions.length > 0) {
         throw new Error("All questions in teacher assessments must have non-empty text");
       }
@@ -33,7 +37,7 @@ export class AssessmentService {
 
     // Ensure questions have proper IDs
     if (bodyData.questions && Array.isArray(bodyData.questions)) {
-      bodyData.questions = bodyData.questions.map((question: any, index: number) => ({
+      bodyData.questions = bodyData.questions.map((question, index: number) => ({
         ...question,
         id: question.id || `q_${Date.now()}_${index}` // Generate ID if missing
       }));
@@ -45,13 +49,13 @@ export class AssessmentService {
       createdBy: data.createdBy // Ensure this is passed through
     });
 
-    console.log("Creating assessment with questions:", assessmentData.questions);
-
     // Ensure componentSkillIds is properly handled
     let componentSkillIds: number[] = [];
     if (assessmentData.componentSkillIds) {
       if (Array.isArray(assessmentData.componentSkillIds)) {
-        componentSkillIds = assessmentData.componentSkillIds;
+        componentSkillIds = assessmentData.componentSkillIds.filter(
+          (id): id is number => typeof id === "number",
+        );
       } else if (typeof assessmentData.componentSkillIds === 'object') {
         // Handle Drizzle returning object for generic jsonb - cast to unknown first to break type checking
         const rawSkills = assessmentData.componentSkillIds as unknown;
@@ -59,9 +63,6 @@ export class AssessmentService {
       }
     }
 
-    if (componentSkillIds.length === 0) {
-      console.warn('Project created without component skills');
-    }
     const assessmentToCreate = {
       ...assessmentData,
       componentSkillIds,
@@ -185,7 +186,6 @@ export class AssessmentService {
     try {
       // Validate input
       if (!assessmentId || isNaN(assessmentId)) {
-        console.error("Invalid assessmentId:", assessmentId);
         return [];
       }
 
@@ -202,13 +202,10 @@ export class AssessmentService {
           try {
             // Ensure submission has required properties
             if (!submission || !submission.id) {
-              console.error("Invalid submission object:", submission);
               return null;
             }
 
             const grades = await this.storage.getGradesBySubmission(submission.id);
-
-            console.log(`Submission ${submission.id} has ${grades?.length || 0} grades:`, grades);
 
             return {
               ...submission,
@@ -218,8 +215,7 @@ export class AssessmentService {
                 ? new Date(submission.submittedAt) > new Date(assessment.dueDate)
                 : false
             };
-          } catch (error) {
-            console.error(`Error processing submission ${submission?.id}:`, error);
+          } catch (_error) {
             return {
               ...submission,
               answers: submission?.responses || {},
@@ -232,10 +228,17 @@ export class AssessmentService {
 
       // Filter out null submissions
       return enhancedSubmissions.filter(submission => submission !== null);
-    } catch (error) {
-      console.error("Error in getSubmissionsByAssessment service:", error);
+    } catch (_error) {
       return []; // Return empty array instead of throwing
     }
+  }
+
+  async getStudentCompetencyProgress(studentId: number) {
+    return this.storage.getStudentCompetencyProgress(studentId);
+  }
+
+  async getStudentAssessmentSubmissions(studentId: number) {
+    return this.storage.getStudentAssessmentSubmissions(studentId);
   }
 
   async updateSubmission(id: number, updates: Partial<InsertSubmission>): Promise<Submission> {
@@ -282,11 +285,27 @@ export class AssessmentService {
   }
 
   async generateComponentSkillGrades(submission: any, assessment: any, componentSkills: any[], pdfContent?: string): Promise<any[]> {
-    return await this.storage.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
+    return await aiService.generateComponentSkillGrades(submission, assessment, componentSkills, pdfContent);
   }
 
   async generateStudentFeedback(submission: any, grades: any[]): Promise<string> {
-    return await this.storage.generateStudentFeedback(submission, grades);
+    return await aiService.generateStudentFeedback(submission, grades);
+  }
+
+  async generateFeedbackForQuestion(question: string, response: string, rubricLevel: string): Promise<string> {
+    const aiFeedbackService = aiService as unknown as {
+      generateFeedbackForQuestion?: (
+        questionText: string,
+        studentResponse: string,
+        rubric: string,
+      ) => Promise<string>;
+    };
+
+    if (!aiFeedbackService.generateFeedbackForQuestion) {
+      throw new Error("Question feedback generation is not configured");
+    }
+
+    return aiFeedbackService.generateFeedbackForQuestion(question, response, rubricLevel);
   }
 
   async getExistingGrade(submissionId: number, componentSkillId: number): Promise<any> {
@@ -303,6 +322,25 @@ export class AssessmentService {
 
   async getUpcomingDeadlines(projectIds: number[]): Promise<any[]> {
     return await this.storage.getUpcomingDeadlines(projectIds);
+  }
+
+  async generateAssessmentForMilestone(milestoneId: number, userId: number) {
+    const { projectsService } = await import('../projects/projects.service');
+    const milestone = await projectsService.getMilestone(milestoneId);
+
+    if (!milestone) {
+      throw new Error("Milestone not found");
+    }
+
+    const assessmentData = await aiService.generateAssessment(milestone);
+    return this.createAssessment({
+      milestoneId,
+      title: assessmentData.title,
+      description: assessmentData.description,
+      questions: assessmentData.questions,
+      aiGenerated: true,
+      createdBy: userId,
+    });
   }
 }
 

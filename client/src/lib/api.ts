@@ -1,86 +1,181 @@
-import { apiRequest } from "./queryClient";
+import type {
+  AIAssessmentGenerationRequestDTO,
+  AIAssessmentGenerationResponseDTO,
+  AssessmentSubmissionSummaryDTO,
+  AssessmentCreateRequestDTO,
+  ApiMessageResponse,
+  AssessmentDTO,
+  AssessmentUpdateRequestDTO,
+  AuthCurrentUserResponseDTO,
+  ComponentSkillWithDetailsDTO,
+  CredentialDTO,
+  LearnerOutcomeHierarchyItemDTO,
+  MilestoneDTO,
+  NotificationDTO,
+  PortfolioArtifactDTO,
+  ProjectCreateRequestDTO,
+  ProjectTeamDTO,
+  ProjectTeamMemberDTO,
+  ProjectUpdateRequestDTO,
+  ProjectDTO,
+  StudentAssessmentSubmissionDTO,
+  StudentSchoolProgressDTO,
+  StudentSummaryDTO,
+  SubmissionCreateRequestDTO,
+  SubmissionGradeRequestDTO,
+  SubmissionDTO,
+  SubmissionWithAssessmentDTO,
+  TeacherCurrentMilestoneDTO,
+  TeacherDashboardStatsDTO,
+  TeacherPendingTaskDTO,
+  TeacherProjectOverviewDTO,
+  FileUploadResponseDTO,
+} from "@shared/contracts/api";
+import { apiJsonRequest } from "./queryClient";
+import { apiUploadFile } from "./apiHelpers";
+
+type UnknownRecord = Record<string, unknown>;
 
 export const api = {
   // Student assessment submissions
-  async getStudentAssessmentSubmissions(studentId: number) {
-    const response = await apiRequest(`/api/student/assessment-submissions/${studentId}`, 'GET');
-    return response.json();
-  },
+  getStudentAssessmentSubmissions: (studentId: number) =>
+    apiJsonRequest<StudentAssessmentSubmissionDTO[]>(`/api/student/assessment-submissions/${studentId}`, "GET"),
 
   // Auth endpoints
-  getCurrentUser: () => apiRequest("/api/auth/user", "GET").then(res => res.json()),
+  getCurrentUser: () => apiJsonRequest<AuthCurrentUserResponseDTO>("/api/auth/user", "GET"),
 
   // Projects
-  getProjects: () => apiRequest("/api/projects", "GET").then(res => res.json()),
-  createProject: async (data: any) => {
-    const response = await apiRequest("/api/projects", "POST", data);
-    return response.json();
-  },
-  getProject: (id: number) => apiRequest(`/api/projects/${id}`, "GET").then(res => res.json()),
-  generateMilestones: async (projectId: number) => {
-
-    const response = await apiRequest(`/api/projects/${projectId}/generate-milestones`, "POST");
-    return response.json();
-  },
+  getProjects: () => apiJsonRequest<ProjectDTO[]>("/api/projects", "GET"),
+  createProject: (data: ProjectCreateRequestDTO) =>
+    apiJsonRequest<ProjectDTO>("/api/projects", "POST", data),
+  updateProject: (id: number, data: ProjectUpdateRequestDTO) =>
+    apiJsonRequest<ProjectDTO>(`/api/projects/${id}`, "PUT", data),
+  deleteProject: (id: number) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/projects/${id}`, "DELETE"),
+  getProject: (id: number) => apiJsonRequest<ProjectDTO>(`/api/projects/${id}`, "GET"),
+  toggleProjectVisibility: (id: number, isPublic: boolean) =>
+    apiJsonRequest<ProjectDTO>(`/api/projects/${id}/visibility`, "PATCH", { isPublic }),
+  startProject: (id: number) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/projects/${id}/start`, "POST"),
+  generateMilestones: (projectId: number) =>
+    apiJsonRequest<MilestoneDTO[]>(`/api/projects/${projectId}/generate-milestones`, "POST"),
+  generateMilestonesAndAssessments: (projectId: number) =>
+    apiJsonRequest<{
+      milestones: MilestoneDTO[];
+      assessments: AssessmentDTO[];
+      message: string;
+    }>(`/api/projects/${projectId}/generate-milestones-and-assessments`, "POST"),
+  getProjectTeams: (projectId: number) =>
+    apiJsonRequest<ProjectTeamDTO[]>(`/api/projects/${projectId}/teams`, "GET"),
+  createProjectTeam: (data: { projectId: number; name: string; description?: string }) =>
+    apiJsonRequest<ProjectTeamDTO>("/api/project-teams", "POST", data),
   assignStudents: (projectId: number, studentIds: string[]) =>
-    apiRequest(`/api/projects/${projectId}/assign`, "POST", { studentIds }),
+    apiJsonRequest<ApiMessageResponse>(`/api/projects/${projectId}/assign`, "POST", { studentIds }),
 
   // Milestones
   getMilestones: (projectId: number) =>
-    apiRequest(`/api/projects/${projectId}/milestones`, "GET").then(res => res.json()),
-  createMilestone: (data: any) => apiRequest("/api/milestones", "POST", data),
+    apiJsonRequest<MilestoneDTO[]>(`/api/projects/${projectId}/milestones`, "GET"),
+  getMilestone: (id: number) =>
+    apiJsonRequest<MilestoneDTO>(`/api/milestones/${id}`, "GET"),
+  updateMilestone: (id: number, data: UnknownRecord) =>
+    apiJsonRequest<MilestoneDTO>(`/api/milestones/${id}`, "PUT", data),
+  deleteMilestone: (id: number) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/milestones/${id}`, "DELETE"),
+  createMilestone: (data: UnknownRecord) =>
+    apiJsonRequest<MilestoneDTO>("/api/milestones", "POST", data),
+  deleteProjectTeam: (id: number) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/project-teams/${id}`, "DELETE"),
+  getProjectTeamMembers: (teamId: number) =>
+    apiJsonRequest<ProjectTeamMemberDTO[]>(`/api/project-teams/${teamId}/members`, "GET"),
+  createProjectTeamMember: (data: { teamId: number; studentId: number; role?: string }) =>
+    apiJsonRequest<ProjectTeamMemberDTO>("/api/project-team-members", "POST", data),
+  deleteProjectTeamMember: (id: number) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/project-team-members/${id}`, "DELETE"),
 
   // Assessments
   getAssessments: (milestoneId: number) =>
-    apiRequest(`/api/milestones/${milestoneId}/assessments`, "GET").then(res => res.json()),
+    apiJsonRequest<AssessmentDTO[]>(`/api/milestones/${milestoneId}/assessments`, "GET"),
+  getAssessment: (assessmentId: number) =>
+    apiJsonRequest<AssessmentDTO>(`/api/assessments/${assessmentId}`, "GET"),
   getStandaloneAssessments: () =>
-    apiRequest("/api/assessments/standalone", "GET").then(res => res.json()),
-  createAssessment: (data: any) => apiRequest("/api/assessments", "POST", data),
-  updateAssessment: (id: number, data: any) => apiRequest(`/api/assessments/${id}`, "PATCH", data),
+    apiJsonRequest<AssessmentDTO[]>("/api/assessments/standalone", "GET"),
+  createAssessment: (data: AssessmentCreateRequestDTO) =>
+    apiJsonRequest<AssessmentDTO>("/api/assessments", "POST", data),
+  updateAssessment: (id: number, data: AssessmentUpdateRequestDTO) =>
+    apiJsonRequest<AssessmentDTO>(`/api/assessments/${id}`, "PATCH", data),
   generateAssessment: (milestoneId: number) =>
-    apiRequest(`/api/milestones/${milestoneId}/generate-assessment`, "POST"),
+    apiJsonRequest<AssessmentDTO>(`/api/milestones/${milestoneId}/generate-assessment`, "POST"),
+  generateAssessmentFromSkills: (data: AIAssessmentGenerationRequestDTO) =>
+    apiJsonRequest<AIAssessmentGenerationResponseDTO>("/api/ai/generate-assessment", "POST", data),
+  deleteAssessment: (assessmentId: number) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/assessments/${assessmentId}`, "DELETE"),
+  uploadFile: (file: File) =>
+    apiUploadFile("/api/uploads/file", file) as Promise<FileUploadResponseDTO>,
 
   // Submissions
-  createSubmission: (data: any) => apiRequest("/api/submissions", "POST", data),
+  createSubmission: (data: SubmissionCreateRequestDTO) =>
+    apiJsonRequest<SubmissionDTO>("/api/submissions", "POST", data),
   getStudentSubmissions: () =>
-    apiRequest("/api/submissions/student", "GET").then(res => res.json()),
+    apiJsonRequest<SubmissionWithAssessmentDTO[]>("/api/submissions/student", "GET"),
   getAssessmentSubmissions: (assessmentId: number) =>
-    apiRequest(`/api/assessments/${assessmentId}/submissions`, "GET").then(res => res.json()),
-  // The line below is the updated version of the original getStudentAssessmentSubmissions
-  // getStudentAssessmentSubmissions: (studentId: number) => 
-  //   fetch(`/api/student/assessment-submissions/${studentId}`, { credentials: "include" }).then(res => res.json()),
-  gradeSubmission: (submissionId: number, data: any) =>
-    apiRequest(`/api/submissions/${submissionId}/grade`, "POST", data),
+    apiJsonRequest<AssessmentSubmissionSummaryDTO[]>(`/api/assessments/${assessmentId}/submissions`, "GET"),
+  gradeSubmission: (submissionId: number, data: SubmissionGradeRequestDTO) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/submissions/${submissionId}/grade`, "POST", data),
 
   // Credentials
   getStudentCredentials: () =>
-    apiRequest("/api/credentials/student", "GET").then(res => res.json()),
-  awardCredential: (data: any) => apiRequest("/api/credentials", "POST", data),
+    apiJsonRequest<CredentialDTO[]>("/api/credentials/student", "GET"),
+  getTeacherCredentialStats: () =>
+    apiJsonRequest<CredentialDTO[]>("/api/credentials/teacher-stats", "GET"),
+  getStudentCredentialsByStudentId: (studentId: number) =>
+    apiJsonRequest<CredentialDTO[]>(`/api/credentials/student?studentId=${studentId}`, "GET"),
+  awardCredential: (data: UnknownRecord) =>
+    apiJsonRequest<CredentialDTO>("/api/credentials", "POST", data),
 
   // Portfolio
   getPortfolioArtifacts: () =>
-    apiRequest("/api/portfolio/artifacts", "GET").then(res => res.json()),
-  createPortfolioArtifact: (data: any) => apiRequest("/api/portfolio/artifacts", "POST", data),
+    apiJsonRequest<PortfolioArtifactDTO[]>("/api/portfolio/artifacts", "GET"),
+  getPortfolioArtifactsByStudent: (studentId: number) =>
+    apiJsonRequest<PortfolioArtifactDTO[]>(`/api/portfolio/artifacts?studentId=${studentId}`, "GET"),
+  createPortfolioArtifact: (data: UnknownRecord) =>
+    apiJsonRequest<PortfolioArtifactDTO>("/api/portfolio/artifacts", "POST", data),
 
   // Competencies
-  getCompetencies: () =>
-    apiRequest("/api/competencies", "GET").then(res => res.json()),
+  getCompetencies: () => apiJsonRequest<UnknownRecord[]>("/api/competencies", "GET"),
+  getComponentSkills: () =>
+    apiJsonRequest<ComponentSkillWithDetailsDTO[]>("/api/competencies/component-skills", "GET"),
+  getComponentSkillsWithDetails: () =>
+    apiJsonRequest<ComponentSkillWithDetailsDTO[]>("/api/competencies/component-skills/details", "GET"),
+  getComponentSkillsByIds: (skillIds: number[]) =>
+    apiJsonRequest<ComponentSkillWithDetailsDTO[]>("/api/competencies/component-skills/by-ids", "POST", { skillIds }),
   getOutcomes: (competencyId: number) =>
-    apiRequest(`/api/competencies/${competencyId}/outcomes`, "GET").then(res => res.json()),
+    apiJsonRequest<UnknownRecord[]>(`/api/competencies/${competencyId}/outcomes`, "GET"),
   getLearnerOutcomes: () =>
-    apiRequest("/api/learner-outcomes", "GET").then(res => res.json()),
+    apiJsonRequest<UnknownRecord[]>("/api/learner-outcomes", "GET"),
+  getLearnerOutcomesHierarchyComplete: () =>
+    apiJsonRequest<LearnerOutcomeHierarchyItemDTO[]>("/api/learner-outcomes-hierarchy/complete", "GET"),
+
+  // Notifications
+  getNotifications: () =>
+    apiJsonRequest<NotificationDTO[]>("/api/notifications", "GET"),
+  markNotificationAsRead: (notificationId: number) =>
+    apiJsonRequest<ApiMessageResponse>(`/api/notifications/${notificationId}/mark-read`, "POST"),
+  markAllNotificationsAsRead: () =>
+    apiJsonRequest<ApiMessageResponse>("/api/notifications/mark-all-read", "POST"),
 
   // Dashboard endpoints
   getTeacherDashboardStats: () =>
-    apiRequest("/api/teacher/dashboard-stats", "GET").then(res => res.json()),
+    apiJsonRequest<TeacherDashboardStatsDTO>("/api/teacher/dashboard-stats", "GET"),
   getTeacherProjects: () =>
-    apiRequest("/api/teacher/projects", "GET").then(res => res.json()),
+    apiJsonRequest<TeacherProjectOverviewDTO[]>("/api/teacher/projects", "GET"),
   getTeacherPendingTasks: () =>
-    apiRequest("/api/teacher/pending-tasks", "GET").then(res => res.json()),
+    apiJsonRequest<TeacherPendingTaskDTO[]>("/api/teacher/pending-tasks", "GET"),
   getTeacherCurrentMilestones: () =>
-    apiRequest("/api/teacher/current-milestones", "GET").then(res => res.json()),
+    apiJsonRequest<TeacherCurrentMilestoneDTO[]>("/api/teacher/current-milestones", "GET"),
   getStudentDeadlines: () =>
-    apiRequest("/api/deadlines/student", "GET").then(res => res.json()),
+    apiJsonRequest<UnknownRecord[]>("/api/deadlines/student", "GET"),
   getSchoolStudentsProgress: () =>
-    apiRequest("/api/schools/students-progress", "GET").then(res => res.json()),
+    apiJsonRequest<StudentSchoolProgressDTO[]>("/api/schools/students-progress", "GET"),
+  getSchoolStudents: (schoolId: number) =>
+    apiJsonRequest<StudentSummaryDTO[]>(`/api/schools/${schoolId}/students`, "GET"),
 };

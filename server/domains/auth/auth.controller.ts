@@ -2,6 +2,13 @@ import { Router } from 'express';
 import { AuthService, type JWTPayload } from './auth.service';
 import { authStorage } from './auth.storage';
 import { registerSchema, loginSchema, type User, UserRole } from '../../../shared/schema';
+import type {
+  AuthCurrentUserResponseDTO,
+  AuthLoginRequestDTO,
+  AuthLoginResponseDTO,
+  AuthRegisterRequestDTO,
+  AuthRegisterResponseDTO,
+} from '../../../shared/contracts/api';
 import { z } from 'zod';
 import { authLimiter, createErrorResponse } from '../../middleware/security';
 import type { Request, Response, NextFunction } from 'express';
@@ -11,28 +18,29 @@ export interface AuthenticatedRequest extends Request {
   user?: User;
 }
 
+function toAuthUserDTO(user: User): AuthLoginResponseDTO {
+  const { password: _password, ...userWithoutPassword } = user;
+  return userWithoutPassword;
+}
+
 // Authentication middleware
 export const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const accessToken = req.cookies.access_token;
     if (!accessToken) {
-      console.log('RequireAuth: No access token found for', req.path);
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
     const payload = AuthService.verifyAccessToken(accessToken);
     if (!payload) {
-      console.log('RequireAuth: Invalid token for', req.path);
       return res.status(401).json({ message: 'Invalid token' });
     }
 
     const user = await authStorage.getUser(payload.userId);
     if (!user) {
-      console.log('RequireAuth: User not found for', req.path);
       return res.status(401).json({ message: 'User not found' });
     }
 
-    console.log('RequireAuth: Successfully authenticated user', user.id, 'for', req.path);
     req.user = user;
     next();
   } catch (error) {
@@ -45,14 +53,10 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
 export const requireRole = (...roles: UserRole[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      console.log('RequireRole: No user found for', req.path);
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
     const userRole = req.user.role as UserRole;
-
-    console.log(`RequireRole: User ${req.user.id} has role '${userRole}' for ${req.path}`);
-    console.log(`RequireRole: Required roles: [${roles.join(', ')}]`);
 
     // Ensure both user role and required roles are properly typed
     const normalizedUserRole = userRole?.toLowerCase().trim() as UserRole;
@@ -60,10 +64,7 @@ export const requireRole = (...roles: UserRole[]) => {
 
     const hasAccess = normalizedRequiredRoles.includes(normalizedUserRole);
 
-    console.log(`RequireRole: Normalized user role '${normalizedUserRole}' included in [${normalizedRequiredRoles.join(', ')}]: ${hasAccess}`);
-
     if (!hasAccess) {
-      console.log(`RequireRole: Access denied - user role '${normalizedUserRole}' not in allowed roles [${normalizedRequiredRoles.join(', ')}]`);
       return res.status(403).json({
         message: 'Forbidden',
         details: process.env.NODE_ENV === 'development' ? {
@@ -73,7 +74,6 @@ export const requireRole = (...roles: UserRole[]) => {
       });
     }
 
-    console.log(`RequireRole: Access granted for user ${req.user.id} with role '${normalizedUserRole}'`);
     next();
   };
 };
@@ -90,7 +90,7 @@ export const createAuthRouter = () => {
   router.post('/register', async (req, res) => {
     try {
       // Validate request body against schema
-      const userData = registerSchema.parse(req.body);
+      const userData: AuthRegisterRequestDTO = registerSchema.parse(req.body);
 
       // Check if user already exists
       const existingUser = await authStorage.getUserByUsername(userData.username);
@@ -118,7 +118,7 @@ export const createAuthRouter = () => {
       AuthService.setAuthCookies(res, accessToken, refreshToken);
 
       // Return user data (without password)
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword: AuthRegisterResponseDTO = toAuthUserDTO(user);
       res.status(201).json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -132,7 +132,7 @@ export const createAuthRouter = () => {
   // Login route
   router.post('/login', async (req, res) => {
     try {
-      const { username, password } = loginSchema.parse(req.body);
+      const { username, password }: AuthLoginRequestDTO = loginSchema.parse(req.body);
 
       const { user, accessToken, refreshToken } = await AuthService.loginUser(username, password);
 
@@ -140,7 +140,7 @@ export const createAuthRouter = () => {
       AuthService.setAuthCookies(res, accessToken, refreshToken);
 
       // Return user data (without password)
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword: AuthLoginResponseDTO = toAuthUserDTO(user);
       res.json(userWithoutPassword);
     } catch (error) {
       console.error('Login error:', error);
@@ -173,7 +173,7 @@ export const createAuthRouter = () => {
         return res.status(401).json({ message: 'No refresh token' });
       }
 
-      const { user, accessToken, refreshToken: newRefreshToken } = await AuthService.refreshUserTokens(refreshToken);
+      const { accessToken, refreshToken: newRefreshToken } = await AuthService.refreshUserTokens(refreshToken);
 
       // Set new cookies
       AuthService.setAuthCookies(res, accessToken, newRefreshToken);
@@ -226,7 +226,7 @@ export const createAuthRouter = () => {
       }
 
       // Return user data (without password)
-      const { password: _, ...userWithoutPassword } = req.user;
+      const userWithoutPassword: AuthCurrentUserResponseDTO = toAuthUserDTO(req.user);
       res.json(userWithoutPassword);
     } catch (error) {
       console.error('Get user error:', error);

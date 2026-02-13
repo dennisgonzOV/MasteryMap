@@ -26,6 +26,7 @@ import {
 import { format } from "date-fns";
 import Navigation from "@/components/navigation";
 import { getCompetencyInfo } from "@/lib/competencyUtils";
+import type { ComponentSkillWithDetailsDTO } from "@shared/contracts/api";
 
 interface Question {
   id: string;
@@ -58,16 +59,6 @@ interface Submission {
   isLate: boolean;
 }
 
-interface ComponentSkill {
-  id: number;
-  name: string;
-  competencyId: number;
-  competencyName: string;
-  competencyCategory: string;
-  learnerOutcomeName: string;
-  learnerOutcomeType: string;
-}
-
 export default function SubmissionReview() {
   const { assessmentId, submissionId } = useParams();
   const [, setLocation] = useLocation();
@@ -91,7 +82,7 @@ export default function SubmissionReview() {
   });
 
   // Fetch component skills for context and grading
-  const { data: allComponentSkills = [] } = useQuery<ComponentSkill[]>({
+  const { data: allComponentSkills = [] } = useQuery<ComponentSkillWithDetailsDTO[]>({
     queryKey: ["/api/competencies/component-skills/details"],
     enabled: !!assessment?.componentSkillIds?.length,
   });

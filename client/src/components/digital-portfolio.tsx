@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { 
@@ -14,7 +14,6 @@ import {
   Edit,
   Star,
   Calendar,
-  Award,
   FileText,
   Image,
   Video,
@@ -22,9 +21,9 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
 
-// Import types from schema
-import { PortfolioArtifact, Credential } from '../../../shared/schema';
+import type { PortfolioArtifactDTO, CredentialDTO } from '@shared/contracts/api';
 
 interface DigitalPortfolioProps {
   studentId: number;
@@ -40,24 +39,28 @@ export default function DigitalPortfolio({
   canEdit = true 
 }: DigitalPortfolioProps) {
   const { toast } = useToast();
-  const [artifacts, setArtifacts] = useState<PortfolioArtifact[]>([]);
-  const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [artifacts, setArtifacts] = useState<PortfolioArtifactDTO[]>([]);
+  const [credentials, setCredentials] = useState<CredentialDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [showQRCode, setShowQRCode] = useState(false);
-  const [selectedArtifact, setSelectedArtifact] = useState<PortfolioArtifact | null>(null);
+  const [selectedArtifact, setSelectedArtifact] = useState<PortfolioArtifactDTO | null>(null);
+
+  const toTagList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((tag): tag is string => typeof tag === "string") : [];
 
   // Mock data for demonstration - matching database schema
-  const mockArtifacts: PortfolioArtifact[] = [
+  const mockArtifacts: PortfolioArtifactDTO[] = [
     {
       id: 1,
       studentId: studentId,
       submissionId: 1,
+      milestoneId: null,
       title: 'Digital Storytelling Project',
       description: 'Interactive narrative about environmental conservation',
       artifactUrl: '/projects/digital-storytelling',
       artifactType: 'project',
-      tags: ['creativity', 'digital-media', 'environmental-awareness'] as any,
+      tags: ['creativity', 'digital-media', 'environmental-awareness'],
       isPublic: true,
       isApproved: true,
       createdAt: new Date('2024-11-15T10:00:00Z')
@@ -66,11 +69,12 @@ export default function DigitalPortfolio({
       id: 2,
       studentId: studentId,
       submissionId: 2,
+      milestoneId: null,
       title: 'Data Visualization Report',
       description: 'Analysis of local community demographics using charts and graphs',
       artifactUrl: '/documents/data-viz-report.pdf',
       artifactType: 'document',
-      tags: ['data-analysis', 'research', 'critical-thinking'] as any,
+      tags: ['data-analysis', 'research', 'critical-thinking'],
       isPublic: true,
       isApproved: true,
       createdAt: new Date('2024-11-10T14:30:00Z')
@@ -79,18 +83,19 @@ export default function DigitalPortfolio({
       id: 3,
       studentId: studentId,
       submissionId: 3,
+      milestoneId: null,
       title: 'Collaborative Wiki Entry',
       description: 'Contributed to class wiki on sustainable technologies',
       artifactUrl: '/wiki/sustainable-tech',
       artifactType: 'link',
-      tags: ['collaboration', 'research', 'sustainability'] as any,
+      tags: ['collaboration', 'research', 'sustainability'],
       isPublic: true,
       isApproved: true,
       createdAt: new Date('2024-11-05T09:15:00Z')
     }
   ];
 
-  const mockCredentials: Credential[] = [
+  const mockCredentials: CredentialDTO[] = [
     {
       id: 1,
       studentId: studentId,
@@ -137,20 +142,13 @@ export default function DigitalPortfolio({
       setIsLoading(true);
       try {
         // Fetch real portfolio artifacts
-        const artifactsResponse = await fetch(`/api/portfolio/artifacts?studentId=${studentId}`);
-        const credentialsResponse = await fetch(`/api/credentials/student?studentId=${studentId}`);
-        
-        if (artifactsResponse.ok && credentialsResponse.ok) {
-          const artifactsData = await artifactsResponse.json();
-          const credentialsData = await credentialsResponse.json();
-          
-          setArtifacts(artifactsData);
-          setCredentials(credentialsData);
-        } else {
-          // Fallback to mock data only if API calls fail
-          setArtifacts(mockArtifacts);
-          setCredentials(mockCredentials);
-        }
+        const [artifactsData, credentialsData] = await Promise.all([
+          api.getPortfolioArtifactsByStudent(studentId),
+          api.getStudentCredentialsByStudentId(studentId),
+        ]);
+
+        setArtifacts(artifactsData);
+        setCredentials(credentialsData);
         
         setPortfolioUrl(`https://masterymap.edu/portfolio/${studentId}`);
       } catch (error) {
@@ -166,7 +164,7 @@ export default function DigitalPortfolio({
     fetchPortfolioData();
   }, [studentId]);
 
-  const getArtifactIcon = (artifactType: string) => {
+  const getArtifactIcon = (artifactType: string | null | undefined) => {
     switch (artifactType) {
       case 'document':
         return <FileText className="h-5 w-5 text-blue-600" />;
@@ -183,7 +181,7 @@ export default function DigitalPortfolio({
     }
   };
 
-  const getCredentialIcon = (type: string) => {
+  const getCredentialIcon = (type: string | null | undefined) => {
     switch (type) {
       case 'plaque':
         return '🏆';
@@ -196,7 +194,8 @@ export default function DigitalPortfolio({
     }
   };
 
-  const formatDate = (date: Date | string) => {
+  const formatDate = (date: Date | string | null | undefined) => {
+    if (!date) return "N/A";
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -329,7 +328,7 @@ export default function DigitalPortfolio({
                   )}
                   
                   <div className="flex flex-wrap gap-1">
-                    {Array.isArray(artifact.tags) && artifact.tags.map((tag) => (
+                    {toTagList(artifact.tags).map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>
@@ -451,7 +450,7 @@ export default function DigitalPortfolio({
             <div className="space-y-4">
               <p className="text-gray-700">{selectedArtifact.description}</p>
               <div className="flex flex-wrap gap-1">
-                {Array.isArray(selectedArtifact.tags) && selectedArtifact.tags.map((tag) => (
+                {toTagList(selectedArtifact.tags).map((tag) => (
                   <Badge key={tag} variant="secondary" className="text-xs">
                     {tag}
                   </Badge>

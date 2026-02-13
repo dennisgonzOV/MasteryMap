@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { safetyIncidentService, type ISafetyIncidentService } from './safety-incidents.service';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
+import { UserRole } from '../../../shared/schema';
 
 export class SafetyIncidentController {
   constructor(private service: ISafetyIncidentService = safetyIncidentService) {}
@@ -10,7 +11,7 @@ export class SafetyIncidentController {
     const router = Router();
 
     // Get all safety incidents (teachers and admins only)
-    router.get('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+    router.get('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const safetyIncidents = await this.service.getAllSafetyIncidents();
         res.json(safetyIncidents);
@@ -21,7 +22,7 @@ export class SafetyIncidentController {
     });
 
     // Create safety incident (teachers and admins only)
-    router.post('/', requireAuth, requireRole('teacher', 'admin'), async (req: AuthenticatedRequest, res) => {
+    router.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user!.id;
         
@@ -40,12 +41,12 @@ export class SafetyIncidentController {
     });
 
     // Update safety incident status (admins only)
-    router.patch('/:id/status', requireAuth, requireRole('admin'), async (req: AuthenticatedRequest, res) => {
+    router.patch('/:id/status', requireAuth, requireRole(UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const incidentId = parseInt(req.params.id);
-        const { status, resolution } = req.body;
+        const { status } = req.body;
 
-        await this.service.updateSafetyIncidentStatus(incidentId, status, resolution);
+        await this.service.updateSafetyIncidentStatus(incidentId, status);
         res.json({ message: "Safety incident status updated" });
       } catch (error) {
         console.error("Error updating safety incident status:", error);
@@ -54,7 +55,7 @@ export class SafetyIncidentController {
     });
 
     // Resolve safety incident (teachers and admins)
-    router.put('/:id/resolve', requireAuth, requireRole(['teacher', 'admin']), async (req: AuthenticatedRequest, res) => {
+    router.put('/:id/resolve', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), async (req: AuthenticatedRequest, res) => {
       try {
         const incidentId = parseInt(req.params.id);
         const userId = req.user!.id;

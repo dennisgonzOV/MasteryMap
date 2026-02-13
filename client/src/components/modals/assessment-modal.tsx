@@ -90,8 +90,8 @@ export default function AssessmentModal({
     onSuccess: (assessment) => {
       // Pre-fill form with generated assessment
       form.setValue("title", assessment.title);
-      form.setValue("description", assessment.description);
-      form.setValue("questions", assessment.questions || []);
+      form.setValue("description", assessment.description ?? "");
+      form.setValue("questions", Array.isArray(assessment.questions) ? assessment.questions as any : []);
       setIsGenerating(false);
       toast({
         title: "Assessment Generated",

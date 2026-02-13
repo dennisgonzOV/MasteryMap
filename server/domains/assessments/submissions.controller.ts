@@ -1,21 +1,17 @@
 import { Router } from 'express';
 import { assessmentService, type AssessmentService } from './assessments.service';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
+import { UserRole } from '../../../shared/schema';
+import type {
+  SubmissionCreateRequestDTO,
+  SubmissionDTO,
+  SubmissionGradeRequestDTO,
+} from '../../../shared/contracts/api';
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
-  createErrorResponse,
   aiLimiter
 } from '../../middleware/security';
-import { 
-  handleRouteError, 
-  handleEntityNotFound, 
-  handleAuthorizationError,
-  createSuccessResponse,
-  wrapRoute
-} from '../../utils/routeHelpers';
-import { validateIdParam } from '../../middleware/routeValidation';
-import { aiService } from "../ai/ai.service";
 
 export class SubmissionController {
   constructor(private service: AssessmentService = assessmentService) {}
@@ -33,7 +29,8 @@ export class SubmissionController {
           return res.status(403).json({ message: "Only students can submit assessments" });
         }
 
-        const submission = await this.service.createSubmission(req.body, userId);
+        const payload: SubmissionCreateRequestDTO = req.body;
+        const submission: SubmissionDTO = await this.service.createSubmission(payload, userId);
         res.json(submission);
       } catch (error) {
         console.error("Error creating submission:", error);
@@ -76,12 +73,11 @@ export class SubmissionController {
     });
 
     // Grade submission route - teacher and admin only
-    router.post('/:submissionId/grade', requireAuth, requireRole('teacher', 'admin'), validateIntParam('submissionId'), async (req: AuthenticatedRequest, res) => {
+    router.post('/:submissionId/grade', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('submissionId'), async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.submissionId);
-        const { grades: gradeData, feedback, grade, generateAiFeedback } = req.body;
-
-        console.log("Starting grading for submission " + submissionId + ", generateAiFeedback: " + generateAiFeedback);
+        const gradeRequest: SubmissionGradeRequestDTO = req.body;
+        const { grades: gradeData, feedback, grade, generateAiFeedback } = gradeRequest;
 
         // Save grades - support both detailed component skill grading and simple overall grading
         // Check for existing grades and update them instead of creating duplicates
@@ -122,6 +118,10 @@ export class SubmissionController {
           return res.status(404).json({ message: "Submission not found" });
         }
 
+        if (submission.assessmentId == null) {
+          return res.status(400).json({ message: "Submission has no assessmentId" });
+        }
+
         const assessment = await this.service.getAssessment(submission.assessmentId);
         if (!assessment) {
           return res.status(404).json({ message: "Assessment not found" });
@@ -132,14 +132,11 @@ export class SubmissionController {
         let finalGrade = grade;
 
         if (generateAiFeedback) {
-          console.log("Generating AI feedback for submission " + submissionId);
-
           let pdfContent: string | undefined;
           if (assessment.pdfUrl) {
             try {
               const { extractTextFromPdfUrl } = await import('../../utils/pdf');
               pdfContent = await extractTextFromPdfUrl(assessment.pdfUrl);
-              console.log(`Extracted ${pdfContent.length} chars from PDF for AI grading`);
             } catch (pdfError) {
               console.error('Error extracting PDF text for grading:', pdfError);
             }
@@ -158,8 +155,6 @@ export class SubmissionController {
                 const validSkills = componentSkills.filter(skill => skill !== undefined);
 
                 if (validSkills.length > 0) {
-                  console.log("Generating component skill grades for " + validSkills.length + " skills");
-
                   // Generate AI-based component skill grades
                   const aiSkillGrades = await this.service.generateComponentSkillGrades(
                     submission,
@@ -167,10 +162,6 @@ export class SubmissionController {
                     validSkills as any[],
                     pdfContent
                   );
-
-                  console.log("Successfully generated AI component skill grades:", aiSkillGrades.map(g => 
-                    `${g.componentSkillId}: ${g.rubricLevel} (${g.score})`
-                  ).join(', '));
 
                   // Save or update the AI-generated component skill grades
                   savedGrades = await Promise.all(
@@ -180,7 +171,6 @@ export class SubmissionController {
 
                       if (existingGrade) {
                         // Update existing grade
-                        console.log(`Updating existing grade ${existingGrade.id} for component skill ${gradeItem.componentSkillId}`);
                         return await this.service.updateGrade(existingGrade.id, {
                           rubricLevel: gradeItem.rubricLevel,
                           score: gradeItem.score?.toString() || "0",
@@ -189,7 +179,6 @@ export class SubmissionController {
                         });
                       } else {
                         // Create new grade if none exists
-                        console.log(`Creating new grade for component skill ${gradeItem.componentSkillId}`);
                         return await this.service.createGrade({
                           submissionId,
                           componentSkillId: gradeItem.componentSkillId,
@@ -207,7 +196,6 @@ export class SubmissionController {
 
             // Generate comprehensive AI feedback based on the component skill grades
             finalFeedback = await this.service.generateStudentFeedback(submission, savedGrades);
-            console.log("Generated AI feedback: " + (finalFeedback?.substring(0, 100) || "") + "...");
 
           } catch (aiError) {
             console.error("Error generating AI feedback:", aiError);
@@ -232,14 +220,13 @@ export class SubmissionController {
           updateData.aiGeneratedFeedback = true;
         }
 
-        console.log("Updating submission " + submissionId + " with grade: " + finalGrade + ", feedback length: " + (finalFeedback?.length || 0));
         const updatedSubmission = await this.service.updateSubmission(submissionId, updateData);
 
         // Award stickers for component skill grades
         let awardedStickers: any[] = [];
         if (savedGrades.length > 0) {
           const submission = await this.service.getSubmission(submissionId);
-          if (submission) {
+          if (submission && submission.studentId != null) {
             awardedStickers = await this.service.awardStickersForGrades(submission.studentId, savedGrades);
           }
         }
@@ -300,6 +287,10 @@ export class SubmissionController {
           return res.status(404).json({ message: "Submission not found" });
         }
 
+        if (submission.assessmentId == null) {
+          return res.status(400).json({ message: "Submission has no assessmentId" });
+        }
+
         const assessment = await this.service.getAssessment(submission.assessmentId);
         if (!assessment) {
           return res.status(404).json({ message: "Assessment not found" });
@@ -323,7 +314,7 @@ export class SubmissionController {
           return res.status(400).json({ message: "Question and response cannot be empty" });
         }
 
-        const feedback = await aiService.generateFeedbackForQuestion(
+        const feedback = await this.service.generateFeedbackForQuestion(
           sanitizedQuestion,
           sanitizedResponse,
           rubricLevel

@@ -1,5 +1,5 @@
 import type { Response, NextFunction } from 'express';
-import type { AuthenticatedRequest } from '../auth';
+import type { AuthenticatedRequest } from '../domains/auth';
 import { projectsStorage } from '../domains/projects/projects.storage';
 import { assessmentStorage } from '../domains/assessments/assessments.storage';
 import { handleEntityNotFound, handleAuthorizationError, handleRouteError } from '../utils/routeHelpers';
@@ -12,7 +12,7 @@ export interface ResourceAccessOptions {
   paramName?: string;
   checkOwnership?: boolean;
   allowedRoles?: string[];
-  customAccessCheck?: (user: any, resource: any) => boolean;
+  customAccessCheck?: (user: { id: number; role: string }, resource: Record<string, unknown>) => boolean;
 }
 
 /**
@@ -45,7 +45,7 @@ export function checkResourceAccess(options: ResourceAccessOptions) {
       }
 
       // Get the resource based on type
-      let resource: any;
+      let resource: Record<string, unknown> | null | undefined = null;
       try {
         switch (resourceType) {
           case 'project':
@@ -78,13 +78,14 @@ export function checkResourceAccess(options: ResourceAccessOptions) {
 
       // Standard ownership check for teachers
       if (checkOwnership && user.role === 'teacher') {
-        if (!resource.teacherId || resource.teacherId !== user.id) {
+        const teacherId = resource.teacherId;
+        if (typeof teacherId !== "number" || teacherId !== user.id) {
           return handleAuthorizationError(res, `Access denied - you can only access your own ${resourceType}s`);
         }
       }
 
       // Attach resource to request for use in route handler
-      (req as any)[resourceType] = resource;
+      (req as AuthenticatedRequest & Record<string, unknown>)[resourceType] = resource;
       next();
 
     } catch (error) {

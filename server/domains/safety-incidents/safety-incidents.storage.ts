@@ -9,7 +9,8 @@ import {
 export interface ISafetyIncidentStorage {
   getSafetyIncidents(): Promise<SafetyIncident[]>;
   createSafetyIncident(incident: InsertSafetyIncident): Promise<SafetyIncident>;
-  updateSafetyIncidentStatus(incidentId: number, status: string, resolution?: string): Promise<void>;
+  updateSafetyIncidentStatus(incidentId: number, status: string): Promise<void>;
+  resolveSafetyIncident(incidentId: number, userId: number): Promise<void>;
 }
 
 export class SafetyIncidentStorage implements ISafetyIncidentStorage {
@@ -28,12 +29,24 @@ export class SafetyIncidentStorage implements ISafetyIncidentStorage {
     return newIncident;
   }
 
-  async updateSafetyIncidentStatus(incidentId: number, status: string, resolution?: string): Promise<void> {
+  async updateSafetyIncidentStatus(incidentId: number, status: string): Promise<void> {
+    const isResolved = status === "resolved" || status === "closed";
     await db
       .update(safetyIncidents)
       .set({ 
-        resolution,
-        updatedAt: new Date()
+        resolved: isResolved,
+        resolvedAt: isResolved ? new Date() : null,
+      })
+      .where(eq(safetyIncidents.id, incidentId));
+  }
+
+  async resolveSafetyIncident(incidentId: number, userId: number): Promise<void> {
+    await db
+      .update(safetyIncidents)
+      .set({
+        resolved: true,
+        resolvedAt: new Date(),
+        resolvedBy: userId,
       })
       .where(eq(safetyIncidents.id, incidentId));
   }

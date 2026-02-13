@@ -51,6 +51,13 @@ export interface IProjectsStorage {
   addTeamMember(teamMember: Omit<ProjectTeamMember, 'id' | 'joinedAt'>): Promise<ProjectTeamMember>;
   removeTeamMember(memberId: number): Promise<void>;
   getTeamMembers(teamId: number): Promise<ProjectTeamMember[]>;
+  getTeamMembersWithStudentInfo(teamId: number): Promise<Array<ProjectTeamMember & {
+    studentName: string;
+    student: {
+      id: number;
+      username: string;
+    };
+  }>>;
   getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined>;
   getStudentsBySchool(schoolId: number): Promise<User[]>;
 
@@ -65,9 +72,11 @@ export interface IProjectsStorage {
   // Component skills operations
   getComponentSkillsByIds(ids: number[]): Promise<any[]>;
   getComponentSkillsWithDetails(): Promise<any[]>;
+  getBestStandardsByIds(ids: number[]): Promise<any[]>;
+  getLearnerOutcomesWithCompetencies(): Promise<any[]>;
 
   // Assessment operations
-  getAssessmentsByMilestone(milestoneId: number): Promise<any[]>;
+  getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>>;
 
   // Teacher dashboard operations
   getTeacherDashboardStats(teacherId: number): Promise<any>;
@@ -353,6 +362,40 @@ export class ProjectsStorage implements IProjectsStorage {
       .where(eq(projectTeamMembers.teamId, teamId));
   }
 
+  async getTeamMembersWithStudentInfo(teamId: number): Promise<Array<ProjectTeamMember & {
+    studentName: string;
+    student: {
+      id: number;
+      username: string;
+    };
+  }>> {
+    const members = await db.select({
+      id: projectTeamMembers.id,
+      teamId: projectTeamMembers.teamId,
+      studentId: projectTeamMembers.studentId,
+      role: projectTeamMembers.role,
+      joinedAt: projectTeamMembers.joinedAt,
+      studentName: users.username,
+      studentUsername: users.username,
+    })
+      .from(projectTeamMembers)
+      .innerJoin(users, eq(projectTeamMembers.studentId, users.id))
+      .where(eq(projectTeamMembers.teamId, teamId));
+
+    return members.map((member) => ({
+      id: member.id,
+      teamId: member.teamId,
+      studentId: member.studentId,
+      role: member.role,
+      joinedAt: member.joinedAt,
+      studentName: member.studentName,
+      student: {
+        id: member.studentId,
+        username: member.studentUsername,
+      },
+    }));
+  }
+
   async getTeamMember(memberId: number): Promise<ProjectTeamMember | undefined> {
     const [member] = await db.select({
       id: projectTeamMembers.id,
@@ -438,8 +481,16 @@ export class ProjectsStorage implements IProjectsStorage {
     return await competencyStorage.getComponentSkillsWithDetails();
   }
 
+  async getBestStandardsByIds(ids: number[]): Promise<any[]> {
+    return await competencyStorage.getBestStandardsByIds(ids);
+  }
+
+  async getLearnerOutcomesWithCompetencies(): Promise<any[]> {
+    return await competencyStorage.getLearnerOutcomesWithCompetencies();
+  }
+
   // Assessment operations
-  async getAssessmentsByMilestone(milestoneId: number): Promise<any[]> {
+  async getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>> {
     return await db.query.assessments.findMany({
       where: eq(assessments.milestoneId, milestoneId),
       with: {

@@ -12,7 +12,6 @@ import {
   AlertCircle, 
   Clock, 
   Eye,
-  FileText,
   Calendar,
   ChevronDown,
   ChevronRight,
@@ -25,68 +24,92 @@ import {
   GraduationCap
 } from "lucide-react";
 import { format } from "date-fns";
-import { useAuth } from "@/hooks/useAuth";
 import { useTeacherAccess } from "@/hooks/useRoleBasedAccess";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import { api } from "@/lib/api";
+import type {
+  AssessmentDTO,
+  AssessmentSubmissionGradeDTO,
+  AssessmentSubmissionSummaryDTO,
+  ComponentSkillWithDetailsDTO,
+} from "@shared/contracts/api";
 
-import { queryClient } from "@/lib/queryClient";
+type RubricLevel = "emerging" | "developing" | "proficient" | "applying";
 
-interface Assessment {
-  id: number;
-  title: string;
-  description: string;
-  dueDate: string;
-  questions: Array<{
-    id: string;
-    text: string;
-    type: string;
-    rubricCriteria?: string;
-  }>;
-  componentSkillIds: number[];
+interface AssessmentQuestion {
+  id?: string;
+  text: string;
+  type?: string;
+  rubricCriteria?: string | null;
 }
 
-interface ComponentSkill {
-  id: number;
-  name: string;
-  rubricLevels: {
-    emerging: string;
-    developing: string;
-    proficient: string;
-    applying: string;
-  };
+interface SubmissionResponseItem {
+  questionId?: string;
+  answer?: string;
 }
 
-interface Grade {
-  id: number;
-  componentSkillId: number;
-  rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
-  score: string;
+type SubmissionResponses = SubmissionResponseItem[] | Record<string, string> | null | undefined;
+
+type Submission = AssessmentSubmissionSummaryDTO & {
+  isLate?: boolean;
+  responses?: SubmissionResponses;
+  grades?: AssessmentSubmissionGradeDTO[];
+};
+
+type GradingEntry = {
+  rubricLevel: RubricLevel;
   feedback: string;
-  gradedBy: number;
-  gradedAt: string;
+  score: number;
+};
+
+type GradingData = Record<number, Record<number, GradingEntry>>;
+
+function parseSkillIds(componentSkillIds: unknown): number[] {
+  if (Array.isArray(componentSkillIds)) {
+    return componentSkillIds.filter((value): value is number => typeof value === "number");
+  }
+
+  if (componentSkillIds && typeof componentSkillIds === "object") {
+    return Object.values(componentSkillIds).filter((value): value is number => typeof value === "number");
+  }
+
+  return [];
 }
 
-interface Submission {
-  id: number;
-  studentId: number;
-  studentName: string;
-  studentUsername: string;
-  submittedAt: string;
-  responses: Array<{
-    questionId: string;
-    answer: string;
-  }> | { [questionId: string]: string }; // Adjusted to allow for object format
-  grades?: Grade[];
-  grade?: number; // AI-generated overall grade
-  feedback?: string;
-  isLate: boolean;
-  aiGeneratedFeedback?: boolean;
+function getSubmissionResponseText(responses: SubmissionResponses, questionId?: string): string {
+  if (!questionId) {
+    return "No answer provided";
+  }
+
+  if (Array.isArray(responses)) {
+    const response = responses.find((entry) => entry.questionId === questionId);
+    return response?.answer || "No answer provided";
+  }
+
+  if (responses && typeof responses === "object") {
+    return responses[questionId] || "No answer provided";
+  }
+
+  return "No answer provided";
+}
+
+function isGraded(submission: Submission): boolean {
+  return !!submission.grades?.length || (submission.grade !== undefined && submission.grade !== null);
+}
+
+function toNumericScore(score: string | number | null | undefined): number {
+  if (typeof score === "number") {
+    return score;
+  }
+  if (typeof score === "string") {
+    const parsed = parseFloat(score);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
 const rubricLevels = [
@@ -123,7 +146,7 @@ const rubricLevels = [
 export default function AssessmentSubmissions() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
-  const { isAuthenticated, canAccess } = useTeacherAccess();
+  const { canAccess } = useTeacherAccess();
   const { toast } = useToast();
 
   // State for UI interactions - auto-expand ungraded submissions
@@ -133,11 +156,7 @@ export default function AssessmentSubmissions() {
   });
 
   // Initialize gradingData from sessionStorage if available, otherwise empty object
-  const [gradingData, setGradingData] = useState<Record<number, Record<number, {
-    rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
-    feedback: string;
-    score: number;
-  }>>>(() => {
+  const [gradingData, setGradingData] = useState<GradingData>(() => {
     try {
       const saved = sessionStorage.getItem(`gradingData_${id}`);
       return saved ? JSON.parse(saved) : {};
@@ -149,104 +168,50 @@ export default function AssessmentSubmissions() {
   const [isBulkGrading, setIsBulkGrading] = useState(false);
 
   // Fetch assessment data
-  const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
+  const { data: assessment, isLoading: assessmentLoading } = useQuery<AssessmentDTO>({
     queryKey: [`/api/assessments/${id}`],
+    queryFn: () => api.getAssessment(Number(id)),
     enabled: canAccess && !!id,
   });
 
   // Fetch submissions
-  const { data: submissions = [], refetch: refetchSubmissions } = useQuery({
+  const { data: submissions = [], refetch: refetchSubmissions } = useQuery<Submission[]>({
     queryKey: ['assessment-submissions', id],
-    queryFn: async () => {
-      const response = await fetch(`/api/assessments/${id}/submissions`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch submissions');
-      const data = await response.json();
-
-      return data;
-    },
+    queryFn: () => api.getAssessmentSubmissions(Number(id)) as Promise<Submission[]>,
     enabled: !!id
   });
 
   // Fetch component skills for the assessment
-  const { data: componentSkills = [] } = useQuery<ComponentSkill[]>({
+  const { data: componentSkills = [] } = useQuery<ComponentSkillWithDetailsDTO[]>({
     queryKey: ['/api/competencies/component-skills'],
+    queryFn: () => api.getComponentSkills(),
     enabled: canAccess,
   });
 
   // Also try to fetch specific component skills if we have the assessment
-  const { data: assessmentComponentSkills = [] } = useQuery<ComponentSkill[]>({
+  const { data: assessmentComponentSkills = [] } = useQuery<ComponentSkillWithDetailsDTO[]>({
     queryKey: ['/api/competencies/component-skills/by-ids', assessment?.componentSkillIds],
     queryFn: async () => {
-      if (!assessment?.componentSkillIds?.length) return [];
-      
-      // Handle both array and object formats for componentSkillIds
-      let skillIds: number[] = [];
-      if (Array.isArray(assessment.componentSkillIds)) {
-        skillIds = assessment.componentSkillIds;
-      } else if (typeof assessment.componentSkillIds === 'object') {
-        skillIds = Object.values(assessment.componentSkillIds).filter((id): id is number => typeof id === 'number');
-      }
-      
-      if (skillIds.length === 0) return [];
-      
-      const response = await fetch('/api/competencies/component-skills/by-ids', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skillIds }),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to fetch component skills by IDs');
-        return [];
-      }
-      
-      return response.json();
+      const skillIds = parseSkillIds(assessment?.componentSkillIds);
+      if (!skillIds.length) return [];
+      return api.getComponentSkillsByIds(skillIds);
     },
-    enabled: canAccess && !!assessment?.componentSkillIds?.length,
+    enabled: canAccess && parseSkillIds(assessment?.componentSkillIds).length > 0,
   });
 
   // Filter component skills relevant to this assessment
   const relevantSkills = React.useMemo(() => {
-    console.log('Assessment componentSkillIds:', assessment?.componentSkillIds);
-    console.log('Available componentSkills:', componentSkills);
-    console.log('Assessment-specific componentSkills:', assessmentComponentSkills);
-    console.log('ComponentSkills type:', typeof componentSkills);
-    console.log('ComponentSkills length:', componentSkills?.length);
-    
     // Prefer assessment-specific skills if available
     if (assessmentComponentSkills?.length > 0) {
-      console.log('Using assessment-specific component skills:', assessmentComponentSkills);
       return assessmentComponentSkills;
     }
-    
+
     if (!assessment?.componentSkillIds || !componentSkills?.length) {
-      console.log('Missing assessment componentSkillIds or componentSkills');
       return [];
     }
-    
-    // Handle both array and object formats for componentSkillIds
-    let skillIds: number[] = [];
-    if (Array.isArray(assessment.componentSkillIds)) {
-      skillIds = assessment.componentSkillIds;
-    } else if (typeof assessment.componentSkillIds === 'object') {
-      skillIds = Object.values(assessment.componentSkillIds).filter((id): id is number => typeof id === 'number');
-    }
-    
-    console.log('Processed skillIds:', skillIds);
-    console.log('First component skill structure:', componentSkills[0]);
-    
-    const filtered = componentSkills.filter(skill => {
-      const skillId = skill.id;
-      const matches = skillIds.includes(skillId);
-      console.log(`Skill ${skillId} (${skill.name}) matches: ${matches}`);
-      return matches;
-    });
-    console.log('Relevant skills found:', filtered);
-    
-    return filtered;
+
+    const skillIds = parseSkillIds(assessment.componentSkillIds);
+    return componentSkills.filter((skill) => skillIds.includes(skill.id));
   }, [assessment?.componentSkillIds, componentSkills, assessmentComponentSkills]);
 
   // Track if grading data has been initialized to prevent resetting user input
@@ -256,9 +221,7 @@ export default function AssessmentSubmissions() {
   const initializeGradingData = React.useCallback(() => {
     if (!submissions.length || isGradingDataInitialized) return;
 
-
-
-    const initialData: typeof gradingData = {};
+    const initialData: GradingData = {};
 
     // Initialize data for each submission
     submissions.forEach(submission => {
@@ -266,31 +229,30 @@ export default function AssessmentSubmissions() {
 
       // Always prioritize existing grades from database
       if (submission.grades && submission.grades.length > 0) {
-
         submission.grades.forEach(grade => {
+          if (grade.componentSkillId == null) {
+            return;
+          }
           // Handle both string and number score values
-          const score = typeof grade.score === 'string' ? parseInt(grade.score) : grade.score;
+          const score = toNumericScore(grade.score);
+          const rubricLevel = (grade.rubricLevel || "emerging") as RubricLevel;
           initialData[submission.id][grade.componentSkillId] = {
-            rubricLevel: grade.rubricLevel,
-            feedback: grade.feedback,
-            score: score || 1
+            rubricLevel,
+            feedback: grade.feedback || "",
+            score: score || 1,
           };
-
-        });
+        })
       } else {
-
-
         // Only then check sessionStorage for unsaved manual input
         try {
           const saved = sessionStorage.getItem(`gradingData_${id}`);
           if (saved) {
-            const savedData = JSON.parse(saved);
+            const savedData = JSON.parse(saved) as GradingData;
             if (savedData[submission.id]) {
               Object.keys(savedData[submission.id]).forEach(skillId => {
                 const skillIdNum = parseInt(skillId);
                 if (savedData[submission.id][skillIdNum]) {
                   initialData[submission.id][skillIdNum] = savedData[submission.id][skillIdNum];
-
                 }
               });
             }
@@ -301,10 +263,9 @@ export default function AssessmentSubmissions() {
       }
     });
 
-
-    setGradingData(initialData);
+    setGradingData((prev) => ({ ...prev, ...initialData }));
     setIsGradingDataInitialized(true);
-  }, [submissions, relevantSkills, isGradingDataInitialized, id]);
+  }, [submissions, isGradingDataInitialized, id]);
 
   // Initialize grading data when submissions and skills are loaded (only once)
   React.useEffect(() => {
@@ -330,25 +291,20 @@ export default function AssessmentSubmissions() {
       submissionId: number;
       grades: Array<{
         componentSkillId: number;
-        rubricLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
+        rubricLevel: RubricLevel;
         feedback: string;
         score: number;
       }>;
     }) => {
-      const response = await fetch(`/api/submissions/${submissionId}/grade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grades, generateAiFeedback: false }),
-      });
-      if (!response.ok) throw new Error('Failed to grade submission');
-      return response.json();
+      return api.gradeSubmission(submissionId, { grades, generateAiFeedback: false });
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Submission graded successfully" });
       refetchSubmissions();
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to grade submission", variant: "destructive" });
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Failed to grade submission";
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 
@@ -359,13 +315,7 @@ export default function AssessmentSubmissions() {
   const aiGradeMutation = useMutation({
     mutationFn: async (submissionId: number) => {
       setAiGradingSubmissions(prev => new Set(prev).add(submissionId));
-      const response = await fetch(`/api/submissions/${submissionId}/grade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ generateAiFeedback: true }),
-      });
-      if (!response.ok) throw new Error('Failed to AI grade submission');
-      return response.json();
+      return api.gradeSubmission(submissionId, { generateAiFeedback: true });
     },
     onSuccess: (_, submissionId) => {
       toast({ title: "Success", description: "AI grading completed" });
@@ -376,8 +326,9 @@ export default function AssessmentSubmissions() {
       });
       refetchSubmissions();
     },
-    onError: (_, submissionId) => {
-      toast({ title: "Error", description: "AI grading failed", variant: "destructive" });
+    onError: (error, submissionId) => {
+      const message = error instanceof Error ? error.message : "AI grading failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
       setAiGradingSubmissions(prev => {
         const newSet = new Set(prev);
         newSet.delete(submissionId);
@@ -401,19 +352,9 @@ export default function AssessmentSubmissions() {
       for (let i = 0; i < ungradedSubmissions.length; i++) {
         const submission = ungradedSubmissions[i];
         try {
-          const response = await fetch(`/api/submissions/${submission.id}/grade`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ generateAiFeedback: true }),
-          });
-          
-          if (response.ok) {
-            results.push({ submissionId: submission.id, success: true });
-          } else {
-            results.push({ submissionId: submission.id, success: false, error: `HTTP ${response.status}` });
-          }
+          await api.gradeSubmission(submission.id, { generateAiFeedback: true });
+          results.push({ submissionId: submission.id, success: true });
         } catch (error) {
-          console.error(`Failed to grade submission ${submission.id}:`, error);
           results.push({ 
             submissionId: submission.id, 
             success: false, 
@@ -526,7 +467,7 @@ export default function AssessmentSubmissions() {
     }
   }, [gradeMutation.isSuccess, gradeMutation.variables, id]);
 
-  const getRubricLevelBadge = (level: string, showSticker: boolean = false) => {
+  const getRubricLevelBadge = (level?: string | null, showSticker: boolean = false) => {
     const levelConfig = rubricLevels.find(r => r.value === level);
     if (!levelConfig) return null;
 
@@ -540,28 +481,22 @@ export default function AssessmentSubmissions() {
 
   const getSubmissionStats = () => {
     const total = submissions.length;
-    const graded = submissions.filter((sub: any) => 
-      sub.grades?.length || (sub.grade !== undefined && sub.grade !== null)
-    ).length;
+    const graded = submissions.filter((sub) => isGraded(sub)).length;
     const ungraded = total - graded;
-    const aiGraded = submissions.filter((sub: any) => sub.aiGeneratedFeedback).length;
+    const aiGraded = submissions.filter((sub) => !!sub.aiGeneratedFeedback).length;
 
     return { total, graded, ungraded, aiGraded };
-  };
-
-  const handleViewSubmission = (submissionId: number) => {
-    setLocation(`/teacher/assessments/${id}/submissions/${submissionId}`);
   };
 
   const getAverageScore = (submission: Submission) => {
     // Check for AI-generated grade first (stored in submission.grade)
     if (submission.grade !== undefined && submission.grade !== null) {
-      return submission.grade;
+      return toNumericScore(submission.grade);
     }
 
     // Fallback to manual grades if available
     if (!submission.grades?.length) return null;
-    const totalScore = submission.grades.reduce((sum, grade) => sum + parseFloat(grade.score), 0);
+    const totalScore = submission.grades.reduce((sum, grade) => sum + toNumericScore(grade.score), 0);
     return Math.round((totalScore / submission.grades.length) * 25); // Convert to percentage (4 levels * 25%)
   };
 
@@ -610,6 +545,9 @@ export default function AssessmentSubmissions() {
     );
   }
 
+  const assessmentQuestions = Array.isArray(assessment.questions)
+    ? (assessment.questions as AssessmentQuestion[])
+    : [];
   const stats = getSubmissionStats();
 
   return (
@@ -652,7 +590,7 @@ export default function AssessmentSubmissions() {
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span className="text-gray-700">
-                    Due: {format(new Date(assessment.dueDate), 'MMM d, yyyy h:mm a')}
+                    Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d, yyyy h:mm a') : 'No due date'}
                   </span>
                 </div>
               </div>
@@ -857,7 +795,7 @@ export default function AssessmentSubmissions() {
                           <p className="text-sm text-gray-500">{submission.studentUsername}</p>
                           <div className="flex items-center space-x-4 mt-1">
                             <span className="text-xs text-gray-500">
-                              Submitted: {format(new Date(submission.submittedAt), 'MMM d, yyyy h:mm a')}
+                              Submitted: {submission.submittedAt ? format(new Date(submission.submittedAt), 'MMM d, yyyy h:mm a') : 'Not submitted'}
                             </span>
                             {submission.isLate && (
                               <Badge variant="destructive" className="text-xs">
@@ -951,18 +889,11 @@ export default function AssessmentSubmissions() {
                           <span>Student Responses</span>
                         </h4>
 
-                        {assessment?.questions?.map((question, index) => {
-                          // Handle both array format (new) and object format (legacy)
-                          let responseText = "No answer provided";
-                          if (Array.isArray(submission.responses)) {
-                            const response = submission.responses.find(r => r.questionId === question.id);
-                            responseText = response?.answer || "No answer provided";
-                          } else if (submission.responses && typeof submission.responses === 'object') {
-                            responseText = submission.responses[question.id] || "No answer provided";
-                          }
+                        {assessmentQuestions.map((question, index) => {
+                          const responseText = getSubmissionResponseText(submission.responses, question.id);
 
                           return (
-                            <Card key={question.id} className="bg-white">
+                            <Card key={question.id ?? `question-${index}`} className="bg-white">
                               <CardContent className="p-4 space-y-3">
                                 <div className="flex items-start space-x-3">
                                   <div className="bg-blue-100 text-blue-800 rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium">
@@ -1104,9 +1035,6 @@ export default function AssessmentSubmissions() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {relevantSkills.map((skill) => {
-                              // Get existing grade for this skill if available
-                              const existingGrade = submission.grades?.find(g => g.componentSkillId === skill.id);
-
                               return (
                                 <Card key={skill.id} className="bg-white">
                                   <CardContent className="p-4 space-y-4">

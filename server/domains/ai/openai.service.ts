@@ -72,6 +72,22 @@ interface ComponentSkillGrade {
   feedback: string;
 }
 
+type RubricLevelKey = "emerging" | "developing" | "proficient" | "applying";
+
+interface RubricLevels {
+  emerging?: string;
+  developing?: string;
+  proficient?: string;
+  applying?: string;
+}
+
+type EnrichedComponentSkill = Omit<ComponentSkill, "rubricLevels"> & {
+  description?: string | null;
+  competencyName?: string | null;
+  learnerOutcomeName?: string | null;
+  rubricLevels: RubricLevels | null;
+};
+
 export class OpenAIService {
   private openai = openai;
 
@@ -80,7 +96,7 @@ export class OpenAIService {
     topic: string;
     gradeLevel: string;
     duration: string;
-    componentSkills: any[];
+    componentSkills: EnrichedComponentSkill[];
   }): Promise<GeneratedProjectIdea[]> {
     // Format component skills for the prompt
     const skillsText = criteria.componentSkills
@@ -192,7 +208,7 @@ Return the response as a JSON array of project objects with the following struct
 Title: ${project.title}
 Description: ${project.description}
 Grade Level: ${project.gradeLevel}
-Duration: ${project.duration}
+Duration: ${project.estimatedDuration}
 
 Create milestones that:
 1. Break the project into logical phases
@@ -247,12 +263,12 @@ Return as JSON array with this structure:
     projectTitle: string,
     projectDescription: string,
     projectDueDate: string,
-    componentSkills: ComponentSkill[],
+    componentSkills: EnrichedComponentSkill[],
   ): Promise<GeneratedMilestone[]> {
     const skillsText = componentSkills
       .map(
         (skill) =>
-          `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`,
+          `- ${skill.name} (${skill.competencyName || "Unknown Competency"} - ${skill.learnerOutcomeName || "Unknown Outcome"})`,
       )
       .join("\n");
 
@@ -389,7 +405,7 @@ Return as JSON with this structure:
     milestoneTitle: string,
     milestoneDescription: string,
     milestoneDueDate: string,
-    componentSkills: ComponentSkill[],
+    componentSkills: EnrichedComponentSkill[],
     questionCount: number = 5,
     questionTypes: string[] = ['open-ended'],
     pdfContent?: string
@@ -397,14 +413,14 @@ Return as JSON with this structure:
     const skillsText = componentSkills
       .map(
         (skill) =>
-          `- ${skill.name}: ${skill.description} (${skill.competencyName} - ${skill.learnerOutcomeName})`,
+          `- ${skill.name}: ${skill.description || "No description"} (${skill.competencyName || "Unknown Competency"} - ${skill.learnerOutcomeName || "Unknown Outcome"})`,
       )
       .join("\n");
 
     const detailedSkillsText = componentSkills.map(skill => `
 COMPONENT SKILL: ${skill.name}
-Description: ${skill.description}
-Competency Area: ${skill.competencyName} - ${skill.learnerOutcomeName}
+Description: ${skill.description || "No description"}
+Competency Area: ${skill.competencyName || "Unknown Competency"} - ${skill.learnerOutcomeName || "Unknown Outcome"}
 
 Rubric Levels:
 - Emerging: ${skill.rubricLevels?.emerging || 'Shows initial understanding'}
@@ -556,7 +572,7 @@ Provide feedback that is:
   async generateComponentSkillGrades(
     submission: Submission,
     assessment: any,
-    componentSkills: ComponentSkill[],
+    componentSkills: EnrichedComponentSkill[],
     pdfContent?: string,
   ): Promise<
     Array<{
@@ -630,12 +646,13 @@ Respond in JSON format:
           const result = JSON.parse(
             response.choices[0].message.content || "{}",
           );
+          const rubricLevel = (result.rubricLevel as RubricLevelKey) || "emerging";
 
           return {
             componentSkillId: skill.id,
-            rubricLevel: result.rubricLevel || "emerging",
+            rubricLevel,
             feedback: result.feedback || "",
-            score: rubricLevelScores[result.rubricLevel] || 1,
+            score: rubricLevelScores[rubricLevel] || 1,
           };
         }),
       );

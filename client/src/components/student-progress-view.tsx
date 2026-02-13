@@ -56,7 +56,7 @@ export default function StudentProgressView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<StudentProgress | null>(null);
 
-  const { data: studentsProgress = [], isLoading } = useQuery({
+  const { data: studentsProgress = [], isLoading } = useQuery<StudentProgress[]>({
     queryKey: ["/api/schools/students-progress"],
     retry: false,
   });

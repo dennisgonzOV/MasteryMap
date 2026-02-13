@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { 
   users as usersTable, 
   assessments as assessmentsTable,
@@ -18,7 +18,7 @@ interface SafetyIncident {
   incidentType: 'homicidal_ideation' | 'suicidal_ideation' | 'inappropriate_language' | 'homicidal_ideation_fallback' | 'suicidal_ideation_fallback' | 'inappropriate_language_fallback';
   message: string;
   timestamp: Date;
-  conversationHistory?: any[];
+  conversationHistory?: unknown[];
 }
 
 export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): Promise<void> {
@@ -40,7 +40,7 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
 
     const studentInfo = student[0];
 
-    let teachersToNotify: any[] = [];
+    let teachersToNotify: Array<{ id: number; username: string }> = [];
 
     // If this is related to a specific assessment, try to notify only the teacher who created it
     if (incident.assessmentId) {
@@ -67,7 +67,6 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
 
         if (projectTeacher.length) {
           teachersToNotify = projectTeacher;
-          console.log(`Notifying specific teacher for assessment ${incident.assessmentId}:`, projectTeacher[0]);
         }
       }
     }
@@ -79,10 +78,10 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
         username: usersTable.username
       })
       .from(usersTable)
-      .where(eq(usersTable.schoolId, studentInfo.schoolId!))
-      .where(eq(usersTable.role, 'teacher'));
-      
-      console.log(`Falling back to all school teachers (${teachersToNotify.length} teachers)`);
+      .where(and(
+        eq(usersTable.schoolId, studentInfo.schoolId!),
+        eq(usersTable.role, 'teacher')
+      ));
     }
 
     // Get assessment and component skill context if available
@@ -108,16 +107,6 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
         contextInfo += `\nComponent Skill: ${componentSkill[0].name}`;
       }
     }
-
-    // Log the incident for record keeping
-    console.log("SAFETY INCIDENT NOTIFICATION:", {
-      studentId: incident.studentId,
-      studentName: studentInfo.username,
-      incidentType: incident.incidentType,
-      timestamp: incident.timestamp.toISOString(),
-      teachersNotified: teachersToNotify.length,
-      contextInfo
-    });
 
     // Store the safety incident in the database
     await db.insert(safetyIncidentsTable).values({
@@ -154,29 +143,6 @@ export async function notifyTeacherOfSafetyIncident(incident: SafetyIncident): P
 
     await Promise.all(notificationPromises);
 
-    // Create a comprehensive log entry that can be monitored
-    const incidentReport = {
-      type: 'SAFETY_INCIDENT',
-      severity: (incident.incidentType.includes('homicidal') || incident.incidentType.includes('suicidal')) ? 'CRITICAL' : 'HIGH',
-      student: {
-        id: studentInfo.id,
-        name: studentInfo.username,
-      },
-      incident: {
-        type: incident.incidentType,
-        message: incident.message,
-        timestamp: incident.timestamp.toISOString()
-      },
-      context: contextInfo,
-      teachersNotified: teachersToNotify.map(t => ({
-        id: t.id,
-        name: t.username,
-      })),
-      actionTaken: 'Conversation terminated, teachers notified'
-    };
-
-    console.log("DETAILED SAFETY REPORT:", JSON.stringify(incidentReport, null, 2));
-
   } catch (error) {
     console.error("Error notifying teachers of safety incident:", error);
   }
@@ -188,6 +154,8 @@ export async function getTeachersBySchool(schoolId: number) {
     username: usersTable.username
   })
   .from(usersTable)
-  .where(eq(usersTable.schoolId, schoolId))
-  .where(eq(usersTable.role, 'teacher'));
+  .where(and(
+    eq(usersTable.schoolId, schoolId),
+    eq(usersTable.role, 'teacher')
+  ));
 }

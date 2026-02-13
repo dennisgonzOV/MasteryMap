@@ -7,7 +7,8 @@ import {
 export interface ISafetyIncidentService {
   getAllSafetyIncidents(): Promise<SafetyIncident[]>;
   createSafetyIncident(incident: InsertSafetyIncident): Promise<SafetyIncident>;
-  updateSafetyIncidentStatus(incidentId: number, status: string, resolution?: string): Promise<void>;
+  updateSafetyIncidentStatus(incidentId: number, status: string): Promise<void>;
+  resolveSafetyIncident(incidentId: number, userId: number): Promise<void>;
 }
 
 export class SafetyIncidentService implements ISafetyIncidentService {
@@ -21,12 +22,16 @@ export class SafetyIncidentService implements ISafetyIncidentService {
     return await this.storage.createSafetyIncident(incident);
   }
 
-  async updateSafetyIncidentStatus(incidentId: number, status: string, resolution?: string): Promise<void> {
+  async updateSafetyIncidentStatus(incidentId: number, status: string): Promise<void> {
     if (!['open', 'investigating', 'resolved', 'closed'].includes(status)) {
       throw new Error("Invalid status");
     }
 
-    await this.storage.updateSafetyIncidentStatus(incidentId, status, resolution);
+    await this.storage.updateSafetyIncidentStatus(incidentId, status);
+  }
+
+  async resolveSafetyIncident(incidentId: number, userId: number): Promise<void> {
+    await this.storage.resolveSafetyIncident(incidentId, userId);
   }
 }
 

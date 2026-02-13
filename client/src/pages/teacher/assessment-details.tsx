@@ -33,54 +33,29 @@ import { getCompetencyInfo } from "@/lib/competencyUtils";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { X, Check } from "lucide-react";
+import type {
+  AssessmentDTO,
+  AssessmentSubmissionSummaryDTO,
+  AssessmentUpdateRequestDTO,
+  ComponentSkillWithDetailsDTO,
+} from "@shared/contracts/api";
 
-interface Assessment {
-  id: number;
-  title: string;
-  description: string;
-  dueDate: string;
-  questions: Array<{
-    id: string;
-    text: string;
-    type: string;
-    rubricCriteria?: string;
-    sampleAnswer?: string;
-  }>;
-  componentSkillIds: number[];
-  aiGenerated: boolean;
-  createdAt: string;
-  milestoneId?: number;
-  shareCode?: string;
-  shareCodeExpiresAt?: string;
-}
+type Submission = AssessmentSubmissionSummaryDTO & {
+  answers?: Record<string, string>;
+  isLate?: boolean;
+};
 
-interface ComponentSkill {
-  id: number;
-  name: string;
-  competencyId: number;
-  competencyName: string;
-  competencyCategory: string;
-  learnerOutcomeName: string;
-  learnerOutcomeType: string;
-}
-
-interface Submission {
-  id: number;
-  studentId: number;
-  studentName: string;
-  studentUsername: string;
-  submittedAt: string;
-  answers: Record<string, string>;
-  grade?: number;
-  grades?: any[];
-  feedback?: string;
-  isLate: boolean;
+interface AssessmentQuestion {
+  id?: string;
+  text: string;
+  type?: string;
+  rubricCriteria?: string;
 }
 
 export default function AssessmentDetails() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [isEditingDueDate, setIsEditingDueDate] = useState(false);
@@ -88,7 +63,7 @@ export default function AssessmentDetails() {
 
   // Update assessment mutation
   const updateAssessmentMutation = useMutation({
-    mutationFn: (data: any) => api.updateAssessment(Number(id), data),
+    mutationFn: (data: AssessmentUpdateRequestDTO) => api.updateAssessment(Number(id), data),
     onSuccess: () => {
       toast({
         title: "Assessment Updated",
@@ -107,21 +82,24 @@ export default function AssessmentDetails() {
   });
 
   // Fetch assessment data
-  const { data: assessment, isLoading: assessmentLoading, error: assessmentError } = useQuery<Assessment>({
+  const { data: assessment, isLoading: assessmentLoading } = useQuery<AssessmentDTO>({
     queryKey: [`/api/assessments/${id}`],
+    queryFn: () => api.getAssessment(Number(id)),
     enabled: isAuthenticated && !!id,
     retry: false,
   });
 
   // Fetch component skills with competency details
-  const { data: componentSkillsDetails = [] } = useQuery<ComponentSkill[]>({
+  const { data: componentSkillsDetails = [] } = useQuery<ComponentSkillWithDetailsDTO[]>({
     queryKey: ["/api/competencies/component-skills/details"],
+    queryFn: () => api.getComponentSkillsWithDetails(),
     enabled: isAuthenticated,
   });
 
   // Fetch submissions
   const { data: submissions = [], isLoading: submissionsLoading } = useQuery<Submission[]>({
     queryKey: [`/api/assessments/${id}/submissions`],
+    queryFn: () => api.getAssessmentSubmissions(Number(id)),
     enabled: isAuthenticated && !!id,
     refetchInterval: 5000, // Refetch every 5 seconds to keep status updated
   });
@@ -188,13 +166,14 @@ export default function AssessmentDetails() {
   }
 
   const competencyGroups = getCompetencyInfo(assessment, componentSkillsDetails);
+  const questions = Array.isArray(assessment.questions) ? (assessment.questions as AssessmentQuestion[]) : [];
   const totalStudents = submissions.length;
   const completedSubmissions = submissions.filter(s =>
     (s.grade !== undefined && s.grade !== null) || (s.grades && s.grades.length > 0)
   ).length;
-  const lateSubmissions = submissions.filter(s => s.isLate).length;
+  const lateSubmissions = submissions.filter((s) => !!s.isLate).length;
   const averageGrade = submissions.length > 0
-    ? submissions.reduce((sum, s) => sum + (s.grade || 0), 0) / submissions.length
+    ? submissions.reduce((sum, s) => sum + Number(s.grade || 0), 0) / submissions.length
     : 0;
 
   const isOverdue = assessment.dueDate && new Date(assessment.dueDate) < new Date();
@@ -290,7 +269,7 @@ export default function AssessmentDetails() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <FileText className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-700">{assessment.questions?.length || 0} questions</span>
+                  <span className="text-gray-700">{questions.length} questions</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="h-4 w-4 text-gray-500" />
@@ -333,7 +312,7 @@ export default function AssessmentDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {competencyGroups.map((competency: any, index: number) => (
+                  {competencyGroups.map((competency, index: number) => (
                     <div key={index} className="border border-gray-200 rounded-xl p-5 bg-white">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
@@ -356,7 +335,7 @@ export default function AssessmentDetails() {
                           <div className="space-y-2">
                             <h4 className="text-sm font-medium text-gray-700">Specific skills:</h4>
                             <div className="flex flex-wrap gap-2">
-                              {competency.skills.map((skill: ComponentSkill) => (
+                              {competency.skills.map((skill) => (
                                 <Badge
                                   key={skill.id}
                                   variant="secondary"
@@ -385,8 +364,8 @@ export default function AssessmentDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(assessment.questions || []).map((question, index) => (
-                    <div key={question.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                  {questions.map((question, index) => (
+                    <div key={question.id ?? `question-${index}`} className="border border-gray-200 rounded-lg p-4 bg-white">
                       <div className="flex items-start space-x-3">
                         <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-blue-600 font-medium text-sm">{index + 1}</span>
@@ -473,7 +452,7 @@ export default function AssessmentDetails() {
                           {submission.studentName}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {format(new Date(submission.submittedAt), 'MMM d, h:mm a')}
+                          {submission.submittedAt ? format(new Date(submission.submittedAt), 'MMM d, h:mm a') : "Not submitted"}
                         </p>
                       </div>
                       <div className="flex-shrink-0">

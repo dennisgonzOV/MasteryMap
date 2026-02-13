@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
+import { ApiError, getQueryFn, isApiError } from "@/lib/queryClient";
+import type { AuthUserDTO } from "@shared/contracts/api";
 
 export function useAuth() {
-  const { data: user, isLoading, error } = useQuery({
+  const { data: user, isLoading, error } = useQuery<AuthUserDTO | null, ApiError>({
     queryKey: ["/api/auth/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    queryFn: getQueryFn<AuthUserDTO | null>({ on401: "returnNull" }),
     retry: (failureCount, error) => {
-      if (error.message.includes('401') || error.message.includes('403')) {
+      if (error.status === 401 || error.status === 403) {
         return false;
       }
       return failureCount < 2;
@@ -19,23 +20,23 @@ export function useAuth() {
     refetchInterval: false,
   });
 
-  const isNetworkError = error && (
-    error.message.includes('fetch') ||
-    error.message.includes('NetworkError') ||
-    error.message.includes('Failed to fetch') ||
-    error.message.toLowerCase().includes('network')
+  const isNetworkError = !!error && (
+    (!isApiError(error)) ||
+    error.message.includes("fetch") ||
+    error.message.includes("NetworkError") ||
+    error.message.includes("Failed to fetch") ||
+    error.message.toLowerCase().includes("network")
   );
 
-  const isAuthError = error && (
-    error.message.includes('401') ||
-    error.message.includes('403') ||
-    error.message.includes('Unauthorized')
+  const isAuthError = !!error && (
+    error.status === 401 ||
+    error.status === 403
   );
 
   return {
     user,
     isLoading,
-    isAuthenticated: !!user && !error,
+    isAuthenticated: !!user,
     error,
     isNetworkError,
     isAuthError,

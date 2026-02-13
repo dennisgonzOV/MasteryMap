@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
+import { api } from "@/lib/api";
 import Navigation from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,14 @@ import {
   MessageCircle,
   ImageIcon
 } from "lucide-react";
+import type { MilestoneDTO, ProjectDTO, SubmissionWithAssessmentDTO } from "@shared/contracts/api";
+
+type MilestoneDisplayStatus = "not_started" | "submitted" | "completed";
+type MilestoneWithStatus = MilestoneDTO & {
+  hasSubmissions: boolean;
+  hasGradedSubmissions: boolean;
+  displayStatus: MilestoneDisplayStatus;
+};
 
 export default function StudentProjectDetail({ params }: { params: { id: string } }) {
   const { toast } = useToast();
@@ -33,10 +42,7 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   const handleMilestoneComplete = async (milestoneId: number) => {
     try {
       // Fetch assessments for this milestone
-      const response = await fetch(`/api/milestones/${milestoneId}/assessments`);
-      if (!response.ok) throw new Error('Failed to fetch milestone assessments');
-
-      const assessments = await response.json();
+      const assessments = await api.getAssessments(milestoneId);
 
       if (assessments.length > 0) {
         // Navigate to the first assessment for this milestone
@@ -51,7 +57,6 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
         });
       }
     } catch (error) {
-      console.error('Error fetching milestone assessments:', error);
       toast({
         title: "Error",
         description: "Failed to load milestone assessment. Please try again.",
@@ -61,36 +66,24 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   };
 
   // Fetch project details
-  const { data: project, isLoading: projectLoading } = useQuery({
+  const { data: project, isLoading: projectLoading } = useQuery<ProjectDTO>({
     queryKey: ["/api/projects", projectId],
     enabled: isAuthenticated && !isNaN(projectId),
-    queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}`);
-      if (!response.ok) throw new Error('Failed to fetch project');
-      return response.json();
-    },
+    queryFn: () => api.getProject(projectId),
   });
 
   // Fetch project milestones
-  const { data: milestones = [], isLoading: milestonesLoading } = useQuery({
+  const { data: milestones = [], isLoading: milestonesLoading } = useQuery<MilestoneDTO[]>({
     queryKey: ["/api/projects", projectId, "milestones"],
     enabled: isAuthenticated && !isNaN(projectId),
-    queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/milestones`);
-      if (!response.ok) throw new Error('Failed to fetch milestones');
-      return response.json();
-    },
+    queryFn: () => api.getMilestones(projectId),
   });
 
   // Fetch student submissions to check completion status
-  const { data: studentSubmissions = [], refetch: refetchSubmissions } = useQuery({
+  const { data: studentSubmissions = [], refetch: refetchSubmissions } = useQuery<SubmissionWithAssessmentDTO[]>({
     queryKey: ["/api/submissions/student"],
     enabled: isAuthenticated,
-    queryFn: async () => {
-      const response = await fetch(`/api/submissions/student`);
-      if (!response.ok) throw new Error('Failed to fetch submissions');
-      return response.json();
-    },
+    queryFn: api.getStudentSubmissions,
     // Add polling to automatically refresh submissions data every 30 seconds
     // This ensures students see updated completion status when teachers grade their submissions
     refetchInterval: 30000, // 30 seconds
@@ -98,23 +91,11 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
   });
 
   // Enhanced milestone status calculation with submission tracking
-  const milestonesWithStatus = milestones.map(milestone => {
+  const milestonesWithStatus: MilestoneWithStatus[] = milestones.map((milestone) => {
     // Check if student has submitted any assessments for this milestone
-    const milestoneSubmissions = studentSubmissions.filter(submission => {
+    const milestoneSubmissions = studentSubmissions.filter((submission) => {
       // Check if the submission's assessment belongs to this milestone
       return submission.assessment && submission.assessment.milestoneId === milestone.id;
-    });
-    
-    console.log(`Milestone ${milestone.id} (${milestone.title}):`, {
-      totalSubmissions: studentSubmissions.length,
-      milestoneSubmissions: milestoneSubmissions.length,
-      submissionAssessments: milestoneSubmissions.map(s => ({
-        id: s.id,
-        assessmentId: s.assessmentId,
-        milestoneId: s.assessment?.milestoneId,
-        submittedAt: s.submittedAt,
-        gradedAt: s.gradedAt
-      }))
     });
     
     const hasSubmissions = milestoneSubmissions.length > 0;
@@ -125,13 +106,11 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
     );
     
     // Determine display status based on submission and grading state
-    let displayStatus = 'not_started';
+    let displayStatus: MilestoneDisplayStatus = 'not_started';
     if (hasGradedSubmissions) {
       displayStatus = 'completed';
     } else if (hasSubmissions) {
       displayStatus = 'submitted';
-    } else if (milestone.status === 'completed') {
-      displayStatus = 'completed';
     }
     
     return {
@@ -142,17 +121,17 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
     };
   });
 
-  const completedMilestones = milestonesWithStatus.filter(m => 
-    m.displayStatus === 'completed' || m.displayStatus === 'submitted'
+  const completedMilestones = milestonesWithStatus.filter((milestone) => 
+    milestone.displayStatus === 'completed' || milestone.displayStatus === 'submitted'
   ).length;
   const progressPercentage = milestones.length > 0 ? (completedMilestones / milestones.length) * 100 : 0;
 
-  const overdueMilestones = milestonesWithStatus.filter(m => 
-    m.dueDate && new Date(m.dueDate) < new Date() && m.displayStatus !== 'completed' && m.displayStatus !== 'submitted'
+  const overdueMilestones = milestonesWithStatus.filter((milestone) => 
+    milestone.dueDate && new Date(milestone.dueDate) < new Date() && milestone.displayStatus !== 'completed' && milestone.displayStatus !== 'submitted'
   );
 
-  const upcomingMilestones = milestonesWithStatus.filter(m => 
-    m.dueDate && new Date(m.dueDate) >= new Date() && m.displayStatus !== 'completed' && m.displayStatus !== 'submitted'
+  const upcomingMilestones = milestonesWithStatus.filter((milestone) => 
+    milestone.dueDate && new Date(milestone.dueDate) >= new Date() && milestone.displayStatus !== 'completed' && milestone.displayStatus !== 'submitted'
   );
 
   if (isLoading || projectLoading) {
@@ -430,19 +409,23 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                             {/* Show submission date for submitted milestones */}
                             {milestone.displayStatus === 'submitted' && (() => {
                               // Find the most recent submission for this milestone
-                              const milestoneSubmissions = studentSubmissions.filter(submission => {
+                              const milestoneSubmissions = studentSubmissions.filter((submission) => {
                                 return submission.assessment?.milestoneId === milestone.id;
                               });
                               
                               if (milestoneSubmissions.length > 0) {
                                 const mostRecentSubmission = milestoneSubmissions.reduce((latest, current) => {
-                                  return new Date(current.submittedAt) > new Date(latest.submittedAt) ? current : latest;
+                                  return new Date(current.submittedAt as string | Date) > new Date(latest.submittedAt as string | Date) ? current : latest;
                                 });
                                 
                                 return (
                                   <div className="flex items-center space-x-1 text-xs text-blue-600">
                                     <CheckCircle className="h-3 w-3" />
-                                    <span>Submitted on {format(new Date(mostRecentSubmission.submittedAt), 'MMM d, yyyy \'at\' h:mm a')}</span>
+                                    <span>
+                                      Submitted on {mostRecentSubmission.submittedAt
+                                        ? format(new Date(mostRecentSubmission.submittedAt), 'MMM d, yyyy \'at\' h:mm a')
+                                        : 'Unknown date'}
+                                    </span>
                                   </div>
                                 );
                               }
@@ -452,19 +435,23 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
                             {/* Show completion date for completed milestones */}
                             {milestone.displayStatus === 'completed' && (() => {
                               // Find the most recent graded submission for this milestone
-                              const milestoneSubmissions = studentSubmissions.filter(submission => {
+                              const milestoneSubmissions = studentSubmissions.filter((submission) => {
                                 return submission.assessment?.milestoneId === milestone.id && submission.gradedAt;
                               });
                               
                               if (milestoneSubmissions.length > 0) {
                                 const mostRecentGraded = milestoneSubmissions.reduce((latest, current) => {
-                                  return new Date(current.gradedAt) > new Date(latest.gradedAt) ? current : latest;
+                                  return new Date(current.gradedAt as string | Date) > new Date(latest.gradedAt as string | Date) ? current : latest;
                                 });
                                 
                                 return (
                                   <div className="flex items-center space-x-1 text-xs text-green-600">
                                     <CheckCircle className="h-3 w-3" />
-                                    <span>Completed on {format(new Date(mostRecentGraded.gradedAt), 'MMM d, yyyy \'at\' h:mm a')}</span>
+                                    <span>
+                                      Completed on {mostRecentGraded.gradedAt
+                                        ? format(new Date(mostRecentGraded.gradedAt), 'MMM d, yyyy \'at\' h:mm a')
+                                        : 'Unknown date'}
+                                    </span>
                                   </div>
                                 );
                               }

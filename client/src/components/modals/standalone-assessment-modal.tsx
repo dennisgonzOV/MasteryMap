@@ -40,6 +40,25 @@ const assessmentSchema = z.object({
   })).min(1, "At least one question is required"),
 });
 
+type AssessmentFormValues = z.infer<typeof assessmentSchema>;
+
+interface HierarchySkill {
+  id: number;
+  name: string;
+}
+
+interface HierarchyCompetency {
+  id: number;
+  name: string;
+  componentSkills?: HierarchySkill[];
+}
+
+interface HierarchyOutcome {
+  id: number;
+  name: string;
+  competencies?: HierarchyCompetency[];
+}
+
 interface StandaloneAssessmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -53,9 +72,8 @@ export default function StandaloneAssessmentModal({
 }: StandaloneAssessmentModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isGenerating, setIsGenerating] = useState(false);
 
-  const form = useForm({
+  const form = useForm<AssessmentFormValues>({
     resolver: zodResolver(assessmentSchema),
     defaultValues: {
       title: "",
@@ -74,7 +92,7 @@ export default function StandaloneAssessmentModal({
   });
 
   // Fetch the complete 3-level hierarchy for component skills selection
-  const { data: hierarchyData = [], isLoading: hierarchyLoading } = useQuery<any[]>({
+  const { data: hierarchyData = [], isLoading: hierarchyLoading } = useQuery<HierarchyOutcome[]>({
     queryKey: ['/api/learner-outcomes-hierarchy/complete'],
     enabled: open,
   });
@@ -101,7 +119,7 @@ export default function StandaloneAssessmentModal({
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof assessmentSchema>) => {
+  const onSubmit = async (data: AssessmentFormValues) => {
     const assessmentData = {
       ...data,
       // No milestoneId for standalone assessments
@@ -310,7 +328,8 @@ export default function StandaloneAssessmentModal({
                                   value={question.type}
                                   onChange={(e) => {
                                     const newQuestions = [...field.value];
-                                    newQuestions[index].type = e.target.value as "open-ended" | "multiple-choice" | "short-answer";
+                                    const nextType = e.target.value as AssessmentFormValues["questions"][number]["type"];
+                                    newQuestions[index].type = nextType;
                                     field.onChange(newQuestions);
                                   }}
                                   className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"

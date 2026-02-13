@@ -23,6 +23,8 @@ import { format } from "date-fns";
 import { getCompetencyInfo } from "@/lib/competencyUtils";
 import AIFeedbackModal from '@/components/modals/ai-feedback-modal';
 import AITutorChat from '@/components/ai-tutor-chat';
+import { api } from '@/lib/api';
+import type { ComponentSkillWithDetailsDTO, SubmissionCreateRequestDTO } from '@shared/contracts/api';
 
 interface Question {
   id: string;
@@ -44,18 +46,9 @@ interface Assessment {
   allowSelfEvaluation: boolean;
 }
 
-interface ComponentSkill {
-  id: number;
-  name: string;
-  emerging: string;
-  developing: string;
-  proficient: string;
-  applying: string;
-}
-
 interface SelfEvaluationData {
   componentSkillId: number;
-  selfAssessedLevel: 'emerging' | 'developing' | 'proficient' | 'applying';
+  selfAssessedLevel: 'emerging' | 'developing' | 'proficient' | 'applying' | '';
   justification: string;
   examples: string;
 }
@@ -86,6 +79,24 @@ const parseQuestionOptions = (options: any): { options: string[], hasError: bool
 
     return { options: [], hasError: true };
   }
+};
+
+const normalizeRubricLevels = (rubricLevels: unknown): Record<string, string> | null => {
+  if (!rubricLevels || typeof rubricLevels !== "object") {
+    return null;
+  }
+
+  const normalized = Object.entries(rubricLevels as Record<string, unknown>).reduce<Record<string, string>>(
+    (accumulator, [key, value]) => {
+      if (typeof value === "string") {
+        accumulator[key] = value;
+      }
+      return accumulator;
+    },
+    {}
+  );
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
 };
 
 export default function TakeAssessment() {
@@ -136,14 +147,15 @@ export default function TakeAssessment() {
   });
 
   // Fetch component skills with competency details
-  const { data: componentSkillsDetails = [] } = useQuery({
+  const { data: componentSkillsDetails = [] } = useQuery<ComponentSkillWithDetailsDTO[]>({
     queryKey: ["/api/competencies/component-skills/details"],
+    queryFn: api.getComponentSkillsWithDetails,
     enabled: isAuthenticated,
     retry: false,
   });
 
   const submitAssessmentMutation = useMutation({
-    mutationFn: async (submissionData: any) => {
+    mutationFn: async (submissionData: SubmissionCreateRequestDTO) => {
       const response = await fetch('/api/submissions', {
         method: 'POST',
         headers: {
@@ -230,7 +242,7 @@ export default function TakeAssessment() {
   });
 
   // Get component skills specific to this assessment
-  const assessmentComponentSkills = componentSkillsDetails.filter((skill: ComponentSkill) => 
+  const assessmentComponentSkills = componentSkillsDetails.filter((skill) => 
     assessment?.componentSkillIds.includes(skill.id)
   );
 
@@ -246,13 +258,13 @@ export default function TakeAssessment() {
     setSelfEvaluations(prev => ({
       ...prev,
       [skillId]: {
-        componentSkillId: skillId,
-        selfAssessedLevel: '',
-        justification: '',
-        examples: '',
         ...prev[skillId],
         ...updates,
-      } as SelfEvaluationData
+        componentSkillId: skillId,
+        selfAssessedLevel: updates.selfAssessedLevel ?? prev[skillId]?.selfAssessedLevel ?? '',
+        justification: updates.justification ?? prev[skillId]?.justification ?? '',
+        examples: updates.examples ?? prev[skillId]?.examples ?? '',
+      }
     }));
   };
 
@@ -575,7 +587,11 @@ export default function TakeAssessment() {
               </CardHeader>
               <CardContent>
                 <AITutorChat
-                  componentSkill={assessmentComponentSkills[0]}
+                  componentSkill={{
+                    id: assessmentComponentSkills[0].id,
+                    name: assessmentComponentSkills[0].name,
+                    rubricLevels: normalizeRubricLevels(assessmentComponentSkills[0].rubricLevels),
+                  }}
                   selfEvaluation={selfEvaluations[assessmentComponentSkills[0]?.id] || {
                     selfAssessedLevel: '',
                     justification: '',

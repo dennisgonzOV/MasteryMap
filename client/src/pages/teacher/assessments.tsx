@@ -1,19 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
-import type { Assessment, Project, User } from "@shared/schema";
+import { UserRole } from "@shared/schema";
+import type {
+  AssessmentDTO,
+  AssessmentSubmissionSummaryDTO,
+  ComponentSkillWithDetailsDTO,
+  MilestoneDTO,
+  ProjectDTO,
+} from "@shared/contracts/api";
 import Navigation from "@/components/navigation";
 import CreateAssessmentModal from "@/components/modals/create-assessment-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import { 
   Plus, 
   Search, 
@@ -22,7 +27,6 @@ import {
   Users,
   FileText,
   Sparkles,
-  BookOpen,
   Share,
   Eye,
   Copy,
@@ -45,16 +49,53 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 
+interface AssessmentSubmissionWithAssessmentId extends AssessmentSubmissionSummaryDTO {
+  assessmentId: number;
+}
+
+interface CompetencyGroup {
+  competencyName: string;
+  competencyCategory: string | null;
+  learnerOutcomeName: string | null;
+  skills: ComponentSkillWithDetailsDTO[];
+}
+
+function parseComponentSkillIds(componentSkillIds: unknown): number[] {
+  if (Array.isArray(componentSkillIds)) {
+    return componentSkillIds.filter((value): value is number => typeof value === "number");
+  }
+
+  if (typeof componentSkillIds === "string") {
+    try {
+      const parsed = JSON.parse(componentSkillIds);
+      return Array.isArray(parsed)
+        ? parsed.filter((value): value is number => typeof value === "number")
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function isSubmissionGraded(submission: AssessmentSubmissionSummaryDTO): boolean {
+  return (
+    (submission.grade !== undefined && submission.grade !== null) ||
+    (!!submission.grades && submission.grades.length > 0) ||
+    !!submission.gradedAt
+  );
+}
+
 export default function TeacherAssessments() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
   const [showCreateAssessment, setShowCreateAssessment] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<number | undefined>();
-  const [selectedMilestone, setSelectedMilestone] = useState<number | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
-  
+  const userRole = user?.role;
+  const canManageAssessments = userRole === UserRole.TEACHER || userRole === UserRole.ADMIN;
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -69,74 +110,70 @@ export default function TeacherAssessments() {
   }, [isAuthenticated, isLoading, toast]);
 
   // Fetch projects for filter
-  const { data: projects = [] } = useQuery<Project[]>({
+  const { data: projects = [] } = useQuery<ProjectDTO[]>({
     queryKey: ["/api/projects"],
-    enabled: isAuthenticated && (user as User)?.role === 'teacher',
+    enabled: isAuthenticated && canManageAssessments,
     retry: false,
   });
 
   // Fetch all assessments (including milestone-linked ones)
-  const { data: assessments = [], refetch: refetchAssessments } = useQuery<Assessment[]>({
+  const { data: assessments = [], refetch: refetchAssessments } = useQuery<AssessmentDTO[]>({
     queryKey: ["/api/assessments"],
-    enabled: isAuthenticated && (user as User)?.role === 'teacher',
+    enabled: isAuthenticated && canManageAssessments,
     retry: false,
   });
 
   // Fetch milestones for filtered project or all projects
   const selectedProjectId = projectFilter !== "all" ? parseInt(projectFilter) : null;
-  const { data: milestones = [] } = useQuery<any[]>({
+  const { data: milestones = [] } = useQuery<MilestoneDTO[]>({
     queryKey: ["/api/projects", selectedProjectId, "milestones"],
     queryFn: async () => {
       if (selectedProjectId) {
         return api.getMilestones(selectedProjectId);
       } else {
         // Fetch milestones for all projects when showing all assessments
-        const allMilestones = [];
-        for (const project of projects) {
-          try {
-            const projectMilestones = await api.getMilestones(project.id);
-            allMilestones.push(...projectMilestones);
-          } catch (error) {
-      
-          }
-        }
-        return allMilestones;
+        const milestoneGroups = await Promise.all(
+          projects.map(async (project) => {
+            try {
+              return await api.getMilestones(project.id);
+            } catch {
+              return [] as MilestoneDTO[];
+            }
+          })
+        );
+        return milestoneGroups.flat();
       }
     },
-    enabled: isAuthenticated && (user as User)?.role === 'teacher' && (!!selectedProjectId || projects.length > 0),
+    enabled: isAuthenticated && canManageAssessments && (!!selectedProjectId || projects.length > 0),
     retry: false,
   });
 
   // Fetch component skills with competency details
-  const { data: componentSkillsDetails = [] } = useQuery<any[]>({
+  const { data: componentSkillsDetails = [] } = useQuery<ComponentSkillWithDetailsDTO[]>({
     queryKey: ["/api/competencies/component-skills/details"],
-    enabled: isAuthenticated && (user as User)?.role === 'teacher',
+    queryFn: () => api.getComponentSkillsWithDetails(),
+    enabled: isAuthenticated && canManageAssessments,
     retry: false,
   });
 
   // Fetch all submissions to calculate grading progress
-  const { data: allSubmissions = [] } = useQuery<any[]>({
+  const { data: allSubmissions = [] } = useQuery<AssessmentSubmissionWithAssessmentId[]>({
     queryKey: ["/api/submissions/all-for-teacher"],
     queryFn: async () => {
       // Fetch submissions for all teacher's assessments
       const submissionsPromises = assessments.map(async (assessment) => {
         try {
-          const response = await fetch(`/api/assessments/${assessment.id}/submissions`, {
-            credentials: 'include'
-          });
-          if (!response.ok) return [];
-          const submissions = await response.json();
-          return submissions.map((s: any) => ({ ...s, assessmentId: assessment.id }));
-        } catch (error) {
-    
+          const submissions = await api.getAssessmentSubmissions(assessment.id);
+          return submissions.map((submission) => ({ ...submission, assessmentId: assessment.id }));
+        } catch {
           return [];
         }
       });
-      
+
       const allSubmissionsArrays = await Promise.all(submissionsPromises);
       return allSubmissionsArrays.flat();
     },
-    enabled: isAuthenticated && (user as User)?.role === 'teacher' && assessments.length > 0,
+    enabled: isAuthenticated && canManageAssessments && assessments.length > 0,
     retry: false,
   });
 
@@ -151,30 +188,29 @@ export default function TeacherAssessments() {
     );
   }
 
-  if (!isAuthenticated || (user as User)?.role !== 'teacher') {
+  if (!isAuthenticated || !canManageAssessments) {
     return null;
   }
 
   // Helper function to get competency information for an assessment
-  const getCompetencyInfo = (assessment: any) => {
-    if (!assessment.componentSkillIds || !componentSkillsDetails) return null;
+  const getCompetencyInfo = (assessment: AssessmentDTO): CompetencyGroup[] => {
+    if (!componentSkillsDetails.length) return [];
+    const skillIds = parseComponentSkillIds(assessment.componentSkillIds);
+    if (!skillIds.length) return [];
 
-    const skillIds = Array.isArray(assessment.componentSkillIds) 
-      ? assessment.componentSkillIds 
-      : JSON.parse(assessment.componentSkillIds || '[]');
-
-    const skills = componentSkillsDetails.filter((skill: any) => 
-      skillIds.includes(skill.id)
-    );
+    const skills = componentSkillsDetails.filter((skill) => skillIds.includes(skill.id));
 
     // Group by competency
-    const competencyGroups = skills.reduce((acc: any, skill: any) => {
+    const competencyGroups = skills.reduce<Record<number, CompetencyGroup>>((acc, skill) => {
       const key = skill.competencyId;
+      if (key == null) {
+        return acc;
+      }
       if (!acc[key]) {
         acc[key] = {
-          competencyName: skill.competencyName,
-          competencyCategory: skill.competencyCategory,
-          learnerOutcomeName: skill.learnerOutcomeName,
+          competencyName: skill.competencyName ?? skill.name,
+          competencyCategory: skill.competencyCategory ?? null,
+          learnerOutcomeName: skill.learnerOutcomeName ?? null,
           skills: []
         };
       }
@@ -186,9 +222,9 @@ export default function TeacherAssessments() {
   };
 
   // Filter assessments
-  const filteredAssessments = assessments.filter((assessment: any) => {
+  const filteredAssessments = assessments.filter((assessment) => {
     const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         assessment.description.toLowerCase().includes(searchQuery.toLowerCase());
+                         (assessment.description ?? "").toLowerCase().includes(searchQuery.toLowerCase());
 
     // Filter by project if a specific filter is selected
     if (projectFilter !== "all") {
@@ -200,7 +236,7 @@ export default function TeacherAssessments() {
 
         // For milestone-linked assessments, check if milestone belongs to selected project
         if (assessment.milestoneId) {
-          const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
+          const milestone = milestones.find((m) => m.id === assessment.milestoneId);
           if (!milestone || milestone.projectId !== filterProjectId) {
             return false;
           }
@@ -214,6 +250,28 @@ export default function TeacherAssessments() {
 
     return matchesSearch;
   });
+
+  const submissionStatsByAssessment = useMemo(() => {
+    const stats = new Map<number, { total: number; graded: number }>();
+
+    for (const submission of allSubmissions) {
+      const current = stats.get(submission.assessmentId) ?? { total: 0, graded: 0 };
+      current.total += 1;
+      if (isSubmissionGraded(submission)) {
+        current.graded += 1;
+      }
+      stats.set(submission.assessmentId, current);
+    }
+
+    return stats;
+  }, [allSubmissions]);
+
+  const getSubmissionStats = (assessmentId: number) => {
+    const stats = submissionStatsByAssessment.get(assessmentId) ?? { total: 0, graded: 0 };
+    const pending = Math.max(stats.total - stats.graded, 0);
+    const progress = stats.total > 0 ? Math.round((stats.graded / stats.total) * 100) : 0;
+    return { ...stats, pending, progress };
+  };
 
   const totalAssessments = assessments.length;
   const aiGeneratedCount = assessments.filter(a => a.aiGenerated).length;
@@ -243,17 +301,7 @@ export default function TeacherAssessments() {
 
   // Delete assessment mutation
   const deleteAssessmentMutation = useMutation({
-    mutationFn: async (assessmentId: number) => {
-      const response = await fetch(`/api/assessments/${assessmentId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        // Try to get the error message from the response
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to delete assessment');
-      }
-      return response.json();
-    },
+    mutationFn: (assessmentId: number) => api.deleteAssessment(assessmentId),
     onSuccess: () => {
       toast({
         title: "Assessment deleted",
@@ -262,10 +310,11 @@ export default function TeacherAssessments() {
       // Invalidate the main assessments query to refresh the list
       queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Failed to delete assessment";
       toast({
         title: "Delete failed", 
-        description: error.message || "Failed to delete assessment",
+        description: message,
         variant: "destructive",
       });
     },
@@ -409,216 +458,178 @@ export default function TeacherAssessments() {
             </div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {filteredAssessments.map((assessment) => (
-                <Card key={assessment.id} className="bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group">
-                  <CardContent className="p-6">
-                    {/* Header Section */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">
-                            {assessment.title}
-                          </h3>
-                          {assessment.aiGenerated && (
-                            <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs px-2 py-0.5">
-                              <Sparkles className="h-3 w-3 mr-1" />
-                              AI
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">{assessment.description}</p>
-                      </div>
+              {filteredAssessments.map((assessment) => {
+                const milestone = assessment.milestoneId
+                  ? milestones.find((m) => m.id === assessment.milestoneId)
+                  : undefined;
+                const milestoneNumber = milestone?.order ?? "?";
+                const questionCount = Array.isArray(assessment.questions) ? assessment.questions.length : 0;
+                const competencyInfo = getCompetencyInfo(assessment);
+                const submissionStats = getSubmissionStats(assessment.id);
 
-                      {/* Type Badge */}
-                      <div className="ml-3 flex-shrink-0">
-                        {assessment.milestoneId ? (
-                          (() => {
-                            const milestone = milestones.find((m: any) => m.id === assessment.milestoneId);
-                            const milestoneNumber = milestone?.order || '?';
-
-                            return (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                <Calendar className="h-3 w-3 mr-1" />
-                                Milestone: {milestoneNumber}
+                return (
+                  <Card key={assessment.id} className="bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group">
+                    <CardContent className="p-6">
+                      {/* Header Section */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                              {assessment.title}
+                            </h3>
+                            {assessment.aiGenerated && (
+                              <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs px-2 py-0.5">
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                AI
                               </Badge>
-                            );
-                          })()
-                        ) : (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                            <Target className="h-3 w-3 mr-1" />
-                            Standalone
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+                            )}
+                          </div>
+                          <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">{assessment.description}</p>
+                        </div>
 
-                    {/* Key Metrics Row */}
-                    <div className="grid grid-cols-3 gap-3 mb-4">
-                      <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
-                        <div className="flex items-center justify-center mb-1">
-                          <FileText className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <p className="text-sm font-semibold text-gray-900">{(assessment as any).questions?.length || 0}</p>
-                        <p className="text-xs text-gray-600">Questions</p>
-                      </div>
-                      <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
-                        <div className="flex items-center justify-center mb-1">
-                          <Users className="h-4 w-4 text-green-500" />
-                        </div>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {allSubmissions.filter(s => s.assessmentId === assessment.id).length}
-                        </p>
-                        <p className="text-xs text-gray-600">Submissions</p>
-                      </div>
-                      <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
-                        <div className="flex items-center justify-center mb-1">
-                          <Clock className="h-4 w-4 text-orange-500" />
-                        </div>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {(() => {
-                            const assessmentSubmissions = allSubmissions.filter(s => s.assessmentId === assessment.id);
-                            const pendingSubmissions = assessmentSubmissions.filter(s => 
-                              !(s.grade !== undefined && s.grade !== null) && 
-                              !(s.grades && s.grades.length > 0) &&
-                              !s.gradedAt
-                            );
-                            return pendingSubmissions.length;
-                          })()}
-                        </p>
-                        <p className="text-xs text-gray-600">Pending</p>
-                      </div>
-                    </div>
-
-                    {/* Competencies Preview */}
-                    {getCompetencyInfo(assessment) && (
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Target className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-medium text-gray-700">Skills Assessment</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {getCompetencyInfo(assessment)?.slice(0, 2).map((competency: any, index: number) => (
-                            <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                              {competency.competencyName}
+                        {/* Type Badge */}
+                        <div className="ml-3 flex-shrink-0">
+                          {assessment.milestoneId ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              Milestone: {milestoneNumber}
                             </Badge>
-                          ))}
-                          {getCompetencyInfo(assessment) && getCompetencyInfo(assessment)!.length > 2 && (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs">
-                              +{getCompetencyInfo(assessment)!.length - 2} more
+                          ) : (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                              <Target className="h-3 w-3 mr-1" />
+                              Standalone
                             </Badge>
                           )}
                         </div>
                       </div>
-                    )}
 
-                    {/* Share Code - Compact Version */}
-                    {assessment.shareCode && (
-                      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                        <div className="flex items-center gap-2">
-                          <Share className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium text-green-800">Code:</span>
-                          <span className="font-mono font-bold text-green-800">{assessment.shareCode}</span>
+                      {/* Key Metrics Row */}
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
+                          <div className="flex items-center justify-center mb-1">
+                            <FileText className="h-4 w-4 text-blue-500" />
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">{questionCount}</p>
+                          <p className="text-xs text-gray-600">Questions</p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-green-600 hover:bg-green-100 h-8 w-8 p-0"
-                          onClick={() => handleCopyShareCode(assessment.shareCode!)}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Progress Bar */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">Grading Progress</span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {(() => {
-                            // Calculate actual grading progress for this assessment
-                            const assessmentSubmissions = allSubmissions.filter(s => s.assessmentId === assessment.id);
-                            if (assessmentSubmissions.length === 0) return "0%";
-                            
-                            const gradedSubmissions = assessmentSubmissions.filter(s => 
-                              (s.grade !== undefined && s.grade !== null) || 
-                              (s.grades && s.grades.length > 0) ||
-                              s.gradedAt
-                            );
-                            
-                            const progress = Math.round((gradedSubmissions.length / assessmentSubmissions.length) * 100);
-                            return `${progress}%`;
-                          })()}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-300"
-                          style={{ 
-                            width: (() => {
-                              const assessmentSubmissions = allSubmissions.filter(s => s.assessmentId === assessment.id);
-                              if (assessmentSubmissions.length === 0) return '0%';
-                              
-                              const gradedSubmissions = assessmentSubmissions.filter(s => 
-                                (s.grade !== undefined && s.grade !== null) || 
-                                (s.grades && s.grades.length > 0) ||
-                                s.gradedAt
-                              );
-                              
-                              const progress = Math.round((gradedSubmissions.length / assessmentSubmissions.length) * 100);
-                              return `${progress}%`;
-                            })()
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Footer with Due Date and Actions */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center gap-1 text-xs text-gray-600">
-                        <Clock className="h-3 w-3" />
-                        <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), 'MMM d') : 'No due date'}</span>
+                        <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
+                          <div className="flex items-center justify-center mb-1">
+                            <Users className="h-4 w-4 text-green-500" />
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">{submissionStats.total}</p>
+                          <p className="text-xs text-gray-600">Submissions</p>
+                        </div>
+                        <div className="text-center bg-gray-50 rounded-lg py-2 px-3">
+                          <div className="flex items-center justify-center mb-1">
+                            <Clock className="h-4 w-4 text-orange-500" />
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">{submissionStats.pending}</p>
+                          <p className="text-xs text-gray-600">Pending</p>
+                        </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          size="sm"
-                          variant="ghost"
-                          className="text-gray-600 hover:text-blue-600 hover:bg-blue-50 h-8 px-2"
-                          onClick={() => setLocation(`/teacher/assessments/${assessment.id}`)}
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        
-                        <Button 
-                          size="sm"
-                          className="bg-blue-600 text-white hover:bg-blue-700 h-8 px-3 text-xs"
-                          onClick={() => setLocation(`/teacher/assessments/${assessment.id}/submissions`)}
-                        >
-                          Grade
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 h-8 w-8 p-0">
-                              <MoreVertical className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Assessment
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      {/* Competencies Preview */}
+                      {competencyInfo.length > 0 && (
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Target className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium text-gray-700">Skills Assessment</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {competencyInfo.slice(0, 2).map((competency, index) => (
+                              <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                                {competency.competencyName}
+                              </Badge>
+                            ))}
+                            {competencyInfo.length > 2 && (
+                              <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs">
+                                +{competencyInfo.length - 2} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Share Code - Compact Version */}
+                      {assessment.shareCode && (
+                        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                          <div className="flex items-center gap-2">
+                            <Share className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-800">Code:</span>
+                            <span className="font-mono font-bold text-green-800">{assessment.shareCode}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-green-600 hover:bg-green-100 h-8 w-8 p-0"
+                            onClick={() => handleCopyShareCode(assessment.shareCode!)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Progress Bar */}
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Grading Progress</span>
+                          <span className="text-sm font-semibold text-gray-900">{submissionStats.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${submissionStats.progress}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                      {/* Footer with Due Date and Actions */}
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
+                          <Clock className="h-3 w-3" />
+                          <span>Due: {assessment.dueDate ? format(new Date(assessment.dueDate), "MMM d") : "No due date"}</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-gray-600 hover:text-blue-600 hover:bg-blue-50 h-8 px-2"
+                            onClick={() => setLocation(`/teacher/assessments/${assessment.id}`)}
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 text-white hover:bg-blue-700 h-8 px-3 text-xs"
+                            onClick={() => setLocation(`/teacher/assessments/${assessment.id}/submissions`)}
+                          >
+                            Grade
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900 h-8 w-8 p-0">
+                                <MoreVertical className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteAssessment(assessment.id, assessment.title)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Assessment
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
 

@@ -7,7 +7,7 @@ import { useLocation } from 'wouter';
  */
 
 // Import the enum from shared schema
-import { UserRole } from '../../../shared/schema';
+import { UserRole } from "@shared/schema";
 
 export interface RoleBasedAccessOptions {
   allowedRoles?: UserRole[];
@@ -27,8 +27,14 @@ export function useRoleBasedAccess(options: RoleBasedAccessOptions = {}) {
     onUnauthorized
   } = options;
 
-  const userRole = (user as any)?.role as UserRole;
-  const isAuthorized = !requireAuth || (isAuthenticated && (!allowedRoles.length || allowedRoles.includes(userRole)));
+  const userRole = user?.role as UserRole | undefined;
+  const isAuthorized = !requireAuth || (
+    isAuthenticated &&
+    (
+      !allowedRoles.length ||
+      (userRole !== undefined && allowedRoles.includes(userRole))
+    )
+  );
 
   useEffect(() => {
     if (!isLoading && requireAuth && !isAuthenticated) {
@@ -36,7 +42,7 @@ export function useRoleBasedAccess(options: RoleBasedAccessOptions = {}) {
       return;
     }
 
-    if (!isLoading && isAuthenticated && allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+    if (!isLoading && isAuthenticated && allowedRoles.length > 0 && (!userRole || !allowedRoles.includes(userRole))) {
       if (onUnauthorized) {
         onUnauthorized();
       } else {
@@ -52,7 +58,7 @@ export function useRoleBasedAccess(options: RoleBasedAccessOptions = {}) {
     isAuthorized,
     isLoading,
     hasRole: (role: UserRole) => userRole === role,
-    hasAnyRole: (roles: UserRole[]) => roles.includes(userRole),
+    hasAnyRole: (roles: UserRole[]) => !!userRole && roles.includes(userRole),
     isAdmin: userRole === UserRole.ADMIN,
     isTeacher: userRole === UserRole.TEACHER,
     isStudent: userRole === UserRole.STUDENT,
@@ -100,7 +106,7 @@ export function useStudentAccess(includeTeachers = false, options?: Omit<RoleBas
  */
 export function useConditionalRender() {
   const { user, isAuthenticated } = useAuth();
-  const userRole = (user as any)?.role as UserRole;
+  const userRole = user?.role as UserRole | undefined;
   
   return {
     renderForRole: (role: UserRole, component: React.ReactNode) => {
@@ -108,7 +114,7 @@ export function useConditionalRender() {
     },
     
     renderForRoles: (roles: UserRole[], component: React.ReactNode) => {
-      return roles.includes(userRole) ? component : null;
+      return !!userRole && roles.includes(userRole) ? component : null;
     },
     
     renderForAdmin: (component: React.ReactNode) => {
@@ -142,8 +148,8 @@ export function useRoleBasedRedirect() {
 
   const redirectToRoleDashboard = () => {
     if (!isAuthenticated || !user) return;
-    
-    const route = getDefaultRedirectForRole((user as any).role as UserRole);
+
+    const route = getDefaultRedirectForRole(user.role as UserRole);
     setLocation(route);
   };
 
@@ -166,7 +172,7 @@ export function useRoleBasedRedirect() {
 /**
  * Get default redirect route for a user role
  */
-export function getDefaultRedirectForRole(role: UserRole): string {
+export function getDefaultRedirectForRole(role?: UserRole): string {
   switch (role) {
     case UserRole.ADMIN:
       return '/admin/dashboard';
@@ -218,13 +224,13 @@ export function RoleGate({
   requireAuth = true 
 }: RoleGateProps) {
   const { user, isAuthenticated } = useAuth();
-  const userRole = (user as any)?.role as UserRole;
+  const userRole = user?.role as UserRole | undefined;
   
   if (requireAuth && !isAuthenticated) {
     return fallback;
   }
   
-  if (roles.length === 0 || roles.includes(userRole)) {
+  if (roles.length === 0 || (userRole !== undefined && roles.includes(userRole))) {
     return React.createElement(React.Fragment, null, children);
   }
   
@@ -235,16 +241,16 @@ export function RoleGate({
  * Permission checking utilities
  */
 export const permissions = {
-  canCreateProject: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canDeleteProject: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canGradeSubmission: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canViewAllStudents: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canManageUsers: (userRole: UserRole) => userRole === UserRole.ADMIN,
-  canAccessAnalytics: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canModerateContent: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canExportData: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canManageCredentials: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
-  canViewTeacherTools: (userRole: UserRole) => [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canCreateProject: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canDeleteProject: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canGradeSubmission: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canViewAllStudents: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canManageUsers: (userRole?: UserRole) => userRole === UserRole.ADMIN,
+  canAccessAnalytics: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canModerateContent: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canExportData: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canManageCredentials: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
+  canViewTeacherTools: (userRole?: UserRole) => !!userRole && [UserRole.TEACHER, UserRole.ADMIN].includes(userRole),
 };
 
 /**
@@ -252,7 +258,7 @@ export const permissions = {
  */
 export function usePermissions() {
   const { user } = useAuth();
-  const userRole = (user as any)?.role as UserRole;
+  const userRole = user?.role as UserRole | undefined;
   
   return {
     ...permissions,
