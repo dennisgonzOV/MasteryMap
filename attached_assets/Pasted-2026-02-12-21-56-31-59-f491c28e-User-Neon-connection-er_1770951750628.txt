@@ -1,0 +1,116 @@
+2026-02-12 21:56:31.59
+f491c28e
+User
+Neon connection error handled gracefully: terminating connection due to administrator command
+2026-02-12 21:56:31.59
+f491c28e
+User
+timestamp: '2026-02-13T02:56:31.595Z'
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at v.emit (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:397:12)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at cn.handlePacket (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1143:13)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at cn.parse (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1127:36)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at cn.parse (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1127:36)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at Receiver.receiverOnMessage (/home/runner/workspace/node_modules/ws/lib/websocket.js:1220:20)',
+2026-02-12 21:56:31.59
+f491c28e
+User
+}
+2026-02-12 21:56:31.59
+f491c28e
+User
+timestamp: '2026-02-13T02:56:31.595Z'
+2026-02-12 21:56:31.59
+f491c28e
+User
+stack: 'error: terminating connection due to administrator command\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at v. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1190:16)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at cn.parseErrorMessage (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1182:6)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at WebSocket.onMessage (/home/runner/workspace/node_modules/ws/lib/event-target.js:209:9)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at cn.parseErrorMessage (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1182:6)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at v.emit (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:397:12)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at Receiver.receiverOnMessage (/home/runner/workspace/node_modules/ws/lib/websocket.js:1220:20)',
+2026-02-12 21:56:31.59
+f491c28e
+User
+error: 'terminating connection due to administrator command',
+2026-02-12 21:56:31.59
+f491c28e
+User
+stack: 'error: terminating connection due to administrator command\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at WebSocket.onMessage (/home/runner/workspace/node_modules/ws/lib/event-target.js:209:9)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at callListener (/home/runner/workspace/node_modules/ws/lib/event-target.js:290:14)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at WebSocket.emit (node:events:524:28)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+🔥 UNCAUGHT EXCEPTION! Shutting down... {
+2026-02-12 21:56:31.59
+f491c28e
+User
+🔥 UNCAUGHT EXCEPTION! Shutting down... {
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at cn.handlePacket (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1143:13)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at v. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1190:16)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+}
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at callListener (/home/runner/workspace/node_modules/ws/lib/event-target.js:290:14)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at WebSocket.emit (node:events:524:28)\n' +
+2026-02-12 21:56:31.59
+f491c28e
+User
+' at WebSocket. (file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:987:80)\n' +
