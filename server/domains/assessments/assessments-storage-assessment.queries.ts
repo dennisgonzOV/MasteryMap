@@ -9,7 +9,7 @@ import {
   type InsertAssessment,
 } from "../../../shared/schema";
 import { db } from "../../db";
-import { eq, and, desc, isNull, sql, or } from "drizzle-orm";
+import { eq, and, desc, isNull, sql, or, aliasedTable } from "drizzle-orm";
 
 type ErrorWithCode = { code?: string };
 
@@ -98,13 +98,22 @@ export class AssessmentAssessmentQueries {
   }
 
   async getAssessmentsForSchool(schoolId: number): Promise<Assessment[]> {
+    const projectOwner = aliasedTable(users, "project_owner");
+
     const rows = await db
       .select({ assessment: assessments })
       .from(assessments)
       .leftJoin(users, eq(assessments.createdBy, users.id))
       .leftJoin(milestones, eq(assessments.milestoneId, milestones.id))
       .leftJoin(projects, eq(milestones.projectId, projects.id))
-      .where(or(eq(users.schoolId, schoolId), eq(projects.schoolId, schoolId)))
+      .leftJoin(projectOwner, eq(projects.teacherId, projectOwner.id))
+      .where(
+        or(
+          eq(users.schoolId, schoolId),
+          eq(projects.schoolId, schoolId),
+          eq(projectOwner.schoolId, schoolId),
+        ),
+      )
       .orderBy(desc(assessments.createdAt));
 
     return rows.map((row) => row.assessment);
