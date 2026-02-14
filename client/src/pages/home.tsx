@@ -18,13 +18,13 @@ export default function Home() {
           }
           break;
         case 'student':
-          setLocation('/student/projects');
+          setLocation('/student/dashboard');
           break;
         case 'admin':
           setLocation('/admin/dashboard');
           break;
         default:
-          setLocation('/student/projects');
+          setLocation('/student/dashboard');
       }
     }
   }, [user, setLocation]);
