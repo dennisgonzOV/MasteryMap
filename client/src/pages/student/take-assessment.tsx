@@ -539,17 +539,6 @@ export default function TakeAssessment() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Clock className="h-4 w-4 mr-1" />
-                    Due: {format(new Date(assessment.dueDate), 'MMM d, yyyy h:mm a')}
-                  </div>
-                  {isDueDatePassed && (
-                    <Badge variant="destructive" className="mt-1">Late Submission</Badge>
-                  )}
-                </div>
-              </div>
             </div>
           </CardHeader>
         </Card>
@@ -587,6 +576,7 @@ export default function TakeAssessment() {
               </CardHeader>
               <CardContent>
                 <AITutorChat
+                  assessmentId={assessment.id}
                   componentSkill={{
                     id: assessmentComponentSkills[0].id,
                     name: assessmentComponentSkills[0].name,

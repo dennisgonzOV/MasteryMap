@@ -39,6 +39,18 @@ export class SelfEvaluationController {
           ...req.body,
           studentId: userId,
         };
+        const assessmentId = Number(data.assessmentId);
+
+        if (!Number.isInteger(assessmentId) || assessmentId <= 0) {
+          return res.status(400).json({ message: "A valid assessmentId is required" });
+        }
+
+        const assessment = await this.service.getAssessment(assessmentId);
+        if (!assessment) {
+          return res.status(400).json({ message: "Assessment not found" });
+        }
+
+        data.assessmentId = assessmentId;
 
         // Get component skill details for AI feedback
         const componentSkill = await this.service.getComponentSkill(data.componentSkillId);
@@ -52,8 +64,9 @@ export class SelfEvaluationController {
           componentSkill.name,
           componentSkill.rubricLevels,
           data.selfAssessedLevel,
-          data.justification,
-          data.examples || ""
+          sanitizeForPrompt(data.justification),
+          sanitizeForPrompt(data.examples || ""),
+          sanitizeForPrompt(assessment.description || ""),
         );
 
         // Create self-evaluation with AI feedback

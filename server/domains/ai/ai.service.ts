@@ -241,6 +241,7 @@ export class AIService {
     selfAssessedLevel: string,
     justification: string,
     examples: string,
+    assessmentDescription?: string,
   ): Promise<SelfEvaluationAnalysis> {
     try {
       const rubricEntries = typeof rubricLevels === "object" && rubricLevels !== null
@@ -249,8 +250,15 @@ export class AIService {
           return typeof description === "string";
         })
         : [];
+      const teacherAssessmentDescription =
+        typeof assessmentDescription === "string" && assessmentDescription.trim().length > 0
+          ? assessmentDescription.trim()
+          : "No teacher-provided assessment description available.";
 
       const prompt = `You are an AI tutor helping students improve their competency in "${componentSkillName}".
+
+ASSESSMENT CONTEXT (TEACHER DESCRIPTION):
+${teacherAssessmentDescription}
 
 RUBRIC LEVELS:
 ${rubricEntries
@@ -273,7 +281,7 @@ If ANY concerning content is detected, immediately flag it and do not provide ed
 
 TASKS:
 1. Safety Analysis: Check for risky content (yes/no)
-2. Educational Feedback: If safe, provide specific, actionable guidance to help the student progress from their current level to "applying" (the highest level)
+2. Educational Feedback: If safe, provide specific, actionable guidance aligned to the teacher's assessment description and rubric expectations to help the student progress from their current level to "applying" (the highest level)
 
 Respond in JSON format:
 {
@@ -408,18 +416,34 @@ Example JSON structure:
   async generateTutorResponse(
     componentSkill: TutorComponentSkill,
     conversationHistory: TutorConversationMessage[] = [],
-    currentEvaluation?: TutorEvaluation
+    currentEvaluation?: TutorEvaluation,
+    assessmentDescription?: string,
   ): Promise<TutorResponsePayload> {
     try {
       const historyText = conversationHistory
         .map((msg) => `${String(msg.role || "unknown")}: ${String(msg.content || "")}`)
         .join('\n');
+      const latestStudentMessage = conversationHistory
+        .filter((msg) => msg.role === "student")
+        .map((msg) => String(msg.content || "").trim())
+        .filter((content) => content.length > 0)
+        .pop() || "No student response provided.";
+      const recentTutorMessages = conversationHistory
+        .filter((msg) => msg.role === "tutor")
+        .map((msg) => String(msg.content || "").trim())
+        .filter((content) => content.length > 0)
+        .slice(-2)
+        .join("\n---\n");
 
       const studentMessageCount = conversationHistory.filter(msg => msg.role === 'student').length;
       const isFinalTurn = studentMessageCount >= 3;
 
       const currentLevel = currentEvaluation?.selfAssessedLevel || 'unknown';
       const skillName = componentSkill.name || 'this skill';
+      const teacherAssessmentDescription =
+        typeof assessmentDescription === "string" && assessmentDescription.trim().length > 0
+          ? assessmentDescription.trim()
+          : "No teacher-provided assessment description available.";
 
       // Build rubric levels from individual component skill fields
       const rubricLevels = {
@@ -433,6 +457,7 @@ Example JSON structure:
 
 COMPONENT SKILL: ${skillName}
 CURRENT LEVEL: ${currentLevel}
+ASSESSMENT CONTEXT (TEACHER DESCRIPTION): ${teacherAssessmentDescription}
 ${isFinalTurn ? "NOTE: This is the FINAL turn. You must provide a summarizing statement and conclude the session. Do NOT ask any follow-up questions." : ""}
 
 RUBRIC LEVELS:
@@ -443,6 +468,12 @@ ${Object.entries(rubricLevels)
 
 Previous conversation:
 ${historyText}
+
+LATEST STUDENT RESPONSE TO CRITIQUE:
+${latestStudentMessage}
+
+RECENT TUTOR RESPONSES (DO NOT REPEAT THESE PHRASES):
+${recentTutorMessages || "None"}
 
 IMPORTANT SAFETY CHECK:
 First, analyze the student's messages for any concerning content including:
@@ -455,11 +486,29 @@ If ANY concerning content is detected, immediately flag it and provide a safety 
 
 TASKS:
 1. Safety Analysis: Check for risky content
-2. Educational Response: Provide helpful guidance to progress their skill
-3. Suggested Evaluation: Suggest their current level based on the conversation
-3. Suggested Evaluation: Suggest their current level based on the conversation
+2. Educational Response: Provide detailed, constructive critique of the latest student response and align all feedback to the teacher's assessment description and rubric.
+3. Suggested Evaluation: Suggest their current level based on evidence in the conversation.
 4. Continue/Terminate: Determine if the conversation should continue
 5. Summary: If this is the 3rd student response, provide a comprehensive summary and concluding statement. Do not ask a follow-up question.
+
+RUBRIC CALIBRATION RULES (CRITICAL):
+- If a student claims "proficient" or "applying", require concrete evidence, not general statements.
+- "proficient" should show consistent independent performance with specific context and outcomes.
+- "applying" should show transfer to complex/novel situations and impact on others (for example mentoring peers, leading, or adapting strategy).
+- If evidence does not meet the claimed level, explicitly and respectfully say the evidence currently fits a lower level, explain why, and state what evidence would justify moving up.
+
+RESPONSE STYLE (BALANCED + DETAILED):
+- Maintain a balanced tone: supportive but direct.
+- Avoid repeating wording from recent tutor responses.
+- The "response" field must include these exact section headers in this order:
+  1) Strengths
+  2) Constructive Critique
+  3) How to Improve Next Submission
+  4) Suggested Next Evidence
+- In "Constructive Critique" include at least 2 concrete gaps tied to rubric language.
+- In "How to Improve Next Submission" include specific, actionable steps the student can do in their next response.
+- If not final turn, end with exactly one targeted follow-up question.
+- If final turn, end with a concise summary and no follow-up question.
 
 Respond in JSON format:
 {
@@ -492,8 +541,8 @@ If safety concerns are detected:
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7,
-        max_tokens: 800,
+        temperature: 0.5,
+        max_tokens: 1000,
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}") as TutorResponsePayload;

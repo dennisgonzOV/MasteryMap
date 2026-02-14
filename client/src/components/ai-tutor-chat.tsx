@@ -28,6 +28,7 @@ interface SelfEvaluationData {
 }
 
 interface AITutorChatProps {
+  assessmentId: number;
   componentSkill: ComponentSkill;
   selfEvaluation: SelfEvaluationData;
   onEvaluationUpdate: (updates: Partial<SelfEvaluationData>) => void;
@@ -35,7 +36,31 @@ interface AITutorChatProps {
   isSubmitting: boolean;
 }
 
+const RUBRIC_LEVEL_SEQUENCE = [
+  {
+    value: 'emerging',
+    label: 'Emerging',
+    fallback: 'Beginning to understand and use this skill with significant support',
+  },
+  {
+    value: 'developing',
+    label: 'Developing',
+    fallback: 'Building confidence and competency with this skill',
+  },
+  {
+    value: 'proficient',
+    label: 'Proficient',
+    fallback: 'Demonstrates solid understanding and effective use of this skill',
+  },
+  {
+    value: 'applying',
+    label: 'Applying',
+    fallback: 'Uses this skill in complex situations and helps others develop it',
+  },
+] as const;
+
 export default function AITutorChat({
+  assessmentId,
   componentSkill,
   selfEvaluation,
   onEvaluationUpdate,
@@ -144,6 +169,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          assessmentId,
           componentSkill,
           conversationHistory: [...messages, userMessage],
           currentEvaluation: selfEvaluation
@@ -290,27 +316,24 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 gap-2 text-xs">
-              {(['emerging', 'developing', 'proficient', 'applying'] as const).map((level) => (
+              {RUBRIC_LEVEL_SEQUENCE.map((levelOption, index) => (
                 <div
-                  key={level}
-                  onClick={currentStep === 1 ? () => handleLevelSelection(level) : undefined}
-                  className={`p-3 rounded border transition-all duration-200 ${selfEvaluation.selfAssessedLevel === level
+                  key={levelOption.value}
+                  onClick={currentStep === 1 ? () => handleLevelSelection(levelOption.value) : undefined}
+                  className={`p-3 rounded border transition-all duration-200 ${selfEvaluation.selfAssessedLevel === levelOption.value
                     ? 'bg-blue-200 border-blue-500 shadow-md'
                     : currentStep === 1
                       ? 'bg-white border-blue-200 hover:bg-blue-50 hover:border-blue-300 cursor-pointer'
                       : 'bg-white border-blue-200'
                     } ${currentStep === 1 ? 'transform hover:scale-[1.02]' : ''}`}
                 >
-                  <div className="font-medium capitalize mb-1 text-sm">{level}</div>
-                  <div className="text-blue-700 leading-relaxed">
-                    {componentSkill.rubricLevels?.[level] || {
-                      emerging: 'Beginning to understand and use this skill with significant support',
-                      developing: 'Building confidence and competency with this skill',
-                      proficient: 'Demonstrates solid understanding and effective use of this skill',
-                      applying: 'Uses this skill in complex situations and helps others develop it'
-                    }[level]}
+                  <div className="font-medium mb-1 text-sm">
+                    {index + 1}. {levelOption.label}
                   </div>
-                  {selfEvaluation.selfAssessedLevel === level && (
+                  <div className="text-blue-700 leading-relaxed">
+                    {componentSkill.rubricLevels?.[levelOption.value] || levelOption.fallback}
+                  </div>
+                  {selfEvaluation.selfAssessedLevel === levelOption.value && (
                     <div className="mt-2 flex items-center text-blue-600">
                       <span className="text-xs font-medium">✓ Selected</span>
                     </div>

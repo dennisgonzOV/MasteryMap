@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { aiService } from './ai.service';
 import { requireAuth, type AuthenticatedRequest } from '../auth';
+import { assessmentStorage, type IAssessmentStorage } from '../assessments/assessments.storage';
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
@@ -9,7 +10,10 @@ import {
 } from '../../middleware/security';
 
 export class AIController {
-  constructor(private service = aiService) {}
+  constructor(
+    private service = aiService,
+    private assessmentsStorage: IAssessmentStorage = assessmentStorage,
+  ) {}
 
   // Create Express router with all AI routes
   createRouter(): Router {
@@ -25,6 +29,12 @@ export class AIController {
         }
 
         const { componentSkill, conversationHistory, currentEvaluation, assessmentId } = req.body;
+        const parsedAssessmentId =
+          typeof assessmentId === "number"
+            ? assessmentId
+            : typeof assessmentId === "string"
+              ? Number(assessmentId)
+              : NaN;
         const conversationHistoryList: Array<Record<string, unknown>> = Array.isArray(conversationHistory)
           ? conversationHistory.filter(
             (msg: unknown): msg is Record<string, unknown> =>
@@ -41,12 +51,17 @@ export class AIController {
           ...msg,
           studentId: req.user?.role === 'student' ? userId : msg.studentId
         }));
+        const teacherAssessmentDescription =
+          Number.isInteger(parsedAssessmentId) && parsedAssessmentId > 0
+            ? sanitizeForPrompt((await this.assessmentsStorage.getAssessment(parsedAssessmentId))?.description || "")
+            : undefined;
 
         // Generate AI tutor response
         const tutorResponse = await this.service.generateTutorResponse(
           componentSkill,
           enhancedConversationHistory,
-          currentEvaluation
+          currentEvaluation,
+          teacherAssessmentDescription
         );
 
         // Handle safety flags by creating notifications
@@ -78,7 +93,10 @@ export class AIController {
 
             await notifyTeacherOfSafetyIncident({
               studentId: studentId,
-              assessmentId: assessmentId || undefined,
+              assessmentId:
+                Number.isInteger(parsedAssessmentId) && parsedAssessmentId > 0
+                  ? parsedAssessmentId
+                  : undefined,
               componentSkillId: componentSkill.id,
               incidentType: incidentType,
               message: latestMessage,

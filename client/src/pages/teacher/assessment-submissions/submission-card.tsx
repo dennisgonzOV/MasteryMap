@@ -71,6 +71,30 @@ function getRubricLevelBadge(level?: string | null, showSticker = false) {
   );
 }
 
+type RubricLevelDetails = Partial<Record<RubricLevel, string>>;
+
+function normalizeRubricLevelDetails(rubricLevels: unknown): RubricLevelDetails {
+  if (!rubricLevels || typeof rubricLevels !== "object" || Array.isArray(rubricLevels)) {
+    return {};
+  }
+
+  return Object.entries(rubricLevels as Record<string, unknown>).reduce<RubricLevelDetails>(
+    (accumulator, [key, value]) => {
+      if (typeof value !== "string" || !value.trim()) {
+        return accumulator;
+      }
+
+      const normalizedKey = key.trim().toLowerCase();
+      if (isRubricLevel(normalizedKey)) {
+        accumulator[normalizedKey] = value.trim();
+      }
+
+      return accumulator;
+    },
+    {}
+  );
+}
+
 export function SubmissionCard({
   submission,
   assessmentQuestions,
@@ -325,65 +349,70 @@ export function SubmissionCard({
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {relevantSkills.map((skill) => (
-                  <Card key={skill.id} className="bg-white">
-                    <CardContent className="p-4 space-y-4">
-                      <h6 className="font-medium text-gray-900">{skill.name}</h6>
+                {relevantSkills.map((skill) => {
+                  const skillRubricLevelDetails = normalizeRubricLevelDetails(skill.rubricLevels);
+                  return (
+                    <Card key={skill.id} className="bg-white">
+                      <CardContent className="p-4 space-y-4">
+                        <h6 className="font-medium text-gray-900">{skill.name}</h6>
 
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-sm font-medium">Rubric Level</Label>
-                          <Select
-                            value={gradingData[submission.id]?.[skill.id]?.rubricLevel || ""}
-                            onValueChange={(value) => {
-                              if (!isRubricLevel(value)) {
-                                return;
-                              }
-                              const level = RUBRIC_LEVELS.find((item) => item.value === value);
-                              onUpdateGradingData(submission.id, skill.id, {
-                                rubricLevel: value,
-                                score: level?.score || 1,
-                                feedback: gradingData[submission.id]?.[skill.id]?.feedback || "",
-                              });
-                            }}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {RUBRIC_LEVELS.map((level) => (
-                                <SelectItem key={level.value} value={level.value}>
-                                  <div className="flex items-center space-x-2">
-                                    <Badge className={level.color}>{level.label}</Badge>
-                                    <span className="text-sm">{level.description}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-medium">Rubric Level</Label>
+                            <Select
+                              value={gradingData[submission.id]?.[skill.id]?.rubricLevel || ""}
+                              onValueChange={(value) => {
+                                if (!isRubricLevel(value)) {
+                                  return;
+                                }
+                                const level = RUBRIC_LEVELS.find((item) => item.value === value);
+                                onUpdateGradingData(submission.id, skill.id, {
+                                  rubricLevel: value,
+                                  score: level?.score || 1,
+                                  feedback: gradingData[submission.id]?.[skill.id]?.feedback || "",
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select level" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {RUBRIC_LEVELS.map((level) => (
+                                  <SelectItem key={level.value} value={level.value}>
+                                    <div className="flex items-center space-x-2">
+                                      <Badge className={level.color}>{level.label}</Badge>
+                                      <span className="text-sm">
+                                        {skillRubricLevelDetails[level.value] || level.description}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
 
-                        <div>
-                          <Label className="text-sm font-medium">Feedback</Label>
-                          <Textarea
-                            placeholder="Provide specific feedback for this skill..."
-                            value={gradingData[submission.id]?.[skill.id]?.feedback || ""}
-                            onChange={(event) => {
-                              const current = gradingData[submission.id]?.[skill.id];
-                              onUpdateGradingData(submission.id, skill.id, {
-                                rubricLevel: current?.rubricLevel || "emerging",
-                                score: current?.score || 1,
-                                feedback: event.target.value,
-                              });
-                            }}
-                            className="resize-none"
-                            rows={3}
-                          />
+                          <div>
+                            <Label className="text-sm font-medium">Feedback</Label>
+                            <Textarea
+                              placeholder="Provide specific feedback for this skill..."
+                              value={gradingData[submission.id]?.[skill.id]?.feedback || ""}
+                              onChange={(event) => {
+                                const current = gradingData[submission.id]?.[skill.id];
+                                onUpdateGradingData(submission.id, skill.id, {
+                                  rubricLevel: current?.rubricLevel || "emerging",
+                                  score: current?.score || 1,
+                                  feedback: event.target.value,
+                                });
+                              }}
+                              className="resize-none"
+                              rows={3}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
 
               <div className="flex justify-end space-x-3">
