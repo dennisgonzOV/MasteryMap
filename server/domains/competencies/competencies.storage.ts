@@ -1,4 +1,4 @@
-import { asc, eq, inArray, like, or, isNotNull, and, sql } from "drizzle-orm";
+import { asc, eq, inArray, ilike, or, isNotNull, and, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   competencies,
@@ -35,6 +35,44 @@ export interface ICompetencyStorage {
 }
 
 export class CompetencyStorage implements ICompetencyStorage {
+  private normalizeText(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private buildSubjectCondition(subject: string) {
+    const normalized = this.normalizeText(subject);
+
+    if (normalized === "english" || normalized === "english language arts" || normalized === "english language arts (b.e.s.t.)") {
+      return sql`(
+        lower(trim(coalesce(${bestStandards.subject}, ''))) in ('english', 'english language arts', 'english language arts (b.e.s.t.)')
+        or ${bestStandards.benchmarkNumber} ilike 'ELA.%'
+      )`;
+    }
+
+    if (normalized === "math" || normalized === "mathematics" || normalized === "mathematics (b.e.s.t.)") {
+      return sql`(
+        lower(trim(coalesce(${bestStandards.subject}, ''))) in ('math', 'mathematics', 'mathematics (b.e.s.t.)')
+        or ${bestStandards.benchmarkNumber} ilike 'MA.%'
+      )`;
+    }
+
+    if (normalized === "science") {
+      return sql`(
+        lower(trim(coalesce(${bestStandards.subject}, ''))) = 'science'
+        or ${bestStandards.benchmarkNumber} ilike 'SC.%'
+      )`;
+    }
+
+    if (normalized === "social studies") {
+      return sql`(
+        lower(trim(coalesce(${bestStandards.subject}, ''))) = 'social studies'
+        or ${bestStandards.benchmarkNumber} ilike 'SS.%'
+      )`;
+    }
+
+    return sql`lower(trim(coalesce(${bestStandards.subject}, ''))) = ${normalized}`;
+  }
+
   async getCompetencies(): Promise<Competency[]> {
     return await db
       .select()
@@ -94,9 +132,9 @@ export class CompetencyStorage implements ICompetencyStorage {
       .select()
       .from(bestStandards)
       .where(or(
-        like(bestStandards.description, `%${searchTerm}%`),
-        like(bestStandards.benchmarkNumber, `%${searchTerm}%`),
-        like(bestStandards.subject, `%${searchTerm}%`)
+        ilike(bestStandards.description, `%${searchTerm}%`),
+        ilike(bestStandards.benchmarkNumber, `%${searchTerm}%`),
+        ilike(bestStandards.subject, `%${searchTerm}%`)
       ))
       .orderBy(asc(bestStandards.benchmarkNumber));
   }
@@ -111,15 +149,15 @@ export class CompetencyStorage implements ICompetencyStorage {
     // Add search condition
     if (filters.search && filters.search.trim()) {
       conditions.push(or(
-        like(bestStandards.description, `%${filters.search.trim()}%`),
-        like(bestStandards.benchmarkNumber, `%${filters.search.trim()}%`),
-        like(bestStandards.subject, `%${filters.search.trim()}%`)
+        ilike(bestStandards.description, `%${filters.search.trim()}%`),
+        ilike(bestStandards.benchmarkNumber, `%${filters.search.trim()}%`),
+        ilike(bestStandards.subject, `%${filters.search.trim()}%`)
       ));
     }
 
     // Add subject condition
     if (filters.subject && filters.subject !== 'all') {
-      conditions.push(eq(bestStandards.subject, filters.subject));
+      conditions.push(this.buildSubjectCondition(filters.subject));
     }
 
     // Add grade condition
@@ -137,25 +175,44 @@ export class CompetencyStorage implements ICompetencyStorage {
 
   async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }> {
     try {
-      // Get unique subjects
-      const subjectsResult = await db.select({
-        subject: bestStandards.subject
-      })
-        .from(bestStandards)
-        .where(isNotNull(bestStandards.subject))
-        .groupBy(bestStandards.subject);
+      const subjectsResult = await db.execute(sql`
+        select distinct
+          case
+            when ${bestStandards.benchmarkNumber} ilike 'ELA.%'
+              or lower(trim(coalesce(${bestStandards.subject}, ''))) in ('english', 'english language arts', 'english language arts (b.e.s.t.)')
+              then 'English'
+            when ${bestStandards.benchmarkNumber} ilike 'MA.%'
+              or lower(trim(coalesce(${bestStandards.subject}, ''))) in ('math', 'mathematics', 'mathematics (b.e.s.t.)')
+              then 'Math'
+            when ${bestStandards.benchmarkNumber} ilike 'SC.%'
+              or lower(trim(coalesce(${bestStandards.subject}, ''))) = 'science'
+              then 'Science'
+            when ${bestStandards.benchmarkNumber} ilike 'SS.%'
+              or lower(trim(coalesce(${bestStandards.subject}, ''))) = 'social studies'
+              then 'Social Studies'
+            else nullif(trim(${bestStandards.subject}), '')
+          end as subject
+        from ${bestStandards}
+      `);
 
-      // Get unique grades
-      const gradesResult = await db.select({
-        grade: bestStandards.grade
-      })
-        .from(bestStandards)
-        .where(isNotNull(bestStandards.grade))
-        .groupBy(bestStandards.grade);
+      const gradesResult = await db.execute(sql`
+        select distinct nullif(trim(${bestStandards.grade}), '') as grade
+        from ${bestStandards}
+      `);
+
+      const subjects = (subjectsResult.rows as Array<{ subject: string | null }>)
+        .map((row) => row.subject)
+        .filter((subject): subject is string => Boolean(subject))
+        .sort((a, b) => a.localeCompare(b));
+
+      const grades = (gradesResult.rows as Array<{ grade: string | null }>)
+        .map((row) => row.grade)
+        .filter((grade): grade is string => Boolean(grade))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
       return {
-        subjects: subjectsResult.map(r => r.subject).filter((s): s is string => Boolean(s)).sort(),
-        grades: gradesResult.map(r => r.grade).filter((g): g is string => Boolean(g)).sort()
+        subjects,
+        grades,
       };
     } catch (error) {
       console.error('Error fetching best standards metadata:', error);

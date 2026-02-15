@@ -121,6 +121,26 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     enabled: isOpen,
   });
 
+  const mapProjectSubjectToBestSubject = (subject?: string): string => {
+    const normalized = subject?.trim().toLowerCase();
+    if (!normalized) return '';
+    if (normalized === 'english' || normalized === 'english language arts' || normalized === 'english language arts (b.e.s.t.)') return 'English';
+    if (normalized === 'math' || normalized === 'mathematics' || normalized === 'mathematics (b.e.s.t.)') return 'Math';
+    if (normalized === 'science') return 'Science';
+    if (normalized === 'social studies') return 'Social Studies';
+    return '';
+  };
+
+  const standardsSubjectOptions = Array.from(
+    new Set([
+      'English',
+      'Math',
+      'Science',
+      'Social Studies',
+      ...(((standardsMetadata as any)?.subjects as string[] | undefined) ?? []),
+    ]),
+  ).sort((a, b) => a.localeCompare(b));
+
   const bestStandardsUrl = buildBestStandardsUrl({
     searchTerm: standardsSearchTerm,
     subject: selectedSubject,
@@ -188,6 +208,18 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       }
     }
   }, [projectIdea, isOpen, hierarchyData]);
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'standards' || selectedSubject) {
+      return;
+    }
+
+    const mappedSubject = mapProjectSubjectToBestSubject(projectSubjectArea || projectIdea?.subject);
+    if (mappedSubject) {
+      setSelectedSubject(mappedSubject);
+      setStandardsDisplayLimit(50);
+    }
+  }, [isOpen, activeTab, selectedSubject, projectSubjectArea, projectIdea?.subject]);
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectData) => {
@@ -665,7 +697,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Subjects</SelectItem>
-                        {(standardsMetadata as any)?.subjects?.map((subject: string) => (
+                        {standardsSubjectOptions.map((subject: string) => (
                           <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                         ))}
                       </SelectContent>
@@ -694,6 +726,9 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                     </div>
                   ) : (
                     <>
+                      <div className="text-xs text-muted-foreground">
+                        Tip: if you are looking for Science or Social Studies, use the Subject filter above.
+                      </div>
                       <div className="text-sm text-gray-600 mb-2">
                         Showing {Math.min(standardsDisplayLimit, (bestStandards as any[]).length)} of {(bestStandards as any[]).length} standards
                         {selectedStandards.size > 0 && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -149,6 +149,26 @@ export default function ProjectIdeasModal({
     enabled: isOpen,
   });
 
+  const mapProjectSubjectToBestSubject = (subject?: string): string => {
+    const normalized = subject?.trim().toLowerCase();
+    if (!normalized) return '';
+    if (normalized === 'english' || normalized === 'english language arts' || normalized === 'english language arts (b.e.s.t.)') return 'English';
+    if (normalized === 'math' || normalized === 'mathematics' || normalized === 'mathematics (b.e.s.t.)') return 'Math';
+    if (normalized === 'science') return 'Science';
+    if (normalized === 'social studies') return 'Social Studies';
+    return '';
+  };
+
+  const standardsSubjectOptions = Array.from(
+    new Set([
+      'English',
+      'Math',
+      'Science',
+      'Social Studies',
+      ...(((standardsMetadata as any)?.subjects as string[] | undefined) ?? []),
+    ]),
+  ).sort((a, b) => a.localeCompare(b));
+
   // Subject area options matching project creation modal
   const subjectAreaOptions = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
 
@@ -181,6 +201,19 @@ export default function ProjectIdeasModal({
       bestStandardIds: [],
     },
   });
+
+  const watchedSubject = form.watch("subject");
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'standards' || selectedSubject) {
+      return;
+    }
+
+    const mappedSubject = mapProjectSubjectToBestSubject(watchedSubject);
+    if (mappedSubject) {
+      setSelectedSubject(mappedSubject);
+    }
+  }, [isOpen, activeTab, selectedSubject, watchedSubject]);
 
   const generateIdeasMutation = useMutation({
     mutationFn: async (data: ProjectIdeaForm) => {
@@ -658,7 +691,7 @@ export default function ProjectIdeasModal({
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">All Subjects</SelectItem>
-                                {(standardsMetadata as any)?.subjects?.map((subject: string) => (
+                                {standardsSubjectOptions.map((subject: string) => (
                                   <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                                 ))}
                               </SelectContent>

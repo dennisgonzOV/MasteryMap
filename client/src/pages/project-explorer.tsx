@@ -71,9 +71,11 @@ export default function ProjectExplorer() {
   const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  const { data: filterOptions, isLoading: filtersLoading } = useQuery<FilterOptions>({
+  const { data: filterOptions, isLoading: filtersLoading, error: filtersError } = useQuery<FilterOptions>({
     queryKey: ['/api/projects/public-filters'],
   });
+
+  const normalizeFilterValue = (value: string) => (value === "all" ? "" : value);
 
   const buildQueryString = () => {
     const params = new URLSearchParams();
@@ -87,7 +89,7 @@ export default function ProjectExplorer() {
     return params.toString();
   };
 
-  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery<Project[]>({
     queryKey: ['/api/projects/public', buildQueryString()],
     queryFn: async () => {
       const queryString = buildQueryString();
@@ -217,13 +219,13 @@ export default function ProjectExplorer() {
                     <BookOpen className="h-4 w-4" />
                     Subject Area
                   </Label>
-                  <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                  <Select value={selectedSubject} onValueChange={(value) => setSelectedSubject(normalizeFilterValue(value))}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Subjects" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Subjects</SelectItem>
-                      {filterOptions?.subjectAreas.map(subject => (
+                      {filterOptions?.subjectAreas?.map(subject => (
                         <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                       ))}
                     </SelectContent>
@@ -235,13 +237,13 @@ export default function ProjectExplorer() {
                     <GraduationCap className="h-4 w-4" />
                     Grade Level
                   </Label>
-                  <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+                  <Select value={selectedGrade} onValueChange={(value) => setSelectedGrade(normalizeFilterValue(value))}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Grades" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Grades</SelectItem>
-                      {filterOptions?.gradeLevels.map(grade => (
+                      {filterOptions?.gradeLevels?.map(grade => (
                         <SelectItem key={grade} value={grade}>{getGradeLevelLabel(grade)}</SelectItem>
                       ))}
                     </SelectContent>
@@ -253,13 +255,13 @@ export default function ProjectExplorer() {
                     <Clock className="h-4 w-4" />
                     Duration
                   </Label>
-                  <Select value={selectedDuration} onValueChange={setSelectedDuration}>
+                  <Select value={selectedDuration} onValueChange={(value) => setSelectedDuration(normalizeFilterValue(value))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any Duration" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Any Duration</SelectItem>
-                      {filterOptions?.durations.map(duration => (
+                      {filterOptions?.durations?.map(duration => (
                         <SelectItem key={duration} value={duration}>{duration}</SelectItem>
                       ))}
                     </SelectContent>
@@ -278,6 +280,10 @@ export default function ProjectExplorer() {
                         <Skeleton className="h-6 w-full" />
                         <Skeleton className="h-6 w-full" />
                       </div>
+                    ) : filtersError ? (
+                      <p className="text-xs text-red-600 px-2 py-1">
+                        Competency filters are temporarily unavailable.
+                      </p>
                     ) : (
                       <div className="space-y-1">
                         {(filterOptions?.competencyFrameworks as LearnerOutcome[] || []).map(outcome => (
@@ -372,7 +378,18 @@ export default function ProjectExplorer() {
               </div>
             </div>
 
-            {projectsLoading ? (
+            {projectsError ? (
+              <Card className="p-12 text-center">
+                <FileText className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Unable to Load Projects</h3>
+                <p className="text-gray-500 mb-4">
+                  We couldn't load public projects right now. Please refresh and try again.
+                </p>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Retry
+                </Button>
+              </Card>
+            ) : projectsLoading ? (
               <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "space-y-4"}>
                 {[1, 2, 3, 4, 5, 6].map(i => (
                   <Card key={i}>
