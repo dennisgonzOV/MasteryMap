@@ -54,7 +54,30 @@ export class ObjectStorageService {
   }
 
   getUploadsBucketName(): string {
-    return (process.env.UPLOADS_S3_BUCKET || "masterymap").trim();
+    const explicitUploadsBucket = (process.env.UPLOADS_S3_BUCKET || "").trim();
+    if (explicitUploadsBucket) {
+      return explicitUploadsBucket;
+    }
+
+    const privateDir = (process.env.PRIVATE_OBJECT_DIR || "").trim();
+    if (privateDir) {
+      try {
+        return parseObjectPath(privateDir).bucketName;
+      } catch { }
+    }
+
+    const publicSearchPaths = (process.env.PUBLIC_OBJECT_SEARCH_PATHS || "")
+      .split(",")
+      .map((path) => path.trim())
+      .filter((path) => path.length > 0);
+
+    for (const searchPath of publicSearchPaths) {
+      try {
+        return parseObjectPath(searchPath).bucketName;
+      } catch { }
+    }
+
+    return "";
   }
 
   getStudentDeliverablesPrefix(): string {
@@ -71,6 +94,11 @@ export class ObjectStorageService {
     objectPath: string;
   } {
     const bucketName = this.getUploadsBucketName();
+    if (!bucketName) {
+      throw new Error(
+        "Uploads bucket is not configured. Set UPLOADS_S3_BUCKET or configure PRIVATE_OBJECT_DIR/PUBLIC_OBJECT_SEARCH_PATHS.",
+      );
+    }
     const objectName = `${this.normalizePrefix(prefix)}/${randomUUID()}`;
     return {
       bucketName,
@@ -124,7 +152,7 @@ export class ObjectStorageService {
       buckets.add(uploadsBucket);
     }
 
-    const thumbnailBucket = (process.env.THUMBNAIL_S3_BUCKET || "masterymap").trim();
+    const thumbnailBucket = (process.env.THUMBNAIL_S3_BUCKET || "").trim();
     if (thumbnailBucket) {
       buckets.add(thumbnailBucket);
     }

@@ -267,10 +267,27 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
             queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
             queryClient.invalidateQueries({ queryKey: ['/api/projects', createdProject.id] });
           } else {
-            console.error('Failed to generate thumbnail');
+            let errorMessage = 'Failed to generate thumbnail';
+            try {
+              const errorPayload = await thumbnailResponse.json();
+              errorMessage = errorPayload?.message || errorMessage;
+            } catch {
+              // Keep fallback error message if response body isn't JSON
+            }
+            console.error('Failed to generate thumbnail:', errorMessage);
+            toast({
+              title: "Thumbnail Failed",
+              description: errorMessage,
+              variant: "destructive",
+            });
           }
         } catch (error) {
           console.error('Error generating thumbnail:', error);
+          toast({
+            title: "Thumbnail Failed",
+            description: "There was a network or server error while generating the thumbnail.",
+            variant: "destructive",
+          });
         }
       }
 

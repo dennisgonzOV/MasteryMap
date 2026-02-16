@@ -1,4 +1,4 @@
-import { objectStorageClient } from "../../replit_integrations/object_storage/objectStorage";
+import { objectStorageClient, ObjectStorageService } from "../../replit_integrations/object_storage/objectStorage";
 import { setObjectAclPolicy } from "../../replit_integrations/object_storage/objectAcl";
 
 interface GenerateThumbnailOptions {
@@ -13,13 +13,28 @@ export class FluxImageService {
   private apiUri: string;
   private thumbnailBucket: string;
   private thumbnailPrefix: string;
+  private objectStorageService: ObjectStorageService;
 
   constructor() {
     this.apiKey = process.env.FLUX_API_KEY || "";
     this.apiUri = process.env.FLUX_API_URI || "";
-    this.thumbnailBucket =
-      (process.env.THUMBNAIL_S3_BUCKET || process.env.UPLOADS_S3_BUCKET || "").trim();
+    this.objectStorageService = new ObjectStorageService();
+    this.thumbnailBucket = "";
     this.thumbnailPrefix = (process.env.THUMBNAIL_OBJECT_PREFIX || "Thumbnails").trim().replace(/^\/+|\/+$/g, "");
+  }
+
+  private resolveThumbnailBucket(): string {
+    const explicitThumbnailBucket = (process.env.THUMBNAIL_S3_BUCKET || "").trim();
+    if (explicitThumbnailBucket) {
+      return explicitThumbnailBucket;
+    }
+
+    const fallbackBucket = this.objectStorageService.getUploadsBucketName();
+    if (fallbackBucket) {
+      return fallbackBucket;
+    }
+
+    return "";
   }
 
   private sanitizePromptInput(input: string): string {
@@ -124,9 +139,10 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
   private async saveBase64ToStorage(base64Data: string): Promise<string | null> {
     try {
+      this.thumbnailBucket = this.resolveThumbnailBucket();
       if (!this.thumbnailBucket) {
         console.error(
-          "Thumbnail storage bucket is not configured. Set THUMBNAIL_S3_BUCKET or UPLOADS_S3_BUCKET.",
+          "Thumbnail storage bucket is not configured. Set THUMBNAIL_S3_BUCKET or configure UPLOADS_S3_BUCKET/PRIVATE_OBJECT_DIR/PUBLIC_OBJECT_SEARCH_PATHS.",
         );
         return null;
       }
