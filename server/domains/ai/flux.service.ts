@@ -11,10 +11,14 @@ interface GenerateThumbnailOptions {
 export class FluxImageService {
   private apiKey: string;
   private apiUri: string;
+  private thumbnailBucket: string;
+  private thumbnailPrefix: string;
 
   constructor() {
     this.apiKey = process.env.FLUX_API_KEY || "";
     this.apiUri = process.env.FLUX_API_URI || "";
+    this.thumbnailBucket = process.env.THUMBNAIL_S3_BUCKET || "masterymap";
+    this.thumbnailPrefix = (process.env.THUMBNAIL_OBJECT_PREFIX || "Thumbnails").trim().replace(/^\/+|\/+$/g, "");
   }
 
   private sanitizePromptInput(input: string): string {
@@ -119,16 +123,8 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
   private async saveBase64ToStorage(base64Data: string): Promise<string | null> {
     try {
-      const privateDir = process.env.PRIVATE_OBJECT_DIR;
-      if (!privateDir) {
-        console.error("PRIVATE_OBJECT_DIR not configured");
-        return null;
-      }
-
-      const fileName = `thumbnails/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-      const fullPath = `${privateDir}/${fileName}`;
-
-      const { bucketName, objectName } = this.parseObjectPath(fullPath);
+      const objectName = `${this.thumbnailPrefix}/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+      const bucketName = this.thumbnailBucket;
 
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
@@ -144,29 +140,11 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       await setObjectAclPolicy(file, { owner: "system", visibility: "public" });
 
-      return `/objects/${fileName}`;
+      return `/objects/${bucketName}/${objectName}`;
     } catch (error) {
       console.error("Error saving thumbnail to storage:", error);
       return null;
     }
-  }
-
-  private parseObjectPath(path: string): { bucketName: string; objectName: string } {
-    if (!path.startsWith("/")) {
-      path = `/${path}`;
-    }
-    const pathParts = path.split("/");
-    if (pathParts.length < 3) {
-      throw new Error("Invalid path: must contain at least a bucket name");
-    }
-
-    const bucketName = pathParts[1];
-    const objectName = pathParts.slice(2).join("/");
-
-    return {
-      bucketName,
-      objectName,
-    };
   }
 }
 

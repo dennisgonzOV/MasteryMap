@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectsAIService } from "../../server/domains/projects/projects-ai.service";
 import { aiService } from "../../server/domains/ai/ai.service";
+import { fluxImageService } from "../../server/domains/ai";
 import type { IProjectsStorage } from "../../server/domains/projects/projects.storage";
 
 function buildStorage(overrides: Partial<IProjectsStorage>): IProjectsStorage {
@@ -157,5 +158,49 @@ describe("projects AI service limits", () => {
       }),
     ).resolves.toMatchObject({ ideas: expect.any(Array) });
     expect(storage.incrementProjectGenerationCount).not.toHaveBeenCalled();
+  });
+
+  it("persists generated thumbnail path to project record", async () => {
+    const projectId = 42;
+    const thumbnailPath = "/objects/masterymap/Thumbnails/test-thumbnail.png";
+
+    const storage = buildStorage({
+      updateProject: vi.fn().mockResolvedValue({
+        id: projectId,
+        title: "Ecosystem Project",
+        description: "Investigate ecosystems",
+        thumbnailUrl: thumbnailPath,
+      }),
+    });
+
+    const authorizedProject = {
+      id: projectId,
+      title: "Ecosystem Project",
+      description: "Investigate ecosystems",
+    } as any;
+
+    vi.spyOn(fluxImageService, "generateThumbnail").mockResolvedValue(thumbnailPath);
+
+    const service = new ProjectsAIService(
+      storage,
+      vi.fn().mockResolvedValue(authorizedProject) as any,
+    );
+
+    const result = await service.generateProjectThumbnail(projectId, 7, "teacher", {
+      subject: "Science",
+      topic: "Ecosystems",
+    });
+
+    expect(fluxImageService.generateThumbnail).toHaveBeenCalledWith({
+      projectTitle: authorizedProject.title,
+      projectDescription: authorizedProject.description,
+      subject: "Science",
+      topic: "Ecosystems",
+    });
+    expect(storage.updateProject).toHaveBeenCalledWith(projectId, {
+      thumbnailUrl: thumbnailPath,
+    });
+    expect(result.thumbnailUrl).toBe(thumbnailPath);
+    expect(result.project.thumbnailUrl).toBe(thumbnailPath);
   });
 });

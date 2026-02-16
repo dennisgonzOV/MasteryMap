@@ -49,10 +49,93 @@ export class ObjectNotFoundError extends Error {
 export class ObjectStorageService {
   constructor() { }
 
+  private normalizePrefix(prefix: string): string {
+    return prefix.trim().replace(/^\/+|\/+$/g, "");
+  }
+
+  getUploadsBucketName(): string {
+    return (process.env.UPLOADS_S3_BUCKET || "masterymap").trim();
+  }
+
+  getStudentDeliverablesPrefix(): string {
+    return this.normalizePrefix(process.env.STUDENT_DELIVERABLES_PREFIX || "Student-deliverables");
+  }
+
+  getAssessmentPdfPrefix(): string {
+    return this.normalizePrefix(process.env.ASSESSMENT_PDF_PREFIX || "Assesment-PDF");
+  }
+
+  private createUploadObjectTarget(prefix: string): {
+    bucketName: string;
+    objectName: string;
+    objectPath: string;
+  } {
+    const bucketName = this.getUploadsBucketName();
+    const objectName = `${this.normalizePrefix(prefix)}/${randomUUID()}`;
+    return {
+      bucketName,
+      objectName,
+      objectPath: `/objects/${bucketName}/${objectName}`,
+    };
+  }
+
+  async getStudentDeliverablesUploadTarget(): Promise<{
+    uploadURL: string;
+    objectPath: string;
+  }> {
+    const target = this.createUploadObjectTarget(this.getStudentDeliverablesPrefix());
+    const uploadURL = await signObjectURL({
+      bucketName: target.bucketName,
+      objectName: target.objectName,
+      method: "PUT",
+      ttlSec: 900,
+    });
+
+    return {
+      uploadURL,
+      objectPath: target.objectPath,
+    };
+  }
+
+  getAssessmentPdfObjectTarget(): {
+    bucketName: string;
+    objectName: string;
+    objectPath: string;
+  } {
+    return this.createUploadObjectTarget(this.getAssessmentPdfPrefix());
+  }
+
+  private getKnownBucketNames(): Set<string> {
+    const buckets = new Set<string>();
+
+    try {
+      const privateDir = this.getPrivateObjectDir();
+      buckets.add(parseObjectPath(privateDir).bucketName);
+    } catch { }
+
+    try {
+      for (const searchPath of this.getPublicObjectSearchPaths()) {
+        buckets.add(parseObjectPath(searchPath).bucketName);
+      }
+    } catch { }
+
+    const uploadsBucket = this.getUploadsBucketName();
+    if (uploadsBucket) {
+      buckets.add(uploadsBucket);
+    }
+
+    const thumbnailBucket = (process.env.THUMBNAIL_S3_BUCKET || "masterymap").trim();
+    if (thumbnailBucket) {
+      buckets.add(thumbnailBucket);
+    }
+
+    return buckets;
+  }
+
   // Gets the public object search paths.
   getPublicObjectSearchPaths(): Array<string> {
     const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
-    const paths = Array.from(
+    return Array.from(
       new Set(
         pathsStr
           .split(",")
@@ -60,25 +143,11 @@ export class ObjectStorageService {
           .filter((path) => path.length > 0)
       )
     );
-    if (paths.length === 0) {
-      throw new Error(
-        "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-        "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
-      );
-    }
-    return paths;
   }
 
   // Gets the private object directory.
   getPrivateObjectDir(): string {
-    const dir = process.env.PRIVATE_OBJECT_DIR || "";
-    if (!dir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-        "tool and set PRIVATE_OBJECT_DIR env var."
-      );
-    }
-    return dir;
+    return process.env.PRIVATE_OBJECT_DIR || "";
   }
 
   // Search for a public object from the search paths.
@@ -136,30 +205,6 @@ export class ObjectStorageService {
     }
   }
 
-  // Gets the upload URL for an object entity.
-  async getObjectEntityUploadURL(): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-        "tool and set PRIVATE_OBJECT_DIR env var."
-      );
-    }
-
-    const objectId = randomUUID();
-    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
-
-    const { bucketName, objectName } = parseObjectPath(fullPath);
-
-    // Sign URL for PUT method with TTL
-    return signObjectURL({
-      bucketName,
-      objectName,
-      method: "PUT",
-      ttlSec: 900,
-    });
-  }
-
   // Gets the object entity file from the object path.
   async getObjectEntityFile(objectPath: string): Promise<File> {
     if (!objectPath.startsWith("/objects/")) {
@@ -172,6 +217,22 @@ export class ObjectStorageService {
     }
 
     const entityId = parts.slice(1).join("/");
+
+    // Support explicit bucket paths: /objects/<bucket>/<object_name>
+    // This is used for thumbnail storage in external buckets.
+    const entityParts = entityId.split("/");
+    if (entityParts.length >= 2) {
+      const bucketCandidate = entityParts[0];
+      const objectCandidate = entityParts.slice(1).join("/");
+      if (this.getKnownBucketNames().has(bucketCandidate)) {
+        const directBucket = objectStorageClient.bucket(bucketCandidate);
+        const directFile = directBucket.file(objectCandidate);
+        const [exists] = await directFile.exists();
+        if (exists) {
+          return directFile;
+        }
+      }
+    }
 
     const dirsToSearch: string[] = [];
 
@@ -235,6 +296,17 @@ export class ObjectStorageService {
       if (rawObjectPath.startsWith(dir)) {
         const entityId = rawObjectPath.slice(dir.length);
         return `/objects/${entityId}`;
+      }
+    }
+
+    // Support explicit known-bucket raw paths:
+    // /<bucket>/<object_name> -> /objects/<bucket>/<object_name>
+    const rawParts = rawObjectPath.replace(/^\/+/, "").split("/");
+    if (rawParts.length >= 2) {
+      const bucketCandidate = rawParts[0];
+      const objectCandidate = rawParts.slice(1).join("/");
+      if (this.getKnownBucketNames().has(bucketCandidate)) {
+        return `/objects/${bucketCandidate}/${objectCandidate}`;
       }
     }
 
@@ -332,4 +404,3 @@ async function signObjectURL({
   const { signed_url: signedURL } = await response.json();
   return signedURL;
 }
-

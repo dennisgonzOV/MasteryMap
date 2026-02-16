@@ -19,6 +19,7 @@ import {
   Share2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getProjectThumbnailUrl, handleProjectThumbnailError } from "@/lib/project-thumbnail";
 
 interface Milestone {
   id: number;
@@ -196,19 +197,14 @@ export default function PublicProjectDetail() {
         </Button>
 
         <Card className="overflow-hidden">
-          {project.thumbnailUrl ? (
-            <div className="aspect-[21/9] bg-gradient-to-br from-blue-100 to-purple-100 overflow-hidden">
-              <img
-                src={project.thumbnailUrl}
-                alt={project.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="aspect-[21/9] bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-              <BookOpen className="h-24 w-24 text-blue-300" />
-            </div>
-          )}
+          <div className="aspect-[21/9] bg-gradient-to-br from-blue-100 to-purple-100 overflow-hidden">
+            <img
+              src={getProjectThumbnailUrl(project.thumbnailUrl)}
+              alt={project.title}
+              className="w-full h-full object-cover"
+              onError={handleProjectThumbnailError}
+            />
+          </div>
 
           <CardHeader className="pb-4">
             <div className="flex flex-wrap gap-2 mb-4">

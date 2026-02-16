@@ -3,9 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { ComponentErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Users, Calendar, ArrowRight, ImageIcon } from "lucide-react";
+import { Users, Calendar, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import type { Project } from "@shared/schema";
+import { getProjectThumbnailUrl, handleProjectThumbnailError } from "@/lib/project-thumbnail";
 
 interface ProjectCardProps {
   project: Project;
@@ -52,28 +53,17 @@ export default function ProjectCard({
     <ComponentErrorBoundary componentName="Project Card" showError={true}>
       <Card className="card-hover apple-shadow border-0 overflow-hidden">
         {/* Project Thumbnail */}
-        {project.thumbnailUrl ? (
-          <div className="relative h-40 w-full overflow-hidden bg-gray-100">
-            <img 
-              src={project.thumbnailUrl} 
-              alt={`${project.title} thumbnail`}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-            <Badge className={`absolute top-2 right-2 ${getStatusColor(project.status || 'draft')}`}>
-              {project.status || 'Draft'}
-            </Badge>
-          </div>
-        ) : (
-          <div className="relative h-40 w-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-            <ImageIcon className="h-12 w-12 text-blue-300" />
-            <Badge className={`absolute top-2 right-2 ${getStatusColor(project.status || 'draft')}`}>
-              {project.status || 'Draft'}
-            </Badge>
-          </div>
-        )}
+        <div className="relative h-40 w-full overflow-hidden bg-gray-100">
+          <img
+            src={getProjectThumbnailUrl(project.thumbnailUrl)}
+            alt={`${project.title} thumbnail`}
+            className="w-full h-full object-cover"
+            onError={handleProjectThumbnailError}
+          />
+          <Badge className={`absolute top-2 right-2 ${getStatusColor(project.status || 'draft')}`}>
+            {project.status || 'Draft'}
+          </Badge>
+        </div>
         <CardContent className="p-6">
         {/* Project Header */}
         <div className="flex items-start justify-between mb-4">

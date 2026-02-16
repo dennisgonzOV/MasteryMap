@@ -25,6 +25,7 @@ import {
   FileText,
   X
 } from "lucide-react";
+import { getProjectThumbnailUrl, handleProjectThumbnailError } from "@/lib/project-thumbnail";
 
 interface Project {
   id: number;
@@ -443,17 +444,12 @@ function ProjectCard({ project }: { project: Project }) {
   return (
     <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
       <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 relative overflow-hidden">
-        {project.thumbnailUrl ? (
-          <img
-            src={project.thumbnailUrl}
-            alt={project.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <BookOpen className="h-12 w-12 text-blue-300" />
-          </div>
-        )}
+        <img
+          src={getProjectThumbnailUrl(project.thumbnailUrl)}
+          alt={project.title}
+          className="w-full h-full object-cover"
+          onError={handleProjectThumbnailError}
+        />
       </div>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg line-clamp-2 group-hover:text-blue-600 transition-colors">
@@ -514,17 +510,12 @@ function ProjectListItem({ project }: { project: Project }) {
     <Card className="group hover:shadow-md transition-all duration-200">
       <div className="flex gap-4 p-4">
         <div className="w-40 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg shrink-0 overflow-hidden">
-          {project.thumbnailUrl ? (
-            <img
-              src={project.thumbnailUrl}
-              alt={project.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <BookOpen className="h-8 w-8 text-blue-300" />
-            </div>
-          )}
+          <img
+            src={getProjectThumbnailUrl(project.thumbnailUrl)}
+            alt={project.title}
+            className="w-full h-full object-cover"
+            onError={handleProjectThumbnailError}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-lg group-hover:text-blue-600 transition-colors line-clamp-1">
