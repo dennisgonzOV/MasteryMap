@@ -63,7 +63,7 @@ export default function SchoolSkillsTracker() {
   const [viewMode, setViewMode] = useState<'overview' | 'details'>('overview');
 
   const { data: apiSkillsData = [], isLoading, error } = useQuery<ComponentSkillProgress[]>({
-    queryKey: ["/api/teacher/school-component-skills-progress"],
+    queryKey: ["/api/assessments/teacher/school-component-skills-progress"],
     retry: false,
   });
 
@@ -84,7 +84,7 @@ export default function SchoolSkillsTracker() {
     studentsAssessed: 0,
     totalStudents: 0
   } } = useQuery<SchoolSkillsStats>({
-    queryKey: ["/api/teacher/school-skills-stats"],
+    queryKey: ["/api/assessments/teacher/school-skills-stats"],
     retry: false,
   });
 

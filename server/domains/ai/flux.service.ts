@@ -17,7 +17,8 @@ export class FluxImageService {
   constructor() {
     this.apiKey = process.env.FLUX_API_KEY || "";
     this.apiUri = process.env.FLUX_API_URI || "";
-    this.thumbnailBucket = process.env.THUMBNAIL_S3_BUCKET || "masterymap";
+    this.thumbnailBucket =
+      (process.env.THUMBNAIL_S3_BUCKET || process.env.UPLOADS_S3_BUCKET || "").trim();
     this.thumbnailPrefix = (process.env.THUMBNAIL_OBJECT_PREFIX || "Thumbnails").trim().replace(/^\/+|\/+$/g, "");
   }
 
@@ -123,6 +124,13 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
   private async saveBase64ToStorage(base64Data: string): Promise<string | null> {
     try {
+      if (!this.thumbnailBucket) {
+        console.error(
+          "Thumbnail storage bucket is not configured. Set THUMBNAIL_S3_BUCKET or UPLOADS_S3_BUCKET.",
+        );
+        return null;
+      }
+
       const objectName = `${this.thumbnailPrefix}/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
       const bucketName = this.thumbnailBucket;
 
@@ -142,7 +150,7 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       return `/objects/${bucketName}/${objectName}`;
     } catch (error) {
-      console.error("Error saving thumbnail to storage:", error);
+      console.error(`Error saving thumbnail to storage bucket "${this.thumbnailBucket}":`, error);
       return null;
     }
   }
