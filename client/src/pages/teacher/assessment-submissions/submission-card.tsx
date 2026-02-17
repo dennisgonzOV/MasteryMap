@@ -27,6 +27,7 @@ interface SubmissionCardProps {
   submission: Submission;
   assessmentQuestions: AssessmentQuestion[];
   relevantSkills: ComponentSkillWithDetailsDTO[];
+  readOnly: boolean;
   gradingData: GradingData;
   isExpanded: boolean;
   isAiGrading: boolean;
@@ -99,6 +100,7 @@ export function SubmissionCard({
   submission,
   assessmentQuestions,
   relevantSkills,
+  readOnly,
   gradingData,
   isExpanded,
   isAiGrading,
@@ -165,7 +167,7 @@ export function SubmissionCard({
             </div>
 
             <div className="flex items-center space-x-2">
-              {(!submission.grades || submission.grades.length === 0) && !submission.grade && (
+              {!readOnly && (!submission.grades || submission.grades.length === 0) && !submission.grade && (
                 <Button
                   size="sm"
                   onClick={() => onAiGrade(submission.id)}
@@ -177,7 +179,7 @@ export function SubmissionCard({
                 </Button>
               )}
 
-              {(submission.grades && submission.grades.length > 0) || submission.grade ? (
+              {!readOnly && ((submission.grades && submission.grades.length > 0) || submission.grade) ? (
                 <Button
                   size="sm"
                   variant="outline"
@@ -190,14 +192,14 @@ export function SubmissionCard({
                 </Button>
               ) : null}
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onToggleExpand(submission.id)}
-                className="flex items-center space-x-2"
-              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onToggleExpand(submission.id)}
+                  className="flex items-center space-x-2"
+                >
                 {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <span>{isExpanded ? "Collapse" : "Review & Grade"}</span>
+                <span>{isExpanded ? "Collapse" : readOnly ? "Review Submission" : "Review & Grade"}</span>
               </Button>
             </div>
           </div>
@@ -337,7 +339,7 @@ export function SubmissionCard({
             </div>
           )}
 
-          {relevantSkills.length > 0 && (
+          {relevantSkills.length > 0 && !readOnly && (
             <div className="space-y-4">
               <h4 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 <GraduationCap className="h-5 w-5" />

@@ -55,7 +55,7 @@ interface AssessmentQuestion {
 export default function AssessmentDetails() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [isEditingDueDate, setIsEditingDueDate] = useState(false);
@@ -104,6 +104,18 @@ export default function AssessmentDetails() {
     refetchInterval: 5000, // Refetch every 5 seconds to keep status updated
   });
 
+  const { data: assessmentMilestone } = useQuery({
+    queryKey: ["/api/milestones", assessment?.milestoneId],
+    queryFn: () => api.getMilestone(Number(assessment?.milestoneId)),
+    enabled: isAuthenticated && !!assessment?.milestoneId,
+  });
+
+  const { data: milestoneProject } = useQuery({
+    queryKey: ["/api/projects", assessmentMilestone?.projectId],
+    queryFn: () => api.getProject(Number(assessmentMilestone?.projectId)),
+    enabled: isAuthenticated && !!assessmentMilestone?.projectId,
+  });
+
   // Set existing share code when assessment loads
   useEffect(() => {
     if (assessment?.shareCode && assessment?.shareCodeExpiresAt) {
@@ -113,6 +125,32 @@ export default function AssessmentDetails() {
       }
     }
   }, [assessment]);
+
+  const canManageAssessment = (() => {
+    if (!assessment || !user) {
+      return false;
+    }
+
+    if (user.role === "admin" && user.tier !== "free") {
+      return true;
+    }
+
+    if (assessment.createdBy) {
+      return assessment.createdBy === user.id;
+    }
+
+    if (milestoneProject?.teacherId) {
+      return milestoneProject.teacherId === user.id;
+    }
+
+    return false;
+  })();
+
+  useEffect(() => {
+    if (!canManageAssessment && isEditingDueDate) {
+      setIsEditingDueDate(false);
+    }
+  }, [canManageAssessment, isEditingDueDate]);
 
 
 
@@ -198,6 +236,9 @@ export default function AssessmentDetails() {
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
                 <h1 className="text-3xl font-bold text-gray-900">{assessment.title}</h1>
+                {!canManageAssessment && (
+                  <Badge variant="outline">View only</Badge>
+                )}
               </div>
               <p className="text-gray-600 text-lg mb-4">{assessment.description}</p>
 
@@ -217,7 +258,11 @@ export default function AssessmentDetails() {
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        disabled={!canManageAssessment || updateAssessmentMutation.isPending}
                         onClick={() => {
+                          if (!canManageAssessment) {
+                            return;
+                          }
                           let dateToSave: string | null = null;
 
                           // If there's a date string, append noon (T12:00:00) to ensure it stays on the same day
@@ -236,6 +281,7 @@ export default function AssessmentDetails() {
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        disabled={!canManageAssessment || updateAssessmentMutation.isPending}
                         onClick={() => setIsEditingDueDate(false)}
                       >
                         <X className="h-4 w-4" />
@@ -250,7 +296,11 @@ export default function AssessmentDetails() {
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0 ml-2"
+                        disabled={!canManageAssessment}
                         onClick={() => {
+                          if (!canManageAssessment) {
+                            return;
+                          }
                           setNewDueDate(assessment.dueDate ? format(new Date(assessment.dueDate), 'yyyy-MM-dd') : '');
                           setIsEditingDueDate(true);
                         }}

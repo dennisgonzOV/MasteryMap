@@ -17,6 +17,7 @@ import {
   type AssessmentProjectGateway,
 } from "./assessment-project-gateway";
 import { canUserAccessAssessment } from "./assessment-access";
+import { canTeacherManageAssessment } from "./assessment-ownership";
 
 export class SubmissionController {
   private gradingService: SubmissionGradingService;
@@ -87,6 +88,28 @@ export class SubmissionController {
     router.post('/:submissionId/grade', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIntParam('submissionId'), async (req: AuthenticatedRequest, res) => {
       try {
         const submissionId = parseInt(req.params.submissionId);
+        const submission = await this.service.getSubmission(submissionId);
+        if (!submission) {
+          return res.status(404).json({ message: "Submission not found" });
+        }
+        if (!submission.assessmentId) {
+          return res.status(400).json({ message: "Submission has no assessment" });
+        }
+
+        const assessment = await this.service.getAssessment(submission.assessmentId);
+        if (!assessment) {
+          return res.status(404).json({ message: "Assessment not found" });
+        }
+
+        if (req.user?.role === UserRole.TEACHER || (req.user?.role === UserRole.ADMIN && req.user?.tier === "free")) {
+          const canManage = await canTeacherManageAssessment(assessment, req.user.id, this.projectGateway);
+          if (!canManage) {
+            return res.status(403).json({
+              message: "Access denied - you can only grade submissions for assessments you manage",
+            });
+          }
+        }
+
         const gradeRequest: SubmissionGradeRequestDTO = req.body;
         const rawBody = this.toRecord(req.body);
         const generateAiFeedback =

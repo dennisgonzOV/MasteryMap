@@ -14,6 +14,7 @@
     "check:global": "npm run check && npm run check:architecture",
     "test:module": "node scripts/ci-module-tests.mjs",
     "ci:progressive": "npm run check:hygiene && npm run check:touched && npm run check:global && npm run test:module",
+    "sync:student-grades": "tsx scripts/sync_student_grades.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

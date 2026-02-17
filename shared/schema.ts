@@ -71,6 +71,7 @@ export const users = pgTable("users", {
   schoolName: varchar("school_name", { length: 255 }),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default(UserRole.STUDENT),
+  grade: varchar("grade", { length: 32 }),
   schoolId: integer("school_id").references(() => schools.id),
   tier: varchar("tier", { enum: ["free", "enterprise"] }).notNull().default("free"),
   projectGenerationCount: integer("project_generation_count").default(0),

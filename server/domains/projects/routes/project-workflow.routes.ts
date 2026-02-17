@@ -20,7 +20,15 @@ async function canUserAccessProject(
 
   if (user.role === "teacher") {
     const project = await projectsService.getProject(projectId);
-    return Boolean(project && project.teacherId === user.id);
+    if (!project) {
+      return false;
+    }
+
+    if (project.teacherId === user.id) {
+      return true;
+    }
+
+    return Boolean(user.schoolId && project.schoolId && user.schoolId === project.schoolId);
   }
 
   if (user.role === "student") {

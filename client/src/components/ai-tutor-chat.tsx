@@ -264,6 +264,22 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (isLoading || isTerminated || studentMessageCount >= 3) {
+      return;
+    }
+
+    // Ensure paste works reliably in this controlled textarea.
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    const target = e.currentTarget;
+    const selectionStart = target.selectionStart ?? currentMessage.length;
+    const selectionEnd = target.selectionEnd ?? currentMessage.length;
+
+    const nextMessage = `${currentMessage.slice(0, selectionStart)}${pastedText}${currentMessage.slice(selectionEnd)}`;
+    setCurrentMessage(nextMessage);
+  };
+
   const handleLevelSelection = (level: 'emerging' | 'developing' | 'proficient' | 'applying') => {
     onEvaluationUpdate({ selfAssessedLevel: level });
     // Step 2 will be automatically triggered by the useEffect above
@@ -442,6 +458,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
+                    onPaste={handlePaste}
                     placeholder={isTerminated ? "Conversation has ended" : studentMessageCount >= 3 ? "You've completed the required conversation. Click 'Complete Evaluation' to submit." : "Ask questions, share experiences, or discuss your understanding..."}
                     className="min-h-[60px] resize-none"
                     disabled={isLoading || isTerminated || studentMessageCount >= 3}

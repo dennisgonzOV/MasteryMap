@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -44,6 +44,7 @@ export default function TeacherProjects() {
   const [selectedProjectIdea, setSelectedProjectIdea] = useState<any>(null);
   const [showProjectManagement, setShowProjectManagement] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedProjectReadOnly, setSelectedProjectReadOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectScope, setProjectScope] = useState<"mine" | "school">("mine");
@@ -361,16 +362,9 @@ export default function TeacherProjects() {
                     studentCount={stats.studentCount}
                     userRole="teacher"
                     actionLabel={isOwner ? "Manage Project" : "View Only"}
-                    actionDisabled={!isOwner}
                     onViewProject={(id) => {
-                      if (!isOwner) {
-                        toast({
-                          title: "View only",
-                          description: "You can manage only projects you created.",
-                        });
-                        return;
-                      }
                       setSelectedProjectId(id);
+                      setSelectedProjectReadOnly(!isOwner);
                       setShowProjectManagement(true);
                     }}
                   />
@@ -411,10 +405,12 @@ export default function TeacherProjects() {
       {selectedProjectId && (
         <ProjectManagementModal
           projectId={selectedProjectId}
+          readOnly={selectedProjectReadOnly}
           isOpen={showProjectManagement}
           onClose={() => {
             setShowProjectManagement(false);
             setSelectedProjectId(null);
+            setSelectedProjectReadOnly(false);
           }}
         />
       )}

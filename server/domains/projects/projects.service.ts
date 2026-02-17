@@ -462,6 +462,10 @@ export class ProjectsService {
     return await this.storage.getSchoolStudentsProgress(teacherId);
   }
 
+  async getUser(id: number): Promise<User | undefined> {
+    return this.storage.getUser(id);
+  }
+
   private async getTeacherSchoolId(teacherId: number): Promise<number | null> {
     const teacher = await this.storage.getUser(teacherId);
     return teacher?.schoolId ?? null;

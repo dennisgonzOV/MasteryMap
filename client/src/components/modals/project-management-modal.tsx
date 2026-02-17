@@ -46,10 +46,11 @@ import type {
 interface ProjectManagementModalProps {
   projectId: number;
   isOpen: boolean;
+  readOnly?: boolean;
   onClose: () => void;
 }
 
-export default function ProjectManagementModal({ projectId, isOpen, onClose }: ProjectManagementModalProps) {
+export default function ProjectManagementModal({ projectId, isOpen, readOnly = false, onClose }: ProjectManagementModalProps) {
   const { toast } = useToast();
   const [editingProject, setEditingProject] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<number | null>(null);
@@ -450,7 +451,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
-            <DialogTitle className="text-2xl font-bold">Manage Project</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">{readOnly ? "View Project" : "Manage Project"}</DialogTitle>
           </div>
         </DialogHeader>
 
@@ -470,7 +471,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {editingProject ? (
+                  {editingProject && !readOnly ? (
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="projectTitle">Project Title</Label>
@@ -546,26 +547,32 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                         Make this project visible to other educators in the community library
                       </p>
                     </div>
-                    <Button
-                      variant={project.isPublic ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => toggleVisibilityMutation.mutate(!project.isPublic)}
-                      disabled={toggleVisibilityMutation.isPending}
-                    >
-                      {toggleVisibilityMutation.isPending ? (
-                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                      ) : project.isPublic ? (
-                        <>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Public
-                        </>
-                      ) : (
-                        <>
-                          <X className="h-4 w-4 mr-2" />
-                          Private
-                        </>
-                      )}
-                    </Button>
+                    {readOnly ? (
+                      <Badge variant={project.isPublic ? "default" : "outline"}>
+                        {project.isPublic ? "Public" : "Private"}
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant={project.isPublic ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => toggleVisibilityMutation.mutate(!project.isPublic)}
+                        disabled={toggleVisibilityMutation.isPending}
+                      >
+                        {toggleVisibilityMutation.isPending ? (
+                          <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                        ) : project.isPublic ? (
+                          <>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Public
+                          </>
+                        ) : (
+                          <>
+                            <X className="h-4 w-4 mr-2" />
+                            Private
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                   {project.isPublic && (
                     <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
@@ -584,15 +591,17 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                     <Users className="h-5 w-5 mr-2" />
                     Project Teams
                   </CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowTeamModal(true)}
-                    disabled={!project?.schoolId}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Team
-                  </Button>
+                  {!readOnly && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowTeamModal(true)}
+                      disabled={!project?.schoolId}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Team
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {teamsLoading ? (
@@ -601,12 +610,15 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                     <div className="text-center py-8">
                       <div className="text-gray-600 mb-4">No teams yet</div>
                       <div className="text-sm text-gray-500 mb-4">
-                        Create teams to organize students for this project. 
-                        All milestones will be automatically assigned to team members.
+                        {readOnly
+                          ? "No teams have been created for this project."
+                          : "Create teams to organize students for this project. All milestones will be automatically assigned to team members."}
                       </div>
-                      <Button onClick={() => setShowTeamModal(true)}>
-                        Create First Team
-                      </Button>
+                      {!readOnly && (
+                        <Button onClick={() => setShowTeamModal(true)}>
+                          Create First Team
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -621,24 +633,26 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                               <div className="text-sm text-gray-600">{team.description}</div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingTeam(team)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit Team
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteTeam(team.id, team.name)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
+                          {!readOnly && (
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingTeam(team)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit Team
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteTeam(team.id, team.name)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -647,28 +661,30 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
               </Card>
 
               {/* Project Actions */}
-              <div className="flex items-center justify-between pr-8">
-                <div className="flex items-center space-x-2">
-                  {project?.status === 'draft' && (
-                    <Button onClick={handleStartProject} className="bg-green-600 hover:bg-green-700 text-white">
-                      <Play className="h-4 w-4 mr-2" />
-                      Start Project
+              {!readOnly && (
+                <div className="flex items-center justify-between pr-8">
+                  <div className="flex items-center space-x-2">
+                    {project?.status === 'draft' && (
+                      <Button onClick={handleStartProject} className="bg-green-600 hover:bg-green-700 text-white">
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Project
+                      </Button>
+                    )}
+                    <Button variant="outline" onClick={handleEditProject}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Project
                     </Button>
-                  )}
-                  <Button variant="outline" onClick={handleEditProject}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Project
-                  </Button>
-                  <Button variant="outline" onClick={() => handleGenerateMilestonesAndAssessments()}>
-                    <Target className="h-4 w-4 mr-2" />
-                    Generate Milestones
-                  </Button>
-                  <Button variant="destructive" onClick={handleDeleteProject}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Project
-                  </Button>
+                    <Button variant="outline" onClick={() => handleGenerateMilestonesAndAssessments()}>
+                      <Target className="h-4 w-4 mr-2" />
+                      Generate Milestones
+                    </Button>
+                    <Button variant="destructive" onClick={handleDeleteProject}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Project
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </TabsContent>
 
             <TabsContent value="milestones" className="space-y-6">
@@ -704,7 +720,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
 
                               {/* Milestone content */}
                               <div className="flex-1 bg-gray-50 rounded-lg p-4">
-                                {editingMilestone === milestone.id ? (
+                                {editingMilestone === milestone.id && !readOnly ? (
                                   <div className="space-y-3">
                                     <div>
                                       <Label htmlFor={`milestoneTitle-${milestone.id}`}>Title</Label>
@@ -755,26 +771,28 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
                                         Due: {milestone.dueDate ? format(new Date(milestone.dueDate), 'MMM d, yyyy') : 'No due date'}
                                       </div>
                                     </div>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm">
-                                          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                                          </svg>
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleEditMilestone(milestone)}>
-                                          Edit Milestone
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                          onClick={() => handleDeleteMilestone(milestone.id, milestone.title)}
-                                          className="text-red-600 focus:text-red-600"
-                                        >
-                                          Delete Milestone
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    {!readOnly && (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="sm">
+                                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                            </svg>
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => handleEditMilestone(milestone)}>
+                                            Edit Milestone
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            onClick={() => handleDeleteMilestone(milestone.id, milestone.title)}
+                                            className="text-red-600 focus:text-red-600"
+                                          >
+                                            Delete Milestone
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -794,7 +812,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
         </div>
 
         {/* Team Selection Modal */}
-        {project && (
+        {!readOnly && project && (
           <ProjectTeamSelectionModal
             open={showTeamModal}
             onOpenChange={setShowTeamModal}
@@ -807,7 +825,7 @@ export default function ProjectManagementModal({ projectId, isOpen, onClose }: P
         )}
 
         {/* Team Edit Modal */}
-        {editingTeam && project && (
+        {!readOnly && editingTeam && project && (
           <TeamEditModal
             open={!!editingTeam}
             onOpenChange={(open) => !open && setEditingTeam(null)}

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useTeacherAccess } from "@/hooks/useRoleBasedAccess";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
@@ -49,6 +50,7 @@ export default function AssessmentSubmissions() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { canAccess } = useTeacherAccess();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<number>>(() => new Set());
@@ -106,6 +108,40 @@ export default function AssessmentSubmissions() {
     const skillIds = parseSkillIds(assessment.componentSkillIds);
     return componentSkills.filter((skill) => skillIds.includes(skill.id));
   }, [assessment?.componentSkillIds, componentSkills, assessmentComponentSkills]);
+
+  const { data: assessmentMilestone } = useQuery({
+    queryKey: ["/api/milestones", assessment?.milestoneId],
+    queryFn: () => api.getMilestone(Number(assessment?.milestoneId)),
+    enabled: canAccess && !!assessment?.milestoneId,
+  });
+
+  const { data: milestoneProject } = useQuery({
+    queryKey: ["/api/projects", assessmentMilestone?.projectId],
+    queryFn: () => api.getProject(Number(assessmentMilestone?.projectId)),
+    enabled: canAccess && !!assessmentMilestone?.projectId,
+  });
+
+  const canManageAssessment = React.useMemo(() => {
+    if (!assessment || !user) {
+      return false;
+    }
+
+    if (user.role === "admin" && user.tier !== "free") {
+      return true;
+    }
+
+    if (assessment.createdBy) {
+      return assessment.createdBy === user.id;
+    }
+
+    if (milestoneProject?.teacherId) {
+      return milestoneProject.teacherId === user.id;
+    }
+
+    return false;
+  }, [assessment, user, milestoneProject?.teacherId]);
+
+  const isReadOnly = !canManageAssessment;
 
   const initializeGradingData = React.useCallback(() => {
     if (!submissions.length || isGradingDataInitialized) {
@@ -381,6 +417,11 @@ export default function AssessmentSubmissions() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Grading: {assessment.title}</h1>
+              {isReadOnly && (
+                <div className="mb-3">
+                  <Badge variant="outline">View only</Badge>
+                </div>
+              )}
               <p className="text-gray-600 mb-4">{assessment.description}</p>
 
               <div className="flex items-center space-x-6 text-sm">
@@ -407,7 +448,8 @@ export default function AssessmentSubmissions() {
           </div>
         </div>
 
-        <Card className="mb-8 border-gradient-to-r from-blue-200 to-purple-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        {!isReadOnly && (
+          <Card className="mb-8 border-gradient-to-r from-blue-200 to-purple-200 bg-gradient-to-r from-blue-50 to-purple-50">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-blue-800">
               <Brain className="h-6 w-6" />
@@ -494,21 +536,22 @@ export default function AssessmentSubmissions() {
               </div>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
         <Card className="mb-6 bg-gray-50 border-gray-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <h3 className="font-medium text-gray-900">Quick Actions</h3>
-                {stats.ungraded > 0 && (
+                {!isReadOnly && stats.ungraded > 0 && (
                   <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                     {stats.ungraded} pending
                   </Badge>
                 )}
               </div>
               <div className="flex items-center space-x-3">
-                {stats.ungraded > 0 && (
+                {!isReadOnly && stats.ungraded > 0 && (
                   <>
                     <Button
                       size="sm"
@@ -577,6 +620,7 @@ export default function AssessmentSubmissions() {
                 submission={submission}
                 assessmentQuestions={assessmentQuestions}
                 relevantSkills={relevantSkills}
+                readOnly={isReadOnly}
                 gradingData={gradingData}
                 isExpanded={expandedSubmissions.has(submission.id)}
                 isAiGrading={aiGradingSubmissions.has(submission.id)}

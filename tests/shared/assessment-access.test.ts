@@ -94,4 +94,32 @@ describe("assessment access policy", () => {
 
     await expect(canUserAccessAssessment(assessment, user, gateway)).resolves.toBe(false);
   });
+
+  it("allows enterprise teacher to view same-school standalone assessment", async () => {
+    const gateway: AssessmentProjectGateway = {
+      getMilestone: async () => undefined,
+      getProject: async () => undefined,
+      getStudentProjectIds: async () => [],
+      getUser: async (id) =>
+        id === 99 ? ({ id: 99, schoolId: 12 } as unknown as User) : undefined,
+    };
+    const assessment = makeAssessment({ createdBy: 99, milestoneId: null });
+    const user = makeUser({ id: 7, role: "teacher", tier: "enterprise", schoolId: 12 });
+
+    await expect(canUserAccessAssessment(assessment, user, gateway)).resolves.toBe(true);
+  });
+
+  it("denies enterprise teacher from viewing standalone assessment in another school", async () => {
+    const gateway: AssessmentProjectGateway = {
+      getMilestone: async () => undefined,
+      getProject: async () => undefined,
+      getStudentProjectIds: async () => [],
+      getUser: async (id) =>
+        id === 99 ? ({ id: 99, schoolId: 44 } as unknown as User) : undefined,
+    };
+    const assessment = makeAssessment({ createdBy: 99, milestoneId: null });
+    const user = makeUser({ id: 7, role: "teacher", tier: "enterprise", schoolId: 12 });
+
+    await expect(canUserAccessAssessment(assessment, user, gateway)).resolves.toBe(false);
+  });
 });

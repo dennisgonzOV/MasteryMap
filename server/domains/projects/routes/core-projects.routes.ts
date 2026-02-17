@@ -52,10 +52,13 @@ export function registerProjectCoreRoutes(router: Router, projectsService: Proje
   }));
 
   router.get('/:id', requireAuth, validateIdParam(), checkProjectAccess({
+    checkOwnership: false,
     allowedRoles: ['teacher', 'admin', 'student'],
     customAccessCheck: (user, project) => {
       if (user.role === 'teacher') {
-        return project.teacherId === user.id;
+        const teacherSchoolId = (user as { schoolId?: number | null }).schoolId;
+        const projectSchoolId = typeof project.schoolId === "number" ? project.schoolId : null;
+        return project.teacherId === user.id || Boolean(teacherSchoolId && projectSchoolId && teacherSchoolId === projectSchoolId);
       }
       if (user.role === 'admin') {
         const userTier = (user as { tier?: string }).tier;
