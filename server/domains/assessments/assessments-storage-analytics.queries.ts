@@ -2,6 +2,7 @@ import {
   componentSkills,
   competencies,
   grades,
+  learnerOutcomes,
   milestones,
   projects,
   submissions,
@@ -17,6 +18,33 @@ import type {
 } from "./assessments.contracts";
 
 export class AssessmentAnalyticsQueries {
+  private normalizeGradeFilter(rawGrade?: string): string | undefined {
+    if (!rawGrade) {
+      return undefined;
+    }
+
+    const trimmed = rawGrade.trim();
+    if (!trimmed || trimmed.toLowerCase() === "all") {
+      return undefined;
+    }
+
+    if (trimmed === "__unassigned__") {
+      return "__unassigned__";
+    }
+
+    const lower = trimmed.toLowerCase();
+    if (lower === "k" || lower.includes("kindergarten")) {
+      return "K";
+    }
+
+    const numericMatch = lower.match(/\b([0-9]{1,2})(?:st|nd|rd|th)?\b/);
+    if (numericMatch) {
+      return String(Number.parseInt(numericMatch[1], 10));
+    }
+
+    return trimmed;
+  }
+
   async getStudentCompetencyProgress(studentId: number): Promise<StudentCompetencyProgressRecord[]> {
     try {
       const allGrades = await db.select().from(grades);
@@ -122,7 +150,10 @@ export class AssessmentAnalyticsQueries {
     }
   }
 
-  async getSchoolComponentSkillsProgress(teacherId: number): Promise<SchoolComponentSkillProgressDTO[]> {
+  async getSchoolComponentSkillsProgress(
+    teacherId: number,
+    grade?: string,
+  ): Promise<SchoolComponentSkillProgressDTO[]> {
     try {
       const teacher = await db.select().from(users).where(eq(users.id, teacherId)).limit(1);
       const teacherSchoolId = teacher[0]?.schoolId;
@@ -131,7 +162,24 @@ export class AssessmentAnalyticsQueries {
         return [];
       }
 
-      const schoolStudents = await db.select().from(users).where(eq(users.schoolId, teacherSchoolId));
+      const normalizedGrade = this.normalizeGradeFilter(grade);
+      const studentConditions = [eq(users.schoolId, teacherSchoolId), eq(users.role, "student")];
+
+      const schoolStudents = normalizedGrade === "__unassigned__"
+        ? await db
+            .select()
+            .from(users)
+            .where(and(...studentConditions, sql`nullif(trim(${users.grade}), '') is null`))
+        : normalizedGrade
+          ? await db
+              .select()
+              .from(users)
+              .where(and(...studentConditions, eq(users.grade, normalizedGrade)))
+          : await db
+              .select()
+              .from(users)
+              .where(and(...studentConditions));
+
       if (schoolStudents.length === 0) {
         return [];
       }
@@ -148,9 +196,11 @@ export class AssessmentAnalyticsQueries {
         .where(inArray(submissions.studentId, studentIds));
       const allComponentSkills = await db.select().from(componentSkills);
       const allCompetencies = await db.select().from(competencies);
+      const allLearnerOutcomes = await db.select().from(learnerOutcomes);
 
       const skillMap = new Map(allComponentSkills.map((s) => [s.id, s]));
       const competencyMap = new Map(allCompetencies.map((c) => [c.id, c]));
+      const learnerOutcomeMap = new Map(allLearnerOutcomes.map((outcome) => [outcome.id, outcome]));
 
       const submissionIds = allSubmissions.map((s) => s.id);
       const schoolGrades = allGrades.filter((g) => g.submissionId && submissionIds.includes(g.submissionId));
@@ -187,6 +237,9 @@ export class AssessmentAnalyticsQueries {
 
       for (const [, data] of Array.from(skillProgressMap.entries())) {
         const { grades: skillGrades, skill, competency } = data;
+        const learnerOutcome = competency?.learnerOutcomeId
+          ? learnerOutcomeMap.get(competency.learnerOutcomeId)
+          : undefined;
 
         if (skillGrades.length === 0) {
           continue;
@@ -237,7 +290,7 @@ export class AssessmentAnalyticsQueries {
           name: skill.name,
           competencyId: competency?.id || 0,
           competencyName: competency?.name || "Unknown Competency",
-          learnerOutcomeName: "XQ Learner Outcome",
+          learnerOutcomeName: learnerOutcome?.name || "Unknown Learner Outcome",
           averageScore: Math.round(averageScore * 100) / 100,
           studentsAssessed: skillGrades.length,
           totalStudents: schoolStudents.length,
@@ -257,9 +310,9 @@ export class AssessmentAnalyticsQueries {
     }
   }
 
-  async getSchoolSkillsStats(teacherId: number): Promise<SchoolSkillsStatsDTO> {
+  async getSchoolSkillsStats(teacherId: number, grade?: string): Promise<SchoolSkillsStatsDTO> {
     try {
-      const skillsProgress = await this.getSchoolComponentSkillsProgress(teacherId);
+      const skillsProgress = await this.getSchoolComponentSkillsProgress(teacherId, grade);
 
       if (skillsProgress.length === 0) {
         return {

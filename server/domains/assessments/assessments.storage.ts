@@ -65,8 +65,8 @@ export interface IAssessmentStorage {
 
   getUpcomingDeadlines(projectIds: number[]): Promise<UpcomingDeadlineDTO[]>;
   getStudentCompetencyProgress(studentId: number): Promise<StudentCompetencyProgressRecord[]>;
-  getSchoolComponentSkillsProgress(teacherId: number): Promise<SchoolComponentSkillProgressDTO[]>;
-  getSchoolSkillsStats(teacherId: number): Promise<SchoolSkillsStatsDTO>;
+  getSchoolComponentSkillsProgress(teacherId: number, grade?: string): Promise<SchoolComponentSkillProgressDTO[]>;
+  getSchoolSkillsStats(teacherId: number, grade?: string): Promise<SchoolSkillsStatsDTO>;
 }
 
 export class AssessmentStorage implements IAssessmentStorage {
@@ -211,12 +211,15 @@ export class AssessmentStorage implements IAssessmentStorage {
     return this.analyticsQueries.getStudentCompetencyProgress(studentId);
   }
 
-  async getSchoolComponentSkillsProgress(teacherId: number): Promise<SchoolComponentSkillProgressDTO[]> {
-    return this.analyticsQueries.getSchoolComponentSkillsProgress(teacherId);
+  async getSchoolComponentSkillsProgress(
+    teacherId: number,
+    grade?: string,
+  ): Promise<SchoolComponentSkillProgressDTO[]> {
+    return this.analyticsQueries.getSchoolComponentSkillsProgress(teacherId, grade);
   }
 
-  async getSchoolSkillsStats(teacherId: number): Promise<SchoolSkillsStatsDTO> {
-    return this.analyticsQueries.getSchoolSkillsStats(teacherId);
+  async getSchoolSkillsStats(teacherId: number, grade?: string): Promise<SchoolSkillsStatsDTO> {
+    return this.analyticsQueries.getSchoolSkillsStats(teacherId, grade);
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Mock user type until we import or define strictly
 type User = {
@@ -63,7 +64,18 @@ const createUserSchema = z.object({
     username: z.string().min(3, 'Username must be at least 3 characters'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     role: z.enum(['student', 'teacher'], { required_error: "Role is required" }),
+    grade: z.enum(['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']).optional(),
+}).superRefine((data, ctx) => {
+    if (data.role === 'student' && !data.grade) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['grade'],
+            message: 'Grade is required for students',
+        });
+    }
 });
+
+const gradeOptions = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const;
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
@@ -350,8 +362,16 @@ function CreateUserDialog({ open, onOpenChange, onSubmit, isPending }: {
             username: '',
             password: '',
             role: 'student',
+            grade: undefined,
         }
     });
+    const selectedRole = form.watch('role');
+
+    useEffect(() => {
+        if (selectedRole !== 'student') {
+            form.setValue('grade', undefined, { shouldValidate: true });
+        }
+    }, [selectedRole, form]);
 
     const handleSubmit = (data: CreateUserFormValues) => {
         onSubmit(data);
@@ -408,6 +428,28 @@ function CreateUserDialog({ open, onOpenChange, onSubmit, isPending }: {
                         </div>
                         {form.formState.errors.role && (
                             <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="grade">Grade {selectedRole === 'student' ? '*' : '(optional)'}</Label>
+                        <Select
+                            value={form.watch('grade')}
+                            onValueChange={(value) => form.setValue('grade', value as CreateUserFormValues['grade'], { shouldValidate: true })}
+                            disabled={selectedRole !== 'student'}
+                        >
+                            <SelectTrigger id="grade">
+                                <SelectValue placeholder={selectedRole === 'student' ? 'Select grade' : 'Not required for teachers'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {gradeOptions.map((grade) => (
+                                    <SelectItem key={grade} value={grade}>
+                                        {grade === 'K' ? 'Kindergarten' : `Grade ${grade}`}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {form.formState.errors.grade && (
+                            <p className="text-sm text-red-500">{form.formState.errors.grade.message}</p>
                         )}
                     </div>
                     <DialogFooter>
@@ -528,22 +570,41 @@ function BulkCreateUserDialog({ open, onOpenChange, isPending }: {
         const lines = csvContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const users = [];
         const errors = [];
+        const validGrades = new Set(gradeOptions);
 
         for (let i = 0; i < lines.length; i++) {
             const parts = lines[i].split(',').map(p => p.trim());
             if (parts.length < 3) {
-                errors.push(`Line ${i + 1}: Invalid format (expected username,password,role)`);
+                errors.push(`Line ${i + 1}: Invalid format (expected username,password,role,grade)`);
                 continue;
             }
 
-            const [username, password, role] = parts;
+            const [username, password, roleRaw, gradeRaw = ''] = parts;
+            const role = roleRaw.toLowerCase();
+            const normalizedGrade = gradeRaw.toUpperCase();
+
             // Basic validation
-            if (!['student', 'teacher'].includes(role.toLowerCase())) {
-                errors.push(`Line ${i + 1}: Invalid role '${role}' (expected student or teacher)`);
+            if (!['student', 'teacher'].includes(role)) {
+                errors.push(`Line ${i + 1}: Invalid role '${roleRaw}' (expected student or teacher)`);
                 continue;
             }
 
-            users.push({ username, password, role: role.toLowerCase() });
+            if (role === 'student' && !normalizedGrade) {
+                errors.push(`Line ${i + 1}: Grade is required for student users`);
+                continue;
+            }
+
+            if (normalizedGrade && !validGrades.has(normalizedGrade as typeof gradeOptions[number])) {
+                errors.push(`Line ${i + 1}: Invalid grade '${gradeRaw}' (expected K or 1-12)`);
+                continue;
+            }
+
+            users.push({
+                username,
+                password,
+                role,
+                grade: role === 'student' ? normalizedGrade : undefined,
+            });
         }
 
         if (errors.length > 0) {
@@ -573,14 +634,14 @@ function BulkCreateUserDialog({ open, onOpenChange, isPending }: {
                 <DialogHeader>
                     <DialogTitle>Bulk Create Users</DialogTitle>
                     <DialogDescription>
-                        Enter users in CSV format: <code>username, password, role</code> (one per line).<br />
-                        Role must be 'student' or 'teacher'.
+                        Enter users in CSV format: <code>username, password, role, grade</code> (one per line).<br />
+                        Grade is required for students and optional for teachers. Valid grades: K, 1-12.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
                     <textarea
                         className="flex min-h-[300px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder={`student1,password123,student\nteacher1,password123,teacher`}
+                        placeholder={`student1,password123,student,9\nteacher1,password123,teacher,`}
                         value={csvContent}
                         onChange={(e) => setCsvContent(e.target.value)}
                     />

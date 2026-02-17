@@ -39,25 +39,36 @@ interface AITutorChatProps {
 const RUBRIC_LEVEL_SEQUENCE = [
   {
     value: 'emerging',
+    rank: 1,
     label: 'Emerging',
     fallback: 'Beginning to understand and use this skill with significant support',
   },
   {
     value: 'developing',
+    rank: 2,
     label: 'Developing',
     fallback: 'Building confidence and competency with this skill',
   },
   {
     value: 'proficient',
+    rank: 3,
     label: 'Proficient',
     fallback: 'Demonstrates solid understanding and effective use of this skill',
   },
   {
     value: 'applying',
+    rank: 4,
     label: 'Applying',
     fallback: 'Uses this skill in complex situations and helps others develop it',
   },
 ] as const;
+
+const DISPLAY_LEVELS_TOP_DOWN = [...RUBRIC_LEVEL_SEQUENCE].reverse();
+
+const VALID_LEVEL_VALUES = new Set(['emerging', 'developing', 'proficient', 'applying']);
+
+const isValidSelfAssessedLevel = (value: unknown): value is SelfEvaluationData['selfAssessedLevel'] =>
+  typeof value === 'string' && (value === '' || VALID_LEVEL_VALUES.has(value));
 
 export default function AITutorChat({
   assessmentId,
@@ -75,6 +86,9 @@ export default function AITutorChat({
   const [isTerminated, setIsTerminated] = useState(false);
   const [studentMessageCount, setStudentMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const safeSelfAssessedLevel = isValidSelfAssessedLevel(selfEvaluation.selfAssessedLevel)
+    ? selfEvaluation.selfAssessedLevel
+    : '';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -97,29 +111,29 @@ export default function AITutorChat({
 
   useEffect(() => {
     // Move to step 2 and initialize AI chat when level is selected
-    if (selfEvaluation.selfAssessedLevel && currentStep === 1) {
+    if (safeSelfAssessedLevel && currentStep === 1) {
       setCurrentStep(2);
     }
-  }, [selfEvaluation.selfAssessedLevel, currentStep]);
+  }, [safeSelfAssessedLevel, currentStep]);
 
   useEffect(() => {
-    if (currentStep === 2 && !hasGreeted && selfEvaluation.selfAssessedLevel) {
+    if (currentStep === 2 && !hasGreeted && safeSelfAssessedLevel) {
       const greeting = {
         id: `msg_${Date.now()}`,
         role: 'tutor' as const,
         content: `Hello! I'm your AI tutor, and I'm here to help you explore your understanding of "${componentSkill.name}".
 
-I see you've selected the "${selfEvaluation.selfAssessedLevel}" level. That's a great starting point! Let me help you reflect on this choice and develop your self-evaluation.
+I see you've selected the "${safeSelfAssessedLevel}" level. That's a great starting point! Let me help you reflect on this choice and develop your self-evaluation.
 
-${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
+${getLevelSpecificGreeting(safeSelfAssessedLevel)}`,
         timestamp: new Date()
       };
       setMessages([greeting]);
       setHasGreeted(true);
     }
-  }, [componentSkill, hasGreeted, currentStep, selfEvaluation.selfAssessedLevel]);
+  }, [componentSkill, hasGreeted, currentStep, safeSelfAssessedLevel]);
 
-  const getLevelSpecificGreeting = (level: string) => {
+  const getLevelSpecificGreeting = (level: SelfEvaluationData['selfAssessedLevel']) => {
     const rubricLevels = componentSkill.rubricLevels;
     const rubricDescription = rubricLevels?.[level];
 
@@ -130,7 +144,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       applying: 'using this skill in complex situations and helping others develop it',
     };
 
-    const description = rubricDescription || fallbackDescriptions[level];
+    const description = rubricDescription || fallbackDescriptions[level] || 'developing this skill';
     const capitalizedLevel = level.charAt(0).toUpperCase() + level.slice(1);
 
     const prompts: Record<string, string> = {
@@ -185,7 +199,9 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       const tutorMessage: ChatMessage = {
         id: `msg_${Date.now()}_tutor`,
         role: 'tutor',
-        content: data.response,
+        content: typeof data?.response === 'string'
+          ? data.response
+          : 'I apologize, but I encountered an unexpected response. Please continue with your self-evaluation.',
         timestamp: new Date()
       };
 
@@ -210,7 +226,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       }
 
       // Handle safety flags and conversation termination
-      if (data.shouldTerminate && data.safetyFlag) {
+      if (data?.shouldTerminate && typeof data?.safetyFlag === 'string') {
         // Add appropriate system message based on safety flag
         let systemMessage = "This conversation has ended. Please complete your self-evaluation or speak with your teacher if you need assistance.";
 
@@ -240,7 +256,11 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
       }
 
       // Update self-evaluation if the AI suggests changes
-      if (data.suggestedEvaluation) {
+      if (
+        data?.suggestedEvaluation &&
+        isValidSelfAssessedLevel(data.suggestedEvaluation.selfAssessedLevel) &&
+        data.suggestedEvaluation.selfAssessedLevel !== ''
+      ) {
         onEvaluationUpdate(data.suggestedEvaluation);
       }
     } catch (error) {
@@ -285,7 +305,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
     // Step 2 will be automatically triggered by the useEffect above
   };
 
-  const isReadyToComplete = selfEvaluation.selfAssessedLevel && studentMessageCount >= 3;
+  const isReadyToComplete = Boolean(safeSelfAssessedLevel) && studentMessageCount >= 3;
 
   return (
     <ComponentErrorBoundary componentName="AI Tutor Chat" showError={false}>
@@ -307,7 +327,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                 </div>
                 <div className="text-sm font-medium">Chat with AI Tutor</div>
               </div>
-              {selfEvaluation.selfAssessedLevel && (
+              {safeSelfAssessedLevel && (
                 <Badge variant="secondary" className="ml-4">
                   Step {currentStep} of 2
                 </Badge>
@@ -331,12 +351,12 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
             )}
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {RUBRIC_LEVEL_SEQUENCE.map((levelOption, index) => (
+            <div className="space-y-2 text-xs">
+              {DISPLAY_LEVELS_TOP_DOWN.map((levelOption) => (
                 <div
                   key={levelOption.value}
                   onClick={currentStep === 1 ? () => handleLevelSelection(levelOption.value) : undefined}
-                  className={`p-3 rounded border transition-all duration-200 ${selfEvaluation.selfAssessedLevel === levelOption.value
+                  className={`p-3 rounded border transition-all duration-200 ${safeSelfAssessedLevel === levelOption.value
                     ? 'bg-blue-200 border-blue-500 shadow-md'
                     : currentStep === 1
                       ? 'bg-white border-blue-200 hover:bg-blue-50 hover:border-blue-300 cursor-pointer'
@@ -344,12 +364,12 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                     } ${currentStep === 1 ? 'transform hover:scale-[1.02]' : ''}`}
                 >
                   <div className="font-medium mb-1 text-sm">
-                    {index + 1}. {levelOption.label}
+                    {levelOption.rank}. {levelOption.label}
                   </div>
                   <div className="text-blue-700 leading-relaxed">
                     {componentSkill.rubricLevels?.[levelOption.value] || levelOption.fallback}
                   </div>
-                  {selfEvaluation.selfAssessedLevel === levelOption.value && (
+                  {safeSelfAssessedLevel === levelOption.value && (
                     <div className="mt-2 flex items-center text-blue-600">
                       <span className="text-xs font-medium">✓ Selected</span>
                     </div>
@@ -366,10 +386,10 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
         </Card>
 
         {/* Current Self-Assessment Status */}
-        {selfEvaluation.selfAssessedLevel && currentStep === 2 && (
+        {safeSelfAssessedLevel && currentStep === 2 && (
           <div className="flex items-center gap-2">
             <Badge variant="secondary">
-              Selected Level: {selfEvaluation.selfAssessedLevel}
+              Selected Level: {safeSelfAssessedLevel}
             </Badge>
             <Button
               variant="ghost"
@@ -429,7 +449,7 @@ ${getLevelSpecificGreeting(selfEvaluation.selfAssessedLevel)}`,
                           <div className="whitespace-pre-wrap text-sm">{message.content}</div>
                           <div className={`text-xs mt-1 ${message.role === 'student' ? 'text-blue-100' : 'text-gray-500'
                             }`}>
-                            {message.timestamp.toLocaleTimeString()}
+                            {new Date(message.timestamp).toLocaleTimeString()}
                           </div>
                         </div>
                       </div>

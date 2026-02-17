@@ -304,12 +304,15 @@ export class AssessmentService {
   }
 
   // Teacher-specific methods for school skills tracking
-  async getSchoolComponentSkillsProgress(teacherId: number): Promise<SchoolComponentSkillProgressDTO[]> {
-    return await this.storage.getSchoolComponentSkillsProgress(teacherId);
+  async getSchoolComponentSkillsProgress(
+    teacherId: number,
+    grade?: string,
+  ): Promise<SchoolComponentSkillProgressDTO[]> {
+    return await this.storage.getSchoolComponentSkillsProgress(teacherId, grade);
   }
 
-  async getSchoolSkillsStats(teacherId: number): Promise<SchoolSkillsStatsDTO> {
-    return await this.storage.getSchoolSkillsStats(teacherId);
+  async getSchoolSkillsStats(teacherId: number, grade?: string): Promise<SchoolSkillsStatsDTO> {
+    return await this.storage.getSchoolSkillsStats(teacherId, grade);
   }
 
   async getComponentSkill(id: number): Promise<ComponentSkill | undefined> {

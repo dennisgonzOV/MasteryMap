@@ -3,8 +3,8 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth"
 import { UserRole } from "../../../../shared/schema";
 
 interface AssessmentTeacherSkillsService {
-  getSchoolComponentSkillsProgress(teacherId: number): Promise<unknown>;
-  getSchoolSkillsStats(teacherId: number): Promise<unknown>;
+  getSchoolComponentSkillsProgress(teacherId: number, grade?: string): Promise<unknown>;
+  getSchoolSkillsStats(teacherId: number, grade?: string): Promise<unknown>;
 }
 
 export function registerAssessmentTeacherSkillsRoutes(
@@ -18,7 +18,8 @@ export function registerAssessmentTeacherSkillsRoutes(
       }
 
       const teacherId = req.user!.id;
-      const skillsProgress = await service.getSchoolComponentSkillsProgress(teacherId);
+      const grade = typeof req.query.grade === "string" ? req.query.grade : undefined;
+      const skillsProgress = await service.getSchoolComponentSkillsProgress(teacherId, grade);
       res.json(skillsProgress);
     } catch (error) {
       console.error("Error fetching school component skills progress:", error);
@@ -33,7 +34,8 @@ export function registerAssessmentTeacherSkillsRoutes(
       }
 
       const teacherId = req.user!.id;
-      const stats = await service.getSchoolSkillsStats(teacherId);
+      const grade = typeof req.query.grade === "string" ? req.query.grade : undefined;
+      const stats = await service.getSchoolSkillsStats(teacherId, grade);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching school skills stats:", error);

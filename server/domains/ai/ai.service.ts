@@ -82,6 +82,35 @@ type TutorResponsePayload = {
   safetyFlag?: string;
 };
 
+const VALID_SELF_ASSESSMENT_LEVELS = new Set([
+  "emerging",
+  "developing",
+  "proficient",
+  "applying",
+]);
+
+const normalizeSuggestedEvaluation = (value: unknown): TutorEvaluation | undefined => {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const normalized: TutorEvaluation = {};
+
+  if (
+    typeof record.selfAssessedLevel === "string" &&
+    VALID_SELF_ASSESSMENT_LEVELS.has(record.selfAssessedLevel)
+  ) {
+    normalized.selfAssessedLevel = record.selfAssessedLevel;
+  }
+
+  if (typeof record.confidence === "number" && Number.isFinite(record.confidence)) {
+    normalized.confidence = Math.max(0, Math.min(1, record.confidence));
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
 type CredentialSuggestion = {
   type: string;
   title: string;
@@ -546,12 +575,16 @@ If safety concerns are detected:
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}") as TutorResponsePayload;
+      const normalizedSuggestedEvaluation = normalizeSuggestedEvaluation(result.suggestedEvaluation);
+      const normalizedSafetyFlag = typeof result.safetyFlag === "string" ? result.safetyFlag : undefined;
 
       return {
-        response: result.response || "I'm here to help you develop this skill!",
-        suggestedEvaluation: result.suggestedEvaluation,
+        response: typeof result.response === "string" && result.response.trim().length > 0
+          ? result.response
+          : "I'm here to help you develop this skill!",
+        suggestedEvaluation: normalizedSuggestedEvaluation,
         shouldTerminate: result.shouldTerminate || false,
-        safetyFlag: result.safetyFlag || undefined
+        safetyFlag: normalizedSafetyFlag
       };
     } catch (error: unknown) {
       const errorDetails = this.parseErrorDetails(error);

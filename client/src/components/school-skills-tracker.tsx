@@ -1,25 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  TrendingUp,
-  TrendingDown,
+import {
   AlertTriangle,
   CheckCircle,
   Target,
   BarChart3,
-  Users,
   BookOpen,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import type { LearnerOutcomeHierarchyItemDTO } from '@shared/contracts/api';
 
 interface ComponentSkillProgress {
   id: number;
@@ -30,17 +23,15 @@ interface ComponentSkillProgress {
   averageScore: number;
   studentsAssessed: number;
   totalStudents: number;
-  passRate: number; // Percentage of students who achieved proficient or above
-  strugglingStudents: number; // Number of students scoring below developing
-  excellingStudents: number; // Number of students scoring applying level
+  passRate: number;
+  strugglingStudents: number;
+  excellingStudents: number;
   rubricDistribution: {
     emerging: number;
     developing: number;
     proficient: number;
     applying: number;
   };
-  trend: 'improving' | 'declining' | 'stable';
-  lastAssessmentDate: string;
 }
 
 interface SchoolSkillsStats {
@@ -52,80 +43,152 @@ interface SchoolSkillsStats {
   totalStudents: number;
 }
 
-interface LearnerOutcomeOption {
-  id: number;
-  name: string;
+type SortOption = 'assessed' | 'lowestPerformance' | 'highestPerformance';
+
+const ALL_FILTER_OPTION = 'all';
+const UNASSIGNED_GRADE_OPTION = '__unassigned__';
+
+function normalizeGradeValue(rawGrade: string | null | undefined): string {
+  const grade = (rawGrade ?? '').trim();
+  if (!grade) {
+    return UNASSIGNED_GRADE_OPTION;
+  }
+
+  const lower = grade.toLowerCase();
+  if (lower === 'k' || lower.includes('kindergarten')) {
+    return 'K';
+  }
+
+  const numericMatch = lower.match(/\b([0-9]{1,2})(?:st|nd|rd|th)?\b/);
+  if (numericMatch) {
+    return String(Number.parseInt(numericMatch[1], 10));
+  }
+
+  return grade;
+}
+
+function formatGradeLabel(gradeValue: string): string {
+  if (gradeValue === UNASSIGNED_GRADE_OPTION) {
+    return 'Unassigned';
+  }
+  if (gradeValue === 'K') {
+    return 'Kindergarten';
+  }
+  return `Grade ${gradeValue}`;
+}
+
+function compareGradeValues(a: string, b: string): number {
+  if (a === UNASSIGNED_GRADE_OPTION) return 1;
+  if (b === UNASSIGNED_GRADE_OPTION) return -1;
+  if (a === 'K') return -1;
+  if (b === 'K') return 1;
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 }
 
 export default function SchoolSkillsTracker() {
-  const [selectedOutcome, setSelectedOutcome] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'performance' | 'struggling' | 'assessed'>('struggling');
+  const [selectedOutcome, setSelectedOutcome] = useState<string>(ALL_FILTER_OPTION);
+  const [selectedGrade, setSelectedGrade] = useState<string>(ALL_FILTER_OPTION);
+  const [sortBy, setSortBy] = useState<SortOption>('assessed');
   const [viewMode, setViewMode] = useState<'overview' | 'details'>('overview');
 
-  const { data: apiSkillsData = [], isLoading, error } = useQuery<ComponentSkillProgress[]>({
-    queryKey: ["/api/assessments/teacher/school-component-skills-progress"],
+  const gradeQuery = selectedGrade === ALL_FILTER_OPTION
+    ? ''
+    : `?grade=${encodeURIComponent(selectedGrade)}`;
+
+  const skillsProgressPath = `/api/assessments/teacher/school-component-skills-progress${gradeQuery}`;
+  const schoolStatsPath = `/api/assessments/teacher/school-skills-stats${gradeQuery}`;
+
+  const { data: skillsData = [], isLoading, error } = useQuery<ComponentSkillProgress[]>({
+    queryKey: [skillsProgressPath],
     retry: false,
   });
 
-  // Use actual API data only - no mock data fallback
-  const skillsData = apiSkillsData;
-
-  const { data: learnerOutcomes = [] } = useQuery<LearnerOutcomeOption[]>({
-    queryKey: ["/api/learner-outcomes-hierarchy/complete"],
+  const { data: learnerOutcomeHierarchy = [] } = useQuery<LearnerOutcomeHierarchyItemDTO[]>({
+    queryKey: ["/api/competencies/learner-outcomes-hierarchy/complete"],
     queryFn: api.getLearnerOutcomesHierarchyComplete,
     retry: false,
   });
 
-  const { data: apiSchoolStats = {
+  const { data: schoolStudents = [] } = useQuery<Array<{ grade?: string | null }>>({
+    queryKey: ["/api/schools/students-progress"],
+    queryFn: api.getSchoolStudentsProgress,
+    retry: false,
+  });
+
+  const { data: schoolStats = {
     totalSkillsAssessed: 0,
     averageSchoolScore: 0,
     skillsNeedingAttention: 0,
     excellentPerformance: 0,
     studentsAssessed: 0,
-    totalStudents: 0
+    totalStudents: 0,
   } } = useQuery<SchoolSkillsStats>({
-    queryKey: ["/api/assessments/teacher/school-skills-stats"],
+    queryKey: [schoolStatsPath],
     retry: false,
   });
 
-  // Mock school stats if API fails
+  const learnerOutcomeOptions = useMemo(() => {
+    const names = new Set<string>();
 
-  const schoolStats = apiSchoolStats
+    learnerOutcomeHierarchy.forEach((outcome) => {
+      const name = outcome.name?.trim();
+      if (name) {
+        names.add(name);
+      }
+    });
 
-  const handleSortByChange = (value: string) => {
-    if (value === 'performance' || value === 'struggling' || value === 'assessed') {
-      setSortBy(value);
+    skillsData.forEach((skill) => {
+      const name = skill.learnerOutcomeName?.trim();
+      if (name && name.toLowerCase() !== 'unknown learner outcome') {
+        names.add(name);
+      }
+    });
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [learnerOutcomeHierarchy, skillsData]);
+
+  const gradeOptions = useMemo(() => {
+    const values = new Set<string>();
+
+    schoolStudents.forEach((student) => {
+      values.add(normalizeGradeValue(student.grade));
+    });
+
+    return Array.from(values).sort(compareGradeValues);
+  }, [schoolStudents]);
+
+  useEffect(() => {
+    if (selectedOutcome !== ALL_FILTER_OPTION && !learnerOutcomeOptions.includes(selectedOutcome)) {
+      setSelectedOutcome(ALL_FILTER_OPTION);
     }
-  };
+  }, [learnerOutcomeOptions, selectedOutcome]);
 
-  const handleViewModeChange = (value: string) => {
-    if (value === 'overview' || value === 'details') {
-      setViewMode(value);
+  useEffect(() => {
+    if (selectedGrade !== ALL_FILTER_OPTION && !gradeOptions.includes(selectedGrade)) {
+      setSelectedGrade(ALL_FILTER_OPTION);
     }
-  };
+  }, [gradeOptions, selectedGrade]);
 
-  // Filter and sort skills data
-  const filteredSkills = skillsData.filter(skill => 
-    selectedOutcome === 'all' || skill.learnerOutcomeName === selectedOutcome
+  const filteredSkills = skillsData.filter((skill) =>
+    selectedOutcome === ALL_FILTER_OPTION || skill.learnerOutcomeName === selectedOutcome,
   );
 
   const sortedSkills = [...filteredSkills].sort((a, b) => {
     switch (sortBy) {
-      case 'performance':
+      case 'lowestPerformance':
         return a.averageScore - b.averageScore;
-      case 'struggling':
-        return b.strugglingStudents - a.strugglingStudents;
+      case 'highestPerformance':
+        return b.averageScore - a.averageScore;
       case 'assessed':
-        return b.studentsAssessed - a.studentsAssessed;
       default:
-        return 0;
+        return b.studentsAssessed - a.studentsAssessed;
     }
   });
 
   const getPerformanceColor = (score: number) => {
-    if (score >= 3.5) return 'bg-green-500';
-    if (score >= 2.5) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (score >= 3.5) return 'bg-green-600';
+    if (score >= 2.5) return 'bg-yellow-600';
+    return 'bg-red-600';
   };
 
   const getPerformanceLevel = (score: number) => {
@@ -135,35 +198,17 @@ export default function SchoolSkillsTracker() {
     return 'Emerging';
   };
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case 'improving':
-        return <ArrowUpRight className="h-4 w-4 text-green-500" />;
-      case 'declining':
-        return <ArrowDownRight className="h-4 w-4 text-red-500" />;
-      default:
-        return <Minus className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  const getRiskLevel = (skill: ComponentSkillProgress) => {
-    const strugglingPercentage = (skill.strugglingStudents / skill.studentsAssessed) * 100;
-    if (strugglingPercentage > 40) return 'high';
-    if (strugglingPercentage > 25) return 'medium';
-    return 'low';
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+          <div className="mb-4 h-8 w-1/3 rounded bg-gray-200"></div>
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 rounded bg-gray-200"></div>
             ))}
           </div>
-          <div className="h-96 bg-gray-200 rounded"></div>
+          <div className="h-96 rounded bg-gray-200"></div>
         </div>
       </div>
     );
@@ -173,12 +218,12 @@ export default function SchoolSkillsTracker() {
     return (
       <Card className="p-6">
         <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to Load Component Skills Data</h3>
-          <p className="text-gray-600 mb-4">
+          <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+          <h3 className="mb-2 text-lg font-semibold text-gray-900">Unable to Load Component Skills Data</h3>
+          <p className="mb-4 text-gray-600">
             There was an error loading the component skills progress data. This might be due to:
           </p>
-          <ul className="text-sm text-gray-500 mb-6 space-y-1">
+          <ul className="mb-6 space-y-1 text-sm text-gray-500">
             <li>• No component skills have been assessed yet</li>
             <li>• Database connectivity issues</li>
             <li>• Missing component skill data in the system</li>
@@ -195,9 +240,9 @@ export default function SchoolSkillsTracker() {
     return (
       <Card className="p-6">
         <div className="text-center">
-          <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Component Skills Assessed Yet</h3>
-          <p className="text-gray-600 mb-4">
+          <BookOpen className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+          <h3 className="mb-2 text-lg font-semibold text-gray-900">No Component Skills Assessed Yet</h3>
+          <p className="mb-4 text-gray-600">
             Once students complete assessments with component skill evaluations, their progress will appear here.
           </p>
           <p className="text-sm text-gray-500">
@@ -210,7 +255,6 @@ export default function SchoolSkillsTracker() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Component Skills Tracker</h2>
@@ -234,16 +278,15 @@ export default function SchoolSkillsTracker() {
         </div>
       </div>
 
-      {/* School-wide Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="flex items-center p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              <div className="rounded-lg bg-blue-100 p-2">
                 <Target className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Skills Assessed</p>
+                <p className="text-sm font-medium text-gray-700">Skills Assessed</p>
                 <p className="text-2xl font-bold text-gray-900">{schoolStats.totalSkillsAssessed}</p>
               </div>
             </div>
@@ -253,13 +296,13 @@ export default function SchoolSkillsTracker() {
         <Card>
           <CardContent className="flex items-center p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 bg-green-100 rounded-lg">
+              <div className="rounded-lg bg-green-100 p-2">
                 <BarChart3 className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Average Score</p>
+                <p className="text-sm font-medium text-gray-700">Average Score</p>
                 <p className="text-2xl font-bold text-gray-900">{schoolStats.averageSchoolScore.toFixed(1)}</p>
-                <p className="text-xs text-gray-500">{getPerformanceLevel(schoolStats.averageSchoolScore)}</p>
+                <p className="text-xs text-gray-600">{getPerformanceLevel(schoolStats.averageSchoolScore)}</p>
               </div>
             </div>
           </CardContent>
@@ -268,13 +311,13 @@ export default function SchoolSkillsTracker() {
         <Card>
           <CardContent className="flex items-center p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 bg-red-100 rounded-lg">
+              <div className="rounded-lg bg-red-100 p-2">
                 <AlertTriangle className="h-6 w-6 text-red-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Need Attention</p>
+                <p className="text-sm font-medium text-gray-700">Need Attention</p>
                 <p className="text-2xl font-bold text-gray-900">{schoolStats.skillsNeedingAttention}</p>
-                <p className="text-xs text-gray-500">Skills struggling</p>
+                <p className="text-xs text-gray-600">Skills struggling</p>
               </div>
             </div>
           </CardContent>
@@ -283,179 +326,179 @@ export default function SchoolSkillsTracker() {
         <Card>
           <CardContent className="flex items-center p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 bg-purple-100 rounded-lg">
+              <div className="rounded-lg bg-purple-100 p-2">
                 <CheckCircle className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Excelling</p>
+                <p className="text-sm font-medium text-gray-700">Excelling</p>
                 <p className="text-2xl font-bold text-gray-900">{schoolStats.excellentPerformance}</p>
-                <p className="text-xs text-gray-500">High performance</p>
+                <p className="text-xs text-gray-600">High performance</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters and Controls */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Learner Outcome</label>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Filter by Learner Outcome</label>
           <Select value={selectedOutcome} onValueChange={setSelectedOutcome}>
             <SelectTrigger>
               <SelectValue placeholder="Select learner outcome..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Outcomes</SelectItem>
-              {learnerOutcomes.map((outcome) => (
-                <SelectItem key={outcome.id} value={outcome.name}>
-                  {outcome.name}
+              <SelectItem value={ALL_FILTER_OPTION}>All Outcomes</SelectItem>
+              {learnerOutcomeOptions.map((outcome) => (
+                <SelectItem key={outcome} value={outcome}>
+                  {outcome}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
-          <Select value={sortBy} onValueChange={handleSortByChange}>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Filter by Grade Level</label>
+          <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select grade..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_FILTER_OPTION}>All Grades</SelectItem>
+              {gradeOptions.map((grade) => (
+                <SelectItem key={grade} value={grade}>
+                  {formatGradeLabel(grade)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Sort by</label>
+          <Select
+            value={sortBy}
+            onValueChange={(value) => {
+              if (value === 'assessed' || value === 'lowestPerformance' || value === 'highestPerformance') {
+                setSortBy(value);
+              }
+            }}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="struggling">Most Struggling</SelectItem>
-              <SelectItem value="performance">Lowest Performance</SelectItem>
               <SelectItem value="assessed">Most Assessed</SelectItem>
+              <SelectItem value="lowestPerformance">Lowest Performance</SelectItem>
+              <SelectItem value="highestPerformance">Highest Performance</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Skills Performance List */}
-      <Tabs value={viewMode} onValueChange={handleViewModeChange}>
+      <Tabs value={viewMode} onValueChange={(value) => value === 'overview' || value === 'details' ? setViewMode(value) : undefined}>
         <TabsContent value="overview">
-          <div className="grid gap-4">
-            {sortedSkills.map((skill) => {
-              const riskLevel = getRiskLevel(skill);
-              return (
-                <Card key={skill.id} className={`border-l-4 ${
-                  riskLevel === 'high' ? 'border-l-red-500' :
-                  riskLevel === 'medium' ? 'border-l-yellow-500' :
-                  'border-l-green-500'
-                }`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{skill.name}</h3>
-                          {getTrendIcon(skill.trend)}
-                          <Badge variant={
-                            riskLevel === 'high' ? 'destructive' :
-                            riskLevel === 'medium' ? 'secondary' :
-                            'default'
-                          }>
-                            {riskLevel === 'high' ? 'High Risk' :
-                             riskLevel === 'medium' ? 'Medium Risk' :
-                             'Low Risk'}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-1">{skill.competencyName}</p>
-                        <p className="text-xs text-gray-500">{skill.learnerOutcomeName}</p>
-                      </div>
+          {sortedSkills.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-sm font-medium text-gray-900">No skills match the current filters.</p>
+                <p className="mt-1 text-xs text-gray-600">Try another learner outcome or grade level.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {sortedSkills.map((skill) => {
+                const totalAssessed = Math.max(skill.studentsAssessed, 1);
+                const segments = [
+                  { key: 'emerging', label: 'Emerging', short: 'E', colorClass: 'bg-red-500', count: skill.rubricDistribution.emerging },
+                  { key: 'developing', label: 'Developing', short: 'D', colorClass: 'bg-yellow-500', count: skill.rubricDistribution.developing },
+                  { key: 'proficient', label: 'Proficient', short: 'P', colorClass: 'bg-blue-500', count: skill.rubricDistribution.proficient },
+                  { key: 'applying', label: 'Applying', short: 'A', colorClass: 'bg-green-500', count: skill.rubricDistribution.applying },
+                ];
 
-                      <div className="flex items-center space-x-6">
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-gray-900">{skill.averageScore.toFixed(1)}</p>
-                          <p className="text-xs text-gray-500">Avg Score</p>
-                        </div>
-
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-red-600">{skill.strugglingStudents}</p>
-                          <p className="text-xs text-gray-500">Struggling</p>
-                        </div>
-
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-green-600">{skill.excellingStudents}</p>
-                          <p className="text-xs text-gray-500">Excelling</p>
-                        </div>
-
-                        <div className="text-center">
-                          <p className="text-lg font-semibold text-gray-900">{skill.studentsAssessed}/{skill.totalStudents}</p>
-                          <p className="text-xs text-gray-500">Assessed</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">Performance Distribution</span>
-                        <span className="text-sm text-gray-500">{skill.passRate.toFixed(0)}% passing</span>
-                      </div>
-                      <div className="flex h-6 bg-gray-200 rounded overflow-hidden">
-                        {skill.rubricDistribution.emerging > 0 && (
-                          <div 
-                            className="bg-red-500 h-full flex items-center justify-center text-xs text-white font-medium"
-                            style={{ width: `${(skill.rubricDistribution.emerging / skill.studentsAssessed) * 100}%` }}
-                            title={`Emerging: ${skill.rubricDistribution.emerging} students (${((skill.rubricDistribution.emerging / skill.studentsAssessed) * 100).toFixed(0)}%)`}
-                            data-testid={`distribution-emerging-${skill.id}`}
-                          >
-                            {(skill.rubricDistribution.emerging / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.emerging : ''}
+                return (
+                  <Card key={skill.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="mb-2 flex items-center space-x-3">
+                            <h3 className="text-lg font-semibold text-gray-900">{skill.name}</h3>
                           </div>
-                        )}
-                        {skill.rubricDistribution.developing > 0 && (
-                          <div 
-                            className="bg-yellow-500 h-full flex items-center justify-center text-xs text-white font-medium"
-                            style={{ width: `${(skill.rubricDistribution.developing / skill.studentsAssessed) * 100}%` }}
-                            title={`Developing: ${skill.rubricDistribution.developing} students (${((skill.rubricDistribution.developing / skill.studentsAssessed) * 100).toFixed(0)}%)`}
-                            data-testid={`distribution-developing-${skill.id}`}
-                          >
-                            {(skill.rubricDistribution.developing / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.developing : ''}
-                          </div>
-                        )}
-                        {skill.rubricDistribution.proficient > 0 && (
-                          <div 
-                            className="bg-blue-500 h-full flex items-center justify-center text-xs text-white font-medium"
-                            style={{ width: `${(skill.rubricDistribution.proficient / skill.studentsAssessed) * 100}%` }}
-                            title={`Proficient: ${skill.rubricDistribution.proficient} students (${((skill.rubricDistribution.proficient / skill.studentsAssessed) * 100).toFixed(0)}%)`}
-                            data-testid={`distribution-proficient-${skill.id}`}
-                          >
-                            {(skill.rubricDistribution.proficient / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.proficient : ''}
-                          </div>
-                        )}
-                        {skill.rubricDistribution.applying > 0 && (
-                          <div 
-                            className="bg-green-500 h-full flex items-center justify-center text-xs text-white font-medium"
-                            style={{ width: `${(skill.rubricDistribution.applying / skill.studentsAssessed) * 100}%` }}
-                            title={`Applying: ${skill.rubricDistribution.applying} students (${((skill.rubricDistribution.applying / skill.studentsAssessed) * 100).toFixed(0)}%)`}
-                            data-testid={`distribution-applying-${skill.id}`}
-                          >
-                            {(skill.rubricDistribution.applying / skill.studentsAssessed) * 100 >= 10 ? skill.rubricDistribution.applying : ''}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-3 mt-2">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-sm bg-red-500"></div>
-                          <span className="text-xs text-gray-600">Emerging: {skill.rubricDistribution.emerging} ({((skill.rubricDistribution.emerging / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
+                          <p className="mb-1 text-sm text-gray-700">{skill.competencyName}</p>
+                          <p className="text-xs font-medium text-gray-600">{skill.learnerOutcomeName}</p>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-sm bg-yellow-500"></div>
-                          <span className="text-xs text-gray-600">Developing: {skill.rubricDistribution.developing} ({((skill.rubricDistribution.developing / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
-                          <span className="text-xs text-gray-600">Proficient: {skill.rubricDistribution.proficient} ({((skill.rubricDistribution.proficient / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded-sm bg-green-500"></div>
-                          <span className="text-xs text-gray-600">Applying: {skill.rubricDistribution.applying} ({((skill.rubricDistribution.applying / skill.studentsAssessed) * 100).toFixed(0)}%)</span>
+
+                        <div className="flex items-center space-x-6">
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-gray-900">{skill.averageScore.toFixed(1)}</p>
+                            <p className="text-xs text-gray-600">Avg Score</p>
+                          </div>
+
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-red-700">{skill.strugglingStudents}</p>
+                            <p className="text-xs text-gray-600">Struggling</p>
+                          </div>
+
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-green-700">{skill.excellingStudents}</p>
+                            <p className="text-xs text-gray-600">Excelling</p>
+                          </div>
+
+                          <div className="text-center">
+                            <p className="text-lg font-semibold text-gray-900">{skill.studentsAssessed}/{skill.totalStudents}</p>
+                            <p className="text-xs text-gray-600">Assessed</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+
+                      <div className="mt-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-800">Performance Distribution</span>
+                          <span className="text-sm font-semibold text-gray-700">{skill.passRate.toFixed(0)}% passing</span>
+                        </div>
+                        <div className="flex h-6 overflow-hidden rounded bg-gray-200">
+                          {segments.map((segment) => {
+                            if (segment.count <= 0) {
+                              return null;
+                            }
+
+                            const percent = (segment.count / totalAssessed) * 100;
+                            return (
+                              <div
+                                key={segment.key}
+                                className={`h-full ${segment.colorClass} flex items-center justify-center text-xs font-medium text-white`}
+                                style={{ width: `${percent}%` }}
+                                title={`${segment.label}: ${segment.count} students (${percent.toFixed(0)}%)`}
+                                aria-label={`${segment.label}: ${segment.count} students (${percent.toFixed(0)} percent)`}
+                                data-testid={`distribution-${segment.key}-${skill.id}`}
+                              >
+                                {percent >= 12 ? `${segment.short}:${segment.count}` : ''}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          {segments.map((segment) => {
+                            const percent = (segment.count / totalAssessed) * 100;
+                            return (
+                              <div key={segment.key} className="flex items-center gap-1.5">
+                                <span className={`inline-flex h-4 w-4 items-center justify-center rounded-sm text-[10px] font-bold text-white ${segment.colorClass}`}>
+                                  {segment.short}
+                                </span>
+                                <span className="text-xs font-medium text-gray-700">
+                                  {segment.label}: {segment.count} ({percent.toFixed(0)}%)
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="details">
@@ -468,15 +511,14 @@ export default function SchoolSkillsTracker() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-3">Component Skill</th>
-                      <th className="text-left p-3">Competency</th>
-                      <th className="text-center p-3">Avg Score</th>
-                      <th className="text-center p-3">Emerging</th>
-                      <th className="text-center p-3">Developing</th>
-                      <th className="text-center p-3">Proficient</th>
-                      <th className="text-center p-3">Applying</th>
-                      <th className="text-center p-3">Pass Rate</th>
-                      <th className="text-center p-3">Trend</th>
+                      <th className="p-3 text-left">Component Skill</th>
+                      <th className="p-3 text-left">Competency</th>
+                      <th className="p-3 text-center">Avg Score</th>
+                      <th className="p-3 text-center">Emerging</th>
+                      <th className="p-3 text-center">Developing</th>
+                      <th className="p-3 text-center">Proficient</th>
+                      <th className="p-3 text-center">Applying</th>
+                      <th className="p-3 text-center">Pass Rate</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -484,22 +526,21 @@ export default function SchoolSkillsTracker() {
                       <tr key={skill.id} className="border-b hover:bg-gray-50">
                         <td className="p-3">
                           <div>
-                            <p className="font-medium">{skill.name}</p>
-                            <p className="text-xs text-gray-500">{skill.learnerOutcomeName}</p>
+                            <p className="font-medium text-gray-900">{skill.name}</p>
+                            <p className="text-xs font-medium text-gray-600">{skill.learnerOutcomeName}</p>
                           </div>
                         </td>
-                        <td className="p-3 text-sm">{skill.competencyName}</td>
+                        <td className="p-3 text-sm text-gray-800">{skill.competencyName}</td>
                         <td className="p-3 text-center">
-                          <span className={`inline-block w-8 h-8 rounded text-white text-xs flex items-center justify-center ${getPerformanceColor(skill.averageScore)}`}>
+                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded text-xs font-semibold text-white ${getPerformanceColor(skill.averageScore)}`}>
                             {skill.averageScore.toFixed(1)}
                           </span>
                         </td>
-                        <td className="p-3 text-center">{skill.rubricDistribution.emerging}</td>
-                        <td className="p-3 text-center">{skill.rubricDistribution.developing}</td>
-                        <td className="p-3 text-center">{skill.rubricDistribution.proficient}</td>
-                        <td className="p-3 text-center">{skill.rubricDistribution.applying}</td>
-                        <td className="p-3 text-center">{skill.passRate.toFixed(0)}%</td>
-                        <td className="p-3 text-center">{getTrendIcon(skill.trend)}</td>
+                        <td className="p-3 text-center text-gray-800">{skill.rubricDistribution.emerging}</td>
+                        <td className="p-3 text-center text-gray-800">{skill.rubricDistribution.developing}</td>
+                        <td className="p-3 text-center text-gray-800">{skill.rubricDistribution.proficient}</td>
+                        <td className="p-3 text-center text-gray-800">{skill.rubricDistribution.applying}</td>
+                        <td className="p-3 text-center text-gray-800">{skill.passRate.toFixed(0)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -509,42 +550,6 @@ export default function SchoolSkillsTracker() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Action Items */}
-      {schoolStats.skillsNeedingAttention > 0 && (
-        <Card className="border-l-4 border-l-red-500">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <span>Recommended Actions</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="p-3 bg-red-50 rounded-lg">
-                <p className="text-sm font-medium text-red-800">
-                  {schoolStats.skillsNeedingAttention} component skills need immediate attention
-                </p>
-                <p className="text-xs text-red-700 mt-1">
-                  Consider creating targeted interventions for struggling students in these areas
-                </p>
-              </div>
-              {/* Add more action items based on data patterns */}
-              <div className="flex space-x-2">
-                <Button size="sm" variant="outline">
-                  Generate Intervention Plan
-                </Button>
-                <Button size="sm" variant="outline">
-                  Create Support Materials
-                </Button>
-                <Button size="sm" variant="outline">
-                  Schedule Professional Development
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -109,6 +109,7 @@ export interface ComponentSkillWithDetailsDTO {
   name: string;
   competencyId: number | null;
   competencyName?: string | null;
+  competencyDescription?: string | null;
   competencyCategory?: string | null;
   learnerOutcomeName?: string | null;
   learnerOutcomeType?: string | null;

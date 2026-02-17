@@ -1,19 +1,19 @@
+import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
   BookOpen,
   Clock,
+  Download,
   GraduationCap,
   Target,
   CheckCircle,
   FileText,
-  Calendar,
   Users,
   Sparkles,
   Share2
@@ -31,8 +31,10 @@ interface Milestone {
 
 interface ComponentSkill {
   id: number;
-  name: string;
-  description: string | null;
+  name: string | null;
+  competencyId: number | null;
+  competencyName?: string | null;
+  competencyDescription?: string | null;
 }
 
 interface BestStandard {
@@ -57,6 +59,29 @@ interface PublicProject {
   milestones: Milestone[];
   componentSkills: ComponentSkill[];
   bestStandards: BestStandard[];
+}
+
+function ContentSection({
+  title,
+  helperText,
+  icon,
+  children,
+}: {
+  title: string;
+  helperText: string;
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <h3 className="text-xl font-semibold mb-2 flex items-center gap-2 text-gray-900">
+        {icon}
+        {title}
+      </h3>
+      <p className="text-sm italic text-blue-700/80 mb-4">{helperText}</p>
+      {children}
+    </section>
+  );
 }
 
 export default function PublicProjectDetail() {
@@ -145,6 +170,68 @@ export default function PublicProjectDetail() {
   }
 
   const sortedMilestones = [...(project.milestones || [])].sort((a, b) => a.order - b.order);
+  const groupedCompetencySkills = useMemo(() => {
+    const groups = new Map<number, {
+      competencyId: number;
+      competencyName: string;
+      competencyDescription: string | null;
+      skills: ComponentSkill[];
+    }>();
+
+    for (const skill of project.componentSkills || []) {
+      const competencyId = skill.competencyId ?? 0;
+      const competencyName = skill.competencyName?.trim() || "Uncategorized Competency";
+
+      const existingGroup = groups.get(competencyId);
+      if (existingGroup) {
+        existingGroup.skills.push(skill);
+        continue;
+      }
+
+      groups.set(competencyId, {
+        competencyId,
+        competencyName,
+        competencyDescription: skill.competencyDescription ?? null,
+        skills: [skill],
+      });
+    }
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        skills: [...group.skills].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+      }))
+      .sort((a, b) => a.competencyName.localeCompare(b.competencyName));
+  }, [project.componentSkills]);
+
+  const handleShareProject = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: project.title,
+          text: "Check out this project from the MasteryMap Project Explorer.",
+          url: window.location.href,
+        });
+        return;
+      }
+    } catch {
+      // Fall back to clipboard copy below
+    }
+
+    navigator.clipboard.writeText(window.location.href);
+    toast({
+      title: "Link copied",
+      description: "Project link copied to clipboard",
+    });
+  };
+
+  const handleDownloadPdf = () => {
+    window.print();
+    toast({
+      title: "Print dialog opened",
+      description: "Choose 'Save as PDF' in your browser to download.",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -175,25 +262,11 @@ export default function PublicProjectDetail() {
       <main className="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         <Button
           variant="ghost"
-          className="mb-6"
+          className="mb-4"
           onClick={() => setLocation("/explore")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Explorer
-        </Button>
-        <Button
-          variant="outline"
-          className="mb-6 float-right"
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href);
-            toast({
-              title: "Link copied",
-              description: "Project link copied to clipboard",
-            });
-          }}
-        >
-          <Share2 className="h-4 w-4 mr-2" />
-          Share
         </Button>
 
         <Card className="overflow-hidden">
@@ -206,144 +279,164 @@ export default function PublicProjectDetail() {
             />
           </div>
 
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-6">
             <div className="flex flex-wrap gap-2 mb-4">
-              {project.subjectArea && (
-                <Badge variant="secondary">
-                  <BookOpen className="h-3 w-3 mr-1" />
-                  {project.subjectArea}
-                </Badge>
-              )}
               {project.gradeLevel && (
-                <Badge variant="outline">
+                <Badge variant="secondary" className="bg-fuchsia-100 text-fuchsia-800 hover:bg-fuchsia-200">
                   <GraduationCap className="h-3 w-3 mr-1" />
                   {project.gradeLevel === 'K' ? 'Kindergarten' : `Grade ${project.gradeLevel}`}
                 </Badge>
               )}
+              {project.subjectArea && (
+                <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">
+                  <BookOpen className="h-3 w-3 mr-1" />
+                  {project.subjectArea}
+                </Badge>
+              )}
               {project.estimatedDuration && (
-                <Badge variant="outline">
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
                   <Clock className="h-3 w-3 mr-1" />
                   {project.estimatedDuration}
                 </Badge>
               )}
             </div>
-            <CardTitle className="text-3xl">{project.title}</CardTitle>
+            <CardTitle className="text-4xl leading-tight">{project.title}</CardTitle>
             {project.description && (
-              <CardDescription className="text-base mt-2">
+              <CardDescription className="text-xl leading-relaxed mt-4 text-gray-700">
                 {project.description}
               </CardDescription>
             )}
+            <div className="flex flex-wrap gap-3 mt-6">
+              <Button size="lg" onClick={() => setLocation("/register")}>
+                Use This Project
+              </Button>
+              <Button variant="outline" size="lg" onClick={handleDownloadPdf}>
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+              <Button variant="outline" size="lg" onClick={handleShareProject}>
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
+            </div>
           </CardHeader>
 
           <CardContent className="space-y-8">
-            {project.componentSkills && project.componentSkills.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Target className="h-5 w-5 text-blue-600" />
-                  XQ Competency Skills
-                </h3>
-                <div className="grid gap-3">
-                  {project.componentSkills.map(skill => (
-                    <div
-                      key={skill.id}
-                      className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg"
-                    >
-                      <CheckCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-gray-900">{skill.name}</p>
-                        {skill.description && (
-                          <p className="text-sm text-gray-600 mt-1">{skill.description}</p>
+            {groupedCompetencySkills.length > 0 && (
+              <ContentSection
+                title="XQ Competency Skills"
+                helperText="Skills are grouped by competency to show how each cluster supports deeper learning outcomes."
+                icon={<Target className="h-5 w-5 text-blue-600" />}
+              >
+                <div className="grid gap-4">
+                  {groupedCompetencySkills.map((group) => (
+                    <Card key={group.competencyId} className="border-blue-100 bg-blue-50/60">
+                      <CardContent className="p-5">
+                        <h4 className="text-lg font-semibold text-gray-900">{group.competencyName}</h4>
+                        {group.competencyDescription && (
+                          <p className="text-sm text-gray-700 mt-1">{group.competencyDescription}</p>
                         )}
-                      </div>
-                    </div>
+                        <div className="grid gap-2 mt-4">
+                          {group.skills.map((skill) => (
+                            <div key={skill.id} className="flex items-start gap-2">
+                              <CheckCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                              <p className="text-sm text-gray-800">{skill.name || "Unnamed Skill"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </div>
+              </ContentSection>
             )}
 
             {project.bestStandards && project.bestStandards.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-indigo-600" />
-                  B.E.S.T. Standards
-                </h3>
+              <ContentSection
+                title="B.E.S.T. Standards"
+                helperText="These standards identify the specific benchmark targets this project supports."
+                icon={<BookOpen className="h-5 w-5 text-indigo-600" />}
+              >
                 <div className="grid gap-3">
-                  {project.bestStandards.map(standard => (
-                    <div
-                      key={standard.id}
-                      className="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg"
-                    >
-                      <CheckCircle className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-gray-900">{standard.benchmarkNumber}</p>
-                        <p className="text-sm text-gray-600 mt-1">{standard.description}</p>
-                        <div className="flex gap-2 mt-2">
-                          {standard.subject && (
-                            <Badge variant="outline" className="text-xs">
-                              {standard.subject}
-                            </Badge>
-                          )}
-                          {standard.grade && (
-                            <Badge variant="outline" className="text-xs">
-                              {standard.grade}
-                            </Badge>
-                          )}
+                  {project.bestStandards.map((standard) => (
+                    <Card key={standard.id} className="border-indigo-100 bg-indigo-50/50">
+                      <CardContent className="p-4 flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-gray-900">{standard.benchmarkNumber}</p>
+                          <p className="text-sm text-gray-700 mt-1">{standard.description}</p>
+                          <div className="flex gap-2 mt-2">
+                            {standard.subject && (
+                              <Badge variant="outline" className="text-xs">
+                                {standard.subject}
+                              </Badge>
+                            )}
+                            {standard.grade && (
+                              <Badge variant="outline" className="text-xs">
+                                {standard.grade}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </div>
+              </ContentSection>
             )}
-
-            <Separator />
 
             {sortedMilestones.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-600" />
-                  Project Milestones
-                </h3>
-                <div className="space-y-4">
+              <ContentSection
+                title="Project Milestones"
+                helperText="A sequenced pathway showing the major phases of the project from start to finish."
+                icon={<Sparkles className="h-5 w-5 text-purple-600" />}
+              >
+                <div className="grid gap-3">
                   {sortedMilestones.map((milestone, index) => (
-                    <div
-                      key={milestone.id}
-                      className="flex gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 text-purple-700 font-bold shrink-0">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">{milestone.title}</h4>
-                        {milestone.description && (
-                          <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
-                        )}
-                      </div>
-                    </div>
+                    <Card key={milestone.id} className="border-purple-100 bg-white">
+                      <CardContent className="p-4 flex gap-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 text-purple-700 font-bold shrink-0">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{milestone.title}</h4>
+                          {milestone.description && (
+                            <p className="text-sm text-gray-700 mt-1">{milestone.description}</p>
+                          )}
+                          {milestone.dueDate && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Due {new Date(milestone.dueDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </div>
+              </ContentSection>
             )}
 
-            <Separator />
-
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-600" />
-                Want to Use This Project?
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Sign up for MasteryMap to create your own version of this project and track student progress.
-              </p>
-              <div className="flex gap-3">
-                <Button onClick={() => setLocation("/register")}>
-                  Create Free Account
-                </Button>
-                <Button variant="outline" onClick={() => setLocation("/login")}>
-                  Sign In
-                </Button>
-              </div>
-            </div>
+            <ContentSection
+              title="Want to Use This Project?"
+              helperText="Bring this project into your classroom and adapt it to your learners."
+              icon={<Users className="h-5 w-5 text-blue-600" />}
+            >
+              <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-100">
+                <CardContent className="p-6">
+                  <p className="text-gray-700 mb-4">
+                    Sign up for MasteryMap to create your own version of this project and track student progress.
+                  </p>
+                  <div className="flex gap-3">
+                    <Button onClick={() => setLocation("/register")}>
+                      Create Free Account
+                    </Button>
+                    <Button variant="outline" onClick={() => setLocation("/login")}>
+                      Sign In
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </ContentSection>
           </CardContent>
         </Card>
       </main>

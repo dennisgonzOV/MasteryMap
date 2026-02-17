@@ -1,6 +1,6 @@
 import { Router, type Response } from "express";
 import { z } from "zod";
-import { UserRole, type User } from "../../../shared/schema";
+import { UserRole, gradeLevelEnum, type User } from "../../../shared/schema";
 import {
   createSuccessResponse,
   sendErrorResponse,
@@ -17,6 +17,15 @@ const adminCreateUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.nativeEnum(UserRole).default(UserRole.STUDENT),
+  grade: z.enum(gradeLevelEnum).optional(),
+}).superRefine((data, ctx) => {
+  if (data.role === UserRole.STUDENT && !data.grade) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["grade"],
+      message: "Grade is required for students",
+    });
+  }
 });
 
 type AdminAuthStorage = Pick<
@@ -126,6 +135,7 @@ export function createAdminRouter(dependencies: AdminRouterDependencies): Router
 
       const { user } = await authService.registerUser({
         ...parsed,
+        grade: parsed.role === UserRole.STUDENT ? parsed.grade : null,
         firstName: null,
         lastName: null,
         email: null,
@@ -190,6 +200,7 @@ export function createAdminRouter(dependencies: AdminRouterDependencies): Router
 
           const { user } = await authService.registerUser({
             ...userData,
+            grade: userData.role === UserRole.STUDENT ? userData.grade : null,
             firstName: null,
             lastName: null,
             email: null,

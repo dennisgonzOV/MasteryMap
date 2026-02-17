@@ -292,6 +292,7 @@ export class CompetencyStorage implements ICompetencyStorage {
           name: skill.name || 'Unknown Skill',
           competencyId: skill.competencyId || 0,
           competencyName: competency?.name || 'Unknown Competency',
+          competencyDescription: competency?.description || null,
           competencyCategory: competency?.category || null,
           learnerOutcomeId: competency?.learnerOutcomeId || null,
           learnerOutcomeName: learnerOutcome?.name || 'Unknown Learner Outcome',
@@ -348,6 +349,7 @@ export class CompetencyStorage implements ICompetencyStorage {
               rubricLevels: (typeof skill.rubricLevels === 'object' && skill.rubricLevels !== null && !Array.isArray(skill.rubricLevels)) ? skill.rubricLevels : {},
               competencyId: skill.competencyId,
               competencyName: competency?.name || 'Unknown Competency',
+              competencyDescription: competency?.description || null,
               learnerOutcomeName: learnerOutcome?.name || 'Unknown Learner Outcome',
             };
           } catch (skillError) {
@@ -358,6 +360,7 @@ export class CompetencyStorage implements ICompetencyStorage {
               rubricLevels: skill.rubricLevels,
               competencyId: skill.competencyId,
               competencyName: 'Unknown Competency',
+              competencyDescription: null,
               learnerOutcomeName: 'Unknown Learner Outcome',
             };
           }
