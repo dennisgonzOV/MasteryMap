@@ -166,7 +166,7 @@ export const api = {
   getLearnerOutcomes: () =>
     apiJsonRequest<UnknownRecord[]>("/api/learner-outcomes", "GET"),
   getLearnerOutcomesHierarchyComplete: () =>
-    apiJsonRequest<LearnerOutcomeHierarchyItemDTO[]>("/api/learner-outcomes-hierarchy/complete", "GET"),
+    apiJsonRequest<LearnerOutcomeHierarchyItemDTO[]>("/api/competencies/learner-outcomes-hierarchy/complete", "GET"),
 
   // Notifications
   getNotifications: () =>

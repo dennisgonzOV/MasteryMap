@@ -93,8 +93,9 @@ export default function StandaloneAssessmentModal({
 
   // Fetch the complete 3-level hierarchy for component skills selection
   const { data: hierarchyData = [], isLoading: hierarchyLoading } = useQuery<HierarchyOutcome[]>({
-    queryKey: ['/api/learner-outcomes-hierarchy/complete'],
+    queryKey: ['/api/competencies/learner-outcomes-hierarchy/complete'],
     enabled: open,
+    queryFn: api.getLearnerOutcomesHierarchyComplete,
   });
 
   // Create assessment mutation
