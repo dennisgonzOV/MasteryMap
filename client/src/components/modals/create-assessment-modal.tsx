@@ -161,7 +161,7 @@ export default function CreateAssessmentModal({
     const submissionData = {
       ...data,
       questions: data.assessmentType === "teacher" ? data.questions : undefined,
-      pdfUrl: data.assessmentType === "teacher" ? pdfObjectPath : undefined,
+      pdfUrl: pdfObjectPath || undefined,
     };
 
     createAssessmentMutation.mutate(submissionData);
@@ -474,14 +474,18 @@ export default function CreateAssessmentModal({
               </Card>
             )}
 
-            {/* PDF Upload Section - Only for Teacher Assessments */}
-            {assessmentType === "teacher" && (
+            {/* PDF Upload Section - Available for Teacher Assessments and Self-Evaluations */}
+            {(assessmentType === "teacher" || assessmentType === "self-evaluation") && (
               <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 space-y-3">
                 <div className="flex items-center space-x-3">
                   <FileText className="h-5 w-5 text-purple-600" />
                   <div>
                     <p className="font-medium text-purple-900">Reading Material (PDF)</p>
-                    <p className="text-sm text-purple-700">Optionally upload a PDF document (e.g. a reading assignment). The AI will use it to generate questions and grade responses.</p>
+                    <p className="text-sm text-purple-700">
+                      {assessmentType === "teacher"
+                        ? "Optionally upload a PDF document (e.g. a reading assignment). The AI will use it to generate questions and grade responses."
+                        : "Optionally upload a PDF document (e.g. reading material). The AI tutor will use it during the self-assessment conversation."}
+                    </p>
                   </div>
                 </div>
 

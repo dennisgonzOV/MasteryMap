@@ -447,6 +447,7 @@ Example JSON structure:
     conversationHistory: TutorConversationMessage[] = [],
     currentEvaluation?: TutorEvaluation,
     assessmentDescription?: string,
+    assessmentPdfContext?: string,
   ): Promise<TutorResponsePayload> {
     try {
       const historyText = conversationHistory
@@ -473,6 +474,10 @@ Example JSON structure:
         typeof assessmentDescription === "string" && assessmentDescription.trim().length > 0
           ? assessmentDescription.trim()
           : "No teacher-provided assessment description available.";
+      const teacherAssessmentPdfContext =
+        typeof assessmentPdfContext === "string" && assessmentPdfContext.trim().length > 0
+          ? assessmentPdfContext.trim()
+          : "No teacher-provided PDF context available.";
 
       // Build rubric levels from individual component skill fields
       const rubricLevels = {
@@ -487,6 +492,7 @@ Example JSON structure:
 COMPONENT SKILL: ${skillName}
 CURRENT LEVEL: ${currentLevel}
 ASSESSMENT CONTEXT (TEACHER DESCRIPTION): ${teacherAssessmentDescription}
+ASSESSMENT MATERIAL CONTEXT (TEACHER PDF): ${teacherAssessmentPdfContext}
 ${isFinalTurn ? "NOTE: This is the FINAL turn. You must provide a summarizing statement and conclude the session. Do NOT ask any follow-up questions." : ""}
 
 RUBRIC LEVELS:
@@ -515,7 +521,7 @@ If ANY concerning content is detected, immediately flag it and provide a safety 
 
 TASKS:
 1. Safety Analysis: Check for risky content
-2. Educational Response: Provide detailed, constructive critique of the latest student response and align all feedback to the teacher's assessment description and rubric.
+2. Educational Response: Provide detailed, constructive critique of the latest student response and align all feedback to the teacher's assessment description, teacher-provided PDF material context, and rubric.
 3. Suggested Evaluation: Suggest their current level based on evidence in the conversation.
 4. Continue/Terminate: Determine if the conversation should continue
 5. Summary: If this is the 3rd student response, provide a comprehensive summary and concluding statement. Do not ask a follow-up question.

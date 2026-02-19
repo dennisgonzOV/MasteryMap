@@ -51,17 +51,29 @@ export class AIController {
           ...msg,
           studentId: req.user?.role === 'student' ? userId : msg.studentId
         }));
-        const teacherAssessmentDescription =
-          Number.isInteger(parsedAssessmentId) && parsedAssessmentId > 0
-            ? sanitizeForPrompt((await this.assessmentsStorage.getAssessment(parsedAssessmentId))?.description || "")
-            : undefined;
+        let teacherAssessmentDescription: string | undefined;
+        let assessmentPdfContext: string | undefined;
+        if (Number.isInteger(parsedAssessmentId) && parsedAssessmentId > 0) {
+          const assessment = await this.assessmentsStorage.getAssessment(parsedAssessmentId);
+          teacherAssessmentDescription = sanitizeForPrompt(assessment?.description || "");
+
+          if (assessment?.pdfUrl) {
+            try {
+              const { extractTextFromPdfUrl } = await import('../../utils/pdf');
+              assessmentPdfContext = sanitizeForPrompt(await extractTextFromPdfUrl(assessment.pdfUrl));
+            } catch (pdfError) {
+              console.error("Error extracting assessment PDF for tutor context:", pdfError);
+            }
+          }
+        }
 
         // Generate AI tutor response
         const tutorResponse = await this.service.generateTutorResponse(
           componentSkill,
           enhancedConversationHistory,
           currentEvaluation,
-          teacherAssessmentDescription
+          teacherAssessmentDescription,
+          assessmentPdfContext
         );
 
         // Handle safety flags by creating notifications
