@@ -7,8 +7,7 @@ const MAX_PDF_TEXT_LENGTH = 15000;
 export async function extractTextFromPdfUrl(pdfObjectPath: string): Promise<string> {
   try {
     const { PDFParse } = await import('pdf-parse') as any;
-    const objectFile = await objectStorageService.getObjectEntityFile(pdfObjectPath);
-    const [buffer] = await objectFile.download();
+    const buffer = await objectStorageService.downloadObjectToBuffer(pdfObjectPath);
     const parser = new PDFParse({ data: buffer });
     const pdfData = await parser.getText();
     let text = pdfData.text || '';

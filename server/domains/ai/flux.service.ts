@@ -1,6 +1,4 @@
-import { objectStorageClient, ObjectStorageService } from "../../replit_integrations/object_storage/objectStorage";
-import { setObjectAclPolicy } from "../../replit_integrations/object_storage/objectAcl";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { ObjectStorageService } from "../../replit_integrations/object_storage/objectStorage";
 
 interface GenerateThumbnailOptions {
   projectTitle: string;
@@ -12,30 +10,12 @@ interface GenerateThumbnailOptions {
 export class FluxImageService {
   private apiKey: string;
   private apiUri: string;
-  private thumbnailBucket: string;
-  private thumbnailPrefix: string;
   private objectStorageService: ObjectStorageService;
 
   constructor() {
     this.apiKey = process.env.FLUX_API_KEY || "";
     this.apiUri = process.env.FLUX_API_URI || "";
     this.objectStorageService = new ObjectStorageService();
-    this.thumbnailBucket = "";
-    this.thumbnailPrefix = (process.env.THUMBNAIL_OBJECT_PREFIX || "Thumbnails").trim().replace(/^\/+|\/+$/g, "");
-  }
-
-  private resolveThumbnailBucket(): string {
-    const explicitThumbnailBucket = (process.env.THUMBNAIL_S3_BUCKET || "").trim();
-    if (explicitThumbnailBucket) {
-      return explicitThumbnailBucket;
-    }
-
-    const fallbackBucket = this.objectStorageService.getUploadsBucketName();
-    if (fallbackBucket) {
-      return fallbackBucket;
-    }
-
-    return "";
   }
 
   private sanitizePromptInput(input: string): string {
@@ -140,57 +120,22 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
   private async saveBase64ToStorage(base64Data: string): Promise<string | null> {
     try {
-      this.thumbnailBucket = this.resolveThumbnailBucket();
-      if (!this.thumbnailBucket) {
+      const thumbnailBucket = this.objectStorageService.getThumbnailBucketName();
+      if (!thumbnailBucket) {
         console.error(
-          "Thumbnail storage bucket is not configured. Set THUMBNAIL_S3_BUCKET or configure UPLOADS_S3_BUCKET/PRIVATE_OBJECT_DIR/PUBLIC_OBJECT_SEARCH_PATHS.",
+          "Thumbnail storage bucket is not configured. Set THUMBNAIL_S3_BUCKET or UPLOADS_S3_BUCKET.",
         );
         return null;
       }
 
-      const objectName = `${this.thumbnailPrefix}/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-      const bucketName = this.thumbnailBucket;
       const imageBuffer = Buffer.from(base64Data, "base64");
 
-      // Use native S3 if AWS credentials are provided
-      if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION) {
-        const s3Client = new S3Client({
-          region: process.env.AWS_REGION,
-          credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          },
-        });
-
-        const command = new PutObjectCommand({
-          Bucket: bucketName,
-          Key: objectName,
-          Body: imageBuffer,
-          ContentType: "image/png",
-          CacheControl: "public, max-age=31536000",
-          ACL: "public-read",
-        });
-
-        await s3Client.send(command);
-        return `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${objectName}`;
-      }
-
-      // Fallback to existing Object Storage implementation
-      const bucket = objectStorageClient.bucket(bucketName);
-      const file = bucket.file(objectName);
-
-      await file.save(imageBuffer, {
-        contentType: "image/png",
-        metadata: {
-          cacheControl: "public, max-age=31536000",
-        },
+      return await this.objectStorageService.saveThumbnail({
+        buffer: imageBuffer,
+        cacheControl: "public, max-age=31536000",
       });
-
-      await setObjectAclPolicy(file, { owner: "system", visibility: "public" });
-
-      return `/objects/${bucketName}/${objectName}`;
     } catch (error) {
-      console.error(`Error saving thumbnail to storage bucket "${this.thumbnailBucket}":`, error);
+      console.error("Error saving thumbnail to storage bucket:", error);
       return null;
     }
   }
