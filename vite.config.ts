@@ -5,21 +5,9 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
-  plugins: [
-    react(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-      process.env.REPL_ID !== undefined
-      ? [
-        await import("@replit/vite-plugin-cartographer").then((m) =>
-          m.cartographer(),
-        ),
-      ]
-      : []),
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),

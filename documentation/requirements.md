@@ -276,7 +276,7 @@ MasteryMap is a comprehensive AI-powered Project-Based Learning (PBL) management
 - ✅ **Dev Server:** Vite with Hot Module Replacement
 - ✅ **Backend:** tsx for TypeScript execution
 - ✅ **Database:** Drizzle Kit for schema management
-- ✅ **Environment:** Optimized for Replit development
+- ✅ **Environment:** Optimized for local development
 
 ### Production Build:
 - ✅ **Frontend:** Vite production build with asset optimization

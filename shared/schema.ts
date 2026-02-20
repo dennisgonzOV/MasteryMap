@@ -38,7 +38,6 @@ export const ROLE_HIERARCHY = {
 } as const;
 
 // Session storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const sessions = pgTable(
   "sessions",
   {

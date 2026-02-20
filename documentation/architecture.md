@@ -184,7 +184,7 @@ class OpenAI,Milestones,Assessments,Feedback,Credentials ai
 - **Dev Server**: Vite development server with Hot Module Replacement
 - **Backend**: tsx for TypeScript execution without compilation
 - **Database**: Drizzle Kit for schema management and migrations
-- **Environment**: Optimized for Replit development environment
+- **Environment**: Optimized for local development environment
 
 ### Deployment Architecture
 - **Frontend**: Vite production build served as static assets

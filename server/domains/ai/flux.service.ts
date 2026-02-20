@@ -1,4 +1,4 @@
-import { ObjectStorageService } from "../../replit_integrations/object_storage/objectStorage";
+import { ObjectStorageService } from "../../integrations/s3_storage/objectStorage";
 
 interface GenerateThumbnailOptions {
   projectTitle: string;

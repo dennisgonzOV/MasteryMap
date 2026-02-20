@@ -1,4 +1,4 @@
-import { ObjectStorageService } from '../replit_integrations/object_storage';
+import { ObjectStorageService } from "../integrations/s3_storage";
 
 const objectStorageService = new ObjectStorageService();
 

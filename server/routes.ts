@@ -12,7 +12,7 @@ import { competenciesRouter } from "./domains/competencies";
 import { notificationsRouter } from "./domains/notifications";
 import { safetyIncidentsRouter } from "./domains/safety-incidents";
 import { contactRouter } from "./domains/contact";
-import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { registerObjectStorageRoutes } from "./integrations/s3_storage";
 
 export function setupRoutes(app: Express) {
   // Mount all domain routers

@@ -32,7 +32,7 @@ export class ObjectNotFoundError extends Error {
 }
 
 export class ObjectStorageService {
-  constructor() {}
+  constructor() { }
 
   private normalizePrefix(prefix: string): string {
     return prefix.trim().replace(/^\/+|\/+$/g, "");
@@ -381,7 +381,8 @@ function isNotFoundError(error: unknown): boolean {
   return (
     error.name === "NoSuchKey" ||
     error.name === "NotFound" ||
-    withName.$metadata?.httpStatusCode === 404
+    withName.$metadata?.httpStatusCode === 404 ||
+    withName.$metadata?.httpStatusCode === 403
   );
 }
 

@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 
 ### PDF Upload for Teacher Assessments
 - Teachers can optionally upload a PDF (e.g. reading material, class handout) during assessment creation
-- PDF is stored in Replit Object Storage via presigned URL upload flow
+- PDF is stored in AWS S3 via backend-managed upload flow
 - When AI assessment generation is used, the PDF content is extracted (via pdf-parse) and included in the AI prompt so questions reference the reading material
 - When AI grading is used, the PDF content is also passed to the grading AI so student responses are evaluated against the actual reading material
 - The PDF URL is stored on the assessment record (`pdf_url` column) for persistence

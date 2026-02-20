@@ -219,10 +219,10 @@ app.post('/api/resource', requireAuth, async (req, res) => {
 ## 8. Deployment & Environment
 
 ### Current Environment:
-- **Development**: Replit with Vite dev server and tsx for backend
+- **Development**: Local environment with Vite dev server and tsx for backend
 - **Database**: Neon Database (serverless PostgreSQL)
 - **Build**: Vite production build with static file serving
-- **Environment Variables**: Managed through Replit secrets
+- **Environment Variables**: Managed through standard environment configuration
 
 ### Environment Configuration:
 ```
