@@ -158,13 +158,17 @@ export async function apiWithRetry<T = unknown>(
   options: {
     maxRetries?: number;
     retryDelay?: number;
+    jitterMs?: number;
     shouldRetry?: (error: Error) => boolean;
+    onRetry?: (attemptNumber: number, error: Error) => void;
   } = {}
 ): Promise<T> {
   const { 
     maxRetries = 3, 
     retryDelay = 1000,
-    shouldRetry = (error) => !error.message.includes("401") && !error.message.includes("403")
+    jitterMs = 200,
+    shouldRetry = (error) => !error.message.includes("401") && !error.message.includes("403"),
+    onRetry
   } = options;
 
   let lastError: Error;
@@ -179,7 +183,11 @@ export async function apiWithRetry<T = unknown>(
         throw lastError;
       }
 
-      await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, attempt)));
+      onRetry?.(attempt + 1, lastError);
+
+      const jitter = jitterMs > 0 ? Math.floor(Math.random() * jitterMs) : 0;
+      const waitTimeMs = retryDelay * Math.pow(2, attempt) + jitter;
+      await new Promise(resolve => setTimeout(resolve, waitTimeMs));
     }
   }
 

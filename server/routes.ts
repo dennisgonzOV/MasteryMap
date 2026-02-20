@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { warmDatabaseConnection } from "./db";
 
 // Import all domain routers
 import { adminRouter } from "./domains/admin";
@@ -15,6 +16,29 @@ import { contactRouter } from "./domains/contact";
 import { registerObjectStorageRoutes } from "./integrations/s3_storage";
 
 export function setupRoutes(app: Express) {
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({
+      status: "ok",
+      uptimeSeconds: Math.floor(process.uptime()),
+    });
+  });
+
+  app.post("/api/health/warm-database", async (_req, res) => {
+    try {
+      await warmDatabaseConnection({
+        maxRetries: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 2_500,
+        context: "api.health.warm-database",
+      });
+      res.status(200).json({ status: "ready" });
+    } catch {
+      res.status(503).json({
+        message: "Database is waking up. Please retry shortly.",
+      });
+    }
+  });
+
   // Mount all domain routers
   app.use("/api/auth", authRouter);
   app.use("/api/projects", projectsRouter);

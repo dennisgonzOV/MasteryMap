@@ -1,22 +1,47 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { loginSchema } from '@shared/schema';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiWithRetry } from '@/lib/apiHelpers';
+import { apiRequest, isApiError, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Link, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
 import type { z } from 'zod';
 
 type LoginForm = z.infer<typeof loginSchema>;
+const LOGIN_REQUEST_TIMEOUT_MS = 15_000;
+const DB_WARMUP_TIMEOUT_MS = 7_000;
+const LOGIN_MAX_RETRIES = 2;
+
+async function withRequestTimeout<T>(
+  requestFn: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await requestFn(controller.signal);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Request timeout');
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -26,11 +51,52 @@ export default function Login() {
     },
   });
 
+  const warmDatabase = async (timeoutMs = DB_WARMUP_TIMEOUT_MS): Promise<void> => {
+    try {
+      await withRequestTimeout(
+        (signal) => apiRequest('/api/health/warm-database', 'POST', undefined, { signal }),
+        timeoutMs,
+      );
+    } catch {
+      // Warm-up is best-effort; login retries still handle cold-start race conditions.
+    }
+  };
+
+  useEffect(() => {
+    void warmDatabase(4_000);
+  }, []);
+
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      return await apiRequest('/api/auth/login', 'POST', data);
+      setStatusMessage('Waking up database connection...');
+      await warmDatabase();
+      setStatusMessage('Signing in...');
+
+      return apiWithRetry(
+        () =>
+          withRequestTimeout(
+            (signal) => apiRequest('/api/auth/login', 'POST', data, { signal }),
+            LOGIN_REQUEST_TIMEOUT_MS,
+          ),
+        {
+          maxRetries: LOGIN_MAX_RETRIES,
+          retryDelay: 700,
+          jitterMs: 200,
+          shouldRetry: (error) => {
+            if (isApiError(error)) {
+              return [502, 503, 504].includes(error.status);
+            }
+
+            return /timeout|fetch failed|network|connection|socket/i.test(error.message);
+          },
+          onRetry: (attemptNumber) => {
+            setStatusMessage(`Database is still waking up. Retrying (${attemptNumber}/${LOGIN_MAX_RETRIES})...`);
+          },
+        },
+      );
     },
     onSuccess: () => {
+      setStatusMessage(null);
       toast({
         title: 'Success',
         description: 'Logged in successfully',
@@ -41,9 +107,22 @@ export default function Login() {
     },
     onError: (error) => {
       // Show user-friendly error message
-      const message = error.message === 'Invalid credentials' 
-        ? 'Invalid username or password. Please try again.'
-        : 'Failed to log in. Please try again.';
+      setStatusMessage(null);
+      const message = (() => {
+        if (isApiError(error) && error.status === 503) {
+          return 'Your database is waking up. Please try again in a few seconds.';
+        }
+
+        if (error instanceof Error && /timeout/i.test(error.message)) {
+          return 'Login timed out while waiting for the database. Please try again.';
+        }
+
+        if (error instanceof Error && error.message.includes('Invalid credentials')) {
+          return 'Invalid username or password. Please try again.';
+        }
+
+        return 'Failed to log in. Please try again.';
+      })();
       
       toast({
         title: 'Login Failed',
@@ -110,6 +189,9 @@ export default function Login() {
               >
                 {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
               </Button>
+              {loginMutation.isPending && statusMessage ? (
+                <p className="text-xs text-muted-foreground text-center">{statusMessage}</p>
+              ) : null}
             </form>
           </Form>
           <div className="mt-4 text-center text-sm">

@@ -11,8 +11,7 @@ import {
   CheckCircle,
   Sparkles,
   Menu,
-  X,
-  PlayCircle
+  X
 } from "lucide-react";
 import introVideo from "@assets/MasteryMap_Intro_1767756337009.mp4";
 
@@ -148,20 +147,13 @@ export default function Landing() {
               </video>
             ) : (
               <div className="relative w-full h-full flex items-center justify-center bg-gray-950 text-white p-6">
-                <div className="text-center max-w-md">
-                  <h3 className="text-xl font-semibold mb-2">Watch the Product Walkthrough</h3>
-                  <p className="text-gray-300 mb-6">
-                    Load the video on demand to keep the page fast for first-time visitors.
-                  </p>
-                  <Button
-                    type="button"
-                    className="font-semibold"
-                    onClick={() => setVideoReady(true)}
-                  >
-                    <PlayCircle className="h-4 w-4 mr-2" />
-                    Load Demo Video
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  className="font-semibold"
+                  onClick={() => setVideoReady(true)}
+                >
+                  Watch Product Walkthrough
+                </Button>
               </div>
             )}
           </div>

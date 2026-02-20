@@ -16,6 +16,7 @@ import type {
 } from "../../../shared/contracts/api";
 import { authLimiter } from "../../middleware/security";
 import { createSuccessResponse, sendErrorResponse } from "../../utils/routeHelpers";
+import { isTransientDatabaseError, withDatabaseRetry } from "../../db";
 import type { IAuthStorage } from "./auth.storage";
 import type { JWTPayload } from "./auth.service";
 
@@ -199,12 +200,28 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
     try {
       const { username, password }: AuthLoginRequestDTO = loginSchema.parse(req.body);
 
-      const { user, accessToken, refreshToken } = await authService.loginUser(username, password);
+      const { user, accessToken, refreshToken } = await withDatabaseRetry(
+        async () => authService.loginUser(username, password),
+        {
+          maxRetries: 2,
+          baseDelayMs: 400,
+          maxDelayMs: 2_500,
+          context: "auth.login",
+        },
+      );
       authService.setAuthCookies(res, accessToken, refreshToken);
 
       const userWithoutPassword: AuthLoginResponseDTO = toAuthUserDTO(user);
       createSuccessResponse(res, userWithoutPassword);
     } catch (error) {
+      if (isTransientDatabaseError(error)) {
+        sendErrorResponse(res, {
+          message: "Database is waking up. Please retry in a few seconds.",
+          statusCode: 503,
+        });
+        return;
+      }
+
       console.error("Login error:", error);
       sendErrorResponse(res, {
         message: "Invalid credentials",
