@@ -230,6 +230,7 @@ export class ProjectsService {
     const updatedMilestone = await this.storage.updateMilestone(milestoneId, milestoneUpdates);
 
     if (updates.includeInPortfolio && updates.deliverableUrl && studentId) {
+      const existingArtifact = await portfolioStorage.getArtifactByMilestoneAndStudent(milestoneId, studentId);
       await portfolioStorage.upsertPortfolioArtifact({
         studentId,
         milestoneId,
@@ -237,9 +238,9 @@ export class ProjectsService {
         description: updates.deliverableDescription || milestone.description || '',
         artifactUrl: updates.deliverableUrl,
         artifactType: this.getArtifactType(updates.deliverableFileName || ''),
-        tags: [],
-        isPublic: true,
-        isApproved: false,
+        tags: existingArtifact?.tags ?? [],
+        isPublic: existingArtifact?.isPublic ?? true,
+        isApproved: existingArtifact?.isApproved ?? false,
       });
     }
 

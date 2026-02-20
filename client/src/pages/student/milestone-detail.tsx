@@ -70,13 +70,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
       deliverableDescription: string; 
       includeInPortfolio: boolean 
     }) => {
-      const response = await fetch(`/api/milestones/${milestoneId}/deliverable`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to save deliverable');
-      return response.json();
+      return api.updateMilestoneDeliverable(milestoneId, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/milestones", milestoneId] });
@@ -105,7 +99,19 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
   };
 
   const handleSubmitDeliverable = async () => {
-    if (!selectedFile) {
+    let deliverableUrl = milestone?.deliverableUrl ?? "";
+    let deliverableFileName = milestone?.deliverableFileName ?? "deliverable";
+
+    if (selectedFile) {
+      const uploadResponse = await uploadFile(selectedFile);
+      if (!uploadResponse) {
+        return;
+      }
+      deliverableUrl = uploadResponse.objectPath;
+      deliverableFileName = selectedFile.name;
+    }
+
+    if (!deliverableUrl) {
       toast({
         title: "No file selected",
         description: "Please select a file to upload.",
@@ -114,15 +120,12 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
       return;
     }
 
-    const uploadResponse = await uploadFile(selectedFile);
-    if (uploadResponse) {
-      deliverableMutation.mutate({
-        deliverableUrl: uploadResponse.objectPath,
-        deliverableFileName: selectedFile.name,
-        deliverableDescription,
-        includeInPortfolio,
-      });
-    }
+    deliverableMutation.mutate({
+      deliverableUrl,
+      deliverableFileName,
+      deliverableDescription,
+      includeInPortfolio,
+    });
   };
 
   // Fetch milestone details
@@ -152,6 +155,14 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
     enabled: isAuthenticated && Boolean(milestone?.projectId),
     queryFn: () => api.getProject(milestone!.projectId as number),
   });
+
+  useEffect(() => {
+    if (!milestone) {
+      return;
+    }
+    setDeliverableDescription(milestone.deliverableDescription ?? "");
+    setIncludeInPortfolio(Boolean(milestone.includeInPortfolio));
+  }, [milestone?.id, milestone?.deliverableDescription, milestone?.includeInPortfolio]);
 
   if (isLoading || milestoneLoading) {
     return (
@@ -424,91 +435,95 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                     <Badge className="mt-2 bg-purple-100 text-purple-800">Added to Portfolio</Badge>
                   )}
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="file-upload" className="text-sm font-medium text-gray-700">
-                        Upload your work
-                      </Label>
-                      <div className="mt-2 flex items-center space-x-4">
-                        <input
-                          id="file-upload"
-                          type="file"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                          data-testid="input-file-upload"
-                        />
-                        <Button
-                          variant="outline"
-                          onClick={() => document.getElementById('file-upload')?.click()}
-                          disabled={isUploading}
-                          data-testid="button-select-file"
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          {selectedFile ? 'Change File' : 'Select File'}
-                        </Button>
-                        {selectedFile && (
-                          <span className="text-sm text-gray-600">
-                            {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                          </span>
-                        )}
-                      </div>
-                    </div>
+              ) : null}
 
-                    <div>
-                      <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                        Description (optional)
-                      </Label>
-                      <Textarea
-                        id="description"
-                        placeholder="Describe your deliverable..."
-                        value={deliverableDescription}
-                        onChange={(e) => setDeliverableDescription(e.target.value)}
-                        className="mt-2"
-                        rows={3}
-                        data-testid="textarea-description"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="portfolio"
-                        checked={includeInPortfolio}
-                        onCheckedChange={(checked) => setIncludeInPortfolio(checked === true)}
-                        data-testid="checkbox-include-portfolio"
-                      />
-                      <Label htmlFor="portfolio" className="text-sm text-gray-700 cursor-pointer">
-                        Include this deliverable in my public portfolio
-                      </Label>
-                    </div>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="file-upload" className="text-sm font-medium text-gray-700">
+                    {milestone.deliverableUrl ? "Replace file (optional)" : "Upload your work"}
+                  </Label>
+                  <div className="mt-2 flex items-center space-x-4">
+                    <input
+                      id="file-upload"
+                      type="file"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      data-testid="input-file-upload"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                      disabled={isUploading}
+                      data-testid="button-select-file"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {selectedFile ? 'Change File' : milestone.deliverableUrl ? 'Select Replacement' : 'Select File'}
+                    </Button>
+                    {selectedFile && (
+                      <span className="text-sm text-gray-600">
+                        {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    )}
                   </div>
+                </div>
 
-                  {isUploading && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Uploading...</span>
-                        <span className="text-gray-600">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all" 
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                <div>
+                  <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                    Description (optional)
+                  </Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe your deliverable..."
+                    value={deliverableDescription}
+                    onChange={(e) => setDeliverableDescription(e.target.value)}
+                    className="mt-2"
+                    rows={3}
+                    data-testid="textarea-description"
+                  />
+                </div>
 
-                  <Button
-                    onClick={handleSubmitDeliverable}
-                    disabled={!selectedFile || isUploading || deliverableMutation.isPending}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    data-testid="button-submit-deliverable"
-                  >
-                    {isUploading ? 'Uploading...' : deliverableMutation.isPending ? 'Saving...' : 'Submit Deliverable'}
-                  </Button>
-                </>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="portfolio"
+                    checked={includeInPortfolio}
+                    onCheckedChange={(checked) => setIncludeInPortfolio(checked === true)}
+                    data-testid="checkbox-include-portfolio"
+                  />
+                  <Label htmlFor="portfolio" className="text-sm text-gray-700 cursor-pointer">
+                    Include this deliverable in my public portfolio
+                  </Label>
+                </div>
+              </div>
+
+              {isUploading && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Uploading...</span>
+                    <span className="text-gray-600">{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all" 
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
               )}
+
+              <Button
+                onClick={handleSubmitDeliverable}
+                disabled={(!selectedFile && !milestone.deliverableUrl) || isUploading || deliverableMutation.isPending}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                data-testid="button-submit-deliverable"
+              >
+                {isUploading
+                  ? 'Uploading...'
+                  : deliverableMutation.isPending
+                    ? 'Saving...'
+                    : milestone.deliverableUrl
+                      ? 'Update Deliverable'
+                      : 'Submit Deliverable'}
+              </Button>
             </CardContent>
           </Card>
         </div>

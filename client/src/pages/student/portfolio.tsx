@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { api } from "@/lib/api";
+import { useUpload } from "@/hooks/use-upload";
 import Navigation from "@/components/navigation";
 import CredentialBadge from "@/components/credential-badge";
 import { CompetencyProgress } from "@/components/competency-progress";
@@ -91,13 +92,22 @@ export default function StudentPortfolio() {
   const [isShareLoading, setIsShareLoading] = useState(false);
 
   const [editingArtifact, setEditingArtifact] = useState<PortfolioArtifactView | null>(null);
-  const [artifactTitle, setArtifactTitle] = useState("");
-  const [artifactDescription, setArtifactDescription] = useState("");
   const [artifactTags, setArtifactTags] = useState("");
   const [artifactIsPublic, setArtifactIsPublic] = useState(false);
+  const [artifactReplacementFile, setArtifactReplacementFile] = useState<File | null>(null);
 
   const artifactQueryKey = useMemo(() => ["/api/portfolio/artifacts", user?.id], [user?.id]);
   const settingsQueryKey = useMemo(() => ["/api/portfolio/settings", user?.id], [user?.id]);
+
+  const { uploadFile, isUploading, progress } = useUpload({
+    onError: (error) => {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -235,6 +245,15 @@ export default function StudentPortfolio() {
 
   const getCredentialCount = (type: string) => credentials.filter((credential) => credential.type === type).length;
 
+  const getArtifactTypeFromFileName = (fileName: string): string => {
+    const ext = fileName.toLowerCase().split(".").pop() || "";
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "image";
+    if (["mp4", "webm", "mov", "avi"].includes(ext)) return "video";
+    if (["pdf", "doc", "docx", "txt", "rtf"].includes(ext)) return "document";
+    if (["ppt", "pptx", "key"].includes(ext)) return "presentation";
+    return "file";
+  };
+
   const handleCopyLink = async () => {
     if (!portfolioUrl) {
       toast({
@@ -285,23 +304,13 @@ export default function StudentPortfolio() {
 
   const openArtifactEditor = (artifact: PortfolioArtifactView) => {
     setEditingArtifact(artifact);
-    setArtifactTitle(artifact.title);
-    setArtifactDescription(artifact.description ?? "");
     setArtifactTags(normalizeTags(artifact.tags).join(", "));
     setArtifactIsPublic(Boolean(artifact.isPublic));
+    setArtifactReplacementFile(null);
   };
 
   const handleSaveArtifact = async () => {
     if (!editingArtifact) {
-      return;
-    }
-
-    if (!artifactTitle.trim()) {
-      toast({
-        title: "Title required",
-        description: "Artifact title cannot be empty.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -310,21 +319,50 @@ export default function StudentPortfolio() {
       .map((tag) => tag.trim())
       .filter(Boolean);
 
+    let replacementUploadPath: string | null = null;
+    let replacementArtifactType: string | null = null;
+
     try {
+      if (artifactReplacementFile) {
+        const uploadResponse = await uploadFile(artifactReplacementFile);
+        if (!uploadResponse) {
+          return;
+        }
+        replacementUploadPath = uploadResponse.objectPath;
+        replacementArtifactType = getArtifactTypeFromFileName(artifactReplacementFile.name);
+      }
+
+      if (editingArtifact.milestoneId && replacementUploadPath) {
+        await api.updateMilestoneDeliverable(editingArtifact.milestoneId, {
+          deliverableUrl: replacementUploadPath,
+          deliverableFileName: artifactReplacementFile?.name || "deliverable",
+          deliverableDescription: editingArtifact.description || "",
+          includeInPortfolio: true,
+        });
+      }
+
+      const payload: Record<string, unknown> = {
+        tags,
+        isPublic: artifactIsPublic,
+      };
+
+      if (replacementUploadPath && replacementArtifactType) {
+        payload.artifactUrl = replacementUploadPath;
+        payload.artifactType = replacementArtifactType;
+      }
+
       await updateArtifactMutation.mutateAsync({
         id: editingArtifact.id,
-        data: {
-          title: artifactTitle.trim(),
-          description: artifactDescription.trim() ? artifactDescription.trim() : null,
-          tags,
-          isPublic: artifactIsPublic,
-        },
+        data: payload,
       });
 
       setEditingArtifact(null);
+      setArtifactReplacementFile(null);
       toast({
         title: "Artifact updated",
-        description: "Portfolio artifact details were saved.",
+        description: replacementUploadPath
+          ? "Deliverable and portfolio settings were updated."
+          : "Portfolio artifact settings were saved.",
       });
     } catch {
       toast({
@@ -655,33 +693,65 @@ export default function StudentPortfolio() {
         </div>
       </main>
 
-      <Dialog open={editingArtifact !== null} onOpenChange={(open) => !open && setEditingArtifact(null)}>
+      <Dialog
+        open={editingArtifact !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingArtifact(null);
+            setArtifactReplacementFile(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Artifact Metadata</DialogTitle>
             <DialogDescription>
-              Update how this artifact appears in your public portfolio.
+              Milestone title and description are managed in the milestone. You can update tags, visibility, and replace the deliverable file.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="artifact-title">Title</Label>
-              <Input
-                id="artifact-title"
-                value={artifactTitle}
-                onChange={(event) => setArtifactTitle(event.target.value)}
-              />
+            <div className="rounded-md border border-slate-200 p-3 bg-slate-50">
+              <p className="text-xs text-slate-500 mb-1">Milestone Title (read-only)</p>
+              <p className="text-sm font-medium text-slate-900">{editingArtifact?.title}</p>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="artifact-description">Description</Label>
-              <Textarea
-                id="artifact-description"
-                value={artifactDescription}
-                onChange={(event) => setArtifactDescription(event.target.value)}
-                rows={4}
+            <div className="rounded-md border border-slate-200 p-3 bg-slate-50">
+              <p className="text-xs text-slate-500 mb-1">Milestone Description (read-only)</p>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{editingArtifact?.description || "No description"}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="artifact-file-upload">Replace Deliverable (optional)</Label>
+              <input
+                id="artifact-file-upload"
+                type="file"
+                onChange={(event) => setArtifactReplacementFile(event.target.files?.[0] || null)}
+                className="hidden"
               />
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById("artifact-file-upload")?.click()}
+                  disabled={isUploading}
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  {artifactReplacementFile ? "Change File" : "Select Replacement"}
+                </Button>
+                {artifactReplacementFile ? (
+                  <span className="text-sm text-slate-600">
+                    {artifactReplacementFile.name} ({(artifactReplacementFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                ) : (
+                  <span className="text-sm text-slate-500">No replacement selected</span>
+                )}
+              </div>
+              {isUploading && (
+                <div className="w-full bg-slate-200 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -718,11 +788,17 @@ export default function StudentPortfolio() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingArtifact(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingArtifact(null);
+                setArtifactReplacementFile(null);
+              }}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSaveArtifact} disabled={updateArtifactMutation.isPending}>
-              {updateArtifactMutation.isPending ? "Saving..." : "Save Changes"}
+            <Button onClick={handleSaveArtifact} disabled={updateArtifactMutation.isPending || isUploading}>
+              {isUploading ? "Uploading..." : updateArtifactMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

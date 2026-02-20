@@ -84,7 +84,15 @@ export class PortfolioService implements IPortfolioService {
       throw new Error("Artifact not found");
     }
 
-    return this.storage.updatePortfolioArtifact(artifactId, updates);
+    const sanitizedUpdates: Partial<InsertPortfolioArtifact> = { ...updates };
+
+    // Milestone-driven artifacts keep milestone title/description as source of truth.
+    if (artifact.milestoneId != null) {
+      delete sanitizedUpdates.title;
+      delete sanitizedUpdates.description;
+    }
+
+    return this.storage.updatePortfolioArtifact(artifactId, sanitizedUpdates);
   }
 
   async getStudentPortfolioSettings(studentId: number): Promise<StudentPortfolioSettings> {

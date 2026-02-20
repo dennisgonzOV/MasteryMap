@@ -93,6 +93,15 @@ export const api = {
     apiJsonRequest<MilestoneDTO>(`/api/milestones/${id}`, "GET"),
   updateMilestone: (id: number, data: UnknownRecord) =>
     apiJsonRequest<MilestoneDTO>(`/api/milestones/${id}`, "PUT", data),
+  updateMilestoneDeliverable: (
+    id: number,
+    data: {
+      deliverableUrl: string;
+      deliverableFileName: string;
+      deliverableDescription: string;
+      includeInPortfolio: boolean;
+    },
+  ) => apiJsonRequest<MilestoneDTO>(`/api/milestones/${id}/deliverable`, "PATCH", data),
   deleteMilestone: (id: number) =>
     apiJsonRequest<ApiMessageResponse>(`/api/milestones/${id}`, "DELETE"),
   createMilestone: (data: UnknownRecord) =>

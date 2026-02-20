@@ -95,6 +95,8 @@ export class PortfolioController {
           description?: string | null;
           tags?: string[];
           isPublic?: boolean;
+          artifactUrl?: string;
+          artifactType?: string;
         } = {};
 
         if (typeof req.body.title === "string" && req.body.title.trim().length > 0) {
@@ -111,6 +113,14 @@ export class PortfolioController {
 
         if (typeof req.body.isPublic === "boolean") {
           updates.isPublic = req.body.isPublic;
+        }
+
+        if (typeof req.body.artifactUrl === "string" && req.body.artifactUrl.trim().length > 0) {
+          updates.artifactUrl = req.body.artifactUrl.trim();
+        }
+
+        if (typeof req.body.artifactType === "string" && req.body.artifactType.trim().length > 0) {
+          updates.artifactType = req.body.artifactType.trim();
         }
 
         const artifact = await this.service.updateArtifactForStudent(req.user.id, artifactId, updates);
