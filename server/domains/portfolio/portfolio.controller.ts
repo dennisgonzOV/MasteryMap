@@ -176,11 +176,13 @@ export class PortfolioController {
           return res.status(403).json({ message: "Only students can manage portfolio settings" });
         }
 
-        const updates: { isPublic?: boolean; title?: string; description?: string | null } = {};
-
-        if (typeof req.body.isPublic === "boolean") {
-          updates.isPublic = req.body.isPublic;
+        if (req.body.isPublic !== undefined) {
+          return res.status(403).json({
+            message: "Portfolio visibility is managed by the system and is always public",
+          });
         }
+
+        const updates: { title?: string; description?: string | null } = {};
 
         if (typeof req.body.title === "string" && req.body.title.trim().length > 0) {
           updates.title = req.body.title.trim();

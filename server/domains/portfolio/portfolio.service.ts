@@ -56,7 +56,7 @@ export interface IPortfolioService {
   getStudentPortfolioSettings(studentId: number): Promise<StudentPortfolioSettings>;
   updateStudentPortfolioSettings(
     studentId: number,
-    updates: { isPublic?: boolean; title?: string; description?: string | null },
+    updates: { title?: string; description?: string | null },
   ): Promise<StudentPortfolioSettings>;
   getOrCreateShareSlug(studentId: number): Promise<string>;
   getPublicPortfolioByUrl(publicUrl: string): Promise<PublicPortfolioData | null>;
@@ -107,7 +107,7 @@ export class PortfolioService implements IPortfolioService {
 
   async updateStudentPortfolioSettings(
     studentId: number,
-    updates: { isPublic?: boolean; title?: string; description?: string | null },
+    updates: { title?: string; description?: string | null },
   ): Promise<StudentPortfolioSettings> {
     const student = await this.storage.getStudentById(studentId);
     if (!student || student.role !== "student") {
@@ -214,6 +214,9 @@ export class PortfolioService implements IPortfolioService {
   private async ensurePortfolio(student: User): Promise<Portfolio> {
     const existingPortfolio = await this.storage.getPortfolioByStudent(student.id);
     if (existingPortfolio) {
+      if (existingPortfolio.isPublic !== true) {
+        return this.storage.updatePortfolio(existingPortfolio.id, { isPublic: true });
+      }
       return existingPortfolio;
     }
 
@@ -236,7 +239,7 @@ export class PortfolioService implements IPortfolioService {
       title: portfolio.title,
       description: portfolio.description ?? null,
       publicUrl: portfolio.publicUrl ?? "",
-      isPublic: portfolio.isPublic ?? false,
+      isPublic: true,
       updatedAt: portfolio.updatedAt ?? null,
     };
   }

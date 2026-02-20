@@ -170,7 +170,7 @@ export const api = {
     apiJsonRequest<PortfolioArtifactDTO>(`/api/portfolio/artifacts/${artifactId}/visibility`, "PATCH", { isPublic }),
   getPortfolioSettings: () =>
     apiJsonRequest<PortfolioSettingsDTO>("/api/portfolio/settings", "GET"),
-  updatePortfolioSettings: (data: { isPublic?: boolean; title?: string; description?: string | null }) =>
+  updatePortfolioSettings: (data: { title?: string; description?: string | null }) =>
     apiJsonRequest<PortfolioSettingsDTO>("/api/portfolio/settings", "PATCH", data),
   getPortfolioShareLink: (expirationDays?: number) =>
     apiJsonRequest<PortfolioShareLinkDTO>(

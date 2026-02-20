@@ -1,4 +1,5 @@
 import type {
+  Assessment,
   BestStandard,
   InsertMilestone,
   InsertProject,
@@ -85,7 +86,7 @@ export interface IProjectsStorage {
   getBestStandardsByIds(ids: number[]): Promise<BestStandard[]>;
   getLearnerOutcomesWithCompetencies(): Promise<LearnerOutcomeWithCompetencies[]>;
 
-  getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>>;
+  getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]>;
 
   getTeacherDashboardStats(teacherId: number): Promise<TeacherDashboardStatsDTO>;
   getTeacherProjects(teacherId: number): Promise<TeacherProjectOverviewDTO[]>;
@@ -242,7 +243,7 @@ export class ProjectsStorage implements IProjectsStorage {
     return this.competencyQueries.getLearnerOutcomesWithCompetencies();
   }
 
-  async getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>> {
+  async getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]> {
     return this.competencyQueries.getAssessmentsByMilestone(milestoneId);
   }
 

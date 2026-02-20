@@ -47,7 +47,7 @@ import {
   Video,
 } from "lucide-react";
 import { format } from "date-fns";
-import type { CredentialDTO, PortfolioArtifactDTO, PortfolioSettingsDTO } from "@shared/contracts/api";
+import type { CredentialDTO, PortfolioArtifactDTO } from "@shared/contracts/api";
 
 type PortfolioArtifactView = PortfolioArtifactDTO & {
   tags?: unknown;
@@ -61,13 +61,6 @@ const ARTIFACT_TYPE_OPTIONS = [
   { label: "Images", value: "image" },
   { label: "Interactive", value: "interactive" },
   { label: "Files", value: "file" },
-];
-
-const LINK_EXPIRY_OPTIONS = [
-  { label: "Never", value: "never" },
-  { label: "7 days", value: "7" },
-  { label: "30 days", value: "30" },
-  { label: "90 days", value: "90" },
 ];
 
 function normalizeTags(tags: unknown): string[] {
@@ -84,9 +77,7 @@ export default function StudentPortfolio() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [linkExpiration, setLinkExpiration] = useState("never");
   const [portfolioUrl, setPortfolioUrl] = useState("");
-  const [shareExpiresAt, setShareExpiresAt] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const [qrCodeError, setQrCodeError] = useState<string>("");
   const [isShareLoading, setIsShareLoading] = useState(false);
@@ -97,7 +88,6 @@ export default function StudentPortfolio() {
   const [artifactReplacementFile, setArtifactReplacementFile] = useState<File | null>(null);
 
   const artifactQueryKey = useMemo(() => ["/api/portfolio/artifacts", user?.id], [user?.id]);
-  const settingsQueryKey = useMemo(() => ["/api/portfolio/settings", user?.id], [user?.id]);
 
   const { uploadFile, isUploading, progress } = useUpload({
     onError: (error) => {
@@ -141,22 +131,10 @@ export default function StudentPortfolio() {
     retry: false,
   });
 
-  const {
-    data: portfolioSettings,
-    isLoading: settingsLoading,
-    error: settingsError,
-  } = useQuery<PortfolioSettingsDTO>({
-    queryKey: settingsQueryKey,
-    queryFn: api.getPortfolioSettings,
-    enabled: isAuthenticated && user?.role === "student" && !!user?.id,
-    retry: false,
-  });
-
   useEffect(() => {
     if (
       (credentialsError && isUnauthorizedError(credentialsError as Error)) ||
-      (artifactsError && isUnauthorizedError(artifactsError as Error)) ||
-      (settingsError && isUnauthorizedError(settingsError as Error))
+      (artifactsError && isUnauthorizedError(artifactsError as Error))
     ) {
       toast({
         title: "Unauthorized",
@@ -164,7 +142,7 @@ export default function StudentPortfolio() {
         variant: "destructive",
       });
     }
-  }, [credentialsError, artifactsError, settingsError, toast]);
+  }, [credentialsError, artifactsError, toast]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "student" || !user?.id) {
@@ -174,15 +152,12 @@ export default function StudentPortfolio() {
     const loadShareData = async () => {
       setIsShareLoading(true);
       try {
-        const expirationDays = linkExpiration === "never" ? undefined : Number(linkExpiration);
-
         const [linkData, qrData] = await Promise.all([
-          api.getPortfolioShareLink(expirationDays),
-          api.getPortfolioShareQrCode(expirationDays),
+          api.getPortfolioShareLink(),
+          api.getPortfolioShareQrCode(),
         ]);
 
         setPortfolioUrl(linkData.portfolioUrl);
-        setShareExpiresAt(linkData.expiresAt ? String(linkData.expiresAt) : null);
         setQrCodeDataUrl(qrData.qrCodeUrl || "");
         setQrCodeError("");
       } catch (error) {
@@ -195,15 +170,7 @@ export default function StudentPortfolio() {
     };
 
     loadShareData();
-  }, [isAuthenticated, linkExpiration, user?.id, user?.role]);
-
-  const updatePortfolioSettingsMutation = useMutation({
-    mutationFn: (payload: { isPublic?: boolean; title?: string; description?: string | null }) =>
-      api.updatePortfolioSettings(payload),
-    onSuccess: (updatedSettings) => {
-      queryClient.setQueryData(settingsQueryKey, updatedSettings);
-    },
-  });
+  }, [isAuthenticated, user?.id, user?.role]);
 
   const updateArtifactMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) => api.updatePortfolioArtifact(id, data),
@@ -274,29 +241,6 @@ export default function StudentPortfolio() {
       toast({
         title: "Copy failed",
         description: "Could not copy the portfolio link. Please copy it manually.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleTogglePublish = async () => {
-    if (!portfolioSettings) {
-      return;
-    }
-
-    const nextState = !(portfolioSettings.isPublic ?? false);
-    try {
-      await updatePortfolioSettingsMutation.mutateAsync({ isPublic: nextState });
-      toast({
-        title: nextState ? "Portfolio published" : "Portfolio set to private",
-        description: nextState
-          ? "External viewers can access your shared link."
-          : "Public access is now disabled for your shared link.",
-      });
-    } catch {
-      toast({
-        title: "Update failed",
-        description: "Could not update portfolio visibility. Try again.",
         variant: "destructive",
       });
     }
@@ -402,7 +346,7 @@ export default function StudentPortfolio() {
             <Button
               variant="outline"
               onClick={handleCopyLink}
-              disabled={!portfolioUrl || !(portfolioSettings?.isPublic ?? false)}
+              disabled={!portfolioUrl}
             >
               <Share className="h-4 w-4 mr-2" />
               Copy Public Link
@@ -450,77 +394,37 @@ export default function StudentPortfolio() {
 
           <Card className="border-0 apple-shadow mb-8">
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 <div className="lg:col-span-2 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                      <Globe className="h-5 w-5 text-blue-600" />
-                      Public Portfolio Controls
-                    </h3>
-                    {settingsLoading ? (
-                      <Badge variant="outline">Loading...</Badge>
-                    ) : (
-                      <Badge variant={portfolioSettings?.isPublic ? "default" : "secondary"}>
-                        {portfolioSettings?.isPublic ? "Published" : "Private"}
-                      </Badge>
-                    )}
-                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    Share Portfolio
+                  </h3>
 
                   <p className="text-sm text-slate-600">
-                    Portfolio-level publishing controls who can access your shared page. Artifact-level visibility controls
-                    which pieces appear there.
+                    Your portfolio is always public. Use this link or QR code to share it with admissions teams and other
+                    reviewers.
                   </p>
-
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant={portfolioSettings?.isPublic ? "outline" : "default"}
-                      onClick={handleTogglePublish}
-                      disabled={updatePortfolioSettingsMutation.isPending || settingsLoading}
-                    >
-                      {portfolioSettings?.isPublic ? "Set Portfolio Private" : "Publish Portfolio"}
-                    </Button>
-
-                    <Select value={linkExpiration} onValueChange={setLinkExpiration}>
-                      <SelectTrigger className="w-44">
-                        <SelectValue placeholder="Link expiry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LINK_EXPIRY_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      variant="outline"
-                      onClick={handleCopyLink}
-                      disabled={!portfolioUrl || !(portfolioSettings?.isPublic ?? false)}
-                    >
-                      Copy Link
-                    </Button>
-                  </div>
 
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                     <p className="text-slate-700 break-all">{portfolioUrl || "Generating share URL..."}</p>
-                    {shareExpiresAt && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        Expires on {format(new Date(shareExpiresAt), "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                    )}
-                    {!shareExpiresAt && (
-                      <p className="text-xs text-slate-500 mt-1">This share link does not expire.</p>
-                    )}
+                    <p className="text-xs text-slate-500 mt-1">This share link does not expire.</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="outline" onClick={handleCopyLink} disabled={!portfolioUrl}>
+                      Copy Link
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-start lg:items-end gap-2">
-                  <div className="w-28 h-28 bg-white rounded-lg border border-slate-200 flex items-center justify-center">
+                <div className="w-full lg:max-w-[220px] lg:justify-self-end rounded-xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-medium text-slate-500 mb-3">Scan Portfolio QR</p>
+                  <div className="w-full aspect-square bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center">
                     {isShareLoading ? (
-                      <div className="animate-pulse w-20 h-20 bg-slate-200 rounded" />
+                      <div className="animate-pulse w-24 h-24 bg-slate-200 rounded" />
                     ) : qrCodeDataUrl ? (
-                      <img src={qrCodeDataUrl} alt="Portfolio QR code" className="w-20 h-20" />
+                      <img src={qrCodeDataUrl} alt="Portfolio QR code" className="w-24 h-24" />
                     ) : (
                       <div className="text-xs text-slate-500 text-center px-2">
                         <QrCode className="h-7 w-7 mx-auto mb-1" />
@@ -528,7 +432,8 @@ export default function StudentPortfolio() {
                       </div>
                     )}
                   </div>
-                  {qrCodeError && <p className="text-xs text-red-600 max-w-[180px] text-right">{qrCodeError}</p>}
+                  <p className="text-xs text-slate-500 mt-2">Open with a mobile camera for quick access.</p>
+                  {qrCodeError && <p className="text-xs text-red-600 mt-1">{qrCodeError}</p>}
                 </div>
               </div>
             </CardContent>

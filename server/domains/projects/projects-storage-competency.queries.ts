@@ -1,5 +1,6 @@
 import {
   assessments,
+  type Assessment,
   grades,
   submissions,
   type BestStandard,
@@ -32,13 +33,11 @@ export class ProjectsCompetencyQueries {
     return competencyStorage.getLearnerOutcomesWithCompetencies();
   }
 
-  async getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>> {
-    return db.query.assessments.findMany({
-      where: eq(assessments.milestoneId, milestoneId),
-      with: {
-        milestone: true,
-      },
-    });
+  async getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]> {
+    return db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.milestoneId, milestoneId));
   }
 
   async getStudentCompetencyProgress(studentId: number): Promise<StudentCompetencyProgressRecord[]> {

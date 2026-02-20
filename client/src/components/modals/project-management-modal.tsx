@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type {
   AIAssessmentGeneratedQuestionDTO,
+  AssessmentDTO,
   AssessmentCreateRequestDTO,
   BestStandardDTO,
   ComponentSkillWithDetailsDTO,
@@ -145,6 +146,26 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
     queryKey: [`/api/projects/${projectId}/milestones`],
     queryFn: () => api.getMilestones(projectId),
     enabled: isOpen && !!projectId,
+  });
+
+  const milestoneIds = useMemo(
+    () => milestones.map((milestone) => milestone.id).sort((a, b) => a - b),
+    [milestones],
+  );
+
+  const { data: milestoneAssessments = {}, isLoading: milestoneAssessmentsLoading } = useQuery<Record<number, AssessmentDTO[]>>({
+    queryKey: [`/api/projects/${projectId}/milestone-assessments`, milestoneIds.join(",")],
+    queryFn: async () => {
+      const milestoneAssessmentPairs = await Promise.all(
+        milestoneIds.map(async (milestoneId) => [milestoneId, await api.getAssessments(milestoneId)] as const),
+      );
+
+      return milestoneAssessmentPairs.reduce<Record<number, AssessmentDTO[]>>((acc, [milestoneId, assessments]) => {
+        acc[milestoneId] = assessments;
+        return acc;
+      }, {});
+    },
+    enabled: isOpen && milestoneIds.length > 0,
   });
 
   // Fetch project teams
@@ -255,6 +276,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
         description: data.message || "Milestones and assessments generated successfully"
       });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestone-assessments`] });
       queryClient.invalidateQueries({ queryKey: ["/api/assessments/standalone"] });
     },
     onError: (error: unknown) => {
@@ -381,6 +403,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
       if (selectedMilestone?.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/milestones", selectedMilestone.id, "assessments"] });
       }
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestone-assessments`] });
       setAssessmentMilestoneId(null);
       setAiQuestionCount(5);
       setAiQuestionTypes({ ...DEFAULT_AI_QUESTION_TYPES });
@@ -981,9 +1004,12 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {milestones
+                      {[...milestones]
                         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-                        .map((milestone, index) => (
+                        .map((milestone, index) => {
+                          const linkedAssessments = milestoneAssessments[milestone.id] ?? [];
+
+                          return (
                           <div key={milestone.id} className="relative">
                             {/* Timeline connector */}
                             {index < milestones.length - 1 && (
@@ -1048,6 +1074,25 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                                       <div className="flex items-center text-xs text-gray-500">
                                         Due: {milestone.dueDate ? format(new Date(milestone.dueDate), 'MMM d, yyyy') : 'No due date'}
                                       </div>
+                                      {milestoneAssessmentsLoading ? (
+                                        <p className="text-xs text-gray-500 mt-2">Loading linked assessments...</p>
+                                      ) : linkedAssessments.length > 0 ? (
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                          <p className="text-xs font-medium text-gray-700 mb-2">
+                                            Linked Assessments ({linkedAssessments.length})
+                                          </p>
+                                          <div className="space-y-2">
+                                            {linkedAssessments.map((assessment) => (
+                                              <div key={assessment.id} className="rounded-md border border-gray-200 bg-white px-3 py-2">
+                                                <p className="text-sm font-medium text-gray-900">{assessment.title}</p>
+                                                {assessment.description ? (
+                                                  <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{assessment.description}</p>
+                                                ) : null}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
                                     </div>
                                     {!readOnly && (
                                       <DropdownMenu>
@@ -1080,7 +1125,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                               </div>
                             </div>
                           </div>
-                        ))}
+                        )})}
                     </div>
                   )}
                 </CardContent>

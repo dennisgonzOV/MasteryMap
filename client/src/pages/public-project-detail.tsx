@@ -29,6 +29,16 @@ interface Milestone {
   dueDate: string | null;
 }
 
+interface PublicAssessment {
+  id: number;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  milestoneId: number | null;
+  milestoneTitle?: string;
+  milestoneOrder?: number;
+}
+
 interface ComponentSkill {
   id: number;
   name: string | null;
@@ -57,6 +67,7 @@ interface PublicProject {
   dueDate: string | null;
   createdAt: string;
   milestones: Milestone[];
+  assessments: PublicAssessment[];
   componentSkills: ComponentSkill[];
   bestStandards: BestStandard[];
 }
@@ -204,6 +215,13 @@ export default function PublicProjectDetail() {
   }
 
   const sortedMilestones = [...(project.milestones || [])].sort((a, b) => a.order - b.order);
+  const sortedAssessments = [...(project.assessments || [])].sort((a, b) => {
+    const orderDelta = (a.milestoneOrder ?? 0) - (b.milestoneOrder ?? 0);
+    if (orderDelta !== 0) {
+      return orderDelta;
+    }
+    return a.title.localeCompare(b.title);
+  });
 
   const handleShareProject = async () => {
     try {
@@ -408,6 +426,39 @@ export default function PublicProjectDetail() {
                             <p className="text-xs text-gray-500 mt-2">
                               Due {new Date(milestone.dueDate).toLocaleDateString()}
                             </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </ContentSection>
+            )}
+
+            {sortedAssessments.length > 0 && (
+              <ContentSection
+                title="Project Assessments"
+                helperText="Assessments aligned to milestones that help measure student learning throughout the project."
+                icon={<FileText className="h-5 w-5 text-indigo-600" />}
+              >
+                <div className="grid gap-3">
+                  {sortedAssessments.map((assessment) => (
+                    <Card key={assessment.id} className="border-indigo-100 bg-indigo-50/40">
+                      <CardContent className="p-4">
+                        <h4 className="font-semibold text-gray-900">{assessment.title}</h4>
+                        {assessment.description && (
+                          <p className="text-sm text-gray-700 mt-1">{assessment.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {assessment.milestoneTitle && (
+                            <Badge variant="outline" className="text-xs">
+                              {assessment.milestoneTitle}
+                            </Badge>
+                          )}
+                          {assessment.dueDate && (
+                            <Badge variant="outline" className="text-xs">
+                              Due {new Date(assessment.dueDate).toLocaleDateString()}
+                            </Badge>
                           )}
                         </div>
                       </CardContent>

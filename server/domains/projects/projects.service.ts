@@ -2,6 +2,7 @@ import { projectsStorage, type IProjectsStorage } from './projects.storage';
 import {
   insertProjectSchema,
   insertMilestoneSchema,
+  type Assessment,
   type User,
   type Project,
   type Milestone,
@@ -195,7 +196,7 @@ export class ProjectsService {
     return this.storage.getMilestonesByProject(projectId);
   }
 
-  async getAssessmentsByMilestone(milestoneId: number): Promise<Array<Record<string, unknown>>> {
+  async getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]> {
     return this.storage.getAssessmentsByMilestone(milestoneId);
   }
 
@@ -423,6 +424,16 @@ export class ProjectsService {
     }
 
     const projectMilestones = await this.storage.getMilestonesByProject(projectId);
+    const milestoneAssessments = await Promise.all(
+      projectMilestones.map(async (milestone) => {
+        const assessments = await this.storage.getAssessmentsByMilestone(milestone.id);
+        return assessments.map((assessment) => ({
+          ...assessment,
+          milestoneTitle: milestone.title,
+          milestoneOrder: milestone.order ?? 0,
+        }));
+      }),
+    );
 
     let componentSkills: ComponentSkillWithDetailsDTO[] = [];
     if (Array.isArray(project.componentSkillIds) && project.componentSkillIds.length > 0) {
@@ -437,6 +448,15 @@ export class ProjectsService {
     return {
       ...project,
       milestones: projectMilestones,
+      assessments: milestoneAssessments
+        .flat()
+        .sort((a, b) => {
+          const orderDelta = (a.milestoneOrder ?? 0) - (b.milestoneOrder ?? 0);
+          if (orderDelta !== 0) {
+            return orderDelta;
+          }
+          return a.title.localeCompare(b.title);
+        }),
       componentSkills,
       bestStandards,
     };
