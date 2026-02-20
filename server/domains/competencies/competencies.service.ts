@@ -15,6 +15,7 @@ export interface ICompetencyService {
   getComponentSkillsByCompetency(competencyId: number): Promise<ComponentSkill[]>;
   getAllBestStandards(): Promise<BestStandard[]>;
   getBestStandardsByCompetency(competencyId: number): Promise<BestStandard[]>;
+  getBestStandardsByIds(standardIds: number[]): Promise<BestStandard[]>;
   getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
   getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
   searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
@@ -52,6 +53,10 @@ export class CompetencyService implements ICompetencyService {
 
   async getBestStandardsByCompetency(competencyId: number): Promise<BestStandard[]> {
     return await this.storage.getBestStandardsByCompetency(competencyId);
+  }
+
+  async getBestStandardsByIds(standardIds: number[]): Promise<BestStandard[]> {
+    return await this.storage.getBestStandardsByIds(standardIds);
   }
 
   async getBestStandardsBySubject(subject: string): Promise<BestStandard[]> {

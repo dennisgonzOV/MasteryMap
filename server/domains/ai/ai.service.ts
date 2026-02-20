@@ -7,6 +7,7 @@ import {
 import { notifyTeacherOfSafetyIncident } from '../../services/notifications';
 import OpenAI from "openai";
 import type {
+  BestStandard,
   Grade,
   Milestone,
   Project,
@@ -205,6 +206,7 @@ export class AIService {
     milestoneDescription: string,
     milestoneDueDate: string,
     componentSkills: ComponentSkillWithDetailsDTO[],
+    bestStandards: BestStandard[] = [],
     questionCount: number = 5,
     questionTypes: string[] = ['open-ended'],
     pdfContent?: string
@@ -214,6 +216,7 @@ export class AIService {
       milestoneDescription,
       milestoneDueDate,
       componentSkills as Parameters<typeof this.openaiService.generateAssessmentFromComponentSkills>[3],
+      bestStandards,
       questionCount,
       questionTypes,
       pdfContent

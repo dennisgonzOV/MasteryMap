@@ -1,6 +1,7 @@
 export {
   ObjectStorageService,
   ObjectNotFoundError,
+  ObjectAccessDeniedError,
   objectStorageClient,
 } from "./objectStorage";
 

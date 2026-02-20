@@ -48,13 +48,8 @@ export default function StudentProjectDetail({ params }: { params: { id: string 
         // Navigate to the first assessment for this milestone
         setLocation(`/student/assessments/${assessments[0].id}`);
       } else {
-        // If no assessments, show the milestone detail page
+        // If no assessments are assigned yet, show milestone details without surfacing an error
         setLocation(`/student/milestones/${milestoneId}`);
-        toast({
-          title: "No Assessment Available",
-          description: "This milestone doesn't have an assessment yet. Contact your teacher for more information.",
-          variant: "destructive",
-        });
       }
     } catch (error) {
       toast({

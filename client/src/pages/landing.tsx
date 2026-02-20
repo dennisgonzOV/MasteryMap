@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ContactModal from "@/components/contact-modal";
@@ -8,12 +9,20 @@ import {
   Target,
   Award,
   CheckCircle,
-  Sparkles
+  Sparkles,
+  Menu,
+  X,
+  PlayCircle
 } from "lucide-react";
 import introVideo from "@assets/MasteryMap_Intro_1767756337009.mp4";
 
 export default function Landing() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const currentYear = new Date().getFullYear();
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -22,36 +31,65 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">MasteryMap</h1>
+              <span className="text-2xl font-bold text-gray-900">MasteryMap</span>
             </div>
-            <div className="flex items-center space-x-4">
-              <Button
-                onClick={() => window.location.href = '/explore'}
-                variant="ghost"
-                className="px-4"
-              >
-                Explore Projects
+
+            <div className="hidden md:flex items-center space-x-4">
+              <Button asChild variant="ghost" className="px-4">
+                <Link href="/explore">Explore Projects</Link>
               </Button>
-              <Button
-                onClick={() => window.location.href = '/login'}
-                variant="ghost"
-                className="px-4"
-              >
-                Sign In
+              <Button asChild variant="ghost" className="px-4">
+                <Link href="/login">Sign In</Link>
               </Button>
+              <Button asChild className="px-6 py-2 rounded-full">
+                <Link href="/register">Register</Link>
+              </Button>
+            </div>
+
+            <div className="md:hidden">
               <Button
-                onClick={() => window.location.href = '/register'}
-                className="px-6 py-2 rounded-full"
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen((open) => !open)}
+                aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-nav"
               >
-                Register
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
             </div>
           </div>
+
+          {mobileMenuOpen && (
+            <div id="mobile-nav" className="md:hidden border-t border-gray-200 py-3 space-y-2">
+              <Button asChild variant="ghost" className="w-full justify-start">
+                <Link href="/explore" onClick={closeMobileMenu}>Explore Projects</Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full justify-start">
+                <Link href="/login" onClick={closeMobileMenu}>Sign In</Link>
+              </Button>
+              <Button asChild className="w-full justify-start">
+                <Link href="/register" onClick={closeMobileMenu}>Register</Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  setContactModalOpen(true);
+                  closeMobileMenu();
+                }}
+              >
+                Contact Sales
+              </Button>
+            </div>
+          )}
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="gradient-hero pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+      <section className="gradient-hero pt-28 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center text-white">
           <h1 className="text-4xl md:text-6xl font-bold mb-6 fade-in text-balance">
             Transform Learning Through
@@ -61,6 +99,26 @@ export default function Landing() {
             Empower educators and students with AI-driven project management,
             competency-based assessments, and digital portfolio creation.
           </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3 fade-in" style={{ animationDelay: "0.3s" }}>
+            <Button asChild className="bg-white text-blue-700 hover:bg-blue-50 font-semibold">
+              <Link href="/register">Get Started Free</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="bg-transparent border-white text-white hover:bg-white/15 hover:text-white font-semibold"
+            >
+              <Link href="/explore">Explore Projects</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-white hover:bg-white/15 hover:text-white font-semibold"
+              onClick={() => setContactModalOpen(true)}
+            >
+              Bring to My School
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -77,15 +135,35 @@ export default function Landing() {
           </div>
 
           <div className="relative aspect-video rounded-2xl overflow-hidden apple-shadow bg-gray-900">
-            <video
-              className="w-full h-full object-cover"
-              controls
-              poster=""
-              data-testid="intro-video"
-            >
-              <source src={introVideo} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+            {videoReady ? (
+              <video
+                className="w-full h-full object-cover"
+                controls
+                preload="none"
+                poster="/default-project-thumbnail.svg"
+                data-testid="intro-video"
+              >
+                <source src={introVideo} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div className="relative w-full h-full flex items-center justify-center bg-gray-950 text-white p-6">
+                <div className="text-center max-w-md">
+                  <h3 className="text-xl font-semibold mb-2">Watch the Product Walkthrough</h3>
+                  <p className="text-gray-300 mb-6">
+                    Load the video on demand to keep the page fast for first-time visitors.
+                  </p>
+                  <Button
+                    type="button"
+                    className="font-semibold"
+                    onClick={() => setVideoReady(true)}
+                  >
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                    Load Demo Video
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -249,7 +327,7 @@ export default function Landing() {
               Empowering project-based learning through innovative technology and AI-driven insights.
             </p>
             <div className="mt-4 text-xs text-gray-500">
-              MasteryMap © 2025 True Aim LLC. All rights reserved.
+              MasteryMap © {currentYear} True Aim LLC. All rights reserved.
             </div>
           </div>
         </div>

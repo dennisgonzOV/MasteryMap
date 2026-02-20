@@ -187,6 +187,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
 
   const isOverdue = milestone.dueDate && new Date(milestone.dueDate) < new Date();
   const isCompleted = milestone.status === 'completed';
+  const hasRequiredAssessments = !assessmentsLoading && assessments.length > 0;
   
   // Check if student has submitted any assessments for this milestone
   const hasSubmissions = studentSubmissions.some(submission => {
@@ -278,7 +279,11 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                   <AlertCircle className="h-5 w-5 text-red-600" />
                   <div>
                     <p className="font-medium text-red-900">This milestone is overdue</p>
-                    <p className="text-sm text-red-700">Please complete the required assessments as soon as possible.</p>
+                    <p className="text-sm text-red-700">
+                      {hasRequiredAssessments
+                        ? "Please complete the required assessments as soon as possible."
+                        : "No assessments are assigned yet. You can still submit your deliverable below."}
+                    </p>
                   </div>
                 </div>
               </CardContent>

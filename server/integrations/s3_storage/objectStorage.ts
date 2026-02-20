@@ -24,10 +24,28 @@ export interface StoredObject {
 }
 
 export class ObjectNotFoundError extends Error {
-  constructor() {
+  readonly bucketName?: string;
+  readonly objectName?: string;
+
+  constructor(bucketName?: string, objectName?: string) {
     super("Object not found");
     this.name = "ObjectNotFoundError";
+    this.bucketName = bucketName;
+    this.objectName = objectName;
     Object.setPrototypeOf(this, ObjectNotFoundError.prototype);
+  }
+}
+
+export class ObjectAccessDeniedError extends Error {
+  readonly bucketName?: string;
+  readonly objectName?: string;
+
+  constructor(bucketName?: string, objectName?: string) {
+    super("Access denied while reading object");
+    this.name = "ObjectAccessDeniedError";
+    this.bucketName = bucketName;
+    this.objectName = objectName;
+    Object.setPrototypeOf(this, ObjectAccessDeniedError.prototype);
   }
 }
 
@@ -281,8 +299,11 @@ export class ObjectStorageService {
           typeof head.ContentLength === "number" ? head.ContentLength : undefined,
       };
     } catch (error: unknown) {
+      if (isAccessDeniedError(error)) {
+        throw new ObjectAccessDeniedError(bucketName, objectName);
+      }
       if (isNotFoundError(error)) {
-        throw new ObjectNotFoundError();
+        throw new ObjectNotFoundError(bucketName, objectName);
       }
       throw error;
     }
@@ -337,8 +358,14 @@ export class ObjectStorageService {
       if (error instanceof ObjectNotFoundError) {
         throw error;
       }
+      if (error instanceof ObjectAccessDeniedError) {
+        throw error;
+      }
+      if (isAccessDeniedError(error)) {
+        throw new ObjectAccessDeniedError(objectRef.bucketName, objectRef.objectName);
+      }
       if (isNotFoundError(error)) {
-        throw new ObjectNotFoundError();
+        throw new ObjectNotFoundError(objectRef.bucketName, objectRef.objectName);
       }
       console.error("Error downloading file:", error);
       if (!res.headersSent) {
@@ -381,7 +408,18 @@ function isNotFoundError(error: unknown): boolean {
   return (
     error.name === "NoSuchKey" ||
     error.name === "NotFound" ||
-    withName.$metadata?.httpStatusCode === 404 ||
+    withName.$metadata?.httpStatusCode === 404
+  );
+}
+
+function isAccessDeniedError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const withName = error as Error & { $metadata?: { httpStatusCode?: number } };
+  return (
+    error.name === "AccessDenied" ||
+    error.name === "Forbidden" ||
     withName.$metadata?.httpStatusCode === 403
   );
 }

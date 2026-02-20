@@ -1,6 +1,10 @@
 import type { Express } from "express";
 import multer from "multer";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import {
+  ObjectStorageService,
+  ObjectNotFoundError,
+  ObjectAccessDeniedError,
+} from "./objectStorage";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -47,14 +51,52 @@ export function registerObjectStorageRoutes(app: Express): void {
 
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const lookupPath = req.path;
+      const objectFile = await objectStorageService.getObjectEntityFile(lookupPath);
       await objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
-      console.error("Error serving object:", error);
+      console.error("Error serving object:", {
+        requestPath: req.path,
+        objectPathParam: req.params.objectPath,
+        details: formatObjectServingError(error),
+      });
       if (error instanceof ObjectNotFoundError) {
         return res.status(404).json({ error: "Object not found" });
+      }
+      if (error instanceof ObjectAccessDeniedError) {
+        return res.status(403).json({ error: "Object access denied" });
       }
       return res.status(500).json({ error: "Failed to serve object" });
     }
   });
+}
+
+function formatObjectServingError(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { type: typeof error };
+  }
+
+  const sdkError = error as Error & {
+    code?: string;
+    $metadata?: {
+      httpStatusCode?: number;
+      requestId?: string;
+      extendedRequestId?: string;
+      cfId?: string;
+    };
+    bucketName?: string;
+    objectName?: string;
+  };
+
+  return {
+    name: error.name,
+    message: error.message,
+    code: sdkError.code,
+    httpStatusCode: sdkError.$metadata?.httpStatusCode,
+    requestId: sdkError.$metadata?.requestId,
+    extendedRequestId: sdkError.$metadata?.extendedRequestId,
+    cfId: sdkError.$metadata?.cfId,
+    bucketName: sdkError.bucketName,
+    objectName: sdkError.objectName,
+  };
 }

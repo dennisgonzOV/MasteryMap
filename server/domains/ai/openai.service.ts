@@ -6,6 +6,7 @@ import type {
   Submission,
   Grade,
   ComponentSkill,
+  BestStandard,
 } from "@shared/schema";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -406,17 +407,11 @@ Return as JSON with this structure:
     milestoneDescription: string,
     milestoneDueDate: string,
     componentSkills: EnrichedComponentSkill[],
+    bestStandards: BestStandard[] = [],
     questionCount: number = 5,
     questionTypes: string[] = ['open-ended'],
     pdfContent?: string
   ): Promise<GeneratedAssessment> {
-    const skillsText = componentSkills
-      .map(
-        (skill) =>
-          `- ${skill.name}: ${skill.description || "No description"} (${skill.competencyName || "Unknown Competency"} - ${skill.learnerOutcomeName || "Unknown Outcome"})`,
-      )
-      .join("\n");
-
     const detailedSkillsText = componentSkills.map(skill => `
 COMPONENT SKILL: ${skill.name}
 Description: ${skill.description || "No description"}
@@ -428,6 +423,18 @@ Rubric Levels:
 - Proficient: ${skill.rubricLevels?.proficient || 'Shows solid competence'}
 - Applying: ${skill.rubricLevels?.applying || 'Shows advanced competence'}
 `).join('\n---\n');
+
+    const bestStandardsText = bestStandards.length > 0
+      ? bestStandards
+        .map((standard) => {
+          const benchmark = standard.benchmarkNumber || "Unknown benchmark";
+          const description = standard.description || "No description";
+          const subject = standard.subject || "Unknown subject";
+          const grade = standard.grade || "Unknown grade";
+          return `- ${benchmark} (${subject}, Grade ${grade}): ${description}`;
+        })
+        .join("\n")
+      : "No B.E.S.T. standards provided.";
 
     // Calculate distribution of question types
     const typeDistribution = this.calculateQuestionTypeDistribution(questionCount, questionTypes);
@@ -448,6 +455,9 @@ ${pdfSection}
 TARGET COMPONENT SKILLS TO ASSESS:
 ${detailedSkillsText}
 
+RELATED B.E.S.T. STANDARDS:
+${bestStandardsText}
+
 ASSESSMENT REQUIREMENTS:
 1. Create EXACTLY ${questionCount} questions total
 2. Use these question types and counts: ${typeInstructions}
@@ -456,6 +466,7 @@ ASSESSMENT REQUIREMENTS:
 5. Rubric criteria must directly reference the skill's rubric levels (Emerging → Developing → Proficient → Applying)
 6. Questions should enable students to demonstrate mastery through varied approaches
 7. Each question should specify which component skill(s) it primarily assesses
+8. Ensure questions align to the listed B.E.S.T. standards where relevant and cite alignment in rubric criteria when possible
 
 QUESTION DESIGN PRINCIPLES:
 - Open-ended questions: Complex scenarios requiring skill application and analysis

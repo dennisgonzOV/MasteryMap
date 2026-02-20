@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import ProjectTeamSelectionModal from "./project-team-selection-modal";
 import TeamEditModal from "./team-edit-modal";
-import { 
+import {
   Users, 
   Target, 
   Plus,
@@ -21,7 +22,8 @@ import {
   Trash2,
   Eye,
   X,
-  Play
+  Play,
+  Sparkles
 } from "lucide-react";
 import ConfirmationModal from '@/components/ui/confirmation-modal';
 import {
@@ -37,11 +39,36 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type {
+  AIAssessmentGeneratedQuestionDTO,
+  AssessmentCreateRequestDTO,
+  BestStandardDTO,
+  ComponentSkillWithDetailsDTO,
   MilestoneDTO,
   ProjectDTO,
   ProjectTeamDTO,
   ProjectUpdateRequestDTO,
 } from '@shared/contracts/api';
+
+type QuestionTypeKey = "open-ended" | "multiple-choice" | "short-answer";
+
+const DEFAULT_AI_QUESTION_TYPES: Record<QuestionTypeKey, boolean> = {
+  "open-ended": true,
+  "multiple-choice": true,
+  "short-answer": false,
+};
+
+const QUESTION_TYPE_LABELS: Record<QuestionTypeKey, string> = {
+  "open-ended": "Open-ended",
+  "multiple-choice": "Multiple Choice",
+  "short-answer": "Short Answer",
+};
+
+function toNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is number => typeof item === "number");
+}
 
 interface ProjectManagementModalProps {
   projectId: number;
@@ -66,6 +93,11 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   });
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState<ProjectTeamDTO | null>(null);
+  const [assessmentMilestoneId, setAssessmentMilestoneId] = useState<number | null>(null);
+  const [aiQuestionCount, setAiQuestionCount] = useState(5);
+  const [aiQuestionTypes, setAiQuestionTypes] = useState<Record<QuestionTypeKey, boolean>>({
+    ...DEFAULT_AI_QUESTION_TYPES,
+  });
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -85,6 +117,27 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
     queryKey: [`/api/projects/${projectId}`],
     queryFn: () => api.getProject(projectId),
     enabled: isOpen && !!projectId,
+  });
+
+  const projectComponentSkillIds = useMemo(
+    () => toNumberArray(project?.componentSkillIds),
+    [project?.componentSkillIds],
+  );
+  const projectBestStandardIds = useMemo(
+    () => toNumberArray(project?.bestStandardIds),
+    [project?.bestStandardIds],
+  );
+
+  const { data: projectComponentSkills = [], isLoading: componentSkillsLoading } = useQuery<ComponentSkillWithDetailsDTO[]>({
+    queryKey: ["/api/competencies/component-skills/by-ids", projectComponentSkillIds],
+    queryFn: () => api.getComponentSkillsByIds(projectComponentSkillIds),
+    enabled: isOpen && projectComponentSkillIds.length > 0,
+  });
+
+  const { data: projectBestStandards = [], isLoading: bestStandardsLoading } = useQuery<BestStandardDTO[]>({
+    queryKey: ["/api/competencies/best-standards/by-ids", projectBestStandardIds],
+    queryFn: () => api.getBestStandardsByIds(projectBestStandardIds),
+    enabled: isOpen && projectBestStandardIds.length > 0,
   });
 
   // Fetch project milestones
@@ -249,6 +302,98 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
       },
     });
 
+  const selectedMilestone = milestones.find((milestone) => milestone.id === assessmentMilestoneId) ?? null;
+  const hasSelectedQuestionType = Object.values(aiQuestionTypes).some(Boolean);
+  const projectHasBestStandards = projectBestStandardIds.length > 0;
+
+  const createMilestoneAssessmentMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedMilestone) {
+        throw new Error("Please select a milestone first");
+      }
+
+      if (projectComponentSkills.length === 0) {
+        throw new Error("This project has no competency skills. Add skills to the project before generating assessments.");
+      }
+
+      if (projectHasBestStandards && projectBestStandards.length === 0) {
+        throw new Error("Unable to load project B.E.S.T. standards. Please try again.");
+      }
+
+      const selectedQuestionTypes = (Object.entries(aiQuestionTypes) as Array<[QuestionTypeKey, boolean]>)
+        .filter(([, checked]) => checked)
+        .map(([type]) => type);
+
+      if (selectedQuestionTypes.length === 0) {
+        throw new Error("Select at least one question type");
+      }
+
+      const milestoneDueDate = selectedMilestone.dueDate
+        ? new Date(selectedMilestone.dueDate).toISOString()
+        : new Date().toISOString();
+
+      const aiAssessment = await api.generateAssessmentFromSkills({
+        milestoneTitle: selectedMilestone.title,
+        milestoneDescription: selectedMilestone.description || "",
+        milestoneDueDate,
+        componentSkills: projectComponentSkills,
+        bestStandards: projectBestStandards,
+        questionCount: aiQuestionCount,
+        questionTypes: selectedQuestionTypes,
+      });
+
+      const questions = Array.isArray(aiAssessment.questions)
+        ? aiAssessment.questions
+          .map((question: AIAssessmentGeneratedQuestionDTO, index) => ({
+            id: question.id || `q${index + 1}`,
+            text: question.text,
+            type: question.type,
+            rubricCriteria: question.rubricCriteria || "",
+            options: question.choices || [],
+            correctAnswer: question.correctAnswer || question.sampleAnswer || "",
+          }))
+          .filter((question) => question.text.trim().length > 0)
+        : [];
+
+      if (questions.length === 0) {
+        throw new Error("AI could not generate valid questions for this milestone");
+      }
+
+      const payload: AssessmentCreateRequestDTO = {
+        milestoneId: selectedMilestone.id,
+        title: aiAssessment.title || `${selectedMilestone.title} Assessment`,
+        description: aiAssessment.description || `Assessment for ${selectedMilestone.title}`,
+        dueDate: selectedMilestone.dueDate || undefined,
+        componentSkillIds: projectComponentSkillIds,
+        questions,
+        aiGenerated: true,
+        assessmentType: "teacher",
+      };
+
+      return api.createAssessment(payload);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Assessment created",
+        description: "AI assessment was generated and attached to the selected milestone.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
+      if (selectedMilestone?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/milestones", selectedMilestone.id, "assessments"] });
+      }
+      setAssessmentMilestoneId(null);
+      setAiQuestionCount(5);
+      setAiQuestionTypes({ ...DEFAULT_AI_QUESTION_TYPES });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "Assessment generation failed",
+        description: error instanceof Error ? error.message : "Failed to create AI assessment",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEditProject = () => {
     if (project) {
       setProjectForm({
@@ -391,6 +536,19 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
         variant: 'destructive',
       });
     };
+
+  const handleOpenMilestoneAssessmentBuilder = (milestoneId: number) => {
+    setAssessmentMilestoneId(milestoneId);
+    setAiQuestionCount(5);
+    setAiQuestionTypes({ ...DEFAULT_AI_QUESTION_TYPES });
+  };
+
+  const handleToggleQuestionType = (type: QuestionTypeKey, checked: boolean | "indeterminate") => {
+    setAiQuestionTypes((prev) => ({
+      ...prev,
+      [type]: checked === true,
+    }));
+  };
 
   const handleGenerateMilestonesAndAssessments = () => {
     setConfirmationModal({
@@ -688,6 +846,126 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
             </TabsContent>
 
             <TabsContent value="milestones" className="space-y-6">
+              {!readOnly && selectedMilestone && (
+                <Card className="border border-blue-200 bg-blue-50/40">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between text-blue-900">
+                      <span className="flex items-center">
+                        <Sparkles className="h-5 w-5 mr-2 text-blue-600" />
+                        AI-Powered Assessment Generation
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAssessmentMilestoneId(null)}
+                      >
+                        Close
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="rounded-lg border border-blue-200 bg-white p-4">
+                      <p className="text-sm font-medium text-blue-900">Selected Milestone</p>
+                      <p className="font-semibold text-gray-900 mt-1">{selectedMilestone.title}</p>
+                      <p className="text-sm text-gray-600 mt-1">{selectedMilestone.description}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Due: {selectedMilestone.dueDate ? format(new Date(selectedMilestone.dueDate), 'MMM d, yyyy') : 'No due date'}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="rounded-lg border bg-white p-4">
+                        <p className="text-sm font-medium text-gray-900 mb-2">Project Competency Skills</p>
+                        {componentSkillsLoading ? (
+                          <p className="text-sm text-gray-500">Loading skills...</p>
+                        ) : projectComponentSkills.length === 0 ? (
+                          <p className="text-sm text-red-600">No component skills assigned to this project.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {projectComponentSkills.map((skill) => (
+                              <Badge key={skill.id} variant="outline" className="text-xs">
+                                {skill.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="rounded-lg border bg-white p-4">
+                        <p className="text-sm font-medium text-gray-900 mb-2">Project B.E.S.T. Standards</p>
+                        {bestStandardsLoading ? (
+                          <p className="text-sm text-gray-500">Loading standards...</p>
+                        ) : projectBestStandards.length === 0 ? (
+                          <p className="text-sm text-gray-600">No B.E.S.T. standards assigned to this project.</p>
+                        ) : (
+                          <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                            {projectBestStandards.map((standard) => (
+                              <div key={standard.id} className="text-xs text-gray-700">
+                                <span className="font-semibold">{standard.benchmarkNumber}</span>
+                                <span className="ml-1">{standard.description}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end rounded-lg border bg-white p-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ai-question-count" className="text-sm font-medium text-blue-900">
+                          Number of Questions
+                        </Label>
+                        <Input
+                          id="ai-question-count"
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={aiQuestionCount}
+                          onChange={(event) => {
+                            const nextValue = Number(event.target.value);
+                            if (!Number.isNaN(nextValue) && nextValue >= 1 && nextValue <= 20) {
+                              setAiQuestionCount(nextValue);
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-blue-900">Question Types</p>
+                        <div className="space-y-2">
+                          {(Object.keys(QUESTION_TYPE_LABELS) as QuestionTypeKey[]).map((type) => (
+                            <div key={type} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`question-type-${type}`}
+                                checked={aiQuestionTypes[type]}
+                                onCheckedChange={(checked) => handleToggleQuestionType(type, checked)}
+                              />
+                              <Label htmlFor={`question-type-${type}`} className="font-normal">
+                                {QUESTION_TYPE_LABELS[type]}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="md:col-span-2 flex justify-end">
+                        <Button
+                          onClick={() => createMilestoneAssessmentMutation.mutate()}
+                          disabled={
+                            createMilestoneAssessmentMutation.isPending ||
+                            componentSkillsLoading ||
+                            (projectHasBestStandards && bestStandardsLoading) ||
+                            projectComponentSkills.length === 0 ||
+                            !hasSelectedQuestionType
+                          }
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          {createMilestoneAssessmentMutation.isPending ? 'Generating...' : 'Generate & Create Assessment'}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Milestone Timeline */}
               <Card>
                 <CardHeader>
@@ -781,6 +1059,10 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => handleOpenMilestoneAssessmentBuilder(milestone.id)}>
+                                            <Sparkles className="h-4 w-4 mr-2" />
+                                            Create AI Assessment
+                                          </DropdownMenuItem>
                                           <DropdownMenuItem onClick={() => handleEditMilestone(milestone)}>
                                             Edit Milestone
                                           </DropdownMenuItem>

@@ -1,5 +1,6 @@
 import type {
   Assessment,
+  BestStandard,
   Credential,
   Milestone,
   Notification,
@@ -15,7 +16,25 @@ export type MilestoneDTO = Milestone;
 export type AssessmentDTO = Assessment;
 export type SubmissionDTO = Submission;
 export type CredentialDTO = Credential;
+export type BestStandardDTO = BestStandard;
 export type PortfolioArtifactDTO = PortfolioArtifact;
+export interface PortfolioSettingsDTO {
+  id: number;
+  studentId: number | null;
+  title: string;
+  description: string | null;
+  publicUrl: string;
+  isPublic: boolean | null;
+  updatedAt: Date | string | null;
+}
+
+export interface PortfolioShareLinkDTO {
+  portfolioUrl: string;
+  publicUrl: string;
+  expiresAt: Date | string | null;
+  expirationDays: number | null;
+  qrCodeUrl?: string;
+}
 export type NotificationDTO = Omit<Notification, "metadata"> & {
   metadata?: NotificationMetadataDTO | null;
 };
@@ -255,6 +274,7 @@ export interface AIAssessmentGenerationRequestDTO {
   milestoneDescription: string;
   milestoneDueDate: string;
   componentSkills: ComponentSkillWithDetailsDTO[];
+  bestStandards?: BestStandardDTO[];
   questionCount?: number;
   questionTypes?: string[];
   pdfUrl?: string;

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { aiService } from './ai.service';
 import { requireAuth, type AuthenticatedRequest } from '../auth';
 import { assessmentStorage, type IAssessmentStorage } from '../assessments/assessments.storage';
+import type { BestStandard } from '../../../shared/schema';
 import { 
   validateIntParam, 
   sanitizeForPrompt, 
@@ -162,7 +163,16 @@ export class AIController {
 
     router.post('/generate-assessment', requireAuth, aiLimiter, async (req: AuthenticatedRequest, res) => {
       try {
-        const { milestoneTitle, milestoneDescription, milestoneDueDate, componentSkills, questionCount = 5, questionTypes = ['open-ended'], pdfUrl } = req.body;
+        const {
+          milestoneTitle,
+          milestoneDescription,
+          milestoneDueDate,
+          componentSkills,
+          bestStandards = [],
+          questionCount = 5,
+          questionTypes = ['open-ended'],
+          pdfUrl,
+        } = req.body;
 
         if (!componentSkills || !Array.isArray(componentSkills) || componentSkills.length === 0) {
           return res.status(400).json({
@@ -185,6 +195,7 @@ export class AIController {
           milestoneDescription,  
           milestoneDueDate,
           componentSkills,
+          Array.isArray(bestStandards) ? (bestStandards as BestStandard[]) : [],
           questionCount,
           questionTypes,
           pdfContent

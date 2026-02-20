@@ -32,6 +32,23 @@ export class CompetencyController {
       }
     });
 
+    // Get best standards by specific IDs
+    router.post('/best-standards/by-ids', requireAuth, async (req: AuthenticatedRequest, res) => {
+      try {
+        const { standardIds } = req.body;
+
+        if (!standardIds || !Array.isArray(standardIds)) {
+          return res.status(400).json({ message: "standardIds must be an array" });
+        }
+
+        const bestStandards = await this.service.getBestStandardsByIds(standardIds);
+        res.json(bestStandards);
+      } catch (error) {
+        console.error("Error fetching best standards by IDs:", error);
+        res.status(500).json({ message: "Failed to fetch best standards by IDs" });
+      }
+    });
+
     // Get all best standards with optional filtering - AFTER more specific routes
     router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {

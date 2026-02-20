@@ -2,6 +2,7 @@ import type {
   AIAssessmentGenerationRequestDTO,
   AIAssessmentGenerationResponseDTO,
   AssessmentSubmissionSummaryDTO,
+  BestStandardDTO,
   AssessmentCreateRequestDTO,
   ApiMessageResponse,
   AssessmentDTO,
@@ -13,6 +14,8 @@ import type {
   MilestoneDTO,
   NotificationDTO,
   PortfolioArtifactDTO,
+  PortfolioSettingsDTO,
+  PortfolioShareLinkDTO,
   ProjectCreateRequestDTO,
   ProjectTeamDTO,
   ProjectTeamMemberDTO,
@@ -152,6 +155,28 @@ export const api = {
     apiJsonRequest<PortfolioArtifactDTO[]>(`/api/portfolio/artifacts?studentId=${studentId}`, "GET"),
   createPortfolioArtifact: (data: UnknownRecord) =>
     apiJsonRequest<PortfolioArtifactDTO>("/api/portfolio/artifacts", "POST", data),
+  updatePortfolioArtifact: (artifactId: number, data: UnknownRecord) =>
+    apiJsonRequest<PortfolioArtifactDTO>(`/api/portfolio/artifacts/${artifactId}`, "PATCH", data),
+  updatePortfolioArtifactVisibility: (artifactId: number, isPublic: boolean) =>
+    apiJsonRequest<PortfolioArtifactDTO>(`/api/portfolio/artifacts/${artifactId}/visibility`, "PATCH", { isPublic }),
+  getPortfolioSettings: () =>
+    apiJsonRequest<PortfolioSettingsDTO>("/api/portfolio/settings", "GET"),
+  updatePortfolioSettings: (data: { isPublic?: boolean; title?: string; description?: string | null }) =>
+    apiJsonRequest<PortfolioSettingsDTO>("/api/portfolio/settings", "PATCH", data),
+  getPortfolioShareLink: (expirationDays?: number) =>
+    apiJsonRequest<PortfolioShareLinkDTO>(
+      expirationDays
+        ? `/api/portfolio/share-link?expirationDays=${expirationDays}`
+        : "/api/portfolio/share-link",
+      "GET",
+    ),
+  getPortfolioShareQrCode: (expirationDays?: number) =>
+    apiJsonRequest<PortfolioShareLinkDTO>(
+      expirationDays
+        ? `/api/portfolio/qr-code?expirationDays=${expirationDays}`
+        : "/api/portfolio/qr-code",
+      "GET",
+    ),
 
   // Competencies
   getCompetencies: () => apiJsonRequest<UnknownRecord[]>("/api/competencies", "GET"),
@@ -161,6 +186,8 @@ export const api = {
     apiJsonRequest<ComponentSkillWithDetailsDTO[]>("/api/competencies/component-skills/details", "GET"),
   getComponentSkillsByIds: (skillIds: number[]) =>
     apiJsonRequest<ComponentSkillWithDetailsDTO[]>("/api/competencies/component-skills/by-ids", "POST", { skillIds }),
+  getBestStandardsByIds: (standardIds: number[]) =>
+    apiJsonRequest<BestStandardDTO[]>("/api/competencies/best-standards/by-ids", "POST", { standardIds }),
   getOutcomes: (competencyId: number) =>
     apiJsonRequest<UnknownRecord[]>(`/api/competencies/${competencyId}/outcomes`, "GET"),
   getLearnerOutcomes: () =>

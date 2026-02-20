@@ -106,6 +106,40 @@ export default function PublicProjectDetail() {
     enabled: !!projectId,
   });
 
+  const groupedCompetencySkills = useMemo(() => {
+    const groups = new Map<number, {
+      competencyId: number;
+      competencyName: string;
+      competencyDescription: string | null;
+      skills: ComponentSkill[];
+    }>();
+
+    for (const skill of project?.componentSkills || []) {
+      const competencyId = skill.competencyId ?? 0;
+      const competencyName = skill.competencyName?.trim() || "Uncategorized Competency";
+
+      const existingGroup = groups.get(competencyId);
+      if (existingGroup) {
+        existingGroup.skills.push(skill);
+        continue;
+      }
+
+      groups.set(competencyId, {
+        competencyId,
+        competencyName,
+        competencyDescription: skill.competencyDescription ?? null,
+        skills: [skill],
+      });
+    }
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        skills: [...group.skills].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+      }))
+      .sort((a, b) => a.competencyName.localeCompare(b.competencyName));
+  }, [project?.componentSkills]);
+
   if (!match) {
     return null;
   }
@@ -170,39 +204,6 @@ export default function PublicProjectDetail() {
   }
 
   const sortedMilestones = [...(project.milestones || [])].sort((a, b) => a.order - b.order);
-  const groupedCompetencySkills = useMemo(() => {
-    const groups = new Map<number, {
-      competencyId: number;
-      competencyName: string;
-      competencyDescription: string | null;
-      skills: ComponentSkill[];
-    }>();
-
-    for (const skill of project.componentSkills || []) {
-      const competencyId = skill.competencyId ?? 0;
-      const competencyName = skill.competencyName?.trim() || "Uncategorized Competency";
-
-      const existingGroup = groups.get(competencyId);
-      if (existingGroup) {
-        existingGroup.skills.push(skill);
-        continue;
-      }
-
-      groups.set(competencyId, {
-        competencyId,
-        competencyName,
-        competencyDescription: skill.competencyDescription ?? null,
-        skills: [skill],
-      });
-    }
-
-    return Array.from(groups.values())
-      .map((group) => ({
-        ...group,
-        skills: [...group.skills].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-      }))
-      .sort((a, b) => a.competencyName.localeCompare(b.competencyName));
-  }, [project.componentSkills]);
 
   const handleShareProject = async () => {
     try {

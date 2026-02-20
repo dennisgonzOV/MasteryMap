@@ -1,20 +1,30 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import CredentialBadge from "@/components/credential-badge";
-import { 
+import {
   Award,
-  Star,
-  Image,
-  FileText,
-  Video,
+  Calendar,
   ExternalLink,
+  Eye,
+  FileText,
+  Image,
+  Printer,
+  Search,
+  ShieldCheck,
   User,
-  Calendar
+  Video,
 } from "lucide-react";
 
 interface PublicPortfolioData {
@@ -22,14 +32,30 @@ interface PublicPortfolioData {
     id: number;
     username: string;
     profileImageUrl: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    schoolName: string | null;
+    grade: string | null;
   };
+  portfolio: {
+    title: string;
+    description: string | null;
+    publicUrl: string;
+    updatedAt: string | null;
+  };
+  verification: {
+    verifiedCredentialCount: number;
+    totalCredentialCount: number;
+    lastVerifiedAt: string | null;
+  };
+  lastActivityAt: string | null;
   artifacts: Array<{
     id: number;
     title: string;
     description: string | null;
     artifactUrl: string | null;
     artifactType: string | null;
-    tags: string[] | null;
+    tags: unknown;
     createdAt: string | null;
   }>;
   credentials: Array<{
@@ -39,22 +65,38 @@ interface PublicPortfolioData {
     description: string | null;
     iconUrl: string | null;
     awardedAt: string | null;
+    approvedBy?: number | null;
     componentSkillId: number | null;
     competencyId: number | null;
   }>;
 }
 
-export default function PublicPortfolio({ params }: { params: { studentId: string } }) {
-  const studentId = parseInt(params.studentId);
+const ALL_TYPES = "all";
+const ALL_YEARS = "all";
+
+function normalizeTags(tags: unknown): string[] {
+  return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string") : [];
+}
+
+export default function PublicPortfolio({ params }: { params: { publicUrl: string } }) {
+  const publicUrl = params.publicUrl;
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>(ALL_TYPES);
+  const [yearFilter, setYearFilter] = useState<string>(ALL_YEARS);
+
+  const querySuffix = typeof window !== "undefined" ? window.location.search : "";
 
   const { data: portfolioData, isLoading, error } = useQuery<PublicPortfolioData>({
-    queryKey: ["/api/portfolio/public", studentId],
-    enabled: !isNaN(studentId),
+    queryKey: ["/api/portfolio/public", publicUrl, querySuffix],
+    enabled: Boolean(publicUrl),
     queryFn: async () => {
-      const response = await fetch(`/api/portfolio/public/${studentId}`);
+      const response = await fetch(`/api/portfolio/public/${encodeURIComponent(publicUrl)}${querySuffix}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("Portfolio not found");
+        }
+        if (response.status === 410) {
+          throw new Error("This portfolio link has expired");
         }
         throw new Error("Failed to fetch portfolio");
       }
@@ -62,15 +104,113 @@ export default function PublicPortfolio({ params }: { params: { studentId: strin
     },
   });
 
+  const { student, portfolio, artifacts, credentials, verification, lastActivityAt } =
+    portfolioData || {
+      student: null,
+      portfolio: null,
+      artifacts: [],
+      credentials: [],
+      verification: null,
+      lastActivityAt: null,
+    };
+
+  const fullName = student
+    ? [student.firstName, student.lastName].filter(Boolean).join(" ") || student.username
+    : "";
+
+  const artifactTypes = useMemo(() => {
+    const types = new Set<string>();
+    artifacts.forEach((artifact) => {
+      if (artifact.artifactType) {
+        types.add(artifact.artifactType);
+      }
+    });
+    return Array.from(types).sort((a, b) => a.localeCompare(b));
+  }, [artifacts]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    artifacts.forEach((artifact) => {
+      if (artifact.createdAt) {
+        years.add(new Date(artifact.createdAt).getFullYear().toString());
+      }
+    });
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [artifacts]);
+
+  const filteredArtifacts = useMemo(() => {
+    return artifacts.filter((artifact) => {
+      const title = artifact.title.toLowerCase();
+      const description = (artifact.description || "").toLowerCase();
+      const tags = normalizeTags(artifact.tags).map((tag) => tag.toLowerCase());
+      const query = search.trim().toLowerCase();
+
+      const matchesSearch =
+        query.length === 0 ||
+        title.includes(query) ||
+        description.includes(query) ||
+        tags.some((tag) => tag.includes(query));
+      const matchesType = typeFilter === ALL_TYPES || artifact.artifactType === typeFilter;
+      const artifactYear = artifact.createdAt ? new Date(artifact.createdAt).getFullYear().toString() : null;
+      const matchesYear = yearFilter === ALL_YEARS || artifactYear === yearFilter;
+
+      return matchesSearch && matchesType && matchesYear;
+    });
+  }, [artifacts, search, typeFilter, yearFilter]);
+
+  const credentialCounts = useMemo(() => {
+    return {
+      stickers: credentials.filter((credential) => credential.type === "sticker").length,
+      badges: credentials.filter((credential) => credential.type === "badge").length,
+      plaques: credentials.filter((credential) => credential.type === "plaque").length,
+    };
+  }, [credentials]);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const renderArtifactPreview = (artifact: PublicPortfolioData["artifacts"][number]) => {
+    if (!artifact.artifactUrl) {
+      return (
+        <div className="h-36 rounded-lg border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-slate-500 text-sm">
+          No preview available
+        </div>
+      );
+    }
+
+    if (artifact.artifactType === "image") {
+      return (
+        <img
+          src={artifact.artifactUrl}
+          alt={artifact.title}
+          className="h-36 w-full rounded-lg object-cover border border-slate-200"
+        />
+      );
+    }
+
+    if (artifact.artifactType === "video") {
+      return (
+        <video className="h-36 w-full rounded-lg border border-slate-200" controls preload="metadata">
+          <source src={artifact.artifactUrl} />
+        </video>
+      );
+    }
+
+    return (
+      <div className="h-36 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-600 text-sm px-3 text-center">
+        <FileText className="h-4 w-4 mr-2" />
+        Open artifact to review source evidence
+      </div>
+    );
+  };
+
   const getArtifactIcon = (type: string | null) => {
     switch (type) {
-      case 'image':
+      case "image":
         return Image;
-      case 'video':
+      case "video":
         return Video;
-      case 'document':
-      case 'presentation':
-        return FileText;
       default:
         return FileText;
     }
@@ -78,251 +218,241 @@ export default function PublicPortfolio({ params }: { params: { studentId: strin
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="flex items-center space-x-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-lg text-gray-700">Loading portfolio...</span>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-700" />
+          <span className="text-slate-700">Loading portfolio...</span>
         </div>
       </div>
     );
   }
 
-  if (error || !portfolioData) {
+  if (error || !portfolioData || !student || !portfolio || !verification) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-        <Card className="max-w-md mx-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Card className="max-w-md mx-4 w-full">
           <CardContent className="pt-6 text-center">
-            <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h1 className="text-xl font-bold text-gray-900 mb-2">Portfolio Not Found</h1>
-            <p className="text-gray-600">
-              This portfolio doesn't exist or is not available.
-            </p>
+            <User className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Portfolio Unavailable</h1>
+            <p className="text-slate-600 text-sm">{error instanceof Error ? error.message : "Unable to load this portfolio."}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const { student, artifacts, credentials } = portfolioData;
-
-  const stickers = credentials.filter(c => c.type === 'sticker');
-  const badges = credentials.filter(c => c.type === 'badge');
-  const plaques = credentials.filter(c => c.type === 'plaque');
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center space-x-4">
-            {student.profileImageUrl ? (
-              <img 
-                src={student.profileImageUrl} 
-                alt={student.username}
-                className="h-16 w-16 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
-                {student.username.charAt(0).toUpperCase()}
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-4">
+              {student.profileImageUrl ? (
+                <img
+                  src={student.profileImageUrl}
+                  alt={fullName}
+                  className="h-16 w-16 rounded-full object-cover border border-slate-200"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-slate-800 text-white flex items-center justify-center text-xl font-semibold">
+                  {fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">{portfolio.title}</h1>
+                <p className="text-slate-700 text-sm">Digital learning transcript for project-based competency evidence.</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  <Badge variant="outline">Student: {fullName}</Badge>
+                  {student.grade && <Badge variant="outline">Grade {student.grade}</Badge>}
+                  {student.schoolName && <Badge variant="outline">{student.schoolName}</Badge>}
+                </div>
               </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900" data-testid="text-student-name">
-                {student.username}'s Portfolio
-              </h1>
-              <p className="text-gray-600">Student Learning Portfolio</p>
+            </div>
+            <div className="flex items-center gap-2 print:hidden">
+              <Button variant="outline" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="credentials" className="space-y-6">
-          <TabsList className="bg-white">
-            <TabsTrigger value="credentials" data-testid="tab-credentials">
-              <Award className="h-4 w-4 mr-2" />
-              Credentials ({credentials.length})
-            </TabsTrigger>
-            <TabsTrigger value="artifacts" data-testid="tab-artifacts">
-              <FileText className="h-4 w-4 mr-2" />
-              Artifacts ({artifacts.length})
-            </TabsTrigger>
-          </TabsList>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Credentials</p>
+              <p className="text-2xl font-semibold text-slate-900">{credentials.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Public Artifacts</p>
+              <p className="text-2xl font-semibold text-slate-900">{artifacts.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Verified Credentials</p>
+              <p className="text-2xl font-semibold text-slate-900">{verification.verifiedCredentialCount}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Last Activity</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {lastActivityAt ? format(new Date(lastActivityAt), "MMM d, yyyy") : "Not available"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-          <TabsContent value="credentials" className="space-y-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <ShieldCheck className="h-4 w-4 mr-2 text-emerald-600" />
+              Verification and Issuance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-slate-700">
+            <p>
+              <strong>{verification.verifiedCredentialCount}</strong> of <strong>{verification.totalCredentialCount}</strong> credentials include teacher verification metadata.
+            </p>
+            <p>
+              Last verified update: {verification.lastVerifiedAt ? format(new Date(verification.lastVerifiedAt), "MMMM d, yyyy") : "Not available"}
+            </p>
+            <p>
+              Proficiency rubric reference: <span className="font-medium">Emerging → Developing → Proficient → Applying</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <Award className="h-4 w-4 mr-2 text-indigo-600" />
+              Credential Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2 mb-4 text-sm">
+              <Badge variant="secondary">Stickers: {credentialCounts.stickers}</Badge>
+              <Badge variant="secondary">Badges: {credentialCounts.badges}</Badge>
+              <Badge variant="secondary">Plaques: {credentialCounts.plaques}</Badge>
+            </div>
             {credentials.length === 0 ? (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <Award className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600">No credentials yet</h3>
-                  <p className="text-gray-500 mt-2">This student hasn't earned any credentials yet.</p>
-                </CardContent>
-              </Card>
+              <p className="text-sm text-slate-600">No credentials are published yet.</p>
             ) : (
-              <div className="space-y-8">
-                {stickers.length > 0 && (
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Star className="h-5 w-5 text-yellow-500 mr-2" />
-                      Stickers ({stickers.length})
-                    </h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {stickers.map((credential) => (
-                        <Card 
-                          key={credential.id} 
-                          className="text-center hover:shadow-md transition-shadow"
-                          data-testid={`card-sticker-${credential.id}`}
-                        >
-                          <CardContent className="pt-4">
-                            <CredentialBadge credential={credential as any} size="md" />
-                            <p className="text-xs text-gray-600 mt-2 font-medium truncate">{credential.title}</p>
-                            {credential.awardedAt && (
-                              <p className="text-xs text-gray-400 mt-1">
-                                {format(new Date(credential.awardedAt), 'MMM d, yyyy')}
-                              </p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {badges.length > 0 && (
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Award className="h-5 w-5 text-blue-500 mr-2" />
-                      Badges ({badges.length})
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {badges.map((credential) => (
-                        <Card 
-                          key={credential.id} 
-                          className="hover:shadow-md transition-shadow"
-                          data-testid={`card-badge-${credential.id}`}
-                        >
-                          <CardContent className="pt-4 flex items-center space-x-4">
-                            <CredentialBadge credential={credential as any} size="lg" />
-                            <div>
-                              <p className="font-medium text-gray-900">{credential.title}</p>
-                              {credential.description && (
-                                <p className="text-sm text-gray-600 line-clamp-2">{credential.description}</p>
-                              )}
-                              {credential.awardedAt && (
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {format(new Date(credential.awardedAt), 'MMM d, yyyy')}
-                                </p>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {plaques.length > 0 && (
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Award className="h-5 w-5 text-purple-500 mr-2" />
-                      Plaques ({plaques.length})
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {plaques.map((credential) => (
-                        <Card 
-                          key={credential.id} 
-                          className="hover:shadow-md transition-shadow border-l-4 border-l-purple-500"
-                          data-testid={`card-plaque-${credential.id}`}
-                        >
-                          <CardContent className="pt-4 flex items-center space-x-4">
-                            <CredentialBadge credential={credential as any} size="lg" />
-                            <div>
-                              <p className="font-medium text-gray-900">{credential.title}</p>
-                              {credential.description && (
-                                <p className="text-sm text-gray-600 line-clamp-2">{credential.description}</p>
-                              )}
-                              {credential.awardedAt && (
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {format(new Date(credential.awardedAt), 'MMM d, yyyy')}
-                                </p>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {credentials.map((credential) => (
+                  <Card key={credential.id} className="border border-slate-200">
+                    <CardContent className="pt-4">
+                      <CredentialBadge credential={credential as any} size="lg" showDetails />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
-          </TabsContent>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="artifacts" className="space-y-6">
-            {artifacts.length === 0 ? (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600">No public artifacts</h3>
-                  <p className="text-gray-500 mt-2">This student hasn't shared any artifacts publicly yet.</p>
-                </CardContent>
-              </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <Eye className="h-4 w-4 mr-2 text-blue-600" />
+              Project Evidence
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 print:hidden">
+              <div className="lg:col-span-2 relative">
+                <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input
+                  placeholder="Search title, description, or tags"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_TYPES}>All types</SelectItem>
+                  {artifactTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={yearFilter} onValueChange={setYearFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_YEARS}>All years</SelectItem>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {filteredArtifacts.length === 0 ? (
+              <div className="border border-dashed border-slate-300 rounded-lg p-8 text-center text-slate-600 text-sm">
+                No artifacts match the selected filters.
+              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {artifacts.map((artifact) => {
-                  const IconComponent = getArtifactIcon(artifact.artifactType);
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredArtifacts.map((artifact) => {
+                  const Icon = getArtifactIcon(artifact.artifactType);
+                  const tags = normalizeTags(artifact.tags);
                   return (
-                    <Card 
-                      key={artifact.id} 
-                      className="hover:shadow-lg transition-shadow"
-                      data-testid={`card-artifact-${artifact.id}`}
-                    >
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center space-x-2 text-sm">
-                          <IconComponent className="h-4 w-4 text-blue-600" />
-                          <span className="truncate">{artifact.title}</span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
+                    <Card key={artifact.id} className="border border-slate-200">
+                      <CardContent className="pt-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Icon className="h-4 w-4 text-blue-600 shrink-0" />
+                            <h3 className="font-medium text-sm text-slate-900 truncate">{artifact.title}</h3>
+                          </div>
+                          {artifact.artifactType && <Badge variant="outline" className="text-[11px]">{artifact.artifactType}</Badge>}
+                        </div>
+
+                        {renderArtifactPreview(artifact)}
+
                         {artifact.description && (
-                          <p className="text-sm text-gray-600 line-clamp-3">{artifact.description}</p>
+                          <p className="text-sm text-slate-600 line-clamp-3">{artifact.description}</p>
                         )}
-                        
-                        {artifact.artifactType && (
-                          <Badge variant="outline" className="text-xs">
-                            {artifact.artifactType}
-                          </Badge>
-                        )}
-                        
-                        {artifact.tags && artifact.tags.length > 0 && (
+
+                        {tags.length > 0 && (
                           <div className="flex flex-wrap gap-1">
-                            {artifact.tags.slice(0, 3).map((tag, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
+                            {tags.slice(0, 4).map((tag) => (
+                              <Badge key={tag} variant="secondary" className="text-[11px]">
                                 {tag}
                               </Badge>
                             ))}
-                            {artifact.tags.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{artifact.tags.length - 3}
-                              </Badge>
-                            )}
                           </div>
                         )}
-                        
-                        <div className="flex items-center justify-between pt-2">
-                          {artifact.createdAt && (
-                            <span className="text-xs text-gray-400 flex items-center">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {format(new Date(artifact.createdAt), 'MMM d, yyyy')}
-                            </span>
-                          )}
+
+                        <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                          <span className="flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {artifact.createdAt ? format(new Date(artifact.createdAt), "MMM d, yyyy") : "No date"}
+                          </span>
                           {artifact.artifactUrl && (
-                            <a 
-                              href={artifact.artifactUrl} 
-                              target="_blank" 
+                            <a
+                              href={artifact.artifactUrl}
+                              target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-700 text-sm flex items-center"
-                              data-testid={`link-artifact-${artifact.id}`}
+                              className="inline-flex items-center text-blue-700 hover:text-blue-800"
                             >
-                              View <ExternalLink className="h-3 w-3 ml-1" />
+                              Open
+                              <ExternalLink className="h-3 w-3 ml-1" />
                             </a>
                           )}
                         </div>
@@ -332,13 +462,16 @@ export default function PublicPortfolio({ params }: { params: { studentId: strin
                 })}
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </main>
 
-      <footer className="bg-white border-t mt-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-gray-500 text-sm">
-          <p>Powered by MasteryMap - Student Learning Portfolio</p>
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 text-xs text-slate-500">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <span>MasteryMap Public Portfolio</span>
+            <span>Link token: {portfolio.publicUrl}</span>
+          </div>
         </div>
       </footer>
     </div>
