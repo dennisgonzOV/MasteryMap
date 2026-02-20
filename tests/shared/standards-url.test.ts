@@ -23,6 +23,15 @@ describe("buildBestStandardsUrl", () => {
     ).toBe("/api/competencies/best-standards?subject=Math&grade=8");
   });
 
+  it("includes body of knowledge when provided", () => {
+    expect(
+      buildBestStandardsUrl({
+        subject: "Science",
+        bodyOfKnowledge: "Nature of Science",
+      }),
+    ).toBe("/api/competencies/best-standards?subject=Science&bodyOfKnowledge=Nature+of+Science");
+  });
+
   it("omits subject and grade when set to all", () => {
     expect(
       buildBestStandardsUrl({

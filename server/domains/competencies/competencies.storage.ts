@@ -20,8 +20,8 @@ export interface ICompetencyStorage {
   getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
   getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
   searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
-  getBestStandardsWithFilters(filters: { search?: string; subject?: string; grade?: string }): Promise<BestStandard[]>;
-  getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }>;
+  getBestStandardsWithFilters(filters: { search?: string; subject?: string; grade?: string; bodyOfKnowledge?: string }): Promise<BestStandard[]>;
+  getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[], bodyOfKnowledge: string[] }>;
 
   // 3-Level Hierarchy operations
   getLearnerOutcomes(): Promise<LearnerOutcome[]>;
@@ -143,6 +143,7 @@ export class CompetencyStorage implements ICompetencyStorage {
     search?: string;
     subject?: string;
     grade?: string;
+    bodyOfKnowledge?: string;
   }): Promise<BestStandard[]> {
     const conditions = [];
 
@@ -165,6 +166,11 @@ export class CompetencyStorage implements ICompetencyStorage {
       conditions.push(eq(bestStandards.grade, filters.grade));
     }
 
+    // Add Body of Knowledge condition
+    if (filters.bodyOfKnowledge && filters.bodyOfKnowledge !== 'all') {
+      conditions.push(eq(bestStandards.bodyOfKnowledge, filters.bodyOfKnowledge));
+    }
+
     const baseQuery = db.select().from(bestStandards);
     const filteredQuery = conditions.length > 0
       ? baseQuery.where(and(...conditions))
@@ -173,7 +179,7 @@ export class CompetencyStorage implements ICompetencyStorage {
     return (await filteredQuery.orderBy(asc(bestStandards.benchmarkNumber))) as BestStandard[];
   }
 
-  async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }> {
+  async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[], bodyOfKnowledge: string[] }> {
     try {
       const subjectsResult = await db.execute(sql`
         select distinct
@@ -200,6 +206,11 @@ export class CompetencyStorage implements ICompetencyStorage {
         from ${bestStandards}
       `);
 
+      const bodyOfKnowledgeResult = await db.execute(sql`
+        select distinct nullif(trim(${bestStandards.bodyOfKnowledge}), '') as body_of_knowledge
+        from ${bestStandards}
+      `);
+
       const subjects = (subjectsResult.rows as Array<{ subject: string | null }>)
         .map((row) => row.subject)
         .filter((subject): subject is string => Boolean(subject))
@@ -210,13 +221,19 @@ export class CompetencyStorage implements ICompetencyStorage {
         .filter((grade): grade is string => Boolean(grade))
         .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
+      const bodyOfKnowledge = (bodyOfKnowledgeResult.rows as Array<{ body_of_knowledge: string | null }>)
+        .map((row) => row.body_of_knowledge)
+        .filter((entry): entry is string => Boolean(entry))
+        .sort((a, b) => a.localeCompare(b));
+
       return {
         subjects,
         grades,
+        bodyOfKnowledge,
       };
     } catch (error) {
       console.error('Error fetching best standards metadata:', error);
-      return { subjects: [], grades: [] };
+      return { subjects: [], grades: [], bodyOfKnowledge: [] };
     }
   }
 

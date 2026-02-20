@@ -79,6 +79,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   const [standardsSearchTerm, setStandardsSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
+  const [selectedBodyOfKnowledge, setSelectedBodyOfKnowledge] = useState('');
   const [standardsDisplayLimit, setStandardsDisplayLimit] = useState(50);
   const [activeTab, setActiveTab] = useState('skills');
   const [isPublic, setIsPublic] = useState(false);
@@ -141,10 +142,15 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     ]),
   ).sort((a, b) => a.localeCompare(b));
 
+  const standardsBodyOfKnowledgeOptions = Array.from(
+    new Set((((standardsMetadata as any)?.bodyOfKnowledge as string[] | undefined) ?? [])),
+  ).sort((a, b) => a.localeCompare(b));
+
   const bestStandardsUrl = buildBestStandardsUrl({
     searchTerm: standardsSearchTerm,
     subject: selectedSubject,
     grade: selectedGrade,
+    bodyOfKnowledge: selectedBodyOfKnowledge,
   });
 
   // Fetch B.E.S.T. Standards based on search/filter criteria
@@ -340,6 +346,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     setStandardsSearchTerm('');
     setSelectedSubject('');
     setSelectedGrade('');
+    setSelectedBodyOfKnowledge('');
     setStandardsDisplayLimit(50);
     setActiveTab('skills');
     setIsPublic(false);
@@ -698,7 +705,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
 
                 <TabsContent value="standards" className="space-y-3">
                   {/* B.E.S.T. Standards Filters */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
@@ -727,6 +734,17 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                         <SelectItem value="all">All Grades</SelectItem>
                         {(standardsMetadata as any)?.grades?.map((grade: string) => (
                           <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={selectedBodyOfKnowledge || "all"} onValueChange={(value) => { setSelectedBodyOfKnowledge(value === "all" ? "" : value); setStandardsDisplayLimit(50); }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filter by body of knowledge" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Bodies of Knowledge</SelectItem>
+                        {standardsBodyOfKnowledgeOptions.map((body: string) => (
+                          <SelectItem key={body} value={body}>{body}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

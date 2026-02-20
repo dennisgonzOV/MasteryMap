@@ -2,6 +2,7 @@ export interface BestStandardsFilters {
   searchTerm?: string;
   subject?: string;
   grade?: string;
+  bodyOfKnowledge?: string;
 }
 
 export function buildBestStandardsUrl(filters: BestStandardsFilters): string {
@@ -17,6 +18,10 @@ export function buildBestStandardsUrl(filters: BestStandardsFilters): string {
 
   if (filters.grade && filters.grade !== "all") {
     params.set("grade", filters.grade);
+  }
+
+  if (filters.bodyOfKnowledge && filters.bodyOfKnowledge !== "all") {
+    params.set("bodyOfKnowledge", filters.bodyOfKnowledge);
   }
 
   const queryString = params.toString();

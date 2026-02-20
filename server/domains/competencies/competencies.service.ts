@@ -18,8 +18,8 @@ export interface ICompetencyService {
   getBestStandardsBySubject(subject: string): Promise<BestStandard[]>;
   getBestStandardsByGrade(grade: string): Promise<BestStandard[]>;
   searchBestStandards(searchTerm: string): Promise<BestStandard[]>;
-  getBestStandardsWithFilters(filters: { search?: string; subject?: string; grade?: string }): Promise<BestStandard[]>;
-  getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }>;
+  getBestStandardsWithFilters(filters: { search?: string; subject?: string; grade?: string; bodyOfKnowledge?: string }): Promise<BestStandard[]>;
+  getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[], bodyOfKnowledge: string[] }>;
 
   // 3-Level Hierarchy operations
   getLearnerOutcomes(): Promise<LearnerOutcome[]>;
@@ -62,7 +62,7 @@ export class CompetencyService implements ICompetencyService {
     return await this.storage.getBestStandardsByGrade(grade);
   }
 
-  async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[] }> {
+  async getBestStandardsMetadata(): Promise<{ subjects: string[], grades: string[], bodyOfKnowledge: string[] }> {
     return this.storage.getBestStandardsMetadata();
   }
 
@@ -70,7 +70,7 @@ export class CompetencyService implements ICompetencyService {
     return await this.storage.searchBestStandards(searchTerm);
   }
 
-  async getBestStandardsWithFilters(filters: { search?: string; subject?: string; grade?: string }): Promise<BestStandard[]> {
+  async getBestStandardsWithFilters(filters: { search?: string; subject?: string; grade?: string; bodyOfKnowledge?: string }): Promise<BestStandard[]> {
     return await this.storage.getBestStandardsWithFilters(filters);
   }
 

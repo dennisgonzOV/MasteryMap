@@ -1,5 +1,6 @@
 import { objectStorageClient, ObjectStorageService } from "../../replit_integrations/object_storage/objectStorage";
 import { setObjectAclPolicy } from "../../replit_integrations/object_storage/objectAcl";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 interface GenerateThumbnailOptions {
   projectTitle: string;
@@ -149,11 +150,34 @@ Style: Modern educational illustration, flat design, vibrant colors, no text in 
 
       const objectName = `${this.thumbnailPrefix}/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
       const bucketName = this.thumbnailBucket;
+      const imageBuffer = Buffer.from(base64Data, "base64");
 
+      // Use native S3 if AWS credentials are provided
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION) {
+        const s3Client = new S3Client({
+          region: process.env.AWS_REGION,
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          },
+        });
+
+        const command = new PutObjectCommand({
+          Bucket: bucketName,
+          Key: objectName,
+          Body: imageBuffer,
+          ContentType: "image/png",
+          CacheControl: "public, max-age=31536000",
+          ACL: "public-read",
+        });
+
+        await s3Client.send(command);
+        return `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${objectName}`;
+      }
+
+      // Fallback to existing Object Storage implementation
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
-
-      const imageBuffer = Buffer.from(base64Data, "base64");
 
       await file.save(imageBuffer, {
         contentType: "image/png",

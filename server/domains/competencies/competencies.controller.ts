@@ -35,16 +35,18 @@ export class CompetencyController {
     // Get all best standards with optional filtering - AFTER more specific routes
     router.get('/best-standards', requireAuth, async (req: AuthenticatedRequest, res) => {
       try {
-        const { search, subject, grade } = req.query;
+        const { search, subject, grade, bodyOfKnowledge } = req.query;
 
         const searchParam = search ? String(search).trim() : '';
         const subjectParam = subject ? String(subject).trim() : '';
         const gradeParam = grade ? String(grade).trim() : '';
+        const bodyOfKnowledgeParam = bodyOfKnowledge ? String(bodyOfKnowledge).trim() : '';
 
         const bestStandards = await this.service.getBestStandardsWithFilters({
           search: searchParam || undefined,
           subject: subjectParam || undefined,
-          grade: gradeParam || undefined
+          grade: gradeParam || undefined,
+          bodyOfKnowledge: bodyOfKnowledgeParam || undefined,
         });
 
         res.json(bestStandards);
