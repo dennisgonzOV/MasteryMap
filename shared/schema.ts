@@ -143,6 +143,9 @@ export const projects = pgTable("projects", {
   subjectArea: varchar("subject_area"), // e.g., "Math", "Science", "English"
   gradeLevel: varchar("grade_level"), // K-12 grade level
   estimatedDuration: varchar("estimated_duration"), // Estimated project duration
+  learningOutcomes: jsonb("learning_outcomes").$type<string[]>().default([]),
+  requiredResources: jsonb("required_resources").$type<string[]>().default([]),
+  ideaSnapshot: jsonb("idea_snapshot").$type<Record<string, unknown> | null>(),
 
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -544,6 +547,9 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   subjectArea: z.string().optional(),
   gradeLevel: z.string().optional(),
   estimatedDuration: z.string().optional(),
+  learningOutcomes: z.array(z.string()).optional(),
+  requiredResources: z.array(z.string()).optional(),
+  ideaSnapshot: z.record(z.unknown()).nullable().optional(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({

@@ -3,9 +3,9 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from "../../auth"
 import { aiLimiter } from "../../../middleware/security";
 import { validateIdParam } from "../../../middleware/routeValidation";
 import { UserRole } from "../../../../shared/schema";
-import type { AssessmentDTO, MilestoneDTO } from "../../../../shared/contracts/api";
+import type { AssessmentDTO, MilestoneDTO, ProjectIdeaMilestoneDTO } from "../../../../shared/contracts/api";
 import type { ProjectsService } from "../projects.service";
-import { createSuccessResponse, sendErrorResponse } from "../../../utils/routeHelpers";
+import { createSuccessResponse, sendErrorResponse, wrapRoute } from "../../../utils/routeHelpers";
 import { z } from "zod";
 
 type GeneratedMilestoneWithAssessment = {
@@ -23,6 +23,15 @@ const thumbnailPreviewSchema = z.object({
   description: z.string().max(2000).optional(),
   subject: z.string().max(100).optional(),
   topic: z.string().max(200).optional(),
+});
+
+const seedMilestonesFromIdeaSchema = z.object({
+  suggestedMilestones: z.array(z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().max(2000).optional().nullable(),
+    estimatedDuration: z.string().max(100).optional().nullable(),
+    dueDate: z.union([z.string(), z.date()]).optional().nullable(),
+  })).min(1),
 });
 
 export function registerProjectAIRoutes(router: Router, projectsService: ProjectsService) {
@@ -46,14 +55,26 @@ export function registerProjectAIRoutes(router: Router, projectsService: Project
 
   router.post('/generate-ideas', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {
-      const { subject, topic, gradeLevel, duration, componentSkillIds } = req.body;
+      const { subject, topic, gradeLevel, duration, componentSkillIds, bestStandardIds } = req.body;
 
-      if (!subject || !topic || !gradeLevel || !duration || !componentSkillIds?.length) {
+      if (!subject || !topic || !gradeLevel || !duration) {
         return sendErrorResponse(res, { message: "Missing required fields", statusCode: 400 });
       }
 
-      if (!Array.isArray(componentSkillIds) || !componentSkillIds.every(id => typeof id === 'number')) {
+      const hasComponentSkills = Array.isArray(componentSkillIds) && componentSkillIds.length > 0;
+      const hasBestStandards = Array.isArray(bestStandardIds) && bestStandardIds.length > 0;
+      if (!hasComponentSkills && !hasBestStandards) {
+        return sendErrorResponse(res, {
+          message: "Select at least one component skill or B.E.S.T. standard",
+          statusCode: 400,
+        });
+      }
+
+      if (componentSkillIds !== undefined && (!Array.isArray(componentSkillIds) || !componentSkillIds.every(id => typeof id === 'number'))) {
         return sendErrorResponse(res, { message: "Invalid component skill IDs format", statusCode: 400 });
+      }
+      if (bestStandardIds !== undefined && (!Array.isArray(bestStandardIds) || !bestStandardIds.every(id => typeof id === 'number'))) {
+        return sendErrorResponse(res, { message: "Invalid B.E.S.T. standard IDs format", statusCode: 400 });
       }
 
       const result = await projectsService.generateProjectIdeasForUser(req.user!.id, {
@@ -61,7 +82,8 @@ export function registerProjectAIRoutes(router: Router, projectsService: Project
         topic,
         gradeLevel,
         duration,
-        componentSkillIds
+        componentSkillIds: hasComponentSkills ? componentSkillIds : [],
+        bestStandardIds: hasBestStandards ? bestStandardIds : [],
       });
 
       createSuccessResponse(res, result);
@@ -85,6 +107,46 @@ export function registerProjectAIRoutes(router: Router, projectsService: Project
       });
     }
   });
+
+  router.post('/:id/seed-milestones-from-idea', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    const projectId = parseInt(req.params.id);
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    const parseResult = seedMilestonesFromIdeaSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return sendErrorResponse(res, {
+        message: "Invalid request body",
+        statusCode: 400,
+        error: "Validation failed",
+        details: parseResult.error.errors,
+      });
+    }
+
+    const hasAccess = await ensureFreeTierAdminProjectAccess(req, res, projectId);
+    if (!hasAccess) {
+      return;
+    }
+
+    const suggestedMilestones: ProjectIdeaMilestoneDTO[] = parseResult.data.suggestedMilestones.map((milestone) => ({
+      title: milestone.title,
+      description: milestone.description ?? "",
+      estimatedDuration: milestone.estimatedDuration ?? undefined,
+      dueDate: milestone.dueDate ?? undefined,
+    }));
+
+    const milestones = await projectsService.createMilestonesFromIdea(
+      projectId,
+      suggestedMilestones,
+      userId,
+      userRole,
+    );
+
+    createSuccessResponse(res, {
+      milestones,
+      message: `Created ${milestones.length} milestones from the selected idea`,
+    });
+  }));
 
   router.post('/:id/generate-thumbnail', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam('id'), aiLimiter, async (req: AuthenticatedRequest, res) => {
     try {

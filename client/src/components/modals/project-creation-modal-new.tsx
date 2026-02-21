@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ModalErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
 import { ChevronDown, ChevronRight, CheckCircle, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { buildBestStandardsUrl } from '@/lib/standards';
+import type { ProjectIdeaMilestoneDTO, ProjectIdeaSnapshotDTO } from '@shared/contracts/api';
 
 interface ComponentSkill {
   id: number;
@@ -49,6 +49,9 @@ interface ProjectData {
   subjectArea?: string;
   gradeLevel?: string;
   estimatedDuration?: string;
+  learningOutcomes?: string[];
+  requiredResources?: string[];
+  ideaSnapshot?: ProjectIdeaSnapshotDTO | null;
 }
 
 interface ProjectCreationModalProps {
@@ -64,6 +67,12 @@ interface ProjectCreationModalProps {
     topic?: string;
     gradeLevel?: string;
     duration?: string;
+    overview?: string;
+    suggestedMilestones?: ProjectIdeaMilestoneDTO[];
+    assessmentSuggestions?: Array<{ type: string; description: string }>;
+    requiredResources?: string[];
+    learningOutcomes?: string[];
+    competencyAlignment?: string[];
   };
 }
 
@@ -76,6 +85,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   const [expandedOutcomes, setExpandedOutcomes] = useState<Set<number>>(new Set());
   const [expandedCompetencies, setExpandedCompetencies] = useState<Set<number>>(new Set());
   const [generateMilestones, setGenerateMilestones] = useState(true);
+  const [useIdeaMilestones, setUseIdeaMilestones] = useState(false);
   const [standardsSearchTerm, setStandardsSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
@@ -86,6 +96,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
   const [projectSubjectArea, setProjectSubjectArea] = useState('');
   const [projectGradeLevel, setProjectGradeLevel] = useState('');
   const [projectDuration, setProjectDuration] = useState('');
+  const hasIdeaMilestones = Boolean(projectIdea?.suggestedMilestones && projectIdea.suggestedMilestones.length > 0);
 
   const subjectAreaOptions = ['Math', 'Science', 'English', 'Social Studies', 'Art', 'Music', 'Physical Education', 'Technology', 'Foreign Language', 'Other'];
   const gradeLevelOptions = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -172,6 +183,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       setProjectTitle(projectIdea.title);
       setProjectDescription(projectIdea.description);
       setSelectedSkills(new Set(projectIdea.selectedComponentSkillIds));
+      setUseIdeaMilestones(Boolean(projectIdea.suggestedMilestones && projectIdea.suggestedMilestones.length > 0));
       if (projectIdea.bestStandardIds) {
         setSelectedStandards(new Set(projectIdea.bestStandardIds));
       }
@@ -212,6 +224,8 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
         setExpandedOutcomes(newExpandedOutcomes);
         setExpandedCompetencies(newExpandedCompetencies);
       }
+    } else if (isOpen) {
+      setUseIdeaMilestones(false);
     }
   }, [projectIdea, isOpen, hierarchyData]);
 
@@ -246,6 +260,18 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       return response.json();
     },
     onSuccess: async (createdProject) => {
+      const readErrorMessage = async (response: Response, fallback: string): Promise<string> => {
+        try {
+          const payload = await response.json();
+          if (payload && typeof payload.message === 'string' && payload.message.trim().length > 0) {
+            return payload.message;
+          }
+        } catch {
+          // Keep fallback when body is not valid JSON
+        }
+        return fallback;
+      };
+
       toast({
         title: "Success",
         description: "Project created successfully!",
@@ -297,28 +323,80 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
         }
       }
 
-      // Automatically generate milestones and assessments if option is checked
-      if (generateMilestones && selectedSkills.size > 0) {
+      // Add milestones after project creation using either the selected idea's milestones or AI regeneration.
+      if (generateMilestones) {
         try {
-          const response = await fetch(`/api/projects/${createdProject.id}/generate-milestones-and-assessments`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
+          let milestonesGenerated = false;
 
-          if (response.ok) {
-            const data = await response.json();
-            toast({
-              title: "AI Generation Complete",
-              description: data.message || "Milestones and assessments generated successfully!",
+          if (useIdeaMilestones && hasIdeaMilestones && projectIdea?.suggestedMilestones) {
+            const seedResponse = await fetch(`/api/projects/${createdProject.id}/seed-milestones-from-idea`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                suggestedMilestones: projectIdea.suggestedMilestones,
+              }),
             });
-            queryClient.invalidateQueries({ queryKey: [`/api/projects/${createdProject.id}/milestones`] });
-            queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
-          } else {
-            console.error('Failed to generate milestones and assessments');
+
+            if (seedResponse.ok) {
+              const data = await seedResponse.json();
+              toast({
+                title: "Milestones Added",
+                description: data.message || "Milestones were created from the selected idea.",
+              });
+              queryClient.invalidateQueries({ queryKey: [`/api/projects/${createdProject.id}/milestones`] });
+              milestonesGenerated = true;
+            } else {
+              const errorMessage = await readErrorMessage(seedResponse, 'Failed to create milestones from selected idea');
+              toast({
+                title: "Idea Milestones Failed",
+                description: `${errorMessage} Falling back to AI milestone generation when possible.`,
+                variant: "destructive",
+              });
+            }
+          }
+
+          if (!milestonesGenerated && selectedSkills.size > 0) {
+            const response = await fetch(`/api/projects/${createdProject.id}/generate-milestones-and-assessments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              toast({
+                title: "AI Generation Complete",
+                description: data.message || "Milestones and assessments generated successfully!",
+              });
+              queryClient.invalidateQueries({ queryKey: [`/api/projects/${createdProject.id}/milestones`] });
+              queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
+              milestonesGenerated = true;
+            } else {
+              const errorMessage = await readErrorMessage(response, 'Failed to generate milestones and assessments');
+              toast({
+                title: "Milestones Not Generated",
+                description: errorMessage,
+                variant: "destructive",
+              });
+            }
+          }
+
+          if (!milestonesGenerated && selectedSkills.size === 0 && selectedStandards.size > 0) {
+            toast({
+              title: "Milestones Not Generated",
+              description: "Automatic AI milestone generation requires at least one component skill. Add a component skill or use suggested idea milestones.",
+              variant: "destructive",
+            });
           }
         } catch (error) {
-          console.error('Error generating milestones and assessments:', error);
+          const message = error instanceof Error ? error.message : 'Unexpected error while generating milestones';
+          toast({
+            title: "Milestone Generation Error",
+            description: message,
+            variant: "destructive",
+          });
+          console.error('Error creating milestones after project creation:', error);
         }
       }
 
@@ -343,6 +421,7 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
     setExpandedOutcomes(new Set());
     setExpandedCompetencies(new Set());
     setGenerateMilestones(true);
+    setUseIdeaMilestones(false);
     setStandardsSearchTerm('');
     setSelectedSubject('');
     setSelectedGrade('');
@@ -468,6 +547,23 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       });
     });
 
+    const ideaSnapshot: ProjectIdeaSnapshotDTO | null = projectIdea
+      ? {
+          title: projectIdea.title,
+          description: projectIdea.description,
+          overview: projectIdea.overview ?? null,
+          suggestedMilestones: projectIdea.suggestedMilestones ?? [],
+          assessmentSuggestions: projectIdea.assessmentSuggestions ?? [],
+          requiredResources: projectIdea.requiredResources ?? [],
+          learningOutcomes: projectIdea.learningOutcomes ?? [],
+          competencyAlignment: projectIdea.competencyAlignment ?? [],
+          subject: projectIdea.subject ?? null,
+          topic: projectIdea.topic ?? null,
+          gradeLevel: projectIdea.gradeLevel ?? null,
+          duration: projectIdea.duration ?? null,
+        }
+      : null;
+
     createProjectMutation.mutate({
       title: projectTitle,
       description: projectDescription,
@@ -478,6 +574,9 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
       subjectArea: projectSubjectArea || undefined,
       gradeLevel: projectGradeLevel || undefined,
       estimatedDuration: projectDuration || undefined,
+      learningOutcomes: projectIdea?.learningOutcomes ?? [],
+      requiredResources: projectIdea?.requiredResources ?? [],
+      ideaSnapshot,
     });
   };
 
@@ -587,9 +686,26 @@ export default function ProjectCreationModal({ isOpen, onClose, onSuccess, proje
                   onCheckedChange={(checked) => setGenerateMilestones(checked as boolean)}
                 />
                 <Label htmlFor="generateMilestones" className="text-sm font-medium">
-                  Automatically generate milestones and assessments with AI
+                  Automatically add milestones after project creation
                 </Label>
               </div>
+              {generateMilestones && hasIdeaMilestones && (
+                <div className="ml-6 flex items-center space-x-2 rounded-md border border-blue-200 bg-blue-50/50 p-3">
+                  <Checkbox
+                    id="useIdeaMilestones"
+                    checked={useIdeaMilestones}
+                    onCheckedChange={(checked) => setUseIdeaMilestones(checked as boolean)}
+                  />
+                  <Label htmlFor="useIdeaMilestones" className="text-sm text-blue-900">
+                    Use suggested milestones from the selected idea (skip AI regeneration)
+                  </Label>
+                </div>
+              )}
+              {generateMilestones && !useIdeaMilestones && (
+                <p className="ml-6 text-xs text-muted-foreground">
+                  AI will generate both milestones and assessments from your selected standards.
+                </p>
+              )}
             </div>
 
             <div>

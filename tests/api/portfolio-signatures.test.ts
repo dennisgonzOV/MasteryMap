@@ -8,7 +8,7 @@ import { schools } from '../../shared/schema';
 
 describe('Portfolio Signatures API', () => {
     let app: any;
-    let authToken: string;
+    let authToken: string[];
 
     beforeAll(async () => {
         await appInit;
@@ -45,22 +45,23 @@ describe('Portfolio Signatures API', () => {
 
         // Extract pathname and query from the returned full URL string
         const urlObj = new URL(portfolioUrl);
-        const pathname = urlObj.pathname;
+        const slug = urlObj.pathname.split('/').pop();
+        const apiPath = `/api/portfolio/public/${slug}`;
         const validSig = urlObj.searchParams.get('sig');
 
         // Request with valid sig
-        const validRes = await request(app).get(`${pathname}?expiresAt=${encodeURIComponent(expiresAt)}&sig=${validSig}`);
+        const validRes = await request(app).get(`${apiPath}?expiresAt=${encodeURIComponent(expiresAt)}&sig=${validSig}`);
         expect(validRes.status).toBe(200);
 
         // Modified signature (403)
         const invalidSig = validSig + 'X';
-        const invalidRes = await request(app).get(`${pathname}?expiresAt=${encodeURIComponent(expiresAt)}&sig=${invalidSig}`);
+        const invalidRes = await request(app).get(`${apiPath}?expiresAt=${encodeURIComponent(expiresAt)}&sig=${invalidSig}`);
         expect(invalidRes.status).toBe(403);
 
         // Expired signature (410)
         // Controller checks expiration before checking signature match
         const pastDate = new Date(Date.now() - 100000).toISOString();
-        const expiredRes = await request(app).get(`${pathname}?expiresAt=${encodeURIComponent(pastDate)}&sig=${validSig}`);
+        const expiredRes = await request(app).get(`${apiPath}?expiresAt=${encodeURIComponent(pastDate)}&sig=${validSig}`);
         expect(expiredRes.status).toBe(410);
     });
 });

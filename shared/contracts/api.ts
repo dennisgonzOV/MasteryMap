@@ -296,6 +296,26 @@ export type AuthRegisterResponseDTO = AuthUserDTO;
 export type AuthLoginResponseDTO = AuthUserDTO;
 export type AuthCurrentUserResponseDTO = AuthUserDTO;
 
+export interface ProjectIdeaMilestoneDTO {
+  title: string;
+  description?: string | null;
+  estimatedDuration?: string | null;
+  dueDate?: string | Date | null;
+}
+
+export interface ProjectIdeaSnapshotDTO {
+  overview?: string | null;
+  suggestedMilestones?: ProjectIdeaMilestoneDTO[];
+  assessmentSuggestions?: Array<{
+    type: string;
+    description: string;
+  }>;
+  requiredResources?: string[];
+  learningOutcomes?: string[];
+  competencyAlignment?: string[];
+  [key: string]: unknown;
+}
+
 export interface ProjectCreateRequestDTO {
   title: string;
   description?: string | null;
@@ -306,6 +326,9 @@ export interface ProjectCreateRequestDTO {
   subjectArea?: string | null;
   gradeLevel?: string | null;
   estimatedDuration?: string | null;
+  learningOutcomes?: string[] | null;
+  requiredResources?: string[] | null;
+  ideaSnapshot?: ProjectIdeaSnapshotDTO | null;
   thumbnailUrl?: string | null;
 }
 

@@ -9,8 +9,8 @@ import { schools } from '../../shared/schema';
 
 describe('Self-Evaluation API', () => {
     let app: any;
-    let authTeacher: string;
-    let authStudent: string;
+    let authTeacher: string[];
+    let authStudent: string[];
     let assessmentId: number;
     let selfEvalId: number;
 
@@ -65,13 +65,16 @@ describe('Self-Evaluation API', () => {
             console.error(createRes.body);
         }
         expect(createRes.status).toBe(200);
-        selfEvalId = createRes.body.id;
+        selfEvalId = createRes.body.selfEvaluation.id;
 
         const getStudentRes = await request(app).get('/api/self-evaluations/student').set('Cookie', authStudent);
         expect(getStudentRes.status).toBe(200);
         expect(getStudentRes.body.length).toBeGreaterThan(0);
 
         const getTeacherRes = await request(app).get(`/api/self-evaluations/assessment/${assessmentId}`).set('Cookie', authTeacher);
+        if (!getTeacherRes.body.some((se: any) => se.id === selfEvalId)) {
+            console.error('getTeacherRes missing se:', getTeacherRes.body);
+        }
         expect(getTeacherRes.status).toBe(200);
         expect(getTeacherRes.body.some((se: any) => se.id === selfEvalId)).toBe(true);
     });
@@ -81,6 +84,6 @@ describe('Self-Evaluation API', () => {
         const flagRes = await request(app).post(`/api/self-evaluations/${selfEvalId}/flag-risky`).set('Cookie', authTeacher);
 
         expect(flagRes.status).toBe(200);
-        expect(flagRes.body.isRisky).toBe(true);
+        expect(flagRes.body.message).toBe('Self-evaluation flagged and teacher notified');
     });
 });

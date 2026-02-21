@@ -98,14 +98,22 @@ export class OpenAIService {
     gradeLevel: string;
     duration: string;
     componentSkills: EnrichedComponentSkill[];
+    bestStandards?: BestStandard[];
   }): Promise<GeneratedProjectIdea[]> {
     // Format component skills for the prompt
-    const skillsText = criteria.componentSkills
-      .map(
-        (skill) =>
-          `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`,
-      )
-      .join("\n");
+    const skillsText = criteria.componentSkills.length > 0
+      ? criteria.componentSkills
+        .map(
+          (skill) =>
+            `- ${skill.name} (${skill.competencyName} - ${skill.learnerOutcomeName})`,
+        )
+        .join("\n")
+      : "- No component skills were selected";
+    const standardsText = (criteria.bestStandards ?? []).length > 0
+      ? (criteria.bestStandards ?? [])
+        .map((standard) => `- ${standard.benchmarkNumber}: ${standard.description}`)
+        .join("\n")
+      : "- No B.E.S.T. standards were selected";
 
     const prompt = `Generate 3 creative and engaging project-based learning ideas based on the following criteria:
 
@@ -117,6 +125,9 @@ Duration: ${criteria.duration}
 Target Component Skills:
 ${skillsText}
 
+Target B.E.S.T. Standards:
+${standardsText}
+
 For each project idea, provide:
 1. Title - An engaging and descriptive project title
 2. Overview - A brief 1-2 sentence summary
@@ -127,7 +138,7 @@ For each project idea, provide:
 7. Learning Outcomes - Specific skills and knowledge students will gain
 8. Competency Alignment - How this project develops the selected component skills
 
-Make the projects authentic, relevant to students' lives, and designed to develop both subject knowledge and the specified component skills. Ensure they are appropriate for the specified grade level and can realistically be completed in the given timeframe.
+Make the projects authentic, relevant to students' lives, and designed to develop both subject knowledge and the specified component skills. If B.E.S.T. standards are provided, ensure milestones and outcomes clearly align to those benchmarks. Ensure they are appropriate for the specified grade level and can realistically be completed in the given timeframe.
 
 Return the response as a JSON array of project objects with the following structure:
 {

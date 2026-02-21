@@ -74,6 +74,13 @@ function toNumberArray(value: unknown): number[] {
   return value.filter((item): item is number => typeof item === "number");
 }
 
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
 interface ProjectManagementModalProps {
   projectId: number;
   isOpen: boolean;
@@ -89,7 +96,9 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   const [projectForm, setProjectForm] = useState({
     title: '',
     description: '',
-    dueDate: ''
+    dueDate: '',
+    learningOutcomes: '',
+    requiredResources: '',
   });
   const [milestoneForm, setMilestoneForm] = useState({
     title: '',
@@ -131,6 +140,14 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   const projectBestStandardIds = useMemo(
     () => toNumberArray(project?.bestStandardIds),
     [project?.bestStandardIds],
+  );
+  const projectLearningOutcomes = useMemo(
+    () => toStringArray(project?.learningOutcomes),
+    [project?.learningOutcomes],
+  );
+  const projectRequiredResources = useMemo(
+    () => toStringArray(project?.requiredResources),
+    [project?.requiredResources],
   );
 
   const { data: projectComponentSkills = [], isLoading: componentSkillsLoading } = useQuery<ComponentSkillWithDetailsDTO[]>({
@@ -333,6 +350,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   const hasSelectedQuestionType = Object.values(aiQuestionTypes).some(Boolean);
   const projectHasBestStandards = projectBestStandardIds.length > 0;
   const isFreeTier = user?.tier === "free";
+  const enterpriseOnlyTooltip = "Available on Enterprise plans";
 
   useEffect(() => {
     if (!disableMultipleChoice) {
@@ -441,10 +459,14 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
 
   const handleEditProject = () => {
     if (project) {
+      const learningOutcomes = toStringArray(project.learningOutcomes).join('\n');
+      const requiredResources = toStringArray(project.requiredResources).join('\n');
       setProjectForm({
         title: project.title,
         description: project.description ?? '',
-        dueDate: project.dueDate ? format(new Date(project.dueDate), 'yyyy-MM-dd') : ''
+        dueDate: project.dueDate ? format(new Date(project.dueDate), 'yyyy-MM-dd') : '',
+        learningOutcomes,
+        requiredResources,
       });
       setEditingProject(true);
     }
@@ -490,6 +512,14 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
       title: projectForm.title,
       description: projectForm.description,
       dueDate: projectForm.dueDate || null,
+      learningOutcomes: projectForm.learningOutcomes
+        .split('\n')
+        .map((value) => value.trim())
+        .filter(Boolean),
+      requiredResources: projectForm.requiredResources
+        .split('\n')
+        .map((value) => value.trim())
+        .filter(Boolean),
     });
   };
 
@@ -739,6 +769,26 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                           onChange={(e) => setProjectForm(prev => ({ ...prev, dueDate: e.target.value }))}
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="projectLearningOutcomes">Learning Outcomes</Label>
+                        <Textarea
+                          id="projectLearningOutcomes"
+                          value={projectForm.learningOutcomes}
+                          onChange={(e) => setProjectForm(prev => ({ ...prev, learningOutcomes: e.target.value }))}
+                          rows={4}
+                          placeholder="One outcome per line"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="projectRequiredResources">Required Resources</Label>
+                        <Textarea
+                          id="projectRequiredResources"
+                          value={projectForm.requiredResources}
+                          onChange={(e) => setProjectForm(prev => ({ ...prev, requiredResources: e.target.value }))}
+                          rows={4}
+                          placeholder="One resource per line"
+                        />
+                      </div>
                       <div className="flex items-center space-x-2">
                         <Button onClick={handleSaveProject} disabled={updateProjectMutation.isPending}>
                           Save Changes
@@ -759,6 +809,31 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                         </Badge>
                       </div>
                       <p className="text-gray-600 mb-4">{project.description ?? ""}</p>
+                      {projectLearningOutcomes.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium text-gray-900 mb-2">Learning Outcomes</p>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            {projectLearningOutcomes.map((outcome, index) => (
+                              <li key={`${outcome}-${index}`} className="flex items-start">
+                                <span className="mr-2 text-blue-600">•</span>
+                                <span>{outcome}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {projectRequiredResources.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium text-gray-900 mb-2">Required Resources</p>
+                          <div className="flex flex-wrap gap-2">
+                            {projectRequiredResources.map((resource, index) => (
+                              <Badge key={`${resource}-${index}`} variant="outline" className="text-xs">
+                                {resource}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-sm text-gray-500">
                         <span>Created: {project.createdAt ? format(new Date(project.createdAt), 'MMM d, yyyy') : 'Unknown'}</span>
                         {project.dueDate && (
@@ -831,15 +906,34 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                     Project Teams
                   </CardTitle>
                   {!readOnly && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleOpenTeamModal}
-                      disabled={!project?.schoolId || isFreeTier}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Team
-                    </Button>
+                    isFreeTier ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span tabIndex={0}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleOpenTeamModal}
+                              disabled
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create Team
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{enterpriseOnlyTooltip}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenTeamModal}
+                        disabled={!project?.schoolId}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Team
+                      </Button>
+                    )
                   )}
                 </CardHeader>
                 <CardContent>
@@ -854,9 +948,22 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                           : "Create teams to organize students for this project. All milestones will be automatically assigned to team members."}
                       </div>
                       {!readOnly && (
-                        <Button onClick={handleOpenTeamModal} disabled={isFreeTier}>
-                          Create First Team
-                        </Button>
+                        isFreeTier ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span tabIndex={0}>
+                                <Button onClick={handleOpenTeamModal} disabled>
+                                  Create First Team
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>{enterpriseOnlyTooltip}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Button onClick={handleOpenTeamModal}>
+                            Create First Team
+                          </Button>
+                        )
                       )}
                     </div>
                   ) : (
@@ -904,27 +1011,63 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                 <div className="flex items-center justify-between pr-8">
                   <div className="flex items-center space-x-2">
                     {project?.status === 'draft' && (
-                      <Button
-                        onClick={handleStartProject}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        disabled={isFreeTier || startProjectMutation.isPending}
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Start Project
-                      </Button>
+                      isFreeTier ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                              <Button
+                                onClick={handleStartProject}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                disabled
+                              >
+                                <Play className="h-4 w-4 mr-2" />
+                                Start Project
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{enterpriseOnlyTooltip}</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Button
+                          onClick={handleStartProject}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          disabled={startProjectMutation.isPending}
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Start Project
+                        </Button>
+                      )
                     )}
                     <Button variant="outline" onClick={handleEditProject}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Project
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleGenerateMilestonesAndAssessments()}
-                      disabled={isFreeTier || generateMilestonesAndAssessmentsMutation.isPending}
-                    >
-                      <Target className="h-4 w-4 mr-2" />
-                      Generate Milestones
-                    </Button>
+                    {isFreeTier ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span tabIndex={0}>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleGenerateMilestonesAndAssessments()}
+                              disabled
+                            >
+                              <Target className="h-4 w-4 mr-2" />
+                              Generate Milestones
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{enterpriseOnlyTooltip}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleGenerateMilestonesAndAssessments()}
+                        disabled={generateMilestonesAndAssessmentsMutation.isPending}
+                      >
+                        <Target className="h-4 w-4 mr-2" />
+                        Generate Milestones
+                      </Button>
+                    )}
                     <Button variant="destructive" onClick={handleDeleteProject}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete Project

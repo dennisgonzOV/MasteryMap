@@ -15,6 +15,7 @@ interface ProjectIdeaParams {
   gradeLevel: string;
   duration: string;
   componentSkillIds: number[];
+  bestStandardIds?: number[];
 }
 
 export class ProjectsAIService {
@@ -23,22 +24,117 @@ export class ProjectsAIService {
     private readonly getAuthorizedProject: GetAuthorizedProject,
   ) {}
 
+  private getStartOfTomorrow(): Date {
+    const tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  }
+
+  private getProjectDueDateDay(project: Project): Date | null {
+    if (!project.dueDate) {
+      return null;
+    }
+
+    const projectDueDate = new Date(project.dueDate);
+    if (Number.isNaN(projectDueDate.getTime())) {
+      return null;
+    }
+
+    projectDueDate.setHours(0, 0, 0, 0);
+    return projectDueDate;
+  }
+
+  private buildFallbackMilestoneDate(index: number, totalMilestones: number, projectDueDate: Date | null): Date {
+    const tomorrow = this.getStartOfTomorrow();
+    if (!projectDueDate) {
+      const weeklyFallback = new Date(tomorrow);
+      weeklyFallback.setDate(weeklyFallback.getDate() + (index + 1) * 7);
+      return weeklyFallback;
+    }
+
+    const daysUntilProjectDue = Math.floor((projectDueDate.getTime() - tomorrow.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilProjectDue <= 1) {
+      return tomorrow;
+    }
+
+    const stepDays = Math.max(1, Math.floor(daysUntilProjectDue / (totalMilestones + 1)));
+    const fallback = new Date(tomorrow);
+    fallback.setDate(fallback.getDate() + stepDays * (index + 1));
+    if (fallback >= projectDueDate) {
+      const dayBeforeDueDate = new Date(projectDueDate);
+      dayBeforeDueDate.setDate(dayBeforeDueDate.getDate() - 1);
+      fallback.setTime(dayBeforeDueDate.getTime());
+    }
+    return fallback;
+  }
+
+  private normalizeMilestoneDueDate(
+    rawDueDate: string | Date | null | undefined,
+    fallbackDate: Date,
+    projectDueDate: Date | null,
+  ): Date | null {
+    const tomorrow = this.getStartOfTomorrow();
+    const parsedDueDate = rawDueDate ? new Date(rawDueDate) : new Date(fallbackDate);
+    const dueDate = Number.isNaN(parsedDueDate.getTime()) ? new Date(fallbackDate) : parsedDueDate;
+    dueDate.setHours(0, 0, 0, 0);
+
+    if (dueDate < tomorrow) {
+      dueDate.setTime(fallbackDate.getTime());
+      dueDate.setHours(0, 0, 0, 0);
+    }
+
+    if (!projectDueDate) {
+      return dueDate;
+    }
+
+    if (dueDate >= projectDueDate) {
+      const adjusted = new Date(projectDueDate);
+      adjusted.setDate(adjusted.getDate() - 1);
+      adjusted.setHours(0, 0, 0, 0);
+      return adjusted >= tomorrow ? adjusted : null;
+    }
+
+    return dueDate;
+  }
+
   async generateProjectIdeas(
     ideaParams: ProjectIdeaParams,
   ): Promise<{ ideas: Awaited<ReturnType<typeof aiService.generateProjectIdeas>> }> {
-    const { subject, topic, gradeLevel, duration, componentSkillIds } = ideaParams;
+    const {
+      subject,
+      topic,
+      gradeLevel,
+      duration,
+      componentSkillIds,
+      bestStandardIds = [],
+    } = ideaParams;
 
     if (!Array.isArray(componentSkillIds) || !componentSkillIds.every((id) => typeof id === "number")) {
       throw new Error("Invalid component skill IDs format");
     }
+    if (!Array.isArray(bestStandardIds) || !bestStandardIds.every((id) => typeof id === "number")) {
+      throw new Error("Invalid B.E.S.T. standard IDs format");
+    }
 
-    const componentSkills = await this.storage.getComponentSkillsByIds(componentSkillIds);
+    const componentSkills = componentSkillIds.length > 0
+      ? await this.storage.getComponentSkillsByIds(componentSkillIds)
+      : [];
+    const bestStandards = bestStandardIds.length > 0
+      ? await this.storage.getBestStandardsByIds(bestStandardIds)
+      : [];
+
+    if (componentSkills.length === 0 && bestStandards.length === 0) {
+      throw new Error("No valid component skills or B.E.S.T. standards found for the provided IDs");
+    }
+
     const ideas = await aiService.generateProjectIdeas({
       subject: sanitizeForPrompt(subject),
       topic: sanitizeForPrompt(topic),
       gradeLevel: sanitizeForPrompt(gradeLevel),
       duration: sanitizeForPrompt(duration),
       componentSkills,
+      bestStandards,
     });
 
     return { ideas };
@@ -48,9 +144,14 @@ export class ProjectsAIService {
     userId: number,
     ideaParams: ProjectIdeaParams,
   ): Promise<{ ideas: Awaited<ReturnType<typeof aiService.generateProjectIdeas>> }> {
-    const componentSkills = await this.storage.getComponentSkillsByIds(ideaParams.componentSkillIds);
-    if (!componentSkills.length) {
-      throw new Error("No valid component skills found for the provided IDs");
+    const componentSkills = ideaParams.componentSkillIds.length > 0
+      ? await this.storage.getComponentSkillsByIds(ideaParams.componentSkillIds)
+      : [];
+    const bestStandards = (ideaParams.bestStandardIds?.length ?? 0) > 0
+      ? await this.storage.getBestStandardsByIds(ideaParams.bestStandardIds ?? [])
+      : [];
+    if (componentSkills.length === 0 && bestStandards.length === 0) {
+      throw new Error("No valid component skills or B.E.S.T. standards found for the provided IDs");
     }
 
     const user = await this.storage.getUser(userId);
@@ -136,17 +237,20 @@ export class ProjectsAIService {
     }
 
     const milestones = await aiService.generateProjectMilestones(project);
+    const projectDueDate = this.getProjectDueDateDay(project);
     const savedMilestones = await Promise.all(
-      milestones.map((milestone, index) =>
-        this.storage.createMilestone({
+      milestones.map((milestone, index) => {
+        const fallbackDate = this.buildFallbackMilestoneDate(index, milestones.length, projectDueDate);
+        const dueDate = this.normalizeMilestoneDueDate(milestone.dueDate, fallbackDate, projectDueDate);
+        return this.storage.createMilestone({
           projectId,
           title: milestone.title,
           description: milestone.description,
-          dueDate: milestone.dueDate ? new Date(milestone.dueDate) : null,
+          dueDate,
           order: index + 1,
           aiGenerated: true,
-        }),
-      ),
+        });
+      }),
     );
 
     return savedMilestones;
@@ -179,14 +283,17 @@ export class ProjectsAIService {
       project.dueDate ? project.dueDate.toISOString() : new Date().toISOString(),
       projectComponentSkills,
     );
+    const projectDueDate = this.getProjectDueDateDay(project);
 
     const savedMilestones = await Promise.all(
       milestones.map(async (milestone, index) => {
+        const fallbackDate = this.buildFallbackMilestoneDate(index, milestones.length, projectDueDate);
+        const dueDate = this.normalizeMilestoneDueDate(milestone.dueDate, fallbackDate, projectDueDate);
         const savedMilestone = await this.storage.createMilestone({
           projectId,
           title: milestone.title,
           description: milestone.description,
-          dueDate: milestone.dueDate ? new Date(milestone.dueDate) : null,
+          dueDate,
           order: index + 1,
           aiGenerated: true,
         });

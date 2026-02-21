@@ -172,6 +172,7 @@ export class AIService {
     gradeLevel: string;
     duration: string;
     componentSkills: ComponentSkillWithDetailsDTO[];
+    bestStandards?: BestStandard[];
   }): Promise<GeneratedProjectIdea[]> {
     return await this.openaiService.generateProjectIdeas(
       criteria as Parameters<typeof this.openaiService.generateProjectIdeas>[0],

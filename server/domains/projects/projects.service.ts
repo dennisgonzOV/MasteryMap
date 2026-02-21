@@ -13,6 +13,7 @@ import {
   type InsertProjectTeam
 } from "../../../shared/schema";
 import type {
+  ProjectIdeaMilestoneDTO,
   ProjectCreateRequestDTO,
   ComponentSkillWithDetailsDTO,
 } from "../../../shared/contracts/api";
@@ -79,6 +80,82 @@ export class ProjectsService {
     const projectId = assertProjectId(team.projectId, "Team");
     const project = await this.getProjectOrThrow(projectId);
     return { team, project };
+  }
+
+  private getStartOfTomorrow(): Date {
+    const tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  }
+
+  private getProjectDueDateDay(project: Project): Date | null {
+    if (!project.dueDate) {
+      return null;
+    }
+
+    const projectDueDate = new Date(project.dueDate);
+    if (Number.isNaN(projectDueDate.getTime())) {
+      return null;
+    }
+
+    projectDueDate.setHours(0, 0, 0, 0);
+    return projectDueDate;
+  }
+
+  private buildFallbackMilestoneDate(index: number, totalMilestones: number, projectDueDate: Date | null): Date {
+    const tomorrow = this.getStartOfTomorrow();
+    if (!projectDueDate) {
+      const weeklyFallback = new Date(tomorrow);
+      weeklyFallback.setDate(weeklyFallback.getDate() + (index + 1) * 7);
+      return weeklyFallback;
+    }
+
+    const daysUntilProjectDue = Math.floor((projectDueDate.getTime() - tomorrow.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilProjectDue <= 1) {
+      return tomorrow;
+    }
+
+    const stepDays = Math.max(1, Math.floor(daysUntilProjectDue / (totalMilestones + 1)));
+    const fallback = new Date(tomorrow);
+    fallback.setDate(fallback.getDate() + stepDays * (index + 1));
+
+    if (fallback >= projectDueDate) {
+      const dayBeforeDueDate = new Date(projectDueDate);
+      dayBeforeDueDate.setDate(dayBeforeDueDate.getDate() - 1);
+      fallback.setTime(dayBeforeDueDate.getTime());
+    }
+
+    return fallback;
+  }
+
+  private normalizeMilestoneDueDate(
+    rawDueDate: string | Date | null | undefined,
+    fallbackDate: Date,
+    projectDueDate: Date | null,
+  ): Date | null {
+    const tomorrow = this.getStartOfTomorrow();
+    const parsedDueDate = rawDueDate ? new Date(rawDueDate) : new Date(fallbackDate);
+    const dueDate = Number.isNaN(parsedDueDate.getTime()) ? new Date(fallbackDate) : parsedDueDate;
+    dueDate.setHours(0, 0, 0, 0);
+
+    if (dueDate < tomorrow) {
+      dueDate.setTime(fallbackDate.getTime());
+      dueDate.setHours(0, 0, 0, 0);
+    }
+
+    if (!projectDueDate) {
+      return dueDate;
+    }
+
+    if (dueDate >= projectDueDate) {
+      const adjusted = new Date(projectDueDate);
+      adjusted.setDate(adjusted.getDate() - 1);
+      adjusted.setHours(0, 0, 0, 0);
+      return adjusted >= tomorrow ? adjusted : null;
+    }
+
+    return dueDate;
   }
 
   // Project operations
@@ -198,6 +275,48 @@ export class ProjectsService {
 
   async getAssessmentsByMilestone(milestoneId: number): Promise<Assessment[]> {
     return this.storage.getAssessmentsByMilestone(milestoneId);
+  }
+
+  async createMilestonesFromIdea(
+    projectId: number,
+    suggestedMilestones: ProjectIdeaMilestoneDTO[],
+    userId: number,
+    userRole: string,
+  ): Promise<Milestone[]> {
+    const project = await this.getAuthorizedProject(projectId, userId, userRole);
+    if (!Array.isArray(suggestedMilestones) || suggestedMilestones.length === 0) {
+      throw new Error("At least one suggested milestone is required");
+    }
+
+    const existingMilestones = await this.storage.getMilestonesByProject(projectId);
+    const maxOrder = existingMilestones.reduce((max, milestone) => Math.max(max, milestone.order ?? 0), 0);
+    const projectDueDate = this.getProjectDueDateDay(project);
+
+    return Promise.all(
+      suggestedMilestones.map((suggestedMilestone, index) => {
+        const title = (suggestedMilestone.title || "").trim();
+        if (!title) {
+          throw new Error(`Suggested milestone ${index + 1} is missing a title`);
+        }
+
+        const fallbackDate = this.buildFallbackMilestoneDate(index, suggestedMilestones.length, projectDueDate);
+        const dueDate = this.normalizeMilestoneDueDate(
+          suggestedMilestone.dueDate,
+          fallbackDate,
+          projectDueDate,
+        );
+        const description = (suggestedMilestone.description || "").trim();
+
+        return this.storage.createMilestone({
+          projectId,
+          title,
+          description: description || null,
+          dueDate,
+          order: maxOrder + index + 1,
+          aiGenerated: true,
+        });
+      }),
+    );
   }
 
   async updateMilestone(id: number, updates: Partial<InsertMilestone>, userId: number, userRole: string): Promise<Milestone> {
@@ -361,6 +480,7 @@ export class ProjectsService {
     gradeLevel: string;
     duration: string;
     componentSkillIds: number[];
+    bestStandardIds?: number[];
   }) {
     return this.aiOperations.generateProjectIdeas(ideaParams);
   }
@@ -373,6 +493,7 @@ export class ProjectsService {
       gradeLevel: string;
       duration: string;
       componentSkillIds: number[];
+      bestStandardIds?: number[];
     },
   ) {
     return this.aiOperations.generateProjectIdeasForUser(userId, ideaParams);

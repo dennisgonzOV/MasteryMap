@@ -64,6 +64,9 @@ export class ProjectsCoreQueries {
         subjectArea: projects.subjectArea,
         gradeLevel: projects.gradeLevel,
         estimatedDuration: projects.estimatedDuration,
+        learningOutcomes: projects.learningOutcomes,
+        requiredResources: projects.requiredResources,
+        ideaSnapshot: projects.ideaSnapshot,
         createdAt: projects.createdAt,
         updatedAt: projects.updatedAt,
       })
@@ -87,6 +90,9 @@ export class ProjectsCoreQueries {
         subjectArea: projects.subjectArea,
         gradeLevel: projects.gradeLevel,
         estimatedDuration: projects.estimatedDuration,
+        learningOutcomes: projects.learningOutcomes,
+        requiredResources: projects.requiredResources,
+        ideaSnapshot: projects.ideaSnapshot,
         createdAt: projects.createdAt,
         updatedAt: projects.updatedAt,
       })

@@ -21,6 +21,7 @@ import type {
   ProjectTeamMemberDTO,
   ProjectUpdateRequestDTO,
   ProjectDTO,
+  ProjectIdeaMilestoneDTO,
   StudentAssessmentSubmissionDTO,
   StudentSchoolProgressDTO,
   StudentSummaryDTO,
@@ -75,6 +76,12 @@ export const api = {
     apiJsonRequest<ApiMessageResponse>(`/api/projects/${id}/start`, "POST"),
   generateMilestones: (projectId: number) =>
     apiJsonRequest<MilestoneDTO[]>(`/api/projects/${projectId}/generate-milestones`, "POST"),
+  seedMilestonesFromIdea: (projectId: number, suggestedMilestones: ProjectIdeaMilestoneDTO[]) =>
+    apiJsonRequest<{ milestones: MilestoneDTO[]; message: string }>(
+      `/api/projects/${projectId}/seed-milestones-from-idea`,
+      "POST",
+      { suggestedMilestones },
+    ),
   generateMilestonesAndAssessments: (projectId: number) =>
     apiJsonRequest<{
       milestones: MilestoneDTO[];

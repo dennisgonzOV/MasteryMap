@@ -32,6 +32,8 @@ describe('Authentication API', () => {
           schoolId
         });
 
+      if (response.status !== 201) console.error("Register Error:", JSON.stringify(response.body, null, 2));
+
       expect(response.status).toBe(201);
       expect(response.body.user).toBeDefined();
       expect(response.body.user.username).toBe(testUsers.newTeacher.username);
