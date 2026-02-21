@@ -88,6 +88,10 @@ export function registerProjectMilestoneRoutes(router: Router, projectsService: 
 
 export function registerProjectTeamRoutes(router: Router, projectsService: ProjectsService) {
   router.post('/:id/teams', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === "free") {
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
+    }
+
     const userId = req.user!.id;
     const userRole = req.user!.role;
     const projectId = parseInt(req.params.id);
@@ -196,6 +200,10 @@ export function createProjectWorkflowRouters(projectsService: ProjectsService) {
   }));
 
   projectTeamsRouter.post('/', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === "free") {
+      return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
+    }
+
     const userId = req.user!.id;
     const userRole = req.user!.role;
 

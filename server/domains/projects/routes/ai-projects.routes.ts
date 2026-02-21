@@ -160,6 +160,10 @@ export function registerProjectAIRoutes(router: Router, projectsService: Project
         return sendErrorResponse(res, { message: "Only teachers can generate milestones", statusCode: 403 });
       }
 
+      if (req.user?.tier === 'free') {
+        return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
+      }
+
       const projectId = parseInt(req.params.id);
 
       if (isNaN(projectId)) {
@@ -197,6 +201,10 @@ export function registerProjectAIRoutes(router: Router, projectsService: Project
 
       if (userRole !== 'teacher' && userRole !== 'admin') {
         return sendErrorResponse(res, { message: "Only teachers can generate milestones and assessments", statusCode: 403 });
+      }
+
+      if (req.user?.tier === 'free') {
+        return sendErrorResponse(res, { message: "Access denied", statusCode: 403 });
       }
 
       const projectId = parseInt(req.params.id);

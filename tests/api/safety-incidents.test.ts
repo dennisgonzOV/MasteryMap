@@ -8,8 +8,9 @@ import { schools } from '../../shared/schema';
 
 describe('Safety Incidents API', () => {
     let app: any;
-    let authTeacher: string;
-    let authStudent: string;
+    let authTeacher: string[];
+    let authStudent: string[];
+    let authAdmin: string[];
     let schoolId: number;
     let incidentId: number;
 
@@ -26,7 +27,7 @@ describe('Safety Incidents API', () => {
             role: 'teacher', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School',
             schoolId
         });
-        authTeacher = teacherRes.headers['set-cookie'] || [];
+        authTeacher = (teacherRes.headers['set-cookie'] || []) as string[];
 
         const studentRes = await request(app).post('/api/auth/register').send({
             username: `student-safe-${Date.now()}`,
@@ -34,7 +35,15 @@ describe('Safety Incidents API', () => {
             role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School',
             schoolId
         });
-        authStudent = studentRes.headers['set-cookie'] || [];
+        authStudent = (studentRes.headers['set-cookie'] || []) as string[];
+
+        const adminRes = await request(app).post('/api/auth/register').send({
+            username: `admin-safe-${Date.now()}`,
+            password: 'TestPassword123!',
+            role: 'admin', firstName: 'Admin', lastName: 'User', email: 'admin@test.com', schoolName: 'Test School',
+            schoolId
+        });
+        authAdmin = (adminRes.headers['set-cookie'] || []) as string[];
     });
 
     it('should create an incident from tutor safety flag (TUTOR-02)', async () => {
@@ -42,11 +51,9 @@ describe('Safety Incidents API', () => {
         // We can simulate the endpoint that handles chat if it checks for safety, or we can just call the incidents API.
         // For E2E API tests, let's create an incident via the API as if the tutor flagged it.
         const res = await request(app).post('/api/safety-incidents').set('Cookie', authStudent).send({
-            studentId: 999, // In reality, this would be set by the server from the token, but we assume the endpoint accepts or injects it
-            content: 'I want to hurt someone',
-            flaggedTerms: ['hurt'],
-            severity: 'high',
-            context: 'student chat'
+            incidentType: 'inappropriate_content',
+            message: 'I want to hurt someone',
+            metadata: { severity: 'high', context: 'student chat' }
         });
 
         // Let's assume the endpoint correctly maps or rejects. Actually, we might need a dedicated endpoint or it is internal.
@@ -65,30 +72,28 @@ describe('Safety Incidents API', () => {
             const inc = await db.insert(safetyIncidents).values({
                 studentId: actualStudentId,
                 incidentType: 'inappropriate_content',
-                severity: 'medium',
-                status: 'pending'
+                message: 'Test incident message'
             }).returning();
             incidentId = inc[0].id;
         }
     });
 
     it('should update and resolve safety incident lifecycle (SAFE-01)', async () => {
-        // Update status to investigating
+        // Update status to investigating (Admin only)
         const updateRes = await request(app)
-            .patch(`/api/safety-incidents/${incidentId}`)
-            .set('Cookie', authTeacher)
-            .send({ status: 'investigating', resolutionNotes: 'Looking into this' });
+            .patch(`/api/safety-incidents/${incidentId}/status`)
+            .set('Cookie', authAdmin)
+            .send({ status: 'investigating' });
 
         expect(updateRes.status).toBe(200);
-        expect(updateRes.body.status).toBe('investigating');
+        expect(updateRes.body.message).toBe('Safety incident status updated');
 
         // Resolve incident
         const resolveRes = await request(app)
-            .patch(`/api/safety-incidents/${incidentId}`)
-            .set('Cookie', authTeacher)
-            .send({ status: 'resolved', resolutionNotes: 'Resolved successfully' });
+            .put(`/api/safety-incidents/${incidentId}/resolve`)
+            .set('Cookie', authTeacher);
 
         expect(resolveRes.status).toBe(200);
-        expect(resolveRes.body.status).toBe('resolved');
+        expect(resolveRes.body.message).toBe('Safety incident marked as resolved');
     });
 });

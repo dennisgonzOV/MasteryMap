@@ -37,6 +37,7 @@ export const aiLimiter = rateLimit({
     message: 'Please wait before making more AI requests',
     retryAfter: 60 * 60
   },
+  skip: () => process.env.NODE_ENV === 'test',
   standardHeaders: true,
   legacyHeaders: false,
 });

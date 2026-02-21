@@ -9,8 +9,8 @@ import type {
   SubmissionDTO,
   SubmissionGradeRequestDTO,
 } from '../../../shared/contracts/api';
-import { 
-  validateIntParam, 
+import {
+  validateIntParam,
   aiLimiter
 } from '../../middleware/security';
 import { SubmissionGradingService, SubmissionHttpError } from './submission-grading.service';
@@ -47,6 +47,17 @@ export class SubmissionController {
         }
 
         const payload: SubmissionCreateRequestDTO = req.body;
+
+        if (typeof payload.assessmentId === "number") {
+          const existingSubmissions = await this.service.getSubmissionsByStudent(userId);
+          const alreadySubmitted = existingSubmissions.some(
+            (sub) => sub.assessmentId === payload.assessmentId
+          );
+          if (alreadySubmitted) {
+            return res.status(400).json({ message: "Assessment already submitted" });
+          }
+        }
+
         const submission: SubmissionDTO = await this.service.createSubmission(payload, userId);
         if (typeof payload.assessmentId === "number") {
           this.clearFeedbackPreviewCount(req, userId, payload.assessmentId);
@@ -58,8 +69,8 @@ export class SubmissionController {
       } catch (error) {
         console.error("Error creating submission:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        res.status(500).json({ 
-          message: "Failed to create submission", 
+        res.status(500).json({
+          message: "Failed to create submission",
           error: errorMessage,
           details: process.env.NODE_ENV === 'development' ? error : undefined
         });
@@ -212,8 +223,8 @@ export class SubmissionController {
 
         console.error("Error grading submission:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        res.status(500).json({ 
-          message: "Failed to grade submission", 
+        res.status(500).json({
+          message: "Failed to grade submission",
           error: errorMessage,
           context: "Submission ID: " + req.params.submissionId,
           details: process.env.NODE_ENV === 'development' ? error : undefined
@@ -252,7 +263,16 @@ export class SubmissionController {
         const rubricLevel = payload.rubricLevel;
 
         if (typeof questionIndex !== "number" || typeof rubricLevel !== "string" || !rubricLevel.trim()) {
-          return res.status(400).json({ message: "Question index and rubric level are required" });
+          return res.status(400).json({
+            message: "Question index and rubric level are required",
+            debug: {
+              body: req.body,
+              payload,
+              headers: req.headers,
+              method: req.method,
+              url: req.url
+            }
+          });
         }
 
         const feedback = await this.gradingService.generateQuestionFeedback({

@@ -8,6 +8,7 @@ import { schools } from '../../shared/schema';
 
 describe('Projects API', () => {
   let teacherToken: string;
+  let freeTeacherToken: string;
   let studentToken: string;
   let schoolId: number;
   let teacherId: number;
@@ -35,6 +36,14 @@ describe('Projects API', () => {
       });
     teacherToken = teacherResponse.headers['set-cookie'] || [];
     teacherId = teacherResponse.body.user.id;
+
+    const freeTeacherResponse = await request(app)
+      .post('/api/auth/register')
+      .send({
+        ...testUsers.teacher,
+        username: 'project-free-teacher',
+      });
+    freeTeacherToken = freeTeacherResponse.headers['set-cookie'] || [];
 
     // Create test students
     for (const studentUser of [testUsers.student, testUsers.student2]) {
@@ -184,6 +193,49 @@ describe('Projects API', () => {
       expect(milestone.description).toBeDefined();
       expect(milestone.dueDate).toBeDefined();
       expect(new Date(milestone.dueDate)).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('Free Tier Restrictions', () => {
+    let freeProjectId: number;
+
+    beforeAll(async () => {
+      const projectResponse = await request(app)
+        .post('/api/projects')
+        .set('Cookie', freeTeacherToken)
+        .send({
+          ...testProject,
+          title: 'Free Tier Restriction Project',
+        });
+      freeProjectId = projectResponse.body.id;
+    });
+
+    it('should block creating project teams for free tier users', async () => {
+      const response = await request(app)
+        .post('/api/project-teams')
+        .set('Cookie', freeTeacherToken)
+        .send({
+          projectId: freeProjectId,
+          name: 'Restricted Team',
+        });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should block starting a project for free tier users', async () => {
+      const response = await request(app)
+        .post(`/api/projects/${freeProjectId}/start`)
+        .set('Cookie', freeTeacherToken);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should block generating milestones for free tier users', async () => {
+      const response = await request(app)
+        .post(`/api/projects/${freeProjectId}/generate-milestones-and-assessments`)
+        .set('Cookie', freeTeacherToken);
+
+      expect(response.status).toBe(403);
     });
   });
 

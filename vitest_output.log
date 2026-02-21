@@ -1,0 +1,164 @@
+
+ RUN  v3.2.4 /Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap
+
+(node:79786) Warning: NodeDeprecationWarning: The AWS SDK for JavaScript (v3) will
+no longer support Node.js v18.20.8 in January 2026.
+
+To continue receiving updates to AWS services, bug fixes, and security
+updates please upgrade to a supported Node.js LTS version.
+
+More information can be found at: https://a.co/c895JFp
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | tests/api/assessments.test.ts
+9:44:59 PM [express] Testing database connection...
+
+stdout | tests/api/assessments.test.ts > Assessments API
+9:45:00 PM [express] serving on port 8080
+
+stdout | tests/api/assessments.test.ts > Assessments API
+9:45:00 PM [express] POST /api/auth/register 201 in 356ms :: {"id":1728,"username":"assessment-teach…
+
+stdout | tests/api/assessments.test.ts > Assessments API
+9:45:00 PM [express] POST /api/auth/register 201 in 358ms :: {"id":1729,"username":"assessment-stude…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should create standalone assessment with questions
+9:45:01 PM [express] POST /api/assessments 200 in 103ms :: {"id":417,"milestoneId":null,"title":"Cli…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should generate AI questions for assessment
+9:45:03 PM [express] POST /api/ai/assessment/generate-questions 200 in 1822ms :: {"questions":[]}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject assessment creation by non-teacher
+9:45:03 PM [express] POST /api/assessments 403 in 36ms :: {"message":"Forbidden"}
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation without questions
+Error creating assessment: Error: Teacher assessments must have at least one question
+    at AssessmentService.createAssessment [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.service.ts:50:15[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/routes/core.routes.ts:151:55
+    at Layer.handle [as handle_request] [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/layer.js:95:5[90m)[39m
+    at next [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/route.js:149:13[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/auth/auth.controller.ts:137:7
+    at Layer.handle [as handle_request] [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/layer.js:95:5[90m)[39m
+    at next [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/route.js:149:13[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/auth/auth.controller.ts:101:7
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation without questions
+9:45:03 PM [express] POST /api/assessments 400 in 35ms :: {"message":"Validation Error","error":"Tea…
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text
+Error creating assessment: Error: All questions in teacher assessments must have non-empty text
+    at AssessmentService.createAssessment [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.service.ts:58:15[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/routes/core.routes.ts:151:55
+    at Layer.handle [as handle_request] [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/layer.js:95:5[90m)[39m
+    at next [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/route.js:149:13[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/auth/auth.controller.ts:137:7
+    at Layer.handle [as handle_request] [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/layer.js:95:5[90m)[39m
+    at next [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mnode_modules/[4mexpress[24m/lib/router/route.js:149:13[90m)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/auth/auth.controller.ts:101:7
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text
+9:45:03 PM [express] POST /api/assessments 400 in 33ms :: {"message":"Validation Error","error":"All…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions
+9:45:03 PM [express] POST /api/assessments 200 in 102ms :: {"id":418,"milestoneId":null,"title":"Cli…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should access assessment by share code
+9:45:03 PM [express] GET /api/assessments/by-code/OLFVS 200 in 83ms :: {"id":417,"milestoneId":null,…
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+Error accessing assessment by code: Error: Assessment not found with this code
+    at AssessmentService.getAssessmentByShareCode [90m(/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/assessments.service.ts:168:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at [90m/Users/dennis/Documents/Projects/2025/MasteryMap/MasteryMap/[39mserver/domains/assessments/routes/share-code.routes.ts:59:26
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should reject invalid share code
+9:45:03 PM [express] GET /api/assessments/by-code/ZZZZZ 404 in 78ms :: {"message":"Assessment not fo…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Share Codes > should regenerate share code
+9:45:03 PM [express] POST /api/assessments/417/regenerate-share-code 200 in 214ms :: {"shareCode":"D…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should create assessment submission
+9:45:03 PM [express] POST /api/submissions 200 in 114ms :: {"id":153,"assessmentId":417,"studentId":…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should get assessment submissions for teacher
+9:45:04 PM [express] GET /api/assessments/417/submissions 200 in 333ms :: [{"id":153,"studentId":172…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Submissions > should prevent duplicate submissions
+9:45:04 PM [express] POST /api/submissions 400 in 163ms :: {"message":"Assessment already submitted"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading
+9:45:04 PM [express] GET /api/assessments/417/submissions 200 in 221ms :: [{"id":153,"studentId":172…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading > should grade submission with AI feedback
+9:45:08 PM [express] POST /api/submissions/153/grade 200 in 4225ms :: {"grades":[{"id":256,"submissi…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading > should generate AI feedback for individual question
+9:45:08 PM [express] POST /api/submissions/153/generate-question-feedback 400 in 193ms :: {"message"…
+
+stderr | tests/api/assessments.test.ts > Assessments API > Assessment Grading > should generate AI feedback for individual question
+generate-question-feedback failed: {"message":"Question and response cannot be empty. Debug: { q: {\"text\":\"\"}, qText: \"\", rText: \"The greenhouse effect is a natural process where certain gases in the atmosphere trap heat from the sun, keeping Earth warm enough to support life.\", responses: [{\"answer\":\"The greenhouse effect is a natural process where certain gases in the atmosphere trap heat from the sun, keeping Earth warm enough to support life.\",\"questionIndex\":0},{\"answer\":2,\"questionIndex\":1}] }"}
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Grading > should get graded submission for student
+9:45:09 PM [express] GET /api/submissions/153/grades 200 in 120ms :: [{"id":257,"submissionId":153,"…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions
+9:45:09 PM [express] DELETE /api/assessments/417 400 in 118ms :: {"message":"Cannot delete assessmen…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+9:45:09 PM [express] POST /api/assessments 200 in 117ms :: {"id":419,"milestoneId":null,"title":"Tes…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should allow deletion of assessment without submissions
+9:45:09 PM [express] DELETE /api/assessments/419 200 in 232ms :: {"message":"Assessment deleted succ…
+
+stdout | tests/api/assessments.test.ts > Assessments API > Assessment Deletion > should reject deletion by non-teacher
+9:45:09 PM [express] DELETE /api/assessments/417 403 in 43ms :: {"message":"Forbidden"}
+
+ ❯ tests/api/assessments.test.ts (18 tests | 1 failed) 9545ms
+   ✓ Assessments API > Assessment Creation > should create standalone assessment with questions 111ms
+   ✓ Assessments API > Assessment Creation > should generate AI questions for assessment  1825ms
+   ✓ Assessments API > Assessment Creation > should reject assessment creation by non-teacher 39ms
+   ✓ Assessments API > Assessment Creation > should reject teacher assessment creation without questions 37ms
+   ✓ Assessments API > Assessment Creation > should reject teacher assessment creation with empty question text 35ms
+   ✓ Assessments API > Assessment Creation > should allow self-evaluation assessment creation without questions 105ms
+   ✓ Assessments API > Assessment Share Codes > should access assessment by share code 89ms
+   ✓ Assessments API > Assessment Share Codes > should reject invalid share code 84ms
+   ✓ Assessments API > Assessment Share Codes > should regenerate share code 219ms
+   ✓ Assessments API > Assessment Submissions > should create assessment submission 119ms
+   ✓ Assessments API > Assessment Submissions > should get assessment submissions for teacher  338ms
+   ✓ Assessments API > Assessment Submissions > should prevent duplicate submissions 168ms
+   ✓ Assessments API > Assessment Grading > should grade submission with AI feedback  4229ms
+   × Assessments API > Assessment Grading > should generate AI feedback for individual question 203ms
+     → expected 400 to be 200 // Object.is equality
+   ✓ Assessments API > Assessment Grading > should get graded submission for student 123ms
+   ✓ Assessments API > Assessment Deletion > should prevent deletion of assessment with submissions 122ms
+   ✓ Assessments API > Assessment Deletion > should allow deletion of assessment without submissions  358ms
+   ✓ Assessments API > Assessment Deletion > should reject deletion by non-teacher 47ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/api/assessments.test.ts > Assessments API > Assessment Grading > should generate AI feedback for individual question
+AssertionError: expected 400 to be 200 // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 400[39m
+
+ ❯ tests/api/assessments.test.ts:306:31
+    304|       }
+    305| 
+    306|       expect(response.status).toBe(200);
+       |                               ^
+    307| 
+    308|       // Feedback might not be generated if AI service mocks aren't se…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  21:44:59
+   Duration  10.51s (transform 267ms, setup 16ms, collect 627ms, tests 9.55s, environment 0ms, prepare 31ms)
+

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -82,6 +83,7 @@ interface ProjectManagementModalProps {
 
 export default function ProjectManagementModal({ projectId, isOpen, readOnly = false, onClose }: ProjectManagementModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [editingProject, setEditingProject] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<number | null>(null);
   const [projectForm, setProjectForm] = useState({
@@ -330,6 +332,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   const disableMultipleChoice = projectComponentSkillIds.length > 1;
   const hasSelectedQuestionType = Object.values(aiQuestionTypes).some(Boolean);
   const projectHasBestStandards = projectBestStandardIds.length > 0;
+  const isFreeTier = user?.tier === "free";
 
   useEffect(() => {
     if (!disableMultipleChoice) {
@@ -599,6 +602,15 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   };
 
   const handleGenerateMilestonesAndAssessments = () => {
+    if (isFreeTier) {
+      toast({
+        title: "Upgrade required",
+        description: "Free tier users cannot generate milestones.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setConfirmationModal({
       isOpen: true,
       title: 'Generate Milestones & Assessments',
@@ -612,6 +624,15 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   };
 
   const handleStartProject = () => {
+    if (isFreeTier) {
+      toast({
+        title: "Upgrade required",
+        description: "Free tier users cannot start projects.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setConfirmationModal({
       isOpen: true,
       title: 'Start Project',
@@ -622,6 +643,18 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
       },
       variant: 'default',
     });
+  };
+
+  const handleOpenTeamModal = () => {
+    if (isFreeTier) {
+      toast({
+        title: "Upgrade required",
+        description: "Free tier users cannot create project teams.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowTeamModal(true);
   };
 
   if (!isOpen) return null;
@@ -801,8 +834,8 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setShowTeamModal(true)}
-                      disabled={!project?.schoolId}
+                      onClick={handleOpenTeamModal}
+                      disabled={!project?.schoolId || isFreeTier}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Create Team
@@ -821,7 +854,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                           : "Create teams to organize students for this project. All milestones will be automatically assigned to team members."}
                       </div>
                       {!readOnly && (
-                        <Button onClick={() => setShowTeamModal(true)}>
+                        <Button onClick={handleOpenTeamModal} disabled={isFreeTier}>
                           Create First Team
                         </Button>
                       )}
@@ -871,7 +904,11 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                 <div className="flex items-center justify-between pr-8">
                   <div className="flex items-center space-x-2">
                     {project?.status === 'draft' && (
-                      <Button onClick={handleStartProject} className="bg-green-600 hover:bg-green-700 text-white">
+                      <Button
+                        onClick={handleStartProject}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        disabled={isFreeTier || startProjectMutation.isPending}
+                      >
                         <Play className="h-4 w-4 mr-2" />
                         Start Project
                       </Button>
@@ -880,7 +917,11 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Project
                     </Button>
-                    <Button variant="outline" onClick={() => handleGenerateMilestonesAndAssessments()}>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleGenerateMilestonesAndAssessments()}
+                      disabled={isFreeTier || generateMilestonesAndAssessmentsMutation.isPending}
+                    >
                       <Target className="h-4 w-4 mr-2" />
                       Generate Milestones
                     </Button>
@@ -1186,7 +1227,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
         </div>
 
         {/* Team Selection Modal */}
-        {!readOnly && project && (
+        {!readOnly && project && !isFreeTier && (
           <ProjectTeamSelectionModal
             open={showTeamModal}
             onOpenChange={setShowTeamModal}

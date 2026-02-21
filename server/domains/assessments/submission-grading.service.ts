@@ -57,7 +57,7 @@ export class SubmissionHttpError extends Error {
 }
 
 export class SubmissionGradingService {
-  constructor(private readonly service: AssessmentService) {}
+  constructor(private readonly service: AssessmentService) { }
 
   async gradeSubmission(input: SubmissionGradeInput): Promise<GradeSubmissionResult> {
     const { submissionId, graderId, gradeRequest, generateAiFeedback } = input;
@@ -340,9 +340,10 @@ export class SubmissionGradingService {
       return [];
     }
 
-    return value.filter(this.isRecord).map((question) => ({
-      text: typeof question.text === "string" ? question.text : "",
-    }));
+    return value.filter(this.isRecord).map((question) => {
+      const textVal = typeof question.text === "string" ? question.text : (typeof question.question === "string" ? question.question : "");
+      return { text: textVal };
+    });
   }
 
   private getResponseForQuestion(responses: unknown, questionIndex: number): string {

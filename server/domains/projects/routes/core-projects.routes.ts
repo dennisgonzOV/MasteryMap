@@ -116,6 +116,13 @@ export function registerProjectCoreRoutes(router: Router, projectsService: Proje
   }));
 
   router.post('/:id/start', requireAuth, requireRole(UserRole.TEACHER, UserRole.ADMIN), validateIdParam('id'), checkProjectAccess(), wrapRoute(async (req: AuthenticatedRequest, res) => {
+    if (req.user?.tier === 'free') {
+      return sendErrorResponse(res, {
+        message: "Access denied",
+        statusCode: 403,
+      });
+    }
+
     const projectId = parseInt(req.params.id);
     const userId = req.user!.id;
     const userRole = req.user!.role;
