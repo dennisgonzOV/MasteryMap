@@ -117,6 +117,10 @@ export default function TeacherAssessments() {
     enabled: isAuthenticated && canManageAssessments,
     retry: false,
   });
+  const projectIdsKey = useMemo(
+    () => projects.map((project) => project.id).sort((a, b) => a - b).join(","),
+    [projects],
+  );
 
   // Fetch all assessments (including milestone-linked ones)
   const { data: assessments = [], refetch: refetchAssessments } = useQuery<AssessmentDTO[]>({
@@ -126,30 +130,65 @@ export default function TeacherAssessments() {
     retry: false,
   });
 
-  // Fetch milestones for filtered project or all projects
-  const selectedProjectId = projectFilter !== "all" ? parseInt(projectFilter) : null;
-  const { data: milestones = [] } = useQuery<MilestoneDTO[]>({
-    queryKey: ["/api/projects", selectedProjectId, "milestones"],
+  // Fetch milestones for all visible projects so project filtering is stable
+  const { data: milestones = [], isLoading: milestonesLoading } = useQuery<MilestoneDTO[]>({
+    queryKey: ["/api/projects", "all-milestones", assessmentScope, projectIdsKey],
     queryFn: async () => {
-      if (selectedProjectId) {
-        return api.getMilestones(selectedProjectId);
-      } else {
-        // Fetch milestones for all projects when showing all assessments
-        const milestoneGroups = await Promise.all(
-          projects.map(async (project) => {
-            try {
-              return await api.getMilestones(project.id);
-            } catch {
-              return [] as MilestoneDTO[];
-            }
-          })
-        );
-        return milestoneGroups.flat();
-      }
+      const milestoneGroups = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            return await api.getMilestones(project.id);
+          } catch {
+            return [] as MilestoneDTO[];
+          }
+        }),
+      );
+      return milestoneGroups.flat();
     },
-    enabled: isAuthenticated && canManageAssessments && (!!selectedProjectId || projects.length > 0),
+    enabled: isAuthenticated && canManageAssessments && projects.length > 0,
     retry: false,
   });
+  const selectedProjectId = useMemo(() => {
+    if (projectFilter === "all" || projectFilter === "standalone") {
+      return null;
+    }
+    const parsed = Number(projectFilter);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [projectFilter]);
+
+  const milestoneProjectIdsWithAssessments = useMemo(() => {
+    const milestoneProjectIds = new Set<number>();
+    const milestonesById = new Map(milestones.map((milestone) => [milestone.id, milestone]));
+
+    for (const assessment of assessments) {
+      if (!assessment.milestoneId) {
+        continue;
+      }
+      const milestone = milestonesById.get(assessment.milestoneId);
+      if (milestone?.projectId) {
+        milestoneProjectIds.add(milestone.projectId);
+      }
+    }
+
+    return milestoneProjectIds;
+  }, [assessments, milestones]);
+
+  const projectsWithMilestoneAssessments = useMemo(
+    () => projects.filter((project) => milestoneProjectIdsWithAssessments.has(project.id)),
+    [projects, milestoneProjectIdsWithAssessments],
+  );
+
+  useEffect(() => {
+    if (projectFilter === "all" || projectFilter === "standalone" || milestonesLoading) {
+      return;
+    }
+
+    const filterProjectId = Number(projectFilter);
+    const existsInFilter = projectsWithMilestoneAssessments.some((project) => project.id === filterProjectId);
+    if (!existsInFilter) {
+      setProjectFilter("all");
+    }
+  }, [projectFilter, projectsWithMilestoneAssessments, milestonesLoading]);
 
   // Fetch component skills with competency details
   const { data: componentSkillsDetails = [] } = useQuery<ComponentSkillWithDetailsDTO[]>({
@@ -460,7 +499,7 @@ export default function TeacherAssessments() {
                     <SelectContent>
                       <SelectItem value="all">All Projects</SelectItem>
                       <SelectItem value="standalone">Assessments without projects</SelectItem>
-                      {projects.map((project) => (
+                      {projectsWithMilestoneAssessments.map((project) => (
                         <SelectItem key={project.id} value={project.id.toString()}>
                           {project.title}
                         </SelectItem>

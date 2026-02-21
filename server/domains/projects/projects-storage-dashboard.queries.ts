@@ -4,6 +4,8 @@ import {
   grades,
   milestones,
   projectAssignments,
+  projectTeamMembers,
+  projectTeams,
   projects,
   submissions,
   users,
@@ -16,7 +18,35 @@ import type {
   TeacherPendingTaskDTO,
   TeacherProjectOverviewDTO,
 } from "../../../shared/contracts/api";
-import type { SchoolStudentProgressRecord } from "./projects.storage.types";
+import type { SchoolStudentProgressRecord, SchoolStudentProjectRecord } from "./projects.storage.types";
+
+type StudentProjectAssignmentRow = {
+  projectId: number | null;
+  projectTitle: string | null;
+  projectDescription: string | null;
+  projectStatus: string | null;
+  teacherUsername: string | null;
+};
+
+export function mergeStudentProjectAssignments(
+  assignments: StudentProjectAssignmentRow[],
+): SchoolStudentProjectRecord[] {
+  const assignmentsByProjectId = new Map<number, StudentProjectAssignmentRow>();
+
+  for (const assignment of assignments) {
+    if (assignment.projectId !== null && !assignmentsByProjectId.has(assignment.projectId)) {
+      assignmentsByProjectId.set(assignment.projectId, assignment);
+    }
+  }
+
+  return Array.from(assignmentsByProjectId.values()).map((assignment) => ({
+    projectId: assignment.projectId,
+    projectTitle: assignment.projectTitle,
+    projectDescription: assignment.projectDescription,
+    projectStatus: assignment.projectStatus,
+    teacherName: assignment.teacherUsername,
+  }));
+}
 
 export class ProjectsDashboardQueries {
   async getTeacherDashboardStats(teacherId: number): Promise<TeacherDashboardStatsDTO> {
@@ -174,7 +204,7 @@ export class ProjectsDashboardQueries {
     const studentsWithProgress = await Promise.all(
       students.map(async (student) => {
         try {
-          const studentAssignments = await db
+          const directAssignments = await db
             .select({
               projectId: projectAssignments.projectId,
               projectTitle: projects.title,
@@ -187,13 +217,24 @@ export class ProjectsDashboardQueries {
             .innerJoin(users, eq(projects.teacherId, users.id))
             .where(eq(projectAssignments.studentId, student.id));
 
-          const processedAssignments = studentAssignments.map((assignment) => ({
-            projectId: assignment.projectId,
-            projectTitle: assignment.projectTitle,
-            projectDescription: assignment.projectDescription,
-            projectStatus: assignment.projectStatus,
-            teacherName: assignment.teacherUsername,
-          }));
+          const teamAssignments = await db
+            .select({
+              projectId: projects.id,
+              projectTitle: projects.title,
+              projectDescription: projects.description,
+              projectStatus: projects.status,
+              teacherUsername: users.username,
+            })
+            .from(projectTeamMembers)
+            .innerJoin(projectTeams, eq(projectTeamMembers.teamId, projectTeams.id))
+            .innerJoin(projects, eq(projectTeams.projectId, projects.id))
+            .innerJoin(users, eq(projects.teacherId, users.id))
+            .where(eq(projectTeamMembers.studentId, student.id));
+
+          const processedAssignments = mergeStudentProjectAssignments([
+            ...directAssignments,
+            ...teamAssignments,
+          ]);
 
           const studentCredentials = await db
             .select()

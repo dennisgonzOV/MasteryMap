@@ -210,6 +210,7 @@ export class ProjectsService {
   async updateMilestoneDeliverable(
     milestoneId: number,
     updates: {
+      deliverableId?: number;
       deliverableUrl?: string;
       deliverableFileName?: string;
       deliverableDescription?: string;
@@ -230,19 +231,57 @@ export class ProjectsService {
 
     const updatedMilestone = await this.storage.updateMilestone(milestoneId, milestoneUpdates);
 
-    if (updates.includeInPortfolio && updates.deliverableUrl && studentId) {
-      const existingArtifact = await portfolioStorage.getArtifactByMilestoneAndStudent(milestoneId, studentId);
-      await portfolioStorage.upsertPortfolioArtifact({
-        studentId,
-        milestoneId,
-        title: milestone.title,
-        description: updates.deliverableDescription || milestone.description || '',
-        artifactUrl: updates.deliverableUrl,
-        artifactType: this.getArtifactType(updates.deliverableFileName || ''),
-        tags: existingArtifact?.tags ?? [],
-        isPublic: existingArtifact?.isPublic ?? true,
-        isApproved: existingArtifact?.isApproved ?? false,
-      });
+    if (updates.deliverableUrl && studentId) {
+      const deliverableDescription = updates.deliverableDescription || milestone.description || '';
+      const deliverableTitle = updates.deliverableFileName || milestone.title;
+      const deliverableType = this.getArtifactType(updates.deliverableFileName || '');
+      const isPublic = updates.includeInPortfolio ?? false;
+
+      if (updates.deliverableId) {
+        const existingArtifact = await portfolioStorage.getPortfolioArtifactById(updates.deliverableId);
+        if (!existingArtifact) {
+          throw new Error("Deliverable artifact not found");
+        }
+        if (existingArtifact.studentId !== studentId || existingArtifact.milestoneId !== milestoneId) {
+          throw new Error("Access denied");
+        }
+
+        await portfolioStorage.updatePortfolioArtifact(existingArtifact.id, {
+          title: deliverableTitle,
+          description: deliverableDescription,
+          artifactUrl: updates.deliverableUrl,
+          artifactType: deliverableType,
+          isPublic,
+          tags: existingArtifact.tags ?? [],
+        });
+      } else {
+        const existingMatchingArtifact = (await portfolioStorage.getPortfolioArtifactsByStudent(studentId)).find(
+          (artifact) => artifact.milestoneId === milestoneId && artifact.artifactUrl === updates.deliverableUrl,
+        );
+
+        if (existingMatchingArtifact) {
+          await portfolioStorage.updatePortfolioArtifact(existingMatchingArtifact.id, {
+            title: deliverableTitle,
+            description: deliverableDescription,
+            artifactUrl: updates.deliverableUrl,
+            artifactType: deliverableType,
+            isPublic,
+            tags: existingMatchingArtifact.tags ?? [],
+          });
+        } else {
+          await portfolioStorage.createPortfolioArtifact({
+            studentId,
+            milestoneId,
+            title: deliverableTitle,
+            description: deliverableDescription,
+            artifactUrl: updates.deliverableUrl,
+            artifactType: deliverableType,
+            tags: [],
+            isPublic,
+            isApproved: false,
+          });
+        }
+      }
     }
 
     return updatedMilestone;

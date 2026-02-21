@@ -17,7 +17,11 @@ export type AssessmentDTO = Assessment;
 export type SubmissionDTO = Submission;
 export type CredentialDTO = Credential;
 export type BestStandardDTO = BestStandard;
-export type PortfolioArtifactDTO = PortfolioArtifact;
+export interface PortfolioArtifactDTO extends PortfolioArtifact {
+  projectId?: number | null;
+  projectTitle?: string | null;
+  milestoneTitle?: string | null;
+}
 export interface PortfolioSettingsDTO {
   id: number;
   studentId: number | null;
@@ -325,6 +329,17 @@ export interface SubmissionCreateRequestDTO {
   artifacts?: unknown;
   isSelfEvaluation?: boolean;
   selfEvaluationData?: unknown;
+}
+
+export interface SubmissionFeedbackPreviewRequestDTO {
+  assessmentId: number;
+  responses?: unknown;
+}
+
+export interface SubmissionFeedbackPreviewResponseDTO {
+  feedback: string;
+  requestCount: number;
+  remainingRequests: number;
 }
 
 export interface SubmissionGradeItemDTO {

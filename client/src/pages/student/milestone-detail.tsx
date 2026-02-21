@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import type { AssessmentDTO, MilestoneDTO, ProjectDTO, SubmissionWithAssessmentDTO } from "@shared/contracts/api";
+import type { PortfolioArtifactDTO } from "@shared/contracts/api";
 
 type MilestoneDetailDTO = MilestoneDTO & {
   deliverableUrl?: string | null;
@@ -35,6 +36,8 @@ type MilestoneDetailDTO = MilestoneDTO & {
   includeInPortfolio?: boolean | null;
   status?: string | null;
 };
+
+type DeliverableArtifact = PortfolioArtifactDTO;
 
 export default function StudentMilestoneDetail({ params }: { params: { id: string } }) {
   const { toast } = useToast();
@@ -46,6 +49,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
   const [deliverableDescription, setDeliverableDescription] = useState("");
   const [includeInPortfolio, setIncludeInPortfolio] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [editingDeliverableId, setEditingDeliverableId] = useState<number | null>(null);
   
   const { uploadFile, isUploading, progress } = useUpload({
     onSuccess: (response) => {
@@ -65,6 +69,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
 
   const deliverableMutation = useMutation({
     mutationFn: async (data: { 
+      deliverableId?: number;
       deliverableUrl: string; 
       deliverableFileName: string; 
       deliverableDescription: string; 
@@ -74,6 +79,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/milestones", milestoneId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/artifacts", user?.id] });
       toast({
         title: "Deliverable saved",
         description: includeInPortfolio 
@@ -81,6 +87,9 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
           : "Your deliverable has been saved.",
       });
       setSelectedFile(null);
+      setEditingDeliverableId(null);
+      setDeliverableDescription("");
+      setIncludeInPortfolio(false);
     },
     onError: (error: Error) => {
       toast({
@@ -98,9 +107,28 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
     }
   };
 
+  const handleReplaceDeliverable = (artifact: DeliverableArtifact) => {
+    setEditingDeliverableId(artifact.id);
+    setDeliverableDescription(artifact.description || "");
+    setIncludeInPortfolio(Boolean(artifact.isPublic));
+    setSelectedFile(null);
+  };
+
+  const handleAddNewDeliverable = () => {
+    setEditingDeliverableId(null);
+    setDeliverableDescription("");
+    setIncludeInPortfolio(false);
+    setSelectedFile(null);
+  };
+
   const handleSubmitDeliverable = async () => {
-    let deliverableUrl = milestone?.deliverableUrl ?? "";
-    let deliverableFileName = milestone?.deliverableFileName ?? "deliverable";
+    let deliverableUrl = activeDeliverable?.artifactUrl || "";
+    let deliverableFileName = activeDeliverable?.title || "deliverable";
+
+    if (hasLegacyDeliverable) {
+      deliverableUrl = milestone?.deliverableUrl ?? "";
+      deliverableFileName = milestone?.deliverableFileName ?? "deliverable";
+    }
 
     if (selectedFile) {
       const uploadResponse = await uploadFile(selectedFile);
@@ -121,6 +149,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
     }
 
     deliverableMutation.mutate({
+      deliverableId: activeDeliverable?.id,
       deliverableUrl,
       deliverableFileName,
       deliverableDescription,
@@ -149,6 +178,12 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
     queryFn: api.getStudentSubmissions,
   });
 
+  const { data: portfolioArtifacts = [] } = useQuery<DeliverableArtifact[]>({
+    queryKey: ["/api/portfolio/artifacts", user?.id],
+    enabled: isAuthenticated && user?.role === "student" && !!user?.id,
+    queryFn: api.getPortfolioArtifacts,
+  });
+
   // Fetch project details if milestone has a project
   const { data: project } = useQuery<ProjectDTO>({
     queryKey: ["/api/projects", milestone?.projectId],
@@ -156,13 +191,25 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
     queryFn: () => api.getProject(milestone!.projectId as number),
   });
 
+  const milestoneDeliverables = useMemo(
+    () => portfolioArtifacts.filter((artifact) => artifact.milestoneId === milestone?.id),
+    [portfolioArtifacts, milestone?.id],
+  );
+
+  const activeDeliverable = useMemo(
+    () => milestoneDeliverables.find((artifact) => artifact.id === editingDeliverableId),
+    [milestoneDeliverables, editingDeliverableId],
+  );
+
+  const hasLegacyDeliverable = Boolean(milestone?.deliverableUrl && milestoneDeliverables.length === 0);
+
   useEffect(() => {
-    if (!milestone) {
+    if (!milestone || editingDeliverableId !== null) {
       return;
     }
-    setDeliverableDescription(milestone.deliverableDescription ?? "");
-    setIncludeInPortfolio(Boolean(milestone.includeInPortfolio));
-  }, [milestone?.id, milestone?.deliverableDescription, milestone?.includeInPortfolio]);
+    setDeliverableDescription("");
+    setIncludeInPortfolio(false);
+  }, [editingDeliverableId, milestone?.id]);
 
   if (isLoading || milestoneLoading) {
     return (
@@ -410,18 +457,64 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {milestone.deliverableUrl ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              {milestoneDeliverables.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-gray-900">Submitted Files</p>
+                  {milestoneDeliverables.map((artifact) => (
+                    <div key={artifact.id} className="rounded-lg border border-green-200 bg-green-50 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center space-x-2 text-sm text-green-800">
+                          <FolderOpen className="h-4 w-4" />
+                          <span className="font-medium">{artifact.title || "File uploaded"}</span>
+                          {artifact.artifactUrl && (
+                            <a
+                              href={artifact.artifactUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-blue-600 hover:underline"
+                            >
+                              <ExternalLink className="h-4 w-4 ml-1" />
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={artifact.isPublic ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800"}>
+                            {artifact.isPublic ? "Public" : "Private"}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleReplaceDeliverable(artifact)}
+                          >
+                            Replace
+                          </Button>
+                        </div>
+                      </div>
+                      {artifact.description && (
+                        <p className="text-sm text-green-700 mt-2">{artifact.description}</p>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddNewDeliverable}
+                  >
+                    Add Another File
+                  </Button>
+                </div>
+              ) : hasLegacyDeliverable ? (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                   <div className="flex items-center space-x-3 mb-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <span className="font-medium text-green-900">Deliverable Submitted</span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-green-700">
                     <FolderOpen className="h-4 w-4" />
-                    <span>{milestone.deliverableFileName || 'File uploaded'}</span>
-                    <a 
-                      href={milestone.deliverableUrl} 
-                      target="_blank" 
+                    <span>{milestone.deliverableFileName || "File uploaded"}</span>
+                    <a
+                      href={milestone.deliverableUrl || "#"}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center text-blue-600 hover:underline"
                     >
@@ -431,16 +524,13 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                   {milestone.deliverableDescription && (
                     <p className="text-sm text-green-700 mt-2">{milestone.deliverableDescription}</p>
                   )}
-                  {milestone.includeInPortfolio && (
-                    <Badge className="mt-2 bg-purple-100 text-purple-800">Added to Portfolio</Badge>
-                  )}
                 </div>
               ) : null}
 
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="file-upload" className="text-sm font-medium text-gray-700">
-                    {milestone.deliverableUrl ? "Replace file (optional)" : "Upload your work"}
+                    {editingDeliverableId ? "Replace selected file (optional)" : "Upload your work"}
                   </Label>
                   <div className="mt-2 flex items-center space-x-4">
                     <input
@@ -457,7 +547,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                       data-testid="button-select-file"
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      {selectedFile ? 'Change File' : milestone.deliverableUrl ? 'Select Replacement' : 'Select File'}
+                      {selectedFile ? "Change File" : editingDeliverableId ? "Select Replacement" : "Select File"}
                     </Button>
                     {selectedFile && (
                       <span className="text-sm text-gray-600">
@@ -490,7 +580,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                     data-testid="checkbox-include-portfolio"
                   />
                   <Label htmlFor="portfolio" className="text-sm text-gray-700 cursor-pointer">
-                    Include this deliverable in my public portfolio
+                    Make this file public in my portfolio
                   </Label>
                 </div>
               </div>
@@ -512,7 +602,7 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
 
               <Button
                 onClick={handleSubmitDeliverable}
-                disabled={(!selectedFile && !milestone.deliverableUrl) || isUploading || deliverableMutation.isPending}
+                disabled={(!selectedFile && !editingDeliverableId && !hasLegacyDeliverable) || isUploading || deliverableMutation.isPending}
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 data-testid="button-submit-deliverable"
               >
@@ -520,9 +610,11 @@ export default function StudentMilestoneDetail({ params }: { params: { id: strin
                   ? 'Uploading...'
                   : deliverableMutation.isPending
                     ? 'Saving...'
-                    : milestone.deliverableUrl
-                      ? 'Update Deliverable'
-                      : 'Submit Deliverable'}
+                    : editingDeliverableId
+                      ? (selectedFile ? "Replace Deliverable" : "Save Changes")
+                      : hasLegacyDeliverable
+                        ? "Update Deliverable"
+                        : "Add Deliverable"}
               </Button>
             </CardContent>
           </Card>

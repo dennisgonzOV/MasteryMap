@@ -4,6 +4,8 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth';
 import { UserRole } from '../../../shared/schema';
 import type {
   SubmissionCreateRequestDTO,
+  SubmissionFeedbackPreviewRequestDTO,
+  SubmissionFeedbackPreviewResponseDTO,
   SubmissionDTO,
   SubmissionGradeRequestDTO,
 } from '../../../shared/contracts/api';
@@ -20,7 +22,9 @@ import { canUserAccessAssessment } from "./assessment-access";
 import { canTeacherManageAssessment } from "./assessment-ownership";
 
 export class SubmissionController {
+  private static readonly FEEDBACK_PREVIEW_LIMIT = 3;
   private gradingService: SubmissionGradingService;
+  private readonly feedbackPreviewCountFallback = new Map<string, number>();
 
   constructor(
     private service: AssessmentService,
@@ -44,7 +48,13 @@ export class SubmissionController {
 
         const payload: SubmissionCreateRequestDTO = req.body;
         const submission: SubmissionDTO = await this.service.createSubmission(payload, userId);
+        if (typeof payload.assessmentId === "number") {
+          this.clearFeedbackPreviewCount(req, userId, payload.assessmentId);
+        }
         res.json(submission);
+        if (typeof submission.id === "number") {
+          this.enqueueAutoGradeSubmission(submission.id);
+        }
       } catch (error) {
         console.error("Error creating submission:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
@@ -65,6 +75,78 @@ export class SubmissionController {
       } catch (error) {
         console.error("Error fetching submissions:", error);
         res.status(500).json({ message: "Failed to fetch submissions" });
+      }
+    });
+
+    router.post('/preview-feedback', requireAuth, aiLimiter, async (req: AuthenticatedRequest, res) => {
+      try {
+        if (!req.user) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (req.user.role !== UserRole.STUDENT) {
+          return res.status(403).json({ message: "Only students can request feedback previews" });
+        }
+
+        const payload = this.toRecord(req.body) as Partial<SubmissionFeedbackPreviewRequestDTO>;
+        if (typeof payload.assessmentId !== "number" || Number.isNaN(payload.assessmentId)) {
+          return res.status(400).json({ message: "assessmentId is required" });
+        }
+
+        const assessmentId = payload.assessmentId;
+        const assessment = await this.service.getAssessment(assessmentId);
+        if (!assessment) {
+          return res.status(404).json({ message: "Assessment not found" });
+        }
+
+        if (assessment.assessmentType !== "teacher") {
+          return res.status(400).json({ message: "Feedback preview is only available for teacher assessments" });
+        }
+
+        const canAccess = await canUserAccessAssessment(assessment, req.user, this.projectGateway);
+        if (!canAccess) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        const existingSubmissions = await this.service.getSubmissionsByStudent(req.user.id);
+        const alreadySubmitted = existingSubmissions.some((submission) => submission.assessmentId === assessmentId);
+        if (alreadySubmitted) {
+          return res.status(400).json({ message: "Assessment already submitted" });
+        }
+
+        const usedCount = this.getFeedbackPreviewCount(req, req.user.id, assessmentId);
+        if (usedCount >= SubmissionController.FEEDBACK_PREVIEW_LIMIT) {
+          return res.status(429).json({
+            message: "Feedback request limit reached. You can request feedback up to 3 times before submitting.",
+          });
+        }
+
+        const result = await this.gradingService.generatePreviewFeedback({
+          assessmentId,
+          studentId: req.user.id,
+          responses: payload.responses,
+        });
+
+        const nextCount = usedCount + 1;
+        this.setFeedbackPreviewCount(req, req.user.id, assessmentId, nextCount);
+        const responseBody: SubmissionFeedbackPreviewResponseDTO = {
+          feedback: result.feedback,
+          requestCount: nextCount,
+          remainingRequests: Math.max(0, SubmissionController.FEEDBACK_PREVIEW_LIMIT - nextCount),
+        };
+
+        return res.json(responseBody);
+      } catch (error) {
+        if (error instanceof SubmissionHttpError) {
+          return res.status(error.statusCode).json({ message: error.message });
+        }
+
+        console.error("Error generating preview feedback:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+        return res.status(500).json({
+          message: "Failed to generate feedback preview",
+          error: errorMessage,
+        });
       }
     });
 
@@ -202,6 +284,77 @@ export class SubmissionController {
       return value as Record<string, unknown>;
     }
     return {};
+  }
+
+  private getFeedbackPreviewCount(
+    _req: AuthenticatedRequest,
+    studentId: number,
+    assessmentId: number,
+  ): number {
+    const key = this.feedbackPreviewKey(studentId, assessmentId);
+    return this.feedbackPreviewCountFallback.get(key) ?? 0;
+  }
+
+  private setFeedbackPreviewCount(
+    _req: AuthenticatedRequest,
+    studentId: number,
+    assessmentId: number,
+    count: number,
+  ): void {
+    const key = this.feedbackPreviewKey(studentId, assessmentId);
+    const normalizedCount = Math.max(0, count);
+    this.feedbackPreviewCountFallback.set(key, normalizedCount);
+  }
+
+  private clearFeedbackPreviewCount(
+    _req: AuthenticatedRequest,
+    studentId: number,
+    assessmentId: number,
+  ): void {
+    const key = this.feedbackPreviewKey(studentId, assessmentId);
+    this.feedbackPreviewCountFallback.delete(key);
+  }
+
+  private feedbackPreviewKey(studentId: number, assessmentId: number): string {
+    return `${studentId}:${assessmentId}`;
+  }
+
+  private enqueueAutoGradeSubmission(submissionId: number): void {
+    setImmediate(() => {
+      void this.autoGradeSubmission(submissionId);
+    });
+  }
+
+  private async autoGradeSubmission(submissionId: number): Promise<void> {
+    try {
+      const submission = await this.service.getSubmission(submissionId);
+      if (!submission || submission.assessmentId == null) {
+        return;
+      }
+
+      if (submission.gradedAt || submission.aiGeneratedFeedback) {
+        return;
+      }
+
+      const assessment = await this.service.getAssessment(submission.assessmentId);
+      if (!assessment || assessment.assessmentType !== "teacher") {
+        return;
+      }
+
+      const existingGrades = await this.service.getGradesBySubmission(submissionId);
+      if (existingGrades.length > 0) {
+        return;
+      }
+
+      await this.gradingService.gradeSubmission({
+        submissionId,
+        graderId: assessment.createdBy ?? null,
+        gradeRequest: {},
+        generateAiFeedback: true,
+      });
+    } catch (error) {
+      console.error("Background AI auto-grading failed for submission", submissionId, error);
+    }
   }
 
   private async checkSubmissionAccess(

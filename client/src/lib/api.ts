@@ -25,6 +25,8 @@ import type {
   StudentSchoolProgressDTO,
   StudentSummaryDTO,
   SubmissionCreateRequestDTO,
+  SubmissionFeedbackPreviewRequestDTO,
+  SubmissionFeedbackPreviewResponseDTO,
   SubmissionGradeRequestDTO,
   SubmissionDTO,
   SubmissionWithAssessmentDTO,
@@ -96,6 +98,7 @@ export const api = {
   updateMilestoneDeliverable: (
     id: number,
     data: {
+      deliverableId?: number;
       deliverableUrl: string;
       deliverableFileName: string;
       deliverableDescription: string;
@@ -140,6 +143,8 @@ export const api = {
   // Submissions
   createSubmission: (data: SubmissionCreateRequestDTO) =>
     apiJsonRequest<SubmissionDTO>("/api/submissions", "POST", data),
+  previewSubmissionFeedback: (data: SubmissionFeedbackPreviewRequestDTO) =>
+    apiJsonRequest<SubmissionFeedbackPreviewResponseDTO>("/api/submissions/preview-feedback", "POST", data),
   getStudentSubmissions: () =>
     apiJsonRequest<SubmissionWithAssessmentDTO[]>("/api/submissions/student", "GET"),
   getAssessmentSubmissions: (assessmentId: number) =>

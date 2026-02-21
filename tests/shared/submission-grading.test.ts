@@ -45,6 +45,53 @@ describe("submission grading service", () => {
     expect(awardStickersForGrades).toHaveBeenCalledWith(30, result.grades);
   });
 
+  it("generates preview feedback using the AI grading pipeline", async () => {
+    const generateComponentSkillGrades = vi.fn().mockResolvedValue([
+      { componentSkillId: 9, rubricLevel: "proficient", score: 3, feedback: "Strong evidence" },
+    ]);
+    const generateStudentFeedback = vi.fn().mockResolvedValue("Personalized AI feedback");
+
+    const service = {
+      getAssessment: vi.fn().mockResolvedValue({
+        id: 77,
+        componentSkillIds: [9],
+        questions: [{ id: "q1", text: "Explain your reasoning." }],
+        pdfUrl: null,
+      }),
+      getComponentSkill: vi.fn().mockResolvedValue({
+        id: 9,
+        name: "Reasoning",
+      }),
+      generateComponentSkillGrades,
+      generateStudentFeedback,
+    } as unknown as AssessmentService;
+
+    const gradingService = new SubmissionGradingService(service);
+    const result = await gradingService.generatePreviewFeedback({
+      assessmentId: 77,
+      studentId: 15,
+      responses: [{ questionId: "q1", answer: "Because the evidence supports it." }],
+    });
+
+    expect(result.feedback).toBe("Personalized AI feedback");
+    expect(generateComponentSkillGrades).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assessmentId: 77,
+        studentId: 15,
+        id: -1,
+      }),
+      expect.objectContaining({ id: 77 }),
+      expect.any(Array),
+      undefined,
+    );
+    expect(generateStudentFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({ id: -1, assessmentId: 77, studentId: 15 }),
+      expect.arrayContaining([
+        expect.objectContaining({ componentSkillId: 9, rubricLevel: "proficient" }),
+      ]),
+    );
+  });
+
   it("generates question-level feedback for a valid submission question", async () => {
     const generateFeedbackForQuestion = vi.fn().mockResolvedValue("Actionable feedback");
     const service = {

@@ -156,7 +156,6 @@ export function createAuthRouter(dependencies: AuthRouterDependencies): Router {
   const router = Router();
 
   router.use("/login", authLimiter);
-  router.use("/register", authLimiter);
 
   router.post("/register", async (req, res) => {
     try {

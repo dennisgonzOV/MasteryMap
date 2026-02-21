@@ -24,7 +24,11 @@ import { getCompetencyInfo } from "@/lib/competencyUtils";
 import AIFeedbackModal from '@/components/modals/ai-feedback-modal';
 import AITutorChat from '@/components/ai-tutor-chat';
 import { api } from '@/lib/api';
-import type { ComponentSkillWithDetailsDTO, SubmissionCreateRequestDTO } from '@shared/contracts/api';
+import type {
+  ComponentSkillWithDetailsDTO,
+  SubmissionCreateRequestDTO,
+  SubmissionFeedbackPreviewResponseDTO,
+} from '@shared/contracts/api';
 
 interface Question {
   id: string;
@@ -99,6 +103,8 @@ const normalizeRubricLevels = (rubricLevels: unknown): Record<string, string> | 
   return Object.keys(normalized).length > 0 ? normalized : null;
 };
 
+const MAX_PRE_SUBMIT_FEEDBACK_REQUESTS = 3;
+
 export default function TakeAssessment() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
@@ -108,6 +114,8 @@ export default function TakeAssessment() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preSubmitFeedback, setPreSubmitFeedback] = useState('');
+  const [feedbackRequestCount, setFeedbackRequestCount] = useState(0);
 
   // Self-evaluation specific state
   const [currentSkillIndex, setCurrentSkillIndex] = useState(0);
@@ -173,7 +181,7 @@ export default function TakeAssessment() {
     onSuccess: () => {
       toast({
         title: "Assessment submitted successfully!",
-        description: "Your responses have been saved and will be reviewed by your teacher.",
+        description: "Your responses were saved. AI grading has started and feedback will appear shortly.",
       });
       setLocation('/student/projects');
     },
@@ -181,6 +189,47 @@ export default function TakeAssessment() {
       toast({
         title: "Submission failed",
         description: "There was an error submitting your assessment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const requestFeedbackMutation = useMutation({
+    mutationFn: async (submissionData: SubmissionCreateRequestDTO) => {
+      const response = await fetch('/api/submissions/preview-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submissionData),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = typeof payload?.message === 'string'
+          ? payload.message
+          : 'Failed to generate feedback preview';
+        throw new Error(message);
+      }
+
+      return payload as SubmissionFeedbackPreviewResponseDTO;
+    },
+    onSuccess: (data) => {
+      setPreSubmitFeedback(data.feedback);
+      setFeedbackRequestCount(data.requestCount);
+      toast({
+        title: "AI feedback ready",
+        description: `You have ${data.remainingRequests} feedback request${data.remainingRequests === 1 ? '' : 's'} remaining.`,
+      });
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Unable to generate feedback preview';
+      if (message.toLowerCase().includes('limit')) {
+        setFeedbackRequestCount(MAX_PRE_SUBMIT_FEEDBACK_REQUESTS);
+      }
+      toast({
+        title: "Feedback request failed",
+        description: message,
         variant: "destructive",
       });
     },
@@ -341,7 +390,22 @@ export default function TakeAssessment() {
 
   const currentQuestion = assessment.questions?.[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === (assessment.questions?.length || 1) - 1;
-  const allQuestionsAnswered = assessment.questions?.every(q => answers[q.id]) || false;
+  const questionsWithConfigurationErrors = assessment.questions.filter(question => {
+    if (question.type !== 'multiple-choice') {
+      return false;
+    }
+    const { options, hasError } = parseQuestionOptions(question.options);
+    return hasError || options.length === 0;
+  });
+  const answerableQuestions = assessment.questions.filter(question => {
+    if (question.type !== 'multiple-choice') {
+      return true;
+    }
+    const { options, hasError } = parseQuestionOptions(question.options);
+    return !hasError && options.length > 0;
+  });
+  const allAnswerableQuestionsAnswered = answerableQuestions.every(q => answers[q.id]);
+  const feedbackRequestsRemaining = Math.max(0, MAX_PRE_SUBMIT_FEEDBACK_REQUESTS - feedbackRequestCount);
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers(prev => ({
@@ -385,51 +449,15 @@ export default function TakeAssessment() {
       return;
     }
 
-    // Check for questions with configuration errors
-    const questionsWithErrors = assessment.questions.filter(question => {
-      if (question.type === 'multiple-choice') {
-        let options = question.options;
-        if (typeof options === 'string') {
-          try {
-            const parsed = JSON.parse(options);
-            options = Array.isArray(parsed) ? parsed : [];
-          } catch (e) {
-            return true; // Has error
-          }
-        }
-        return !Array.isArray(options) || options.length === 0;
-      }
-      return false;
-    });
-
-    if (questionsWithErrors.length > 0) {
+    if (questionsWithConfigurationErrors.length > 0) {
       toast({
         title: "Cannot submit assessment",
-        description: `Some questions have configuration errors. Please contact your teacher. (Questions: ${questionsWithErrors.map(q => assessment.questions.indexOf(q) + 1).join(', ')})`,
+        description: `Some questions have configuration errors. Please contact your teacher. (Questions: ${questionsWithConfigurationErrors.map(q => assessment.questions.indexOf(q) + 1).join(', ')})`,
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
-
-    // Only check answerable questions
-    const answerableQuestions = assessment.questions.filter(question => {
-      if (question.type === 'multiple-choice') {
-        let options = question.options;
-        if (typeof options === 'string') {
-          try {
-            const parsed = JSON.parse(options);
-            options = Array.isArray(parsed) ? parsed : [];
-          } catch (e) {
-            return false; // Not answerable due to error
-          }
-        }
-        return Array.isArray(options) && options.length > 0;
-      }
-      return true; // Other question types are answerable
-    });
-
-    const allAnswerableQuestionsAnswered = answerableQuestions.every(q => answers[q.id]);
 
     if (!allAnswerableQuestionsAnswered) {
       toast({
@@ -442,7 +470,7 @@ export default function TakeAssessment() {
 
     setIsSubmitting(true);
 
-    const submissionData = {
+    const submissionData: SubmissionCreateRequestDTO = {
       assessmentId: assessment.id,
       responses: Object.entries(answers).map(([questionId, answer]) => ({
         questionId,
@@ -451,6 +479,49 @@ export default function TakeAssessment() {
     };
 
     submitAssessmentMutation.mutate(submissionData);
+  };
+
+  const handleRequestFeedback = () => {
+    if (assessment.assessmentType !== 'teacher') {
+      return;
+    }
+
+    if (feedbackRequestCount >= MAX_PRE_SUBMIT_FEEDBACK_REQUESTS) {
+      toast({
+        title: "Feedback limit reached",
+        description: "You can request feedback up to 3 times before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (questionsWithConfigurationErrors.length > 0) {
+      toast({
+        title: "Cannot request feedback",
+        description: `Some questions have configuration errors. Please contact your teacher. (Questions: ${questionsWithConfigurationErrors.map(q => assessment.questions.indexOf(q) + 1).join(', ')})`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!allAnswerableQuestionsAnswered) {
+      toast({
+        title: "Please answer all questions",
+        description: "Complete all answerable questions before requesting AI feedback.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const submissionData: SubmissionCreateRequestDTO = {
+      assessmentId: assessment.id,
+      responses: Object.entries(answers).map(([questionId, answer]) => ({
+        questionId,
+        answer,
+      })),
+    };
+
+    requestFeedbackMutation.mutate(submissionData);
   };
 
   const isDueDatePassed = new Date() > new Date(assessment.dueDate);
@@ -698,7 +769,7 @@ export default function TakeAssessment() {
           ) : isLastQuestion ? (
             <Button
               onClick={handleSubmit}
-              disabled={!allQuestionsAnswered || isSubmitting}
+              disabled={!allAnswerableQuestionsAnswered || isSubmitting || questionsWithConfigurationErrors.length > 0}
               className="bg-green-600 hover:bg-green-700"
             >
               {isSubmitting ? (
@@ -720,6 +791,43 @@ export default function TakeAssessment() {
             </Button>
           )}
         </div>
+
+        {assessment.assessmentType === 'teacher' && (
+          <Card className="mt-6 border-blue-200">
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-lg">AI Feedback Before Submit</CardTitle>
+                  <p className="text-sm text-gray-600">
+                    You can request feedback up to 3 times before submission. Remaining: {feedbackRequestsRemaining}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleRequestFeedback}
+                  disabled={
+                    requestFeedbackMutation.isPending ||
+                    isSubmitting ||
+                    feedbackRequestsRemaining === 0 ||
+                    !allAnswerableQuestionsAnswered ||
+                    questionsWithConfigurationErrors.length > 0
+                  }
+                >
+                  {requestFeedbackMutation.isPending ? 'Generating Feedback...' : 'Request AI Feedback'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {preSubmitFeedback ? (
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{preSubmitFeedback}</p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Complete all answerable questions, then request feedback anytime before submitting.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Current Component Skill Display */}
         {assessment.assessmentType === 'self-evaluation' && (

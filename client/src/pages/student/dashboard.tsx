@@ -79,6 +79,12 @@ type ProjectMilestoneWithAssessments = MilestoneDTO & {
   xqRubricLevel?: string | null;
 };
 
+type MilestoneAssessmentListItem = {
+  project: StudentProject;
+  milestone: ProjectMilestoneWithAssessments;
+  assessment: MilestoneAssessment;
+};
+
 export default function StudentDashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user, isNetworkError, isAuthError, hasError } = useAuth();
@@ -217,7 +223,7 @@ export default function StudentDashboard() {
               </CardContent>
             </Card>
 
-            {/* Tabs for Project Milestones and Assessments */}
+            {/* Tabs for Assessments and Milestone Assessments */}
             <Card>
               <CardHeader>
                 <div className="border-b border-gray-200">
@@ -242,14 +248,14 @@ export default function StudentDashboard() {
                       onClick={() => setActiveTab('milestones')}
                     >
                       <BookOpen className="h-4 w-4 inline mr-2" />
-                      Project Milestones
+                      Milestone Assessments
                     </button>
                   </nav>
                 </div>
               </CardHeader>
               <CardContent className="p-6">
                 {activeTab === 'assessments' && <AssessmentsTab searchQuery={searchQuery} />}
-                {activeTab === 'milestones' && <ProjectMilestonesTab searchQuery={searchQuery} />}
+                {activeTab === 'milestones' && <MilestoneAssessmentsTab searchQuery={searchQuery} />}
               </CardContent>
             </Card>
           </div>
@@ -328,8 +334,8 @@ function AssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
 }
 
 // Helper functions for search filtering
-const matchesSearch = (text: string, query: string): boolean => 
-  text.toLowerCase().includes(query);
+const matchesSearch = (text: string | null | undefined, query: string): boolean =>
+  (text ?? "").toLowerCase().includes(query);
 
 const assessmentMatches = (assessment: MilestoneAssessment, query: string): boolean =>
   matchesSearch(assessment.title, query) ||
@@ -337,11 +343,11 @@ const assessmentMatches = (assessment: MilestoneAssessment, query: string): bool
 
 const milestoneMatches = (milestone: ProjectMilestoneWithAssessments, query: string): boolean =>
   matchesSearch(milestone.title, query) ||
-  matchesSearch(milestone.description ?? "", query) ||
+  matchesSearch(milestone.description, query) ||
   (milestone.assessments ?? []).some((assessment) => assessmentMatches(assessment, query));
 
-// Project Milestones Tab Component
-function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
+// Milestone Assessments Tab Component
+function MilestoneAssessmentsTab({ searchQuery = '' }: { searchQuery?: string }) {
   const { user } = useAuth();
 
   // Fetch student's projects
@@ -363,85 +369,85 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
     refetchIntervalInBackground: true,
   });
 
-  // Fetch milestones and their assessments for all student projects
-  const { data: projectMilestonesWithAssessments = {} } = useQuery<Record<number, ProjectMilestoneWithAssessments[]>>({
-    queryKey: ["/api/projects/milestones-with-assessments", projects.map(p => p.id)],
+  // Fetch and flatten milestone-linked assessments for all student projects
+  const { data: milestoneAssessments = [], isLoading: assessmentsLoading } = useQuery<MilestoneAssessmentListItem[]>({
+    queryKey: ["/api/projects/milestone-assessments", projects.map((project) => project.id)],
     enabled: !!user?.id && projects.length > 0,
     queryFn: async () => {
-      const milestonesData: Record<number, ProjectMilestoneWithAssessments[]> = {};
-      for (const project of projects) {
-        try {
-          const milestones = await api.getMilestones(project.id);
-          const milestonesWithStatusAndAssessments = await Promise.all(
-            milestones.map(async (milestone) => {
-              const milestoneAssessments = await api.getAssessments(milestone.id);
-              const milestoneAssessmentIds = new Set(milestoneAssessments.map((assessment) => assessment.id));
-              const milestoneSubmissions = studentSubmissions.filter(
-                (submission) =>
-                  submission.assessmentId != null && milestoneAssessmentIds.has(submission.assessmentId)
-              );
+      const results = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const milestones = await api.getMilestones(project.id);
+            const milestonesWithAssessments = await Promise.all(
+              milestones.map(async (milestone) => ({
+                milestone: {
+                  ...milestone,
+                  assessments: await api.getAssessments(milestone.id),
+                } as ProjectMilestoneWithAssessments,
+              })),
+            );
+            return milestonesWithAssessments.flatMap(({ milestone }) =>
+              (milestone.assessments ?? []).map((assessment) => ({
+                project,
+                milestone,
+                assessment,
+              })),
+            );
+          } catch {
+            return [];
+          }
+        }),
+      );
 
-              const hasGradedSubmissions = milestoneSubmissions.some((submission) =>
-                Boolean((submission.grades && submission.grades.length > 0) || submission.feedback)
-              );
+      return results.flat().sort((a, b) => {
+        const aDate = Date.parse(String(a.assessment.dueDate ?? a.milestone.dueDate ?? ""));
+        const bDate = Date.parse(String(b.assessment.dueDate ?? b.milestone.dueDate ?? ""));
+        const aHasDate = Number.isFinite(aDate);
+        const bHasDate = Number.isFinite(bDate);
 
-              return {
-                ...milestone,
-                isCompleted: hasGradedSubmissions,
-                assessments: milestoneAssessments
-              };
-            })
-          );
-          milestonesData[project.id] = milestonesWithStatusAndAssessments;
-        } catch (error) {
-          milestonesData[project.id] = [];
+        if (aHasDate && bHasDate && aDate !== bDate) {
+          return aDate - bDate;
         }
-      }
-      return milestonesData;
+        if (aHasDate) return -1;
+        if (bHasDate) return 1;
+        return a.assessment.title.localeCompare(b.assessment.title);
+      });
     },
   });
 
-  // Filter projects to show only active and completed ones
-  const eligibleProjects = projects.filter((project) => 
-    project.status === 'active' || project.status === 'completed'
-  );
-
   // Apply search filter
-  const searchFilteredProjects = eligibleProjects.filter((project: StudentProject) => {
+  const searchFilteredAssessments = milestoneAssessments.filter((item) => {
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
-    const projectMilestonesList = projectMilestonesWithAssessments[project.id] || [];
-
     return (
-      project.title.toLowerCase().includes(query) ||
-      (project.description ?? "").toLowerCase().includes(query) ||
-      projectMilestonesList.some((milestone) =>
-        milestoneMatches(milestone, query)
-      )
+      matchesSearch(item.project.title, query) ||
+      matchesSearch(item.project.description, query) ||
+      milestoneMatches(item.milestone, query) ||
+      assessmentMatches(item.assessment, query)
     );
   });
 
-  if (isLoading) {
+  if (isLoading || assessmentsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Loading milestones...</span>
+        <span className="ml-2">Loading milestone assessments...</span>
       </div>
     );
   }
 
-  if (searchFilteredProjects.length === 0) {
+  if (searchFilteredAssessments.length === 0) {
     return (
       <div className="text-center p-12">
         <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">
-          {searchQuery ? 'No Matching Projects' : 'No Active Projects'}
+          {searchQuery ? 'No Matching Milestone Assessments' : 'No Milestone Assessments'}
         </h3>
         <p className="text-gray-600">
-          {searchQuery 
-            ? `No projects or milestones found matching "${searchQuery}".`
-            : "You don't have any active or completed projects with milestones yet."
+          {searchQuery
+            ? `No milestone assessments found matching "${searchQuery}".`
+            : "No assessments are linked to project milestones yet."
           }
         </p>
       </div>
@@ -450,12 +456,13 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
 
   return (
     <div className="space-y-6">
-      {searchFilteredProjects.map((project) => (
-        <ProjectMilestoneCard 
-          key={project.id} 
-          project={project} 
-          milestones={projectMilestonesWithAssessments[project.id] || []}
-          searchQuery={searchQuery}
+      {searchFilteredAssessments.map(({ project, milestone, assessment }) => (
+        <AssessmentCard
+          key={`${project.id}-${milestone.id}-${assessment.id}`}
+          assessment={assessment}
+          milestone={milestone}
+          projectTitle={project.title}
+          milestoneTitle={milestone.title}
           studentSubmissions={studentSubmissions}
         />
       ))}
@@ -463,155 +470,22 @@ function ProjectMilestonesTab({ searchQuery = '' }: { searchQuery?: string }) {
   );
 }
 
-// Project Milestone Card Component
-interface ProjectMilestoneCardProps {
-  project: StudentProject;
-  milestones?: ProjectMilestoneWithAssessments[];
-  searchQuery: string;
-  studentSubmissions?: StudentSubmission[];
-}
-
-function ProjectMilestoneCard({ project, milestones = [], searchQuery, studentSubmissions = [] }: ProjectMilestoneCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case 'completed':
-        return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
-      default:
-        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
-    }
-  };
-
-  const getMilestoneStatusBadge = (milestone: ProjectMilestoneWithAssessments) => {
-    if (milestone.isCompleted) {
-      return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
-    }
-    if (milestone.dueDate && new Date(milestone.dueDate) < new Date()) {
-      return <Badge className="bg-red-100 text-red-800">Overdue</Badge>;
-    }
-    return <Badge className="bg-yellow-100 text-yellow-800">In Progress</Badge>;
-  };
-
-  // Filter milestones based on search query
-  const filteredMilestones = milestones.filter((milestone) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    return milestoneMatches(milestone, query);
-  });
-
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <BookOpen className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">{project.title}</CardTitle>
-              <p className="text-gray-600 text-sm">{project.description}</p>
-              <p className="text-xs text-gray-500">
-                {milestones.length} milestones
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            {getStatusBadge(project.status ?? "draft")}
-            <Button variant="ghost" size="sm">
-              {isExpanded ? 'Collapse' : 'View Milestones'}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-
-      {isExpanded && (
-        <CardContent className="pt-0">
-          <div className="space-y-4">
-            {filteredMilestones.length > 0 ? (
-              filteredMilestones.map((milestone, index) => (
-                <div key={milestone.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Milestone {index + 1}: {milestone.title}
-                      </h4>
-                      <p className="text-sm text-gray-600 mb-2">{milestone.description}</p>
-                      <div className="flex items-center text-xs text-gray-500 space-x-4">
-                        <div className="flex items-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Due: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'No due date'}
-                        </div>
-                        {milestone.xqRubricLevel && (
-                          <div className="flex items-center">
-                            <Target className="h-3 w-3 mr-1" />
-                            Level: {milestone.xqRubricLevel}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      {getMilestoneStatusBadge(milestone)}
-                    </div>
-                  </div>
-
-                  {milestone.deliverables && milestone.deliverables.length > 0 && (
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <h5 className="text-sm font-medium text-gray-700 mb-2">Deliverables:</h5>
-                      <ul className="text-sm text-gray-600 space-y-1">
-                        {milestone.deliverables.map((deliverable, idx) => (
-                          <li key={idx} className="flex items-start">
-                            <span className="inline-block w-2 h-2 bg-blue-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                            {deliverable}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {milestone.assessments && milestone.assessments.length > 0 && (
-                    <div className="mt-4">
-                      <h5 className="text-sm font-medium text-gray-700 mb-2">Assessments:</h5>
-                      <div className="space-y-3">
-                        {milestone.assessments.map((assessment, idx) => (
-                          <AssessmentCard 
-                            key={assessment.id} 
-                            assessment={assessment} 
-                            milestone={milestone}
-                            studentSubmissions={studentSubmissions}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="text-center p-6 text-gray-500">
-                {searchQuery ? (
-                  <p>No milestones found matching "{searchQuery}" in this project.</p>
-                ) : (
-                  <p>No milestones available for this project.</p>
-                )}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-
 interface AssessmentCardProps {
   assessment: MilestoneAssessment;
   milestone: ProjectMilestoneWithAssessments;
+  projectTitle: string;
+  milestoneTitle: string;
   studentSubmissions?: StudentSubmission[];
 }
 
-// Assessment Card Component for Project Milestones
-function AssessmentCard({ assessment, milestone, studentSubmissions = [] }: AssessmentCardProps) {
+// Assessment Card Component for Milestone Assessments
+function AssessmentCard({
+  assessment,
+  milestone,
+  projectTitle,
+  milestoneTitle,
+  studentSubmissions = [],
+}: AssessmentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [, setLocation] = useLocation();
 
@@ -638,14 +512,6 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }: Asse
     return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
   };
 
-  const getScoreBadge = (score: number) => {
-    if (score >= 90) return 'bg-green-100 text-green-800';
-    if (score >= 80) return 'bg-blue-100 text-blue-800';
-    if (score >= 70) return 'bg-yellow-100 text-yellow-800';
-    if (score >= 60) return 'bg-orange-100 text-orange-800';
-    return 'bg-red-100 text-red-800';
-  };
-
   const handleViewAssessment = () => {
     if (submission) {
       // If there's a submission, expand to show details instead of navigating
@@ -660,17 +526,21 @@ function AssessmentCard({ assessment, milestone, studentSubmissions = [] }: Asse
     <div className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
+          <div className="flex items-center flex-wrap gap-2 mb-2">
+            <Badge className="bg-blue-50 text-blue-700 border border-blue-200">{projectTitle}</Badge>
+            <span className="text-xs text-gray-500">Milestone: {milestoneTitle}</span>
+          </div>
           <h6 className="font-medium text-gray-900 mb-1">{assessment.title}</h6>
           <p className="text-sm text-gray-600 mb-2">{assessment.description}</p>
           <div className="flex items-center text-xs text-gray-500 space-x-4">
             <div className="flex items-center">
               <Clock className="h-3 w-3 mr-1" />
-              Due: {assessment.dueDate ? new Date(assessment.dueDate).toLocaleDateString() : 'No due date'}
+              Due: {(assessment.dueDate ?? milestone.dueDate) ? new Date(assessment.dueDate ?? milestone.dueDate ?? "").toLocaleDateString() : 'No due date'}
             </div>
-            {assessment.xqRubricLevel && (
+            {(assessment.xqRubricLevel ?? milestone.xqRubricLevel) && (
               <div className="flex items-center">
                 <Target className="h-3 w-3 mr-1" />
-                Level: {assessment.xqRubricLevel}
+                Level: {assessment.xqRubricLevel ?? milestone.xqRubricLevel}
               </div>
             )}
           </div>

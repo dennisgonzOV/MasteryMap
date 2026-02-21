@@ -137,7 +137,18 @@ export function createProjectWorkflowRouters(projectsService: ProjectsService) {
 
   milestonesRouter.patch('/:id/deliverable', requireAuth, validateIdParam('id'), wrapRoute(async (req: AuthenticatedRequest, res) => {
     const milestoneId = parseInt(req.params.id);
-    const { deliverableUrl, deliverableFileName, deliverableDescription, includeInPortfolio } = req.body;
+    const {
+      deliverableId,
+      deliverableUrl,
+      deliverableFileName,
+      deliverableDescription,
+      includeInPortfolio,
+    } = req.body;
+    const normalizedDeliverableId = typeof deliverableId === "number"
+      ? deliverableId
+      : typeof deliverableId === "string"
+        ? parseInt(deliverableId, 10)
+        : undefined;
     const resolvedMilestone = await resolveMilestoneWithAccess(projectsService, req.user!, milestoneId);
     if (resolvedMilestone.status !== 200) {
       return sendErrorResponse(res, { message: resolvedMilestone.message, statusCode: resolvedMilestone.status });
@@ -146,6 +157,7 @@ export function createProjectWorkflowRouters(projectsService: ProjectsService) {
     const updatedMilestone = await projectsService.updateMilestoneDeliverable(
       milestoneId,
       {
+        deliverableId: Number.isFinite(normalizedDeliverableId) ? normalizedDeliverableId : undefined,
         deliverableUrl,
         deliverableFileName,
         deliverableDescription,

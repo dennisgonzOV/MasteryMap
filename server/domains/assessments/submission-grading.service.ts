@@ -1,5 +1,9 @@
-import type { InsertSubmission } from "../../../shared/schema";
-import type { ComponentSkill } from "../../../shared/schema";
+import type {
+  Assessment,
+  ComponentSkill,
+  InsertSubmission,
+  Submission,
+} from "../../../shared/schema";
 import type {
   SubmissionGradeItemDTO,
   SubmissionGradeRequestDTO,
@@ -9,7 +13,7 @@ import type { CredentialRecord, SubmissionGradeRecord } from "./assessments.cont
 
 interface SubmissionGradeInput {
   submissionId: number;
-  graderId: number;
+  graderId: number | null;
   gradeRequest: SubmissionGradeRequestDTO;
   generateAiFeedback: boolean;
 }
@@ -18,6 +22,12 @@ interface QuestionFeedbackInput {
   submissionId: number;
   questionIndex: number;
   rubricLevel: string;
+}
+
+interface PreviewFeedbackInput {
+  assessmentId: number;
+  studentId: number;
+  responses: unknown;
 }
 
 type ExistingGradeRef = { id: number };
@@ -30,6 +40,10 @@ export interface GradeSubmissionResult {
   feedback: string | null | undefined;
   submission: Awaited<ReturnType<AssessmentService["updateSubmission"]>>;
   stickersAwarded: CredentialRecord[];
+}
+
+export interface PreviewFeedbackResult {
+  feedback: string;
 }
 
 export class SubmissionHttpError extends Error {
@@ -165,9 +179,35 @@ export class SubmissionGradingService {
     return feedback || "Unable to generate feedback at this time";
   }
 
+  async generatePreviewFeedback(input: PreviewFeedbackInput): Promise<PreviewFeedbackResult> {
+    const { assessmentId, studentId, responses } = input;
+    const assessment = await this.service.getAssessment(assessmentId);
+    if (!assessment) {
+      throw new SubmissionHttpError(404, "Assessment not found");
+    }
+
+    const draftSubmission = this.buildDraftSubmission({
+      assessmentId,
+      studentId,
+      responses,
+    });
+
+    const pdfContent = await this.extractPdfText(assessment.pdfUrl);
+    const aiSkillGrades = await this.generateAiGrades(
+      draftSubmission,
+      assessment,
+      pdfContent,
+    );
+    const feedback = await this.service.generateStudentFeedback(draftSubmission, aiSkillGrades);
+
+    return {
+      feedback: feedback || "Unable to generate feedback at this time",
+    };
+  }
+
   private async generateAndSaveAiGrades(
     submissionId: number,
-    graderId: number,
+    graderId: number | null,
     submission: Awaited<ReturnType<AssessmentService["getSubmission"]>> extends infer T
       ? Exclude<T, undefined>
       : never,
@@ -176,6 +216,25 @@ export class SubmissionGradingService {
       : never,
     pdfContent: string | undefined,
   ): Promise<SubmissionGradeRecord[]> {
+    const aiSkillGrades = await this.generateAiGrades(submission, assessment, pdfContent);
+
+    return Promise.all(
+      aiSkillGrades.map((gradeItem) =>
+        this.upsertGrade(
+          submissionId,
+          graderId,
+          gradeItem,
+          this.normalizeScoreForWrite(gradeItem.score),
+        ),
+      ),
+    );
+  }
+
+  private async generateAiGrades(
+    submission: Submission,
+    assessment: Assessment,
+    pdfContent: string | undefined,
+  ): Promise<SubmissionGradeItemDTO[]> {
     const componentSkillIds = Array.isArray(assessment.componentSkillIds)
       ? assessment.componentSkillIds.filter((id): id is number => typeof id === "number")
       : [];
@@ -194,28 +253,17 @@ export class SubmissionGradingService {
       return [];
     }
 
-    const aiSkillGrades = await this.service.generateComponentSkillGrades(
+    return this.service.generateComponentSkillGrades(
       submission,
       assessment,
       validSkills,
       pdfContent,
     );
-
-    return Promise.all(
-      aiSkillGrades.map((gradeItem) =>
-        this.upsertGrade(
-          submissionId,
-          graderId,
-          gradeItem,
-          this.normalizeScoreForWrite(gradeItem.score),
-        ),
-      ),
-    );
   }
 
   private async upsertGrade(
     submissionId: number,
-    graderId: number,
+    graderId: number | null,
     gradeItem: SubmissionGradeItemDTO,
     createScoreOverride?: GradeWriteScore,
   ): Promise<SubmissionGradeRecord> {
@@ -333,5 +381,25 @@ export class SubmissionGradingService {
 
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
+  }
+
+  private buildDraftSubmission(input: {
+    assessmentId: number;
+    studentId: number;
+    responses: unknown;
+  }): Submission {
+    return {
+      id: -1,
+      assessmentId: input.assessmentId,
+      studentId: input.studentId,
+      responses: input.responses,
+      artifacts: null,
+      submittedAt: null,
+      gradedAt: null,
+      feedback: null,
+      aiGeneratedFeedback: false,
+      isSelfEvaluation: false,
+      selfEvaluationData: null,
+    };
   }
 }

@@ -32,6 +32,9 @@ import {
 } from "@/components/ui/select";
 import {
   Award,
+  Check,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Eye,
   FileText,
@@ -63,11 +66,32 @@ const ARTIFACT_TYPE_OPTIONS = [
   { label: "Files", value: "file" },
 ];
 
+const ARTIFACT_SORT_OPTIONS = [
+  { label: "Newest", value: "newest" },
+  { label: "Oldest", value: "oldest" },
+  { label: "Most Viewed", value: "most-viewed" },
+] as const;
+
+type ArtifactSortValue = (typeof ARTIFACT_SORT_OPTIONS)[number]["value"];
+
 function normalizeTags(tags: unknown): string[] {
   if (!Array.isArray(tags)) {
     return [];
   }
   return tags.filter((tag): tag is string => typeof tag === "string");
+}
+
+function normalizeViewCount(rawCount: unknown): number {
+  if (typeof rawCount === "number" && Number.isFinite(rawCount)) {
+    return Math.max(0, rawCount);
+  }
+  if (typeof rawCount === "string") {
+    const parsed = Number.parseInt(rawCount, 10);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, parsed);
+    }
+  }
+  return 0;
 }
 
 export default function StudentPortfolio() {
@@ -77,10 +101,13 @@ export default function StudentPortfolio() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<ArtifactSortValue>("newest");
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const [qrCodeError, setQrCodeError] = useState<string>("");
   const [isShareLoading, setIsShareLoading] = useState(false);
+  const [copiedRecently, setCopiedRecently] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
 
   const [editingArtifact, setEditingArtifact] = useState<PortfolioArtifactView | null>(null);
   const [artifactTags, setArtifactTags] = useState("");
@@ -179,20 +206,60 @@ export default function StudentPortfolio() {
     },
   });
 
-  const filteredArtifacts = artifacts.filter((artifact) => {
-    const description = artifact.description ?? "";
-    const tags = normalizeTags(artifact.tags);
-    const matchesSearch =
-      artifact.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesType = typeFilter === "all" || artifact.artifactType === typeFilter;
-    return matchesSearch && matchesType;
-  });
+  const filteredArtifacts = useMemo(() => {
+    const nextArtifacts = artifacts.filter((artifact) => {
+      const description = artifact.description ?? "";
+      const tags = normalizeTags(artifact.tags);
+      const matchesSearch =
+        artifact.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesType = typeFilter === "all" || artifact.artifactType === typeFilter;
+      return matchesSearch && matchesType;
+    });
+
+    nextArtifacts.sort((artifactA, artifactB) => {
+      const artifactATime = artifactA.createdAt ? new Date(artifactA.createdAt).getTime() : 0;
+      const artifactBTime = artifactB.createdAt ? new Date(artifactB.createdAt).getTime() : 0;
+
+      if (sortBy === "oldest") {
+        return artifactATime - artifactBTime;
+      }
+
+      if (sortBy === "most-viewed") {
+        const viewCountA = normalizeViewCount((artifactA as { viewCount?: unknown; views?: unknown }).viewCount ?? (artifactA as { viewCount?: unknown; views?: unknown }).views);
+        const viewCountB = normalizeViewCount((artifactB as { viewCount?: unknown; views?: unknown }).viewCount ?? (artifactB as { viewCount?: unknown; views?: unknown }).views);
+        if (viewCountB !== viewCountA) {
+          return viewCountB - viewCountA;
+        }
+      }
+
+      return artifactBTime - artifactATime;
+    });
+
+    return nextArtifacts;
+  }, [artifacts, searchQuery, sortBy, typeFilter]);
 
   const filteredCredentials = credentials.filter((credential) =>
     credential.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const hasArtifactViewMetrics = useMemo(
+    () =>
+      artifacts.some((artifact) => {
+        const typedArtifact = artifact as { viewCount?: unknown; views?: unknown };
+        return normalizeViewCount(typedArtifact.viewCount ?? typedArtifact.views) > 0;
+      }),
+    [artifacts],
+  );
+
+  useEffect(() => {
+    if (!copiedRecently) {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopiedRecently(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copiedRecently]);
 
   const getArtifactIcon = (type: string) => {
     switch (type) {
@@ -233,6 +300,7 @@ export default function StudentPortfolio() {
 
     try {
       await navigator.clipboard.writeText(portfolioUrl);
+      setCopiedRecently(true);
       toast({
         title: "Link copied",
         description: "Portfolio link copied to clipboard.",
@@ -244,6 +312,24 @@ export default function StudentPortfolio() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleOpenPublicView = () => {
+    if (!portfolioUrl) {
+      toast({
+        title: "Share URL unavailable",
+        description: "Please wait for the portfolio link to finish generating.",
+        variant: "destructive",
+      });
+      return;
+    }
+    window.open(portfolioUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const clearArtifactFilters = () => {
+    setSearchQuery("");
+    setTypeFilter("all");
+    setSortBy("newest");
   };
 
   const openArtifactEditor = (artifact: PortfolioArtifactView) => {
@@ -278,10 +364,11 @@ export default function StudentPortfolio() {
 
       if (editingArtifact.milestoneId && replacementUploadPath) {
         await api.updateMilestoneDeliverable(editingArtifact.milestoneId, {
+          deliverableId: editingArtifact.id,
           deliverableUrl: replacementUploadPath,
           deliverableFileName: artifactReplacementFile?.name || "deliverable",
           deliverableDescription: editingArtifact.description || "",
-          includeInPortfolio: true,
+          includeInPortfolio: artifactIsPublic,
         });
       }
 
@@ -336,29 +423,21 @@ export default function StudentPortfolio() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100">
       <Navigation />
 
-      <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+      <main className="pt-20 pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+          <div className="mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-1">My Portfolio</h1>
-              <p className="text-slate-600">Manage your public portfolio, artifacts, and credential showcase.</p>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950 mb-1">My Portfolio</h1>
+              <p className="text-slate-700">Manage your public portfolio, artifacts, and credential showcase.</p>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleCopyLink}
-              disabled={!portfolioUrl}
-            >
-              <Share className="h-4 w-4 mr-2" />
-              Copy Public Link
-            </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card className="border-0 apple-shadow">
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Star className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm text-slate-700">Stickers</span>
+                  <span className="text-sm text-slate-800">Stickers</span>
                 </div>
                 <span className="text-lg font-bold text-slate-900">{getCredentialCount("sticker")}</span>
               </CardContent>
@@ -367,7 +446,7 @@ export default function StudentPortfolio() {
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Award className="h-5 w-5 text-yellow-600" />
-                  <span className="text-sm text-slate-700">Badges</span>
+                  <span className="text-sm text-slate-800">Badges</span>
                 </div>
                 <span className="text-lg font-bold text-slate-900">{getCredentialCount("badge")}</span>
               </CardContent>
@@ -376,7 +455,7 @@ export default function StudentPortfolio() {
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm text-slate-700">Plaques</span>
+                  <span className="text-sm text-slate-800">Plaques</span>
                 </div>
                 <span className="text-lg font-bold text-slate-900">{getCredentialCount("plaque")}</span>
               </CardContent>
@@ -385,61 +464,94 @@ export default function StudentPortfolio() {
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-emerald-600" />
-                  <span className="text-sm text-slate-700">Artifacts</span>
+                  <span className="text-sm text-slate-800">Artifacts</span>
                 </div>
                 <span className="text-lg font-bold text-slate-900">{artifacts.length}</span>
               </CardContent>
             </Card>
           </div>
 
-          <Card className="border-0 apple-shadow mb-8">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                <div className="lg:col-span-2 space-y-4">
-                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+          <Card className="border-0 apple-shadow mb-6">
+            <CardContent className="p-5 sm:p-6">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold tracking-tight text-slate-950 flex items-center gap-2">
                     <Globe className="h-5 w-5 text-blue-600" />
                     Share Portfolio
-                  </h3>
+                  </h2>
 
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-700">
                     Your portfolio is always public. Use this link or QR code to share it with admissions teams and other
                     reviewers.
                   </p>
-
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                    <p className="text-slate-700 break-all">{portfolioUrl || "Generating share URL..."}</p>
-                    <p className="text-xs text-slate-500 mt-1">This share link does not expire.</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <Button variant="outline" onClick={handleCopyLink} disabled={!portfolioUrl}>
-                      Copy Link
-                    </Button>
-                  </div>
                 </div>
 
-                <div className="w-full lg:max-w-[220px] lg:justify-self-end rounded-xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-medium text-slate-500 mb-3">Scan Portfolio QR</p>
-                  <div className="w-full aspect-square bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center">
-                    {isShareLoading ? (
-                      <div className="animate-pulse w-24 h-24 bg-slate-200 rounded" />
-                    ) : qrCodeDataUrl ? (
-                      <img src={qrCodeDataUrl} alt="Portfolio QR code" className="w-24 h-24" />
+                <div className="rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm">
+                  <p className="text-slate-800 break-all">{portfolioUrl || "Generating share URL..."}</p>
+                  <p className="text-xs text-slate-600 mt-1">This share link does not expire.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    onClick={handleCopyLink}
+                    disabled={!portfolioUrl}
+                    className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    {copiedRecently ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied
+                      </>
                     ) : (
-                      <div className="text-xs text-slate-500 text-center px-2">
-                        <QrCode className="h-7 w-7 mx-auto mb-1" />
-                        QR unavailable
-                      </div>
+                      <>
+                        <Share className="h-4 w-4 mr-2" />
+                        Copy Public Link
+                      </>
                     )}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">Open with a mobile camera for quick access.</p>
-                  {qrCodeError && <p className="text-xs text-red-600 mt-1">{qrCodeError}</p>}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenPublicView}
+                    disabled={!portfolioUrl}
+                    className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Public View
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowQrCode((current) => !current)}
+                    className="text-slate-700 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    {showQrCode ? "Hide QR" : "Show QR"}
+                    {showQrCode ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+                  </Button>
                 </div>
+
+                {showQrCode && (
+                  <div className="w-full sm:max-w-[240px] rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="text-xs font-medium text-slate-700 mb-3">Scan Portfolio QR</p>
+                    <div className="w-full aspect-square bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center">
+                      {isShareLoading ? (
+                        <div className="animate-pulse w-24 h-24 bg-slate-200 rounded" />
+                      ) : qrCodeDataUrl ? (
+                        <img src={qrCodeDataUrl} alt="Portfolio QR code" className="w-24 h-24" />
+                      ) : (
+                        <div className="text-xs text-slate-600 text-center px-2">
+                          <QrCode className="h-7 w-7 mx-auto mb-1" />
+                          QR unavailable
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 mt-2">Open with a mobile camera for quick access.</p>
+                    {qrCodeError && <p className="text-xs text-red-600 mt-1">{qrCodeError}</p>}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="apple-shadow border-0 mb-8">
+          <Card className="apple-shadow border-0 mb-6">
             <CardContent className="p-6">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -447,34 +559,66 @@ export default function StudentPortfolio() {
                   placeholder="Search artifacts and credentials..."
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  className="pl-10"
+                  className="pl-10 placeholder:text-slate-500 text-slate-900 focus-visible:ring-blue-600 focus-visible:ring-2 focus-visible:ring-offset-2"
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="artifacts" className="space-y-8">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
-              <TabsTrigger value="credentials">Credentials</TabsTrigger>
+          <Tabs defaultValue="artifacts" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1 h-auto">
+              <TabsTrigger
+                value="artifacts"
+                className="gap-2 data-[state=active]:bg-white data-[state=active]:text-slate-950 data-[state=active]:shadow-sm focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+              >
+                Artifacts
+                <span className="text-xs text-slate-600">({artifacts.length})</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="credentials"
+                className="gap-2 data-[state=active]:bg-white data-[state=active]:text-slate-950 data-[state=active]:shadow-sm focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+              >
+                Credentials
+                <span className="text-xs text-slate-600">({credentials.length})</span>
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="artifacts" className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h3 className="text-lg font-semibold text-slate-900">Project Artifacts</h3>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-full sm:w-52">
-                    <SelectValue placeholder="Filter by type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ARTIFACT_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <TabsContent value="artifacts" className="space-y-5">
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-slate-950">Project Artifacts</h2>
+                  <p className="text-sm text-slate-700">Curate what reviewers see with clean metadata and previews.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-full sm:w-52 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ARTIFACT_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as ArtifactSortValue)}>
+                    <SelectTrigger className="w-full sm:w-44 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ARTIFACT_SORT_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              {sortBy === "most-viewed" && !hasArtifactViewMetrics && (
+                <p className="text-xs text-slate-600">View analytics are not available yet. Showing newest artifacts first.</p>
+              )}
 
               {artifactsLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -494,60 +638,110 @@ export default function StudentPortfolio() {
                   <h3 className="text-xl font-medium text-slate-900 mb-2">
                     {searchQuery || typeFilter !== "all" ? "No artifacts match your filters" : "No artifacts yet"}
                   </h3>
-                  <p className="text-slate-600 max-w-md mx-auto">
+                  <p className="text-slate-700 max-w-md mx-auto">
                     Complete project milestones to collect artifacts, then curate title/description/tags before sharing.
                   </p>
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                    {(searchQuery || typeFilter !== "all" || sortBy !== "newest") && (
+                      <Button
+                        variant="outline"
+                        onClick={clearArtifactFilters}
+                        className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                    <Button asChild className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
+                      <a href="/student/projects">Explore Projects</a>
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredArtifacts.map((artifact) => {
                     const Icon = getArtifactIcon(artifact.artifactType || "document");
                     const artifactTags = normalizeTags(artifact.tags);
+                    const isImageArtifact = artifact.artifactType === "image" && Boolean(artifact.artifactUrl);
+                    const projectLabel = artifact.projectTitle || "Independent artifact";
+                    const milestoneLabel = artifact.milestoneTitle || "No milestone linked";
                     return (
                       <Card key={artifact.id} className="apple-shadow border-0">
                         <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="p-3 bg-blue-100 rounded-lg">
-                              <Icon className="h-6 w-6 text-blue-700" />
-                            </div>
-                            <Badge variant={artifact.isPublic ? "secondary" : "outline"}>
+                          <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 aspect-video flex items-center justify-center">
+                            {isImageArtifact ? (
+                              <img
+                                src={artifact.artifactUrl || ""}
+                                alt={`${artifact.title} preview`}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-center px-3">
+                                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+                                  <Icon className="h-5 w-5 text-blue-700" />
+                                </div>
+                                <p className="text-xs uppercase tracking-wide text-slate-600">
+                                  {(artifact.artifactType || "file").replace("-", " ")}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <h4 className="font-semibold text-slate-900 line-clamp-2">{artifact.title}</h4>
+                            <Badge variant={artifact.isPublic ? "secondary" : "outline"} className="shrink-0">
                               {artifact.isPublic ? "Public" : "Private"}
                             </Badge>
                           </div>
 
-                          <h4 className="font-semibold text-slate-900 mb-2 line-clamp-2">{artifact.title}</h4>
-                          <p className="text-sm text-slate-600 mb-3 line-clamp-3">{artifact.description || "No description"}</p>
+                          <p className="text-sm text-slate-700 mb-3 line-clamp-2">{artifact.description || "No description provided."}</p>
 
-                          <div className="flex flex-wrap gap-1 mb-4 min-h-6">
+                          <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-600 mb-1">
+                              Parent decomposition
+                            </p>
+                            <p className="text-xs font-medium text-slate-800 line-clamp-1">{projectLabel}</p>
+                            <p className="text-xs text-slate-700 line-clamp-1">{milestoneLabel}</p>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs text-slate-600 mb-3">
+                            <span>{artifact.createdAt ? format(new Date(artifact.createdAt), "MMM d, yyyy") : "No date"}</span>
+                            <span className="capitalize">{artifact.artifactType || "file"}</span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 mb-4 min-h-6">
                             {artifactTags.length > 0 ? (
                               artifactTags.slice(0, 4).map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
+                                <Badge key={tag} variant="outline" className="text-xs border-slate-300 text-slate-700">
                                   {tag}
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-xs text-slate-500">No tags</span>
+                              <span className="text-xs text-slate-600">No tags yet</span>
                             )}
                           </div>
 
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs text-slate-500">
-                              {artifact.createdAt ? format(new Date(artifact.createdAt), "MMM d, yyyy") : "No date"}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {artifact.artifactUrl && (
-                                <a href={artifact.artifactUrl} target="_blank" rel="noopener noreferrer">
-                                  <Button size="sm" variant="outline">
-                                    <ExternalLink className="h-3 w-3 mr-1" />
-                                    View
-                                  </Button>
-                                </a>
-                              )}
-                              <Button size="sm" variant="outline" onClick={() => openArtifactEditor(artifact)}>
-                                <Pencil className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                            </div>
+                          <div className="flex items-center gap-2">
+                            {artifact.artifactUrl && (
+                              <a href={artifact.artifactUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  View details
+                                </Button>
+                              </a>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openArtifactEditor(artifact)}
+                              className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                            >
+                              <Pencil className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -558,12 +752,12 @@ export default function StudentPortfolio() {
             </TabsContent>
 
             <TabsContent value="credentials" className="space-y-6">
-              <h3 className="text-lg font-semibold text-slate-900">My Achievements</h3>
+              <h2 className="text-xl font-semibold tracking-tight text-slate-950">My Achievements</h2>
 
               <CompetencyProgress studentId={user?.id} />
 
               <div className="border-t border-slate-200 pt-6">
-                <h4 className="text-md font-medium text-slate-900 mb-4">Earned Credentials</h4>
+                <h3 className="text-lg font-medium text-slate-900 mb-4">Earned Credentials</h3>
                 {credentialsLoading ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[1, 2, 3].map((item) => (
@@ -581,9 +775,23 @@ export default function StudentPortfolio() {
                     <h3 className="text-xl font-medium text-slate-900 mb-2">
                       {searchQuery ? "No credentials match your search" : "No credentials earned yet"}
                     </h3>
-                    <p className="text-slate-600 max-w-md mx-auto">
+                    <p className="text-slate-700 max-w-md mx-auto">
                       Complete assessments and demonstrate competency growth to earn stickers, badges, and plaques.
                     </p>
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                      {searchQuery && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setSearchQuery("")}
+                          className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                        >
+                          Clear search
+                        </Button>
+                      )}
+                      <Button asChild className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
+                        <a href="/student/dashboard">View Assessments</a>
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

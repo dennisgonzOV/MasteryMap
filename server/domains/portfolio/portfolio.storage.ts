@@ -5,6 +5,8 @@ import {
   portfolios,
   credentials,
   users,
+  milestones,
+  projects,
   type PortfolioArtifact,
   type InsertPortfolioArtifact,
   type Portfolio,
@@ -13,11 +15,17 @@ import {
   type User
 } from "../../../shared/schema";
 
+export type PortfolioArtifactWithContext = PortfolioArtifact & {
+  projectId: number | null;
+  projectTitle: string | null;
+  milestoneTitle: string | null;
+};
+
 export interface IPortfolioStorage {
   createPortfolioArtifact(artifact: InsertPortfolioArtifact): Promise<PortfolioArtifact>;
   upsertPortfolioArtifact(artifact: InsertPortfolioArtifact): Promise<PortfolioArtifact>;
-  getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]>;
-  getPublicArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]>;
+  getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifactWithContext[]>;
+  getPublicArtifactsByStudent(studentId: number): Promise<PortfolioArtifactWithContext[]>;
   updatePortfolioArtifact(id: number, updates: Partial<InsertPortfolioArtifact>): Promise<PortfolioArtifact>;
   getPortfolioArtifactById(id: number): Promise<PortfolioArtifact | undefined>;
   getArtifactByMilestoneAndStudent(milestoneId: number, studentId: number): Promise<PortfolioArtifact | undefined>;
@@ -38,12 +46,26 @@ export class PortfolioStorage implements IPortfolioStorage {
     return newArtifact;
   }
 
-  async getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]> {
-    return await db
-      .select()
+  async getPortfolioArtifactsByStudent(studentId: number): Promise<PortfolioArtifactWithContext[]> {
+    const rows = await db
+      .select({
+        artifact: portfolioArtifacts,
+        projectId: milestones.projectId,
+        projectTitle: projects.title,
+        milestoneTitle: milestones.title,
+      })
       .from(portfolioArtifacts)
+      .leftJoin(milestones, eq(portfolioArtifacts.milestoneId, milestones.id))
+      .leftJoin(projects, eq(milestones.projectId, projects.id))
       .where(eq(portfolioArtifacts.studentId, studentId))
       .orderBy(desc(portfolioArtifacts.createdAt));
+
+    return rows.map((row) => ({
+      ...row.artifact,
+      projectId: row.projectId ?? null,
+      projectTitle: row.projectTitle ?? null,
+      milestoneTitle: row.milestoneTitle ?? null,
+    }));
   }
 
   async updatePortfolioArtifact(id: number, updates: Partial<InsertPortfolioArtifact>): Promise<PortfolioArtifact> {
@@ -64,15 +86,29 @@ export class PortfolioStorage implements IPortfolioStorage {
     return artifact;
   }
 
-  async getPublicArtifactsByStudent(studentId: number): Promise<PortfolioArtifact[]> {
-    return await db
-      .select()
+  async getPublicArtifactsByStudent(studentId: number): Promise<PortfolioArtifactWithContext[]> {
+    const rows = await db
+      .select({
+        artifact: portfolioArtifacts,
+        projectId: milestones.projectId,
+        projectTitle: projects.title,
+        milestoneTitle: milestones.title,
+      })
       .from(portfolioArtifacts)
+      .leftJoin(milestones, eq(portfolioArtifacts.milestoneId, milestones.id))
+      .leftJoin(projects, eq(milestones.projectId, projects.id))
       .where(and(
         eq(portfolioArtifacts.studentId, studentId),
         eq(portfolioArtifacts.isPublic, true)
       ))
       .orderBy(desc(portfolioArtifacts.createdAt));
+
+    return rows.map((row) => ({
+      ...row.artifact,
+      projectId: row.projectId ?? null,
+      projectTitle: row.projectTitle ?? null,
+      milestoneTitle: row.milestoneTitle ?? null,
+    }));
   }
 
   async getArtifactByMilestoneAndStudent(milestoneId: number, studentId: number): Promise<PortfolioArtifact | undefined> {

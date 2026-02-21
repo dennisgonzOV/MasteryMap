@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
@@ -15,7 +15,6 @@ import type { z } from 'zod';
 
 type LoginForm = z.infer<typeof loginSchema>;
 const LOGIN_REQUEST_TIMEOUT_MS = 15_000;
-const DB_WARMUP_TIMEOUT_MS = 7_000;
 const LOGIN_MAX_RETRIES = 2;
 
 async function withRequestTimeout<T>(
@@ -51,25 +50,8 @@ export default function Login() {
     },
   });
 
-  const warmDatabase = async (timeoutMs = DB_WARMUP_TIMEOUT_MS): Promise<void> => {
-    try {
-      await withRequestTimeout(
-        (signal) => apiRequest('/api/health/warm-database', 'POST', undefined, { signal }),
-        timeoutMs,
-      );
-    } catch {
-      // Warm-up is best-effort; login retries still handle cold-start race conditions.
-    }
-  };
-
-  useEffect(() => {
-    void warmDatabase(4_000);
-  }, []);
-
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      setStatusMessage('Waking up database connection...');
-      await warmDatabase();
       setStatusMessage('Signing in...');
 
       return apiWithRetry(
@@ -90,7 +72,7 @@ export default function Login() {
             return /timeout|fetch failed|network|connection|socket/i.test(error.message);
           },
           onRetry: (attemptNumber) => {
-            setStatusMessage(`Database is still waking up. Retrying (${attemptNumber}/${LOGIN_MAX_RETRIES})...`);
+            setStatusMessage(`Retrying login request (${attemptNumber}/${LOGIN_MAX_RETRIES})...`);
           },
         },
       );

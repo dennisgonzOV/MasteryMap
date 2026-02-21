@@ -1,5 +1,9 @@
 import { randomBytes } from "crypto";
-import { portfolioStorage, type IPortfolioStorage } from "./portfolio.storage";
+import {
+  portfolioStorage,
+  type IPortfolioStorage,
+  type PortfolioArtifactWithContext,
+} from "./portfolio.storage";
 import {
   type PortfolioArtifact,
   type InsertPortfolioArtifact,
@@ -31,7 +35,7 @@ export interface PublicPortfolioData {
     lastVerifiedAt: Date | null;
   };
   lastActivityAt: Date | null;
-  artifacts: PortfolioArtifact[];
+  artifacts: PortfolioArtifactWithContext[];
   credentials: Credential[];
 }
 
@@ -46,7 +50,7 @@ export interface StudentPortfolioSettings {
 }
 
 export interface IPortfolioService {
-  getStudentArtifacts(studentId: number): Promise<PortfolioArtifact[]>;
+  getStudentArtifacts(studentId: number): Promise<PortfolioArtifactWithContext[]>;
   createArtifact(artifactData: InsertPortfolioArtifact): Promise<PortfolioArtifact>;
   updateArtifactForStudent(
     studentId: number,
@@ -66,7 +70,7 @@ export interface IPortfolioService {
 export class PortfolioService implements IPortfolioService {
   constructor(private storage: IPortfolioStorage = portfolioStorage) {}
 
-  async getStudentArtifacts(studentId: number): Promise<PortfolioArtifact[]> {
+  async getStudentArtifacts(studentId: number): Promise<PortfolioArtifactWithContext[]> {
     return this.storage.getPortfolioArtifactsByStudent(studentId);
   }
 
