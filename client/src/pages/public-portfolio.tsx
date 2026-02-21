@@ -79,9 +79,115 @@ interface PublicPortfolioData {
 
 const ALL_TYPES = "all";
 const ALL_YEARS = "all";
+const ALL_FALLBACK_OUTCOME = "OTHER";
+
+const XQ_OUTCOMES = [
+  { key: "FK", label: "Holders of Foundational Knowledge" },
+  { key: "FL", label: "Masters of All Fundamental Literacies" },
+  { key: "OT", label: "Original Thinkers for an Uncertain World" },
+  { key: "GC", label: "Generous Collaborators" },
+  { key: "LL", label: "Learners for Life" },
+] as const;
+
+const PROFICIENCY_LEVELS = ["emerging", "developing", "proficient", "applying"] as const;
+
+type ProficiencyLevel = (typeof PROFICIENCY_LEVELS)[number];
+
+type CredentialRecord = PublicPortfolioData["credentials"][number];
+
+interface ParsedCredential {
+  credential: CredentialRecord;
+  outcomeKey: string;
+  familyKey: string;
+  specificCode: string;
+  competencyLabel: string;
+  level: ProficiencyLevel | null;
+}
+
+interface TranscriptCodeSummary {
+  specificCode: string;
+  competencyLabel: string;
+  levelCounts: Record<ProficiencyLevel, number>;
+  levelLatestAwardedAt: Partial<Record<ProficiencyLevel, string>>;
+  highestLevel: ProficiencyLevel | null;
+  highestAwardedAt: string | null;
+  evidenceCount: number;
+}
+
+interface TranscriptFamilyGroup {
+  familyKey: string;
+  codes: TranscriptCodeSummary[];
+}
+
+interface TranscriptOutcomeGroup {
+  key: string;
+  label: string;
+  familyGroups: TranscriptFamilyGroup[];
+  competencyCoverageCount: number;
+  totalEvidenceCount: number;
+}
+
+const PROFICIENCY_LABELS: Record<ProficiencyLevel, string> = {
+  emerging: "Emerging",
+  developing: "Developing",
+  proficient: "Proficient",
+  applying: "Applying",
+};
 
 function normalizeTags(tags: unknown): string[] {
   return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string") : [];
+}
+
+function getMostSpecificCode(title: string, description: string | null): string | null {
+  const codePattern = /([A-Z]{2}\.[A-Za-z]+(?:\.\d+)?(?:\.[a-z])?)/i;
+  const titleMatch = title.match(codePattern);
+  if (titleMatch?.[1]) {
+    return titleMatch[1];
+  }
+  const descriptionMatch = (description || "").match(codePattern);
+  return descriptionMatch?.[1] || null;
+}
+
+function getSpecificCode(code: string): string {
+  const segments = code.split(".");
+  if (segments.length >= 4 && /^[a-z]$/i.test(segments[segments.length - 1] || "")) {
+    return segments.slice(0, -1).join(".");
+  }
+  return code;
+}
+
+function getCompetencyLabel(title: string, specificCode: string): string {
+  const noLevelPrefix = title.replace(/^(Emerging|Developing|Proficient|Applying)\s+/i, "").trim();
+  const withoutCode = noLevelPrefix.replace(/\([^)]+\)\s*$/g, "").trim();
+  return withoutCode || specificCode;
+}
+
+function parseProficiencyLevel(title: string, description: string | null): ProficiencyLevel | null {
+  const text = `${title} ${description || ""}`.toLowerCase();
+  if (text.includes("applying")) return "applying";
+  if (text.includes("proficient")) return "proficient";
+  if (text.includes("developing")) return "developing";
+  if (text.includes("emerging")) return "emerging";
+  return null;
+}
+
+function normalizeCredential(credential: CredentialRecord): ParsedCredential {
+  const rawCode = getMostSpecificCode(credential.title, credential.description);
+  const normalizedCode = rawCode || "UNMAPPED";
+  const segments = normalizedCode.split(".");
+  const outcomeGuess = (segments[0] || "").toUpperCase();
+  const knownOutcome = XQ_OUTCOMES.some((outcome) => outcome.key === outcomeGuess) ? outcomeGuess : ALL_FALLBACK_OUTCOME;
+  const familyKey = segments[1] || "General";
+  const specificCode = getSpecificCode(normalizedCode);
+
+  return {
+    credential,
+    outcomeKey: knownOutcome,
+    familyKey,
+    specificCode,
+    competencyLabel: getCompetencyLabel(credential.title, specificCode),
+    level: parseProficiencyLevel(credential.title, credential.description),
+  };
 }
 
 export default function PublicPortfolio({ params }: { params: { publicUrl: string } }) {
@@ -89,6 +195,7 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>(ALL_TYPES);
   const [yearFilter, setYearFilter] = useState<string>(ALL_YEARS);
+  const [credentialView, setCredentialView] = useState<"transcript" | "gallery">("transcript");
 
   const querySuffix = typeof window !== "undefined" ? window.location.search : "";
 
@@ -168,12 +275,120 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
     });
   }, [artifacts, search, typeFilter, yearFilter]);
 
-  const credentialCounts = useMemo(() => {
-    return {
-      stickers: credentials.filter((credential) => credential.type === "sticker").length,
-      badges: credentials.filter((credential) => credential.type === "badge").length,
-      plaques: credentials.filter((credential) => credential.type === "plaque").length,
-    };
+  const transcriptOutcomeGroups = useMemo<TranscriptOutcomeGroup[]>(() => {
+    const baseGroups = new Map<string, TranscriptOutcomeGroup>();
+
+    XQ_OUTCOMES.forEach((outcome) => {
+      baseGroups.set(outcome.key, {
+        key: outcome.key,
+        label: outcome.label,
+        familyGroups: [],
+        competencyCoverageCount: 0,
+        totalEvidenceCount: 0,
+      });
+    });
+
+    baseGroups.set(ALL_FALLBACK_OUTCOME, {
+      key: ALL_FALLBACK_OUTCOME,
+      label: "Other / Unmapped",
+      familyGroups: [],
+      competencyCoverageCount: 0,
+      totalEvidenceCount: 0,
+    });
+
+    const familyMaps = new Map<string, Map<string, Map<string, TranscriptCodeSummary>>>();
+
+    credentials.forEach((credential) => {
+      const normalized = normalizeCredential(credential);
+      if (!familyMaps.has(normalized.outcomeKey)) {
+        familyMaps.set(normalized.outcomeKey, new Map());
+      }
+      const outcomeFamilyMap = familyMaps.get(normalized.outcomeKey)!;
+      if (!outcomeFamilyMap.has(normalized.familyKey)) {
+        outcomeFamilyMap.set(normalized.familyKey, new Map());
+      }
+
+      const codeMap = outcomeFamilyMap.get(normalized.familyKey)!;
+      if (!codeMap.has(normalized.specificCode)) {
+        codeMap.set(normalized.specificCode, {
+          specificCode: normalized.specificCode,
+          competencyLabel: normalized.competencyLabel,
+          levelCounts: {
+            emerging: 0,
+            developing: 0,
+            proficient: 0,
+            applying: 0,
+          },
+          levelLatestAwardedAt: {},
+          highestLevel: null,
+          highestAwardedAt: null,
+          evidenceCount: 0,
+        });
+      }
+
+      const codeSummary = codeMap.get(normalized.specificCode)!;
+      codeSummary.evidenceCount += 1;
+      if (normalized.level) {
+        codeSummary.levelCounts[normalized.level] += 1;
+        if (normalized.credential.awardedAt) {
+          const existing = codeSummary.levelLatestAwardedAt[normalized.level];
+          if (!existing || new Date(normalized.credential.awardedAt) > new Date(existing)) {
+            codeSummary.levelLatestAwardedAt[normalized.level] = normalized.credential.awardedAt;
+          }
+        }
+      }
+      if (normalized.credential.awardedAt && !codeSummary.highestAwardedAt) {
+        codeSummary.highestAwardedAt = normalized.credential.awardedAt;
+      } else if (normalized.credential.awardedAt && codeSummary.highestAwardedAt) {
+        if (new Date(normalized.credential.awardedAt) > new Date(codeSummary.highestAwardedAt)) {
+          codeSummary.highestAwardedAt = normalized.credential.awardedAt;
+        }
+      }
+    });
+
+    familyMaps.forEach((familyMap, outcomeKey) => {
+      const group = baseGroups.get(outcomeKey);
+      if (!group) {
+        return;
+      }
+
+      const familyGroups: TranscriptFamilyGroup[] = Array.from(familyMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([familyKey, codeMap]) => {
+          const codes = Array.from(codeMap.values())
+            .map((codeSummary) => {
+              const highestLevel = [...PROFICIENCY_LEVELS]
+                .reverse()
+                .find((level) => codeSummary.levelCounts[level] > 0) || null;
+              const highestAwardedAt = highestLevel
+                ? codeSummary.levelLatestAwardedAt[highestLevel] || codeSummary.highestAwardedAt
+                : codeSummary.highestAwardedAt;
+              return {
+                ...codeSummary,
+                highestLevel,
+                highestAwardedAt: highestAwardedAt || null,
+              };
+            })
+            .sort((a, b) => a.specificCode.localeCompare(b.specificCode));
+
+          return {
+            familyKey,
+            codes,
+          };
+        });
+
+      const allCodes = familyGroups.flatMap((familyGroup) => familyGroup.codes);
+      group.familyGroups = familyGroups;
+      group.competencyCoverageCount = allCodes.length;
+      group.totalEvidenceCount = allCodes.reduce((sum, code) => sum + code.evidenceCount, 0);
+    });
+
+    const ordered = XQ_OUTCOMES.map((outcome) => baseGroups.get(outcome.key)!);
+    const fallback = baseGroups.get(ALL_FALLBACK_OUTCOME);
+    if (fallback && fallback.competencyCoverageCount > 0) {
+      ordered.push(fallback);
+    }
+    return ordered;
   }, [credentials]);
 
   const handlePrint = () => {
@@ -349,14 +564,108 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
               Credential Summary
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2 mb-4 text-sm">
-              <Badge variant="secondary">Stickers: {credentialCounts.stickers}</Badge>
-              <Badge variant="secondary">Badges: {credentialCounts.badges}</Badge>
-              <Badge variant="secondary">Plaques: {credentialCounts.plaques}</Badge>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+              {transcriptOutcomeGroups
+                .filter((group) => group.key !== ALL_FALLBACK_OUTCOME)
+                .map((group) => (
+                  <div key={group.key} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{group.key}</p>
+                    <p className="text-sm font-semibold text-slate-900 mt-0.5">{group.competencyCoverageCount} competencies</p>
+                    <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{group.label}</p>
+                  </div>
+                ))}
             </div>
+
+            <div className="flex items-center gap-2 print:hidden">
+              <Button
+                size="sm"
+                variant={credentialView === "transcript" ? "default" : "outline"}
+                onClick={() => setCredentialView("transcript")}
+              >
+                Transcript View
+              </Button>
+              <Button
+                size="sm"
+                variant={credentialView === "gallery" ? "default" : "outline"}
+                onClick={() => setCredentialView("gallery")}
+              >
+                Gallery View
+              </Button>
+            </div>
+
             {credentials.length === 0 ? (
               <p className="text-sm text-slate-600">No credentials are published yet.</p>
+            ) : credentialView === "transcript" ? (
+              <div className="space-y-4">
+                {transcriptOutcomeGroups
+                  .filter((group) => group.competencyCoverageCount > 0)
+                  .map((group) => (
+                    <Card key={group.key} className="border border-slate-200">
+                      <CardContent className="pt-4 space-y-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">{group.key}</Badge>
+                          <h4 className="text-sm font-semibold text-slate-900">{group.label}</h4>
+                          <span className="text-xs text-slate-600">
+                            {group.competencyCoverageCount} competencies • {group.totalEvidenceCount} credential records
+                          </span>
+                        </div>
+
+                        {group.familyGroups.map((familyGroup) => (
+                          <div key={`${group.key}-${familyGroup.familyKey}`} className="space-y-2">
+                            <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                              Competency Family: {familyGroup.familyKey}
+                            </h5>
+                            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                              <table className="w-full min-w-[860px] text-sm">
+                                <thead className="bg-slate-50">
+                                  <tr className="text-left text-slate-600">
+                                    <th className="px-3 py-2 font-medium">Competency</th>
+                                    <th className="px-2 py-2 text-center font-medium">Emerging</th>
+                                    <th className="px-2 py-2 text-center font-medium">Developing</th>
+                                    <th className="px-2 py-2 text-center font-medium">Proficient</th>
+                                    <th className="px-2 py-2 text-center font-medium">Applying</th>
+                                    <th className="px-3 py-2 font-medium">Highest</th>
+                                    <th className="px-3 py-2 font-medium">Last Awarded</th>
+                                    <th className="px-3 py-2 font-medium">Evidence</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {familyGroup.codes.map((code) => (
+                                    <tr key={`${group.key}-${familyGroup.familyKey}-${code.specificCode}`} className="border-t border-slate-200">
+                                      <td className="px-3 py-2 align-top">
+                                        <p className="font-medium text-slate-900">{code.competencyLabel}</p>
+                                        <p className="text-xs text-slate-600">{code.specificCode}</p>
+                                      </td>
+                                      {PROFICIENCY_LEVELS.map((level) => (
+                                        <td key={level} className="px-2 py-2 text-center">
+                                          {code.levelCounts[level] > 0 ? (
+                                            <Badge variant="secondary" className="text-[11px]">
+                                              {code.levelCounts[level]}
+                                            </Badge>
+                                          ) : (
+                                            <span className="text-slate-300">-</span>
+                                          )}
+                                        </td>
+                                      ))}
+                                      <td className="px-3 py-2 text-slate-800">
+                                        {code.highestLevel ? PROFICIENCY_LABELS[code.highestLevel] : "Not tagged"}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-700">
+                                        {code.highestAwardedAt ? format(new Date(code.highestAwardedAt), "MMM d, yyyy") : "N/A"}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-700">{code.evidenceCount}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {credentials.map((credential) => (
