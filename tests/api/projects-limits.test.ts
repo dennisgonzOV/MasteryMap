@@ -1,22 +1,24 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { getTestApp } from '../helpers/test-app';
-import { storage } from '../../server/storage';
+import { db } from '../../server/db';
+import { schools, users } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 
 describe('Project Limits and Visibility API', () => {
     let app: any;
     let schoolIdA: number;
     let schoolIdB: number;
-    let teacherAToken: string;
-    let teacherBToken: string;
-    let freeTeacherToken: string;
+    let teacherAToken: string[];
+    let teacherBToken: string[];
+    let freeTeacherToken: string[];
 
     beforeAll(async () => {
         app = await getTestApp();
 
         // Ensure test schools exist
-        const schoolA = await storage.createSchool({ name: `School A ${Date.now()}`, address: '', city: '', state: '', zipCode: '' });
-        const schoolB = await storage.createSchool({ name: `School B ${Date.now()}`, address: '', city: '', state: '', zipCode: '' });
+        const [schoolA] = await db.insert(schools).values({ name: `School A ${Date.now()}` }).returning();
+        const [schoolB] = await db.insert(schools).values({ name: `School B ${Date.now()}` }).returning();
         schoolIdA = schoolA.id;
         schoolIdB = schoolB.id;
 
@@ -27,7 +29,7 @@ describe('Project Limits and Visibility API', () => {
             role: 'teacher', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School',
             schoolId: schoolIdA
         });
-        teacherAToken = resA.headers['set-cookie'] || [];
+        teacherAToken = (resA.headers['set-cookie'] || []) as string[];
 
         // Register teacher B (Enterprise)
         const resB = await request(app).post('/api/auth/register').send({
@@ -36,7 +38,7 @@ describe('Project Limits and Visibility API', () => {
             role: 'teacher', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School',
             schoolId: schoolIdB
         });
-        teacherBToken = resB.headers['set-cookie'] || [];
+        teacherBToken = (resB.headers['set-cookie'] || []) as string[];
 
         // Register Free Teacher
         const freeRes = await request(app).post('/api/auth/register').send({
@@ -45,9 +47,9 @@ describe('Project Limits and Visibility API', () => {
             role: 'teacher', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School',
             schoolId: schoolIdA
         });
-        freeTeacherToken = freeRes.headers['set-cookie'] || [];
-        const freeTeacherId = freeRes.body.user.id;
-        await storage.updateUser(freeTeacherId, { tier: 'free' }); // force free tier
+        freeTeacherToken = (freeRes.headers['set-cookie'] || []) as string[];
+        const freeTeacherId = freeRes.body.id;
+        await db.update(users).set({ tier: 'free' }).where(eq(users.id, freeTeacherId)); // force free tier
     });
 
     it('should restrict project visibility to school scope (TPROJ-08)', async () => {

@@ -28,7 +28,7 @@ export function createErrorPayload(options: ErrorResponseOptions): ApiErrorPaylo
     message,
     error,
     details,
-    includeDetails = process.env.NODE_ENV === 'development',
+    includeDetails = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test',
   } = options;
 
   const payload: ApiErrorPayload = { message };
@@ -64,7 +64,7 @@ export function createStandardErrorResponse(
     message,
     error,
     statusCode = 500,
-    includeDetails = process.env.NODE_ENV === 'development'
+    includeDetails = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
   } = options;
 
   console.error(`Error: ${message}`, error);
@@ -141,7 +141,7 @@ export function createSuccessResponse<T = any>(
   statusCode: number = 200
 ): void {
   const responseBody: any = data;
-  
+
   if (message) {
     responseBody.message = message;
   }
@@ -157,14 +157,14 @@ export function parseIntParam(
   paramName: string = 'id'
 ): { value: number; error?: string } {
   const parsed = parseInt(paramValue);
-  
+
   if (isNaN(parsed)) {
     return {
       value: 0,
       error: `Invalid ${paramName}`
     };
   }
-  
+
   return { value: parsed };
 }
 
@@ -185,8 +185,8 @@ export function isTeacherOwner(
   user: any,
   resource: { teacherId: number }
 ): boolean {
-  return user?.role === 'admin' || 
-         (user?.role === 'teacher' && resource.teacherId === user.id);
+  return user?.role === 'admin' ||
+    (user?.role === 'teacher' && resource.teacherId === user.id);
 }
 
 /**

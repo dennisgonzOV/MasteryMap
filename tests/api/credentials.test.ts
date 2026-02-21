@@ -41,7 +41,7 @@ describe('Credentials API', () => {
             schoolId
         });
         authStudent = studentRes.headers['set-cookie'] || [];
-        studentId = studentRes.body.user.id;
+        studentId = studentRes.body.id;
     });
 
     it('should award credential to student and verify visibility (CRED-01)', async () => {

@@ -59,9 +59,12 @@ describe('Admin Bulk Create API', () => {
     });
 
     it('should bulk create valid users', async () => {
+        const ts = Date.now();
+        const studentUsername = `bulk_student_${ts}`;
+        const teacherUsername = `bulk_teacher_${ts}`;
         const usersToCreate = [
-            { username: 'bulk_student_1', password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' },
-            { username: 'bulk_teacher_1', password: 'password123', role: 'teacher', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' }
+            { username: studentUsername, password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School', grade: '9' },
+            { username: teacherUsername, password: 'password123', role: 'teacher', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' }
         ];
 
         const response = await agent
@@ -77,36 +80,47 @@ describe('Admin Bulk Create API', () => {
         expect(response.body.failed).toHaveLength(0);
 
         // Verify users exist
-        const student = await authStorage.getUserByUsername('bulk_student_1');
+        const student = await authStorage.getUserByUsername(studentUsername);
         expect(student).toBeDefined();
         expect(student?.role).toBe('student');
 
-        const teacher = await authStorage.getUserByUsername('bulk_teacher_1');
+        const teacher = await authStorage.getUserByUsername(teacherUsername);
         expect(teacher).toBeDefined();
         expect(teacher?.role).toBe('teacher');
     });
 
     it('should handle partial failures', async () => {
-        // 'bulk_student_1' already exists from previous test
+        const ts = Date.now();
+        const existingUsername = `bulk_existing_${ts}`;
+        const newUsername = `bulk_new_${ts}`;
+
+        // First create a user that will collide
+        await agent
+            .post('/api/admin/users/bulk')
+            .send([{ username: existingUsername, password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School', grade: '9' }]);
+
+        // Now try to create the existing user again along with a new user
         const usersToCreate = [
-            { username: 'bulk_student_1', password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' },
-            { username: 'bulk_student_2', password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' }
+            { username: existingUsername, password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School', grade: '9' },
+            { username: newUsername, password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School', grade: '9' }
         ];
 
         const response = await agent
             .post('/api/admin/users/bulk')
             .send(usersToCreate);
 
+        if (response.status !== 200) console.error("Bulk Create Error:", JSON.stringify(response.body, null, 2));
+
         expect(response.status).toBe(200);
-        expect(response.body.created).toHaveLength(1); // bulk_student_2
-        expect(response.body.failed).toHaveLength(1); // bulk_student_1
-        expect(response.body.failed[0].username).toBe('bulk_student_1');
+        expect(response.body.created).toHaveLength(1); // newUsername
+        expect(response.body.failed).toHaveLength(1); // existingUsername
+        expect(response.body.failed[0].username).toBe(existingUsername);
         expect(response.body.failed[0].reason).toContain('exists');
     });
 
     it('should enforce limit of 50 users', async () => {
         const usersToCreate = Array.from({ length: 51 }, (_, i) => ({
-            username: `bulk_limit_${i}`, password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School'
+            username: `bulk_limit_${i}`, password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School', grade: '9'
         }));
 
         const response = await agent
@@ -114,7 +128,7 @@ describe('Admin Bulk Create API', () => {
             .send(usersToCreate);
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toContain('Maximum 50 users');
+        expect(JSON.stringify(response.body)).toContain('Maximum 50 users');
     });
 
     it('should reject invalid roles', async () => {

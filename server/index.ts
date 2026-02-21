@@ -90,13 +90,15 @@ export const appInit = (async () => {
 
     // Use PORT from environment or fallback to 5000
     const port = parseInt(process.env.PORT || "5000");
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
-      log(`serving on port ${port}`);
-    });
+    if (process.env.NODE_ENV !== "test") {
+      server.listen({
+        port,
+        host: "0.0.0.0",
+        reusePort: true,
+      }, () => {
+        log(`serving on port ${port}`);
+      });
+    }
 
     return app;
   } catch (error) {

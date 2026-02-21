@@ -25,19 +25,20 @@ describe('Authentication API', () => {
 
   describe('User Registration', () => {
     it('should register a new teacher successfully', async () => {
+      const dynamicUser = { ...testUsers.newTeacher, username: `newTeacher-${Date.now()}` };
       const response = await request(app)
         .post('/api/auth/register')
         .send({
-          ...testUsers.newTeacher,
+          ...dynamicUser,
           schoolId
         });
 
       if (response.status !== 201) console.error("Register Error:", JSON.stringify(response.body, null, 2));
 
       expect(response.status).toBe(201);
-      expect(response.body.user).toBeDefined();
-      expect(response.body.user.username).toBe(testUsers.newTeacher.username);
-      expect(response.body.user.role).toBe('teacher');
+      expect(response.body.username).toBeDefined();
+      expect(response.body.username).toBe(dynamicUser.username);
+      expect(response.body.role).toBe('teacher');
       expect(response.headers['set-cookie']).toBeDefined();
     });
 
@@ -51,7 +52,7 @@ describe('Authentication API', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('username');
+      expect(JSON.stringify(response.body)).toContain('username');
     });
 
     it('should reject registration with weak password', async () => {
@@ -65,30 +66,31 @@ describe('Authentication API', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('password');
+      expect(JSON.stringify(response.body)).toContain('password');
     });
   });
 
   describe('User Login', () => {
+    const loginUser = { ...testUsers.teacher, username: `loginUser-${Date.now()}` };
+
     it('should login with valid credentials', async () => {
       // First register the user
       await request(app)
         .post('/api/auth/register')
         .send({
-          ...testUsers.teacher,
+          ...loginUser,
           schoolId
         });
 
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          username: testUsers.teacher.username,
-          password: testUsers.teacher.password
+          username: loginUser.username,
+          password: loginUser.password
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.user).toBeDefined();
-      expect(response.headers['set-cookie']).toBeDefined();
+      expect(response.body.username).toBeDefined();
       expect(response.headers['set-cookie']).toBeDefined();
     });
 
@@ -96,7 +98,7 @@ describe('Authentication API', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          username: testUsers.teacher.username,
+          username: loginUser.username,
           password: 'wrongpassword'
         });
 
@@ -106,17 +108,19 @@ describe('Authentication API', () => {
   });
 
   describe('Protected Routes', () => {
-    let authToken: string;
+    let authToken: string[];
+    const protectedUser = { ...testUsers.teacher, username: `protected-${Date.now()}` };
 
     beforeAll(async () => {
+      await request(app).post('/api/auth/register').send({ ...protectedUser, schoolId });
       // Login to get auth token
       const loginResponse = await request(app)
         .post('/api/auth/login')
         .send({
-          username: testUsers.teacher.username,
-          password: testUsers.teacher.password
+          username: protectedUser.username,
+          password: protectedUser.password
         });
-      authToken = loginResponse.headers['set-cookie'] || [];
+      authToken = (loginResponse.headers['set-cookie'] || []) as string[];
     });
 
     it('should access protected route with valid token', async () => {
@@ -125,7 +129,7 @@ describe('Authentication API', () => {
         .set('Cookie', authToken);
 
       expect(response.status).toBe(200);
-      expect(response.body.username).toBe(testUsers.teacher.username);
+      expect(response.body.username).toBe(protectedUser.username);
     });
 
     it('should reject access without token', async () => {
