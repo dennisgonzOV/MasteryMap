@@ -776,6 +776,95 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
               <div className="border border-dashed border-slate-300 rounded-lg p-8 text-center text-slate-600 text-sm">
                 No artifacts match the selected filters.
               </div>
+            ) : filteredArtifacts.length === 1 ? (
+              <Card className="border border-slate-200 shadow-sm">
+                <CardContent className="pt-5">
+                  {(() => {
+                    const artifact = filteredArtifacts[0];
+                    const Icon = getArtifactIcon(artifact.artifactType);
+                    const tags = normalizeTags(artifact.tags);
+                    const projectLabel = artifact.projectTitle || "Independent evidence";
+                    const milestoneLabel = artifact.milestoneTitle || "No milestone linked";
+                    const hasFallbackActions =
+                      artifact.artifactType !== "image" &&
+                      artifact.artifactType !== "video" &&
+                      Boolean(artifact.artifactUrl);
+                    return (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <div className="overflow-hidden rounded-xl">
+                          {renderArtifactPreview(artifact, true)}
+                        </div>
+                        <div className="space-y-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Icon className="h-5 w-5 text-blue-600 shrink-0" />
+                              <h3 className="font-semibold text-base text-slate-900 truncate">{artifact.title}</h3>
+                            </div>
+                            {artifact.artifactType && <Badge variant="outline" className="text-[11px]">{artifact.artifactType}</Badge>}
+                          </div>
+
+                          {artifact.description && (
+                            <p className="text-sm text-slate-600">{artifact.description}</p>
+                          )}
+
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                              Traceability
+                            </p>
+                            <div className="flex items-center gap-1.5 text-xs text-slate-800">
+                              <FolderOpen className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                              <span className="truncate">{projectLabel}</span>
+                              <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span className="truncate text-slate-600">{milestoneLabel}</span>
+                            </div>
+                          </div>
+
+                          {tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {tags.slice(0, 6).map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-[11px]">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                            <span className="flex items-center">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              {artifact.createdAt ? format(new Date(artifact.createdAt), "MMM d, yyyy") : "No date"}
+                            </span>
+                            {!hasFallbackActions && (
+                              <div className="flex items-center gap-3">
+                                {artifact.projectId && (
+                                  <a
+                                    href={`/explore/project/${artifact.projectId}`}
+                                    className="inline-flex items-center text-slate-600 hover:text-slate-800"
+                                  >
+                                    Project
+                                    <ExternalLink className="h-3 w-3 ml-1" />
+                                  </a>
+                                )}
+                                {artifact.artifactUrl && (
+                                  <a
+                                    href={artifact.artifactUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center text-blue-700 hover:text-blue-800"
+                                  >
+                                    Open
+                                    <ExternalLink className="h-3 w-3 ml-1" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredArtifacts.map((artifact) => {
@@ -783,6 +872,10 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
                   const tags = normalizeTags(artifact.tags);
                   const projectLabel = artifact.projectTitle || "Independent evidence";
                   const milestoneLabel = artifact.milestoneTitle || "No milestone linked";
+                  const hasFallbackActions =
+                    artifact.artifactType !== "image" &&
+                    artifact.artifactType !== "video" &&
+                    Boolean(artifact.artifactUrl);
                   return (
                     <Card key={artifact.id} className="border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                       <CardContent className="pt-4 space-y-4">
@@ -795,7 +888,7 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
                         </div>
 
                         <div className="overflow-hidden rounded-xl">
-                          {renderArtifactPreview(artifact)}
+                          {renderArtifactPreview(artifact, false)}
                         </div>
 
                         {artifact.description && (
@@ -829,28 +922,30 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
                             <Calendar className="h-3 w-3 mr-1" />
                             {artifact.createdAt ? format(new Date(artifact.createdAt), "MMM d, yyyy") : "No date"}
                           </span>
-                          <div className="flex items-center gap-3">
-                            {artifact.projectId && (
-                              <a
-                                href={`/explore/project/${artifact.projectId}`}
-                                className="inline-flex items-center text-slate-600 hover:text-slate-800"
-                              >
-                                Project
-                                <ExternalLink className="h-3 w-3 ml-1" />
-                              </a>
-                            )}
-                            {artifact.artifactUrl && (
-                              <a
-                                href={artifact.artifactUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center text-blue-700 hover:text-blue-800"
-                              >
-                                Open
-                                <ExternalLink className="h-3 w-3 ml-1" />
-                              </a>
-                            )}
-                          </div>
+                          {!hasFallbackActions && (
+                            <div className="flex items-center gap-3">
+                              {artifact.projectId && (
+                                <a
+                                  href={`/explore/project/${artifact.projectId}`}
+                                  className="inline-flex items-center text-slate-600 hover:text-slate-800"
+                                >
+                                  Project
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </a>
+                              )}
+                              {artifact.artifactUrl && (
+                                <a
+                                  href={artifact.artifactUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center text-blue-700 hover:text-blue-800"
+                                >
+                                  Open
+                                  <ExternalLink className="h-3 w-3 ml-1" />
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
