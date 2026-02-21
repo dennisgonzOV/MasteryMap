@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { RUBRIC_LEVELS } from "@/lib/rubric";
+import { RUBRIC_LEVELS, formatRubricCriteria } from "@/lib/rubric";
 import type { ComponentSkillWithDetailsDTO } from "@shared/contracts/api";
 import type { AssessmentQuestion, GradingData, RubricLevel, Submission } from "./types";
 import { getAverageScore, getSubmissionResponseText, isRubricLevel } from "./utils";
@@ -219,6 +219,7 @@ export function SubmissionCard({
                 submission.responses,
                 question.id ? String(question.id) : undefined,
               );
+              const rubricCriteria = formatRubricCriteria(question.rubricCriteria);
 
               return (
                 <Card key={question.id ?? `question-${index}`} className="bg-white">
@@ -229,9 +230,9 @@ export function SubmissionCard({
                       </div>
                       <div className="flex-1">
                         <h5 className="font-medium text-gray-900 mb-2">{question.text}</h5>
-                        {question.rubricCriteria && (
+                        {rubricCriteria && (
                           <p className="text-sm text-gray-600 mb-3">
-                            <strong>Rubric:</strong> {question.rubricCriteria}
+                            <strong>Rubric:</strong> {rubricCriteria}
                           </p>
                         )}
                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">

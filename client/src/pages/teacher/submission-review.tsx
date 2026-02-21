@@ -26,6 +26,7 @@ import {
 import { format } from "date-fns";
 import Navigation from "@/components/navigation";
 import { getCompetencyInfo } from "@/lib/competencyUtils";
+import { formatRubricCriteria } from "@/lib/rubric";
 import type { ComponentSkillWithDetailsDTO } from "@shared/contracts/api";
 
 interface Question {
@@ -302,8 +303,10 @@ export default function SubmissionReview() {
                 <CardTitle>Student Responses</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {assessment.questions.map((question, index) => (
-                  <div key={question.id} className="border-l-4 border-blue-200 pl-4">
+                {assessment.questions.map((question, index) => {
+                  const rubricCriteria = formatRubricCriteria(question.rubricCriteria);
+                  return (
+                    <div key={question.id} className="border-l-4 border-blue-200 pl-4">
                     <div className="mb-3">
                       <h4 className="font-medium text-gray-900 mb-2">
                         Question {index + 1}: {question.text}
@@ -313,9 +316,9 @@ export default function SubmissionReview() {
                           Options: {question.options.join(", ")}
                         </div>
                       )}
-                      {question.rubricCriteria && (
+                      {rubricCriteria && (
                         <div className="text-sm text-blue-600 mb-2">
-                          Rubric: {question.rubricCriteria}
+                          Rubric: {rubricCriteria}
                         </div>
                       )}
                     </div>
@@ -347,7 +350,8 @@ export default function SubmissionReview() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </div>

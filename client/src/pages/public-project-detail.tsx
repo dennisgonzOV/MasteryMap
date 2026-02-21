@@ -422,11 +422,6 @@ export default function PublicProjectDetail() {
                           {milestone.description && (
                             <p className="text-sm text-gray-700 mt-1">{milestone.description}</p>
                           )}
-                          {milestone.dueDate && (
-                            <p className="text-xs text-gray-500 mt-2">
-                              Due {new Date(milestone.dueDate).toLocaleDateString()}
-                            </p>
-                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -453,11 +448,6 @@ export default function PublicProjectDetail() {
                           {assessment.milestoneTitle && (
                             <Badge variant="outline" className="text-xs">
                               {assessment.milestoneTitle}
-                            </Badge>
-                          )}
-                          {assessment.dueDate && (
-                            <Badge variant="outline" className="text-xs">
-                              Due {new Date(assessment.dueDate).toLocaleDateString()}
                             </Badge>
                           )}
                         </div>

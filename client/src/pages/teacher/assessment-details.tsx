@@ -30,6 +30,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { getCompetencyInfo } from "@/lib/competencyUtils";
+import { formatRubricCriteria } from "@/lib/rubric";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { X, Check } from "lucide-react";
@@ -414,27 +415,30 @@ export default function AssessmentDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {questions.map((question, index) => (
-                    <div key={question.id ?? `question-${index}`} className="border border-gray-200 rounded-lg p-4 bg-white">
-                      <div className="flex items-start space-x-3">
-                        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-medium text-sm">{index + 1}</span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-gray-900 font-medium mb-2">{question.text}</p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <Badge variant="outline" className="text-xs">
-                              {question.type === 'multiple-choice' ? 'Multiple Choice' :
-                                question.type === 'short-answer' ? 'Short Answer' : 'Open Ended'}
-                            </Badge>
-                            {question.rubricCriteria && (
-                              <span className="text-xs">Rubric: {question.rubricCriteria}</span>
-                            )}
+                  {questions.map((question, index) => {
+                    const rubricCriteria = formatRubricCriteria(question.rubricCriteria);
+                    return (
+                      <div key={question.id ?? `question-${index}`} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 font-medium text-sm">{index + 1}</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-gray-900 font-medium mb-2">{question.text}</p>
+                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                              <Badge variant="outline" className="text-xs">
+                                {question.type === 'multiple-choice' ? 'Multiple Choice' :
+                                  question.type === 'short-answer' ? 'Short Answer' : 'Open Ended'}
+                              </Badge>
+                              {rubricCriteria && (
+                                <span className="text-xs">Rubric: {rubricCriteria}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

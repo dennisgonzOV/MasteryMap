@@ -59,3 +59,62 @@ export function getRubricLevelColor(level: string, palette: RubricPalette = "tea
   const paletteMap = palette === "student" ? STUDENT_LEVEL_CLASSES : TEACHER_LEVEL_CLASSES;
   return paletteMap[key] || "bg-gray-100 text-gray-800 border-gray-200";
 }
+
+const RUBRIC_LEVEL_ORDER = ["emerging", "developing", "proficient", "applying"];
+
+function coerceRubricText(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (value && typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
+export function formatRubricCriteria(criteria: unknown): string {
+  if (typeof criteria === "string") {
+    return criteria.trim();
+  }
+
+  if (!criteria || typeof criteria !== "object" || Array.isArray(criteria)) {
+    return "";
+  }
+
+  const entries = Object.entries(criteria as Record<string, unknown>);
+  if (entries.length === 0) {
+    return "";
+  }
+
+  const sortedEntries = [...entries].sort(([left], [right]) => {
+    const leftIndex = RUBRIC_LEVEL_ORDER.indexOf(left.trim().toLowerCase());
+    const rightIndex = RUBRIC_LEVEL_ORDER.indexOf(right.trim().toLowerCase());
+
+    const leftOrder = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+    const rightOrder = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return left.localeCompare(right);
+  });
+
+  return sortedEntries
+    .map(([level, detail]) => {
+      const detailText = coerceRubricText(detail);
+      if (!detailText) {
+        return "";
+      }
+      return `${level}: ${detailText}`;
+    })
+    .filter(Boolean)
+    .join(" | ");
+}

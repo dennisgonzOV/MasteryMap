@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { format } from "date-fns";
 import { getCompetencyInfo } from "@/lib/competencyUtils";
+import { formatRubricCriteria } from "@/lib/rubric";
 import AIFeedbackModal from '@/components/modals/ai-feedback-modal';
 import AITutorChat from '@/components/ai-tutor-chat';
 import { api } from '@/lib/api';
@@ -389,6 +390,7 @@ export default function TakeAssessment() {
   }
 
   const currentQuestion = assessment.questions?.[currentQuestionIndex];
+  const currentQuestionRubricCriteria = formatRubricCriteria(currentQuestion?.rubricCriteria);
   const isLastQuestion = currentQuestionIndex === (assessment.questions?.length || 1) - 1;
   const questionsWithConfigurationErrors = assessment.questions.filter(question => {
     if (question.type !== 'multiple-choice') {
@@ -733,10 +735,10 @@ export default function TakeAssessment() {
               />
             )}
 
-            {currentQuestion.rubricCriteria && (
+            {currentQuestionRubricCriteria && (
               <div className="bg-blue-50 p-3 rounded-lg">
                 <h4 className="font-medium text-blue-900 mb-1">Grading Criteria:</h4>
-                <p className="text-blue-800 text-sm">{currentQuestion.rubricCriteria}</p>
+                <p className="text-blue-800 text-sm">{currentQuestionRubricCriteria}</p>
               </div>
             )}
           </CardContent>
