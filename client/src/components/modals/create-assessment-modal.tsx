@@ -26,9 +26,10 @@ import {
   FormLabel,
   FormMessage
 } from "@/components/ui/form";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { Loader2, X, Sparkles, Brain, FileText, Upload } from "lucide-react";
+import { CircleHelp, Loader2, X, Sparkles, Brain, FileText, Upload } from "lucide-react";
 import type {
   LearnerOutcomeHierarchyItemDTO,
 } from "@shared/contracts/api";
@@ -84,6 +85,7 @@ export default function CreateAssessmentModal({
   // Watch assessment type to show/hide sections
   const assessmentType = form.watch("assessmentType");
   const selectedSkills = form.watch("componentSkillIds");
+  const disableMultipleChoice = selectedSkills.length > 1;
 
   // Handle assessment type changes
   useEffect(() => {
@@ -129,6 +131,30 @@ export default function CreateAssessmentModal({
     hierarchy,
     pdfObjectPath,
   });
+
+  useEffect(() => {
+    if (!disableMultipleChoice || assessmentType !== "teacher") {
+      return;
+    }
+
+    const questions = form.getValues("questions") || [];
+    const hasMultipleChoiceQuestion = questions.some((question) => question.type === "multiple-choice");
+    if (hasMultipleChoiceQuestion) {
+      const normalizedQuestions = questions.map((question) =>
+        question.type === "multiple-choice"
+          ? { ...question, type: "open-ended" as const, options: [], correctAnswer: "" }
+          : question,
+      );
+      form.setValue("questions", normalizedQuestions, { shouldDirty: true });
+    }
+
+    setAiQuestionTypes((prev) => {
+      if (!prev["multiple-choice"]) {
+        return prev;
+      }
+      return { ...prev, "multiple-choice": false };
+    });
+  }, [disableMultipleChoice, assessmentType, form, setAiQuestionTypes]);
 
   // Create assessment mutation
   const createAssessmentMutation = useMutation({
@@ -577,34 +603,56 @@ export default function CreateAssessmentModal({
                   </div>
 
                   {/* Question Types */}
-                  <div>
-                    <Label className="text-sm font-medium text-blue-900 mb-2 block">Question Types</Label>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
+                      <div>
+                        <Label className="text-sm font-medium text-blue-900 mb-2 block">Question Types</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
                         <Checkbox
                           checked={aiQuestionTypes["open-ended"]}
                           onCheckedChange={(checked) =>
                             setAiQuestionTypes(prev => ({ ...prev, "open-ended": checked as boolean }))
                           }
                           className="border-blue-300"
-                        />
-                        <Label className="text-sm text-blue-800">Open-ended</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={aiQuestionTypes["multiple-choice"]}
-                          onCheckedChange={(checked) =>
-                            setAiQuestionTypes(prev => ({ ...prev, "multiple-choice": checked as boolean }))
-                          }
-                          className="border-blue-300"
-                        />
-                        <Label className="text-sm text-blue-800">Multiple Choice</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={aiQuestionTypes["short-answer"]}
-                          onCheckedChange={(checked) =>
-                            setAiQuestionTypes(prev => ({ ...prev, "short-answer": checked as boolean }))
+                            />
+                            <Label className="text-sm text-blue-800">Open-ended</Label>
+                          </div>
+                          {disableMultipleChoice ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center space-x-2 opacity-50">
+                                  <Checkbox
+                                    checked={aiQuestionTypes["multiple-choice"]}
+                                    onCheckedChange={(checked) =>
+                                      setAiQuestionTypes(prev => ({ ...prev, "multiple-choice": checked as boolean }))
+                                    }
+                                    className="border-blue-300"
+                                    disabled
+                                  />
+                                  <Label className="text-sm text-blue-800">Multiple Choice</Label>
+                                  <CircleHelp className="h-3.5 w-3.5 text-blue-700" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                Multiple Choice is disabled when more than one component skill is selected because one correct answer may not reflect multiple competencies.
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={aiQuestionTypes["multiple-choice"]}
+                                onCheckedChange={(checked) =>
+                                  setAiQuestionTypes(prev => ({ ...prev, "multiple-choice": checked as boolean }))
+                                }
+                                className="border-blue-300"
+                              />
+                              <Label className="text-sm text-blue-800">Multiple Choice</Label>
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={aiQuestionTypes["short-answer"]}
+                              onCheckedChange={(checked) =>
+                                setAiQuestionTypes(prev => ({ ...prev, "short-answer": checked as boolean }))
                           }
                           className="border-blue-300"
                         />
@@ -646,6 +694,7 @@ export default function CreateAssessmentModal({
                 onRemoveQuestion={removeQuestion}
                 onAddMultipleChoiceOption={addMultipleChoiceOption}
                 onRemoveMultipleChoiceOption={removeMultipleChoiceOption}
+                disableMultipleChoice={disableMultipleChoice}
               />
             )}
 

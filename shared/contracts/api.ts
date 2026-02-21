@@ -177,6 +177,51 @@ export interface TeacherDashboardStatsDTO {
   upcomingDeadlines: number;
 }
 
+export interface AdminAnalyticsDashboardDTO {
+  totalUsers: number;
+  activeUsers: number;
+  totalProjects: number;
+  activeProjects: number;
+  totalAssessments: number;
+  gradedAssessments: number;
+  totalCredentials: number;
+  roleDistribution: {
+    students: number;
+    teachers: number;
+    admins: number;
+  };
+  gradeDistribution: Array<{
+    grade: string;
+    count: number;
+  }>;
+  userGrowth: Array<{
+    month: string;
+    users: number;
+    projects: number;
+  }>;
+  weeklyActivity: Array<{
+    day: string;
+    users: number;
+    submissions: number;
+  }>;
+  projectStatusDistribution: Array<{
+    status: string;
+    count: number;
+  }>;
+  needsAttention: {
+    overdueProjects: number;
+    ungradedSubmissions: number;
+    draftProjects: number;
+  };
+  recentActivity: Array<{
+    id: string;
+    type: "user_created" | "project_created" | "submission_graded" | "credential_awarded";
+    message: string;
+    timestamp: string;
+    severity: "info" | "success";
+  }>;
+}
+
 export interface TeacherProjectOverviewDTO {
   id: number;
   title: string;

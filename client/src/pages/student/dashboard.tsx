@@ -494,22 +494,30 @@ function AssessmentCard({
     sub.assessmentId === assessment.id
   );
 
-
-
   const getStatusBadge = (submission: StudentSubmission | undefined) => {
     if (!submission) {
       return <Badge className="bg-gray-100 text-gray-800">Not Started</Badge>;
     }
-    // Check if graded (has grades or explicit graded status)
-    if (submission.status === 'graded' || (submission.questionGrades && Object.keys(submission.questionGrades).length > 0)) {
-      return <Badge className="bg-green-100 text-green-800">Graded</Badge>;
-    }
-    // Check if submitted (has submittedAt timestamp)
-    if (submission.submittedAt) {
-      return <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>;
-    }
-    // Otherwise it's a draft
-    return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
+
+    const hasResponses = Array.isArray(submission.responses)
+      ? submission.responses.length > 0
+      : Boolean(
+          submission.responses &&
+            typeof submission.responses === "object" &&
+            Object.keys(submission.responses as Record<string, unknown>).length > 0,
+        );
+
+    const isCompleted = Boolean(
+      submission.submittedAt ||
+      submission.status === "submitted" ||
+      submission.status === "graded" ||
+      hasResponses ||
+      (submission.grades && submission.grades.length > 0),
+    );
+
+    return isCompleted
+      ? <Badge className="bg-green-100 text-green-800">Completed</Badge>
+      : <Badge className="bg-gray-100 text-gray-800">Not Started</Badge>;
   };
 
   const handleViewAssessment = () => {

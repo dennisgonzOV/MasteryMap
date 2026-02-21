@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
-import { app } from '../../server/index';
+import { appInit, app } from '../../server/index';
 import { testUsers, testSchool } from '../fixtures/users';
-import { storage } from '../../server/storage';
+import { db } from '../../server/db';
+import { schools } from '../../shared/schema';
 
 describe('Portfolio API', () => {
   let studentToken: string;
@@ -10,13 +11,14 @@ describe('Portfolio API', () => {
   let schoolId: number;
 
   beforeAll(async () => {
+    await appInit;
     // Setup test school
-    const schools = await storage.getSchools();
-    const existingSchool = schools.find(s => s.name === testSchool.name);
+    const existingSchools = await db.select().from(schools);
+    const existingSchool = existingSchools.find(s => s.name === testSchool.name);
     if (existingSchool) {
       schoolId = existingSchool.id;
     } else {
-      const school = await storage.createSchool(testSchool);
+      const [school] = await db.insert(schools).values(testSchool).returning();
       schoolId = school.id;
     }
 
@@ -28,7 +30,7 @@ describe('Portfolio API', () => {
         username: 'portfolio-student',
         schoolId
       });
-    studentToken = studentResponse.body.token;
+    studentToken = studentResponse.headers['set-cookie'] || [];
     studentId = studentResponse.body.user.id;
   });
 
@@ -36,7 +38,7 @@ describe('Portfolio API', () => {
     it('should get student portfolio artifacts', async () => {
       const response = await request(app)
         .get('/api/portfolio/artifacts')
-        .set('Authorization', `Bearer ${studentToken}`);
+        .set('Cookie', studentToken);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
@@ -57,7 +59,7 @@ describe('Portfolio API', () => {
     it('should generate QR code for portfolio', async () => {
       const response = await request(app)
         .get('/api/portfolio/qr-code')
-        .set('Authorization', `Bearer ${studentToken}`);
+        .set('Cookie', studentToken);
 
       expect(response.status).toBe(200);
       expect(response.body.qrCodeUrl).toBeDefined();
@@ -70,7 +72,7 @@ describe('Portfolio API', () => {
     it('should get student credentials', async () => {
       const response = await request(app)
         .get('/api/credentials')
-        .set('Authorization', `Bearer ${studentToken}`);
+        .set('Cookie', studentToken);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);

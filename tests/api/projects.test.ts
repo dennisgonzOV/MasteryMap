@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
-import { app } from '../../server/index';
+import { appInit, app } from '../../server/index';
 import { testUsers, testSchool } from '../fixtures/users';
 import { testProject, testTeams } from '../fixtures/projects';
-import { storage } from '../../server/storage';
+import { db } from '../../server/db';
+import { schools } from '../../shared/schema';
 
 describe('Projects API', () => {
   let teacherToken: string;
@@ -13,13 +14,14 @@ describe('Projects API', () => {
   let studentIds: number[] = [];
 
   beforeAll(async () => {
+    await appInit;
     // Ensure test school exists
-    const schools = await storage.getSchools();
-    const existingSchool = schools.find(s => s.name === testSchool.name);
+    const existingSchools = await db.select().from(schools);
+    const existingSchool = existingSchools.find(s => s.name === testSchool.name);
     if (existingSchool) {
       schoolId = existingSchool.id;
     } else {
-      const school = await storage.createSchool(testSchool);
+      const [school] = await db.insert(schools).values(testSchool).returning();
       schoolId = school.id;
     }
 
@@ -31,7 +33,7 @@ describe('Projects API', () => {
         username: 'project-teacher',
         schoolId
       });
-    teacherToken = teacherResponse.body.token;
+    teacherToken = teacherResponse.headers['set-cookie'] || [];
     teacherId = teacherResponse.body.user.id;
 
     // Create test students
@@ -44,7 +46,7 @@ describe('Projects API', () => {
           schoolId
         });
       if (studentUser.username === testUsers.student.username) {
-        studentToken = studentResponse.body.token;
+        studentToken = studentResponse.headers['set-cookie'] || [];
       }
       studentIds.push(studentResponse.body.user.id);
     }
@@ -54,7 +56,7 @@ describe('Projects API', () => {
     it('should create project with component skills', async () => {
       const response = await request(app)
         .post('/api/projects')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send(testProject);
 
       expect(response.status).toBe(200);
@@ -67,7 +69,7 @@ describe('Projects API', () => {
     it('should reject project creation by non-teacher', async () => {
       const response = await request(app)
         .post('/api/projects')
-        .set('Authorization', `Bearer ${studentToken}`)
+        .set('Cookie', studentToken)
         .send(testProject);
 
       expect(response.status).toBe(403);
@@ -77,7 +79,7 @@ describe('Projects API', () => {
     it('should validate required fields', async () => {
       const response = await request(app)
         .post('/api/projects')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           description: 'Missing title'
         });
@@ -92,7 +94,7 @@ describe('Projects API', () => {
     beforeAll(async () => {
       const projectResponse = await request(app)
         .post('/api/projects')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           ...testProject,
           title: 'Team Test Project'
@@ -103,7 +105,7 @@ describe('Projects API', () => {
     it('should create project team with members', async () => {
       const response = await request(app)
         .post('/api/project-teams')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           projectId,
           name: testTeams[0].name
@@ -118,15 +120,15 @@ describe('Projects API', () => {
       // Get the team we just created
       const teamsResponse = await request(app)
         .get(`/api/projects/${projectId}/teams`)
-        .set('Authorization', `Bearer ${teacherToken}`);
-      
+        .set('Cookie', teacherToken);
+
       const teamId = teamsResponse.body[0].id;
 
       // Add members to team
       for (const studentId of studentIds) {
         const response = await request(app)
           .post('/api/project-team-members')
-          .set('Authorization', `Bearer ${teacherToken}`)
+          .set('Cookie', teacherToken)
           .send({
             teamId,
             studentId
@@ -139,7 +141,7 @@ describe('Projects API', () => {
     it('should list project teams', async () => {
       const response = await request(app)
         .get(`/api/projects/${projectId}/teams`)
-        .set('Authorization', `Bearer ${teacherToken}`);
+        .set('Cookie', teacherToken);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
@@ -153,7 +155,7 @@ describe('Projects API', () => {
     beforeAll(async () => {
       const projectResponse = await request(app)
         .post('/api/projects')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           ...testProject,
           title: 'AI Milestone Test Project'
@@ -164,7 +166,7 @@ describe('Projects API', () => {
     it('should generate milestones with AI', async () => {
       const response = await request(app)
         .post(`/api/projects/${projectId}/generate-milestones`)
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           projectTitle: testProject.title,
           projectDescription: testProject.description,
@@ -175,7 +177,7 @@ describe('Projects API', () => {
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body.length).toBeGreaterThan(0);
-      
+
       // Check milestone structure
       const milestone = response.body[0];
       expect(milestone.title).toBeDefined();
@@ -192,7 +194,7 @@ describe('Projects API', () => {
       // Create project and assign student
       const projectResponse = await request(app)
         .post('/api/projects')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           ...testProject,
           title: 'Student Access Test Project'
@@ -202,7 +204,7 @@ describe('Projects API', () => {
       // Create team and add student
       const teamResponse = await request(app)
         .post('/api/project-teams')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           projectId,
           name: 'Test Team'
@@ -210,7 +212,7 @@ describe('Projects API', () => {
 
       await request(app)
         .post('/api/project-team-members')
-        .set('Authorization', `Bearer ${teacherToken}`)
+        .set('Cookie', teacherToken)
         .send({
           teamId: teamResponse.body.id,
           studentId: studentIds[0]
@@ -220,11 +222,11 @@ describe('Projects API', () => {
     it('should allow student to view assigned project', async () => {
       const response = await request(app)
         .get('/api/projects')
-        .set('Authorization', `Bearer ${studentToken}`);
+        .set('Cookie', studentToken);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
-      
+
       const assignedProject = response.body.find((p: any) => p.id === projectId);
       expect(assignedProject).toBeDefined();
     });
@@ -232,7 +234,7 @@ describe('Projects API', () => {
     it('should allow student to view project details', async () => {
       const response = await request(app)
         .get(`/api/projects/${projectId}`)
-        .set('Authorization', `Bearer ${studentToken}`);
+        .set('Cookie', studentToken);
 
       expect(response.status).toBe(200);
       expect(response.body.title).toBeDefined();

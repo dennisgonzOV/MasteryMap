@@ -1,697 +1,872 @@
-# MasteryMap - High-Level Integration Tests
+# MasteryMap End-to-End Integration Use Cases
 
-This document provides comprehensive end-to-end integration tests that simulate real user interactions through the MasteryMap educational platform. These tests validate complete user workflows and feature integrations rather than individual components.
+Last reviewed: 2026-02-21
 
----
+## 1. Purpose
 
-## Test Environment Setup
+This document defines a complete set of automated end-to-end use cases for MasteryMap, covering public, student, teacher, and admin feature areas plus cross-cutting concerns (security, tier gating, safety, and rate limits).
 
-### Prerequisites
+Goal: use this as the source test catalog for Playwright-based browser E2E and API-assisted E2E suites.
 
-- **Database**: PostgreSQL with Neon Database connection
-  - **Test Users**: Create accounts for each role
-    - Admin: `admin` / `Test123!`
-    - Teacher: `teacher` / `Test123!`
-    - Student: `student` / `Test123!`
-    - Additional Students: `student2`, `student3` (for team testing)
-- **School**: PSI High School (default school in system)
-- **Environment Variables**:
-  - `OPENAI_API_KEY` configured for AI features
-  - `DATABASE_URL` connected to test database
+## 2. Automation Strategy
 
-### Browser Requirements
+Use two layers:
 
-- Modern browsers: Chrome, Firefox, Safari, Edge
-- JavaScript enabled
-- Cookies enabled for session management
+1. UI E2E (`@ui`) via Playwright browser flows for user-visible workflows.
+2. API-assisted E2E (`@api-e2e`) via Playwright `request` context (or supertest) for flows not fully exposed in UI.
 
----
+Recommended tags per test:
 
-## 1. Authentication & Registration Workflows
+- `@smoke`: critical health checks for CI every PR
+- `@regression`: full feature coverage in nightly/merge-to-main
+- `@security`: auth, access control, school isolation, tier gating
+- `@rate-limit`: limiter behavior
 
-### Test 1.1: New Teacher Registration
+## 3. Required Test Data Fixtures
 
-**Scenario**: A new teacher joins the school and creates an account
-
-**User Actions**:
+Seed at least:
 
-1. Open browser to application homepage
-2. Click "Get Started" or navigate to `/register`
-3. Fill registration form:
-   - Name: "Sarah Johnson"
-   - Username: "sjohnson"
-   - Password: "SecurePass123!"
-   - Role: Select "Teacher"
-   - School: Select "PSI High School"
-4. Click "Register" button
-5. After successful registration, enter credentials on login page
-6. Click "Login" button
+- Schools: `School A`, `School B`
+- Users:
+  - `adminA` (admin, School A, enterprise)
+  - `adminB` (admin, School B, enterprise)
+  - `teacherA` (teacher, School A, enterprise)
+  - `teacherFree` (teacher, free tier)
+  - `teacherB` (teacher, School B, enterprise)
+  - `studentA1`, `studentA2` (students, School A)
+  - `studentB1` (student, School B)
+- Reusable seeded entities:
+  - At least one public project in School A
+  - One private project in School A
+  - One milestone-linked assessment
+  - One standalone assessment
 
-**Expected Results**:
+## 4. Environment Requirements
 
-- ✅ Registration form validates username format and password strength
-- ✅ User redirected to login page with success message
-- ✅ Login successful with new credentials
-- ✅ Teacher dashboard displays with welcome message
-- ✅ Navigation shows "Teacher Dashboard" and user name
-- ✅ User associated with PSI High School in database
+- DB configured and reachable (`DATABASE_URL`)
+- Auth secrets set (`JWT_SECRET`, `JWT_REFRESH_SECRET`)
+- AI credentials set for AI tests (`AZURE_GPT41_API_KEY`)
+- Object storage set for upload tests (`UPLOADS_S3_BUCKET`, `AWS_REGION`)
 
-### Test 1.2: Student Registration and First Login
+## 5. Use Case Catalog
 
-**Scenario**: A new student registers and accesses their dashboard
+## 5.1 Public and Landing
 
-**User Actions**:
+### PUB-01 `@smoke @ui` Landing page load
 
-1. Navigate to `/register`
-2. Complete registration as student role
-3. Login with new credentials
-4. Explore student dashboard
-
-**Expected Results**:
-
-- ✅ Student dashboard shows "Join Assessment" card prominently
-- ✅ Empty project list with message "No projects assigned yet"
-- ✅ Portfolio section accessible but empty
-- ✅ Student role restrictions enforced (no create project button)
-
----
-
-## 2. Project Management Workflows
-
-### Test 2.1: Create Project with AI-Generated Milestones
-
-**Scenario**: Teacher creates a comprehensive project with XQ competencies
-
-**User Actions**:
-
-1. Login as teacher
-2. Click "Projects" in navigation
-3. Click "Create New Project" button
-4. Fill project details:
-   - Title: "Climate Change Solutions Research"
-   - Description: "Students will research and propose innovative solutions to combat climate change"
-   - Start Date: Today
-   - Due Date: 30 days from today
-5. Expand "Critical Thinking" competency
-6. Check these component skills:
-   - "Evaluate Sources and Evidence"
-   - "Draw Conclusions"
-7. Expand "Communication" competency
-8. Check "Present Complex Information"
-9. Enable "Generate milestones and assessments with AI"
-10. Click "Create Project"
-11. Wait for AI generation (loading spinner)
-12. Review generated milestones
-13. Click "Confirm and Create"
-
-**Expected Results**:
-
-- ✅ Component skills selection tree displays all 80 XQ skills
-- ✅ AI generates 3-5 milestones with appropriate dates
-- ✅ Each milestone has descriptive title and requirements
-- ✅ Milestone dates fall between project start and due dates
-- ✅ Project appears in teacher's project list
-- ✅ Project status shows as "Active"
-
-### Test 2.2: Create and Manage Project Teams
-
-**Scenario**: Teacher creates teams and assigns students to project
-
-**User Actions**:
-
-1. From project list, click on "Climate Change Solutions Research"
-2. Click "Manage Project" button
-3. In team management section, click "Create Team"
-4. Enter team name: "Green Innovators"
-5. From available students list, select:
-   - student
-   - student2
-6. Click "Add to Team"
-7. Click "Create Team"
-8. Create second team "Eco Warriors" with student3
-9. Click "Edit Team" on "Green Innovators"
-10. Remove student2
-11. Add student3
-12. Save changes
-
-**Expected Results**:
-
-- ✅ Student roster shows only students from PSI High School
-- ✅ Teams created successfully with selected members
-- ✅ Team member counts update correctly
-- ✅ All team members receive project assignment notifications
-- ✅ Students can see project in their dashboards
-- ✅ Milestones automatically assigned to all team members
-
----
-
-## 3. Assessment Creation and Sharing
-
-### Test 3.1: Create Standalone Assessment with AI Questions
-
-**Scenario**: Teacher creates an assessment with 5-letter share code
-
-**User Actions**:
-
-1. Navigate to "Assessments" page
-2. Click "Create Assessment"
-3. Fill assessment details:
-   - Title: "Climate Science Quiz"
-   - Description: "Test your understanding of climate science basics"
-   - Due Date: 7 days from today
-4. Select component skills:
-   - "Evaluate Sources and Evidence"
-   - "Draw Conclusions"
-5. Manually add question:
-   - Type: "Open-ended"
-   - Question: "Explain the greenhouse effect in your own words"
-   - Points: 10
-6. Click "Generate Questions with AI"
-7. Review 3-4 generated questions
-8. Edit one AI question for clarity
-9. Click "Create Assessment"
-10. Note the 5-letter code displayed (e.g., "KLMNO")
-
-**Expected Results**:
-
-- ✅ AI generates relevant questions based on selected skills
-- ✅ Questions include mix of types (multiple choice, short answer)
-- ✅ 5-letter code displays prominently in green box
-- ✅ Code format is exactly 5 uppercase letters
-- ✅ Assessment appears in list with share code visible
-- ✅ "Copy Code" button works correctly
-
-### Test 3.2: Student Joins Assessment via Code
-
-**Scenario**: Student uses 5-letter code to access assessment
-
-**User Actions**:
-
-1. Login as student
-2. On dashboard, click "Join Assessment" card
-3. Enter code "KLMNO" (from Test 3.1)
-4. Click "Join"
-5. Start assessment
-
-**Expected Results**:
-
-- ✅ Code entry page has clear instructions
-- ✅ Invalid code shows error "Assessment not found"
-- ✅ Valid code immediately opens assessment
-- ✅ Assessment title and description display
-- ✅ Question navigation shows total questions
-- ✅ Timer starts if assessment has time limit
-
----
-
-## 4. Assessment Taking Workflow
-
-### Test 4.1: Complete Multi-Question Assessment
-
-**Scenario**: Student completes assessment with various question types
-
-**User Actions**:
-
-1. Continue from Test 3.2 (assessment open)
-2. Read first question (open-ended)
-3. Type detailed answer about greenhouse effect
-4. Click "Next Question"
-5. Answer multiple choice question
-6. Click "Previous" to review first answer
-7. Make minor edit to answer
-8. Click "Next" twice to reach third question
-9. Complete all questions
-10. On final question, click "Review Answers"
-11. Review summary page
-12. Click "Submit Assessment"
-13. Confirm submission in modal
-
-**Expected Results**:
-
-- ✅ Progress bar updates with each question (25%, 50%, 75%, 100%)
-- ✅ Previous/Next navigation works correctly
-- ✅ Answers persist when navigating between questions
-- ✅ Review page shows all questions with answers
-- ✅ Submit confirmation prevents accidental submission
-- ✅ Success message displays after submission
-- ✅ Cannot re-access assessment after submission
-
----
-
-## 5. Grading and Feedback Workflow
-
-### Test 5.1: Grade Submissions with AI Feedback
-
-**Scenario**: Teacher grades student work using XQ rubrics and AI assistance
-
-**User Actions**:
-
-1. Login as teacher
-2. Navigate to "Assessments"
-3. Click on "Climate Science Quiz"
-4. Click "View Submissions" (shows count)
-5. Click on first student submission
-6. For open-ended question:
-   - Read student answer
-   - Click rubric level "Proficient"
-   - Click "Generate AI Feedback"
-   - Review generated feedback
-   - Edit to add personal comment
-7. For multiple choice: verify auto-graded
-8. Add overall feedback comment
-9. Click "Save & Next"
-10. Grade remaining submissions
-11. Return to submissions list
-
-**Expected Results**:
-
-- ✅ Submission list shows all students who completed
-- ✅ Grading interface displays question and student answer
-- ✅ XQ rubric levels clearly labeled (Emerging → Developing → Proficient → Applying)
-- ✅ AI feedback is specific to student's answer
-- ✅ Points automatically calculated based on rubric
-- ✅ Save & Next efficiently moves through submissions
-- ✅ Submissions list shows graded status
-
-### Test 5.2: Student Views Grades and Feedback
-
-**Scenario**: Student reviews their graded assessment
-
-**User Actions**:
-
-1. Login as student
-2. Navigate to "My Assessments"
-3. Find "Climate Science Quiz" marked as "Graded"
-4. Click "View Results"
-5. Review each question's feedback
-6. Check total score and rubric levels
-
-**Expected Results**:
-
-- ✅ Overall score displays prominently
-- ✅ Each question shows points earned
-- ✅ Rubric level visible for each question
-- ✅ Teacher feedback displays clearly
-- ✅ Correct/incorrect indicators on multiple choice
-- ✅ Can view but not edit answers
+Steps:
 
----
-
-## 6. Project Progress and Milestone Tracking
-
-### Test 6.1: Student Views Project Timeline
-
-**Scenario**: Student tracks project progress and milestones
+1. Open `/` while logged out.
+2. Verify hero content and primary CTA buttons render.
 
-**User Actions**:
-
-1. Login as student (assigned to project)
-2. Click "Projects" in navigation
-3. Click on "Climate Change Solutions Research"
-4. View project overview with timeline
-5. Click on first milestone
-6. Check milestone requirements
-7. Click "View Assessments" for milestone
-8. Return to project page
-9. Check team members list
+Assertions:
 
-**Expected Results**:
+- HTTP 200, no console errors.
+- Login/register links are reachable.
 
-- ✅ Project page shows visual timeline
-- ✅ Milestones display with due dates
-- ✅ Progress indicators show completion status
-- ✅ Current milestone highlighted
-- ✅ Team members listed with avatars
-- ✅ Milestone details show required assessments
-- ✅ Completed milestones show checkmarks
-
----
+### PUB-02 `@regression @ui` Contact form success
 
-## 7. Digital Portfolio Management
-
-### Test 7.1: Portfolio Generation and QR Sharing
-
-**Scenario**: Student's portfolio updates automatically and shares publicly
-
-**User Actions**:
+Steps:
 
-1. Login as student with completed assessments
-2. Navigate to "Portfolio"
-3. View artifacts section
-4. Check credentials earned
-5. Observe QR code displayed
-6. Click "Copy Portfolio Link"
-7. Open link in incognito/private browser
-8. Scan QR code with mobile device
+1. Open landing contact modal/form.
+2. Submit valid `name`, `email`, `message`.
 
-**Expected Results**:
+Assertions:
 
-- ✅ Portfolio shows all completed assessments as artifacts
-- ✅ Graded assessments appear with scores
-- ✅ Earned credentials (badges/stickers) display
-- ✅ QR code generates automatically
-- ✅ Public link works without authentication
-- ✅ Mobile QR scan opens portfolio
-- ✅ Public view is read-only
-- ✅ Layout responsive on mobile
+- Success toast/message shown.
+- Network call: `POST /api/contact` returns success.
 
----
+### PUB-03 `@security @api-e2e @rate-limit` Contact rate-limit
 
-## 8. Credential and Achievement System
+Steps:
 
-### Test 8.1: Earn Credentials Through Performance
+1. Submit valid contact request 4 times from same client/IP context in one hour window.
 
-**Scenario**: Student earns credentials based on assessment performance
+Assertions:
 
-**User Actions**:
+- First 3 requests succeed.
+- 4th returns limiter response (HTTP 429).
 
-1. Complete assessment with high scores (Proficient/Applying)
-2. Teacher grades with high rubric levels
-3. Student checks notifications
-4. Navigate to portfolio
-5. View new credential
-6. Click credential for details
+### PUB-04 `@regression @ui` Public project explorer and filters
 
-**Expected Results**:
+Steps:
 
-- ✅ Notification appears for credential earned
-- ✅ Credential shows in portfolio
-- ✅ Credential type matches performance (Sticker/Badge/Plaque)
-- ✅ Credential linked to specific competency
-- ✅ Award date recorded
-- ✅ Credential appears in public portfolio
+1. Open `/explore`.
+2. Apply filter combinations (subject, grade, duration).
+3. Open project detail `/explore/project/:id`.
 
----
+Assertions:
 
-## 9. Analytics and Reporting
+- Filter options populate from API-backed metadata.
+- Filtered list updates correctly.
+- Public project detail renders project, milestones, and assessments.
 
-### Test 9.1: Teacher Analytics Dashboard
+### PUB-05 `@regression @ui` Public portfolio view
 
-**Scenario**: Teacher reviews class progress and performance
+Steps:
 
-**User Actions**:
+1. Open `/portfolio/public/:publicUrl` for a student portfolio.
 
-1. Login as teacher
-2. Navigate to "Analytics"
-3. View class overview metrics
-4. Click "Component Skills Progress"
-5. Filter by specific competency
-6. View individual student progress
-7. Click "Export Data"
-8. Download CSV report
+Assertions:
 
-**Expected Results**:
+- Portfolio artifacts and credentials render without login.
 
-- ✅ Dashboard shows key metrics (students, projects, assessments)
-- ✅ Progress charts display correctly
-- ✅ Skill mastery levels show distribution
-- ✅ Individual student data accessible
-- ✅ Filters work correctly
-- ✅ CSV export includes all visible data
-- ✅ Charts are interactive and responsive
+### PUB-06 `@security @api-e2e` Signed portfolio URL validation
 
-### Test 9.2: Admin System-Wide Analytics
+Steps:
 
-**Scenario**: Admin reviews school-wide performance metrics
+1. Generate signed share link as student via `/api/portfolio/share-link?expirationDays=7`.
+2. Request public URL with valid `expiresAt`/`sig`.
+3. Request same URL with modified signature.
+4. Request same URL with past expiration.
 
-**User Actions**:
+Assertions:
 
-1. Login as admin
-2. Access admin dashboard
-3. View system statistics
-4. Check user growth trends
-5. Review assessment completion rates
-6. Export comprehensive report
+- Valid signature returns 200.
+- Invalid signature returns 403.
+- Expired signature returns 410.
 
-**Expected Results**:
+## 5.2 Authentication and Session
 
-- ✅ Total users by role displayed
-- ✅ Active projects count accurate
-- ✅ Assessment metrics calculate correctly
-- ✅ Trend graphs show historical data
-- ✅ School-level filtering works
-- ✅ Export includes all analytics data
+### AUTH-01 `@smoke @ui` Register student account
 
----
+Steps:
 
-## 10. Error Handling and Edge Cases
+1. Open `/register`.
+2. Submit valid student registration.
+3. Log in with created credentials.
 
-### Test 10.1: Invalid Assessment Code
+Assertions:
 
-**Scenario**: Student enters wrong or expired code
+- Account created and authenticated.
+- `/api/auth/user` returns student role profile.
 
-**User Actions**:
+### AUTH-02 `@smoke @ui` Register teacher account
 
-1. As student, click "Join Assessment"
-2. Enter invalid code "ZZZZZ"
-3. Try expired code (if available)
-4. Enter code with lowercase "abcde"
+Steps:
 
-**Expected Results**:
+1. Register teacher in School A.
+2. Log in.
 
-- ✅ Clear error: "Invalid assessment code"
-- ✅ Error for expired: "This assessment code has expired"
-- ✅ System accepts uppercase or lowercase
-- ✅ Can retry without page refresh
-- ✅ No system errors or crashes
+Assertions:
 
-### Test 10.2: Concurrent Access Handling
+- Teacher role returned.
+- Teacher routes become accessible.
 
-**Scenario**: Multiple users access same resources
+### AUTH-03 `@smoke @ui` Login + logout flow
 
-**User Actions**:
+Steps:
 
-1. Teacher1 opens project for editing
-2. Teacher2 tries to edit same project
-3. Multiple students submit assessment simultaneously
-4. Teacher grades while student checks results
+1. Log in with existing user.
+2. Verify authenticated landing/home.
+3. Trigger logout.
 
-**Expected Results**:
+Assertions:
 
-- ✅ Last save wins without data corruption
-- ✅ All submissions recorded correctly
-- ✅ No lost data or system errors
-- ✅ Real-time updates where applicable
+- Cookies set on login.
+- Cookies cleared on logout.
+- Protected routes redirect/deny after logout.
 
----
+### AUTH-04 `@security @api-e2e` Refresh token flow
 
-## 11. Mobile Responsiveness
+Steps:
 
-### Test 11.1: Mobile Student Experience
+1. Authenticate to get cookies.
+2. Call `POST /api/auth/refresh`.
 
-**Scenario**: Student completes assessment on mobile device
+Assertions:
 
-**User Actions**:
+- Refresh returns success.
+- New auth session remains valid.
 
-1. Open application on mobile browser
-2. Login as student
-3. Enter assessment code
-4. Complete assessment on mobile
-5. View portfolio on mobile
+### AUTH-05 `@security @ui` Role-based route access
 
-**Expected Results**:
+Steps:
 
-- ✅ Login form adapts to mobile screen
-- ✅ Navigation becomes mobile menu
-- ✅ Assessment questions readable
-- ✅ Answer inputs work on mobile
-- ✅ Submit button easily accessible
-- ✅ Portfolio QR code sized appropriately
+1. Log in as student and attempt teacher/admin pages.
+2. Log in as teacher and attempt admin pages.
 
----
+Assertions:
 
-## 12. Performance Benchmarks
+- Student blocked from teacher/admin pages.
+- Teacher blocked from admin pages.
 
-### Test 12.1: Load Time Validation
+### AUTH-06 `@rate-limit @security @api-e2e` Login limiter
 
-**Scenario**: Verify acceptable performance across features
+Steps:
 
-**Measurements**:
+1. Perform repeated invalid logins on `/api/auth/login`.
 
-- Initial page load: < 3 seconds
-- Login authentication: < 2 seconds
-- Dashboard rendering: < 2 seconds
-- AI milestone generation: < 5 seconds
-- Assessment loading: < 2 seconds
-- Analytics calculation: < 3 seconds
-- Portfolio generation: < 2 seconds
+Assertions:
 
-### Test 12.2: Stress Testing
+- Limiter triggers (HTTP 429) after threshold.
 
-**Scenario**: System handles multiple concurrent users
+## 5.3 Teacher Project Workflows
 
-**Setup**:
+### TPROJ-01 `@smoke @ui` Create project manually
 
-- 50 concurrent student logins
-- 20 simultaneous assessment submissions
-- 10 teachers grading simultaneously
-- 5 AI generation requests
+Steps:
 
-**Expected Results**:
+1. Log in as `teacherA`.
+2. Open teacher projects page.
+3. Create project with title, description, due date, component skills.
 
-- ✅ All operations complete successfully
-- ✅ No timeout errors
-- ✅ Response times remain acceptable
-- ✅ Database connections stable
+Assertions:
 
----
+- Project appears in teacher list.
+- `GET /api/projects?scope=mine` includes new project.
 
-## 13. Cross-Browser Compatibility
+### TPROJ-02 `@regression @ui` Generate project ideas
 
-### Test 13.1: Browser Feature Matrix
+Steps:
 
-**Browsers to Test**:
+1. Open project ideas modal.
+2. Submit subject/topic/grade/duration/skills.
 
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
+Assertions:
 
-**Features to Verify**:
+- AI ideas list is returned and selectable.
 
-- ✅ Authentication flow
-- ✅ Component skill selection tree
-- ✅ Assessment taking interface
-- ✅ Grading rubric interface
-- ✅ QR code generation
-- ✅ File uploads (if applicable)
-- ✅ Analytics charts
-- ✅ Mobile responsive design
+### TPROJ-03 `@regression @api-e2e` Free-tier project idea monthly cap
 
----
+Steps:
 
-## 14. Accessibility Compliance
+1. Authenticate as `teacherFree`.
+2. Call project idea generation 6 times in same month.
 
-### Test 14.1: Keyboard Navigation
+Assertions:
 
-**Scenario**: Navigate application without mouse
+- First 5 succeed.
+- 6th is blocked with free-tier-limit error.
 
-**User Actions**:
+### TPROJ-04 `@regression @ui` Generate thumbnail preview and persist thumbnail
 
-1. Use Tab key to navigate
-2. Use Enter to activate buttons
-3. Use Space for checkboxes
-4. Use Arrow keys in dropdowns
-5. Use Escape to close modals
+Steps:
 
-**Expected Results**:
+1. Create/open project.
+2. Generate thumbnail preview.
+3. Generate and save thumbnail for project.
 
-- ✅ All interactive elements reachable
-- ✅ Focus indicators visible
-- ✅ Logical tab order
-- ✅ Skip links available
-- ✅ Modal focus trapped correctly
+Assertions:
 
-### Test 14.2: Screen Reader Testing
+- Thumbnail preview URL/object path returned.
+- Project stores thumbnail URL.
 
-**Scenario**: Use with screen reader software
+### TPROJ-05 `@regression @ui` Generate milestones
 
-**Tools**: NVDA, JAWS, or VoiceOver
+Steps:
 
-**Expected Results**:
+1. Trigger milestone generation for project.
 
-- ✅ All content announced properly
-- ✅ Form labels read correctly
-- ✅ Error messages announced
-- ✅ Navigation landmarks present
-- ✅ Dynamic content updates announced
+Assertions:
 
----
+- Milestones are created and listed under project.
 
-## Test Execution Log
+### TPROJ-06 `@regression @ui` Generate milestones and assessments together
 
-| Test ID | Test Name            | Priority | Last Executed | Status | Issues Found | Notes |
-| ------- | -------------------- | -------- | ------------- | ------ | ------------ | ----- |
-| 1.1     | Teacher Registration | High     | -             | ⏳     | -            | -     |
-| 1.2     | Student Registration | High     | -             | ⏳     | -            | -     |
-| 2.1     | Project Creation     | High     | -             | ⏳     | -            | -     |
-| 2.2     | Team Management      | High     | -             | ⏳     | -            | -     |
-| 3.1     | Assessment Creation  | High     | -             | ⏳     | -            | -     |
-| 3.2     | Join via Code        | High     | -             | ⏳     | -            | -     |
-| 4.1     | Take Assessment      | High     | -             | ⏳     | -            | -     |
-| 5.1     | Grade with AI        | High     | -             | ⏳     | -            | -     |
-| 5.2     | View Grades          | High     | -             | ⏳     | -            | -     |
-| 6.1     | Project Timeline     | Medium   | -             | ⏳     | -            | -     |
-| 7.1     | Portfolio & QR       | High     | -             | ⏳     | -            | -     |
-| 8.1     | Earn Credentials     | Medium   | -             | ⏳     | -            | -     |
-| 9.1     | Teacher Analytics    | Medium   | -             | ⏳     | -            | -     |
-| 9.2     | Admin Analytics      | Medium   | -             | ⏳     | -            | -     |
-| 10.1    | Error Handling       | High     | -             | ⏳     | -            | -     |
-| 10.2    | Concurrent Access    | High     | -             | ⏳     | -            | -     |
-| 11.1    | Mobile Experience    | High     | -             | ⏳     | -            | -     |
-| 12.1    | Performance          | Medium   | -             | ⏳     | -            | -     |
-| 13.1    | Cross-Browser        | Medium   | -             | ⏳     | -            | -     |
-| 14.1    | Accessibility        | High     | -             | ⏳     | -            | -     |
+Steps:
 
-**Status Legend**:
+1. Trigger combined generation.
 
-- ⏳ Pending
-- ✅ Passed
-- ❌ Failed
-- ⚠️ Passed with Issues
-- 🔄 In Progress
+Assertions:
 
----
+- Response includes both milestones and assessments.
+- Assessment list reflects generated assessments.
 
-## Automation Recommendations
+### TPROJ-07 `@regression @ui` Project visibility toggle to public explorer
 
-### Tools for Future Automation:
+Steps:
 
-1. **Cypress** - Modern E2E testing with great debugging
-2. **Playwright** - Cross-browser automation by Microsoft
-3. **Selenium Grid** - For parallel cross-browser testing
-4. **Jest + Testing Library** - For React component integration
-5. **k6** or **JMeter** - For performance testing
-6. **axe-core** - For automated accessibility testing
+1. Set project visibility to public in management flow.
+2. Open public explorer logged out.
 
-### Priority Automation Targets:
+Assertions:
 
-1. Authentication flows (high reuse)
-2. Assessment code entry (critical feature)
-3. Basic CRUD operations
-4. Smoke tests for each role
+- Project appears in `/explore` results.
 
----
+### TPROJ-08 `@security @api-e2e` School-scope project visibility for teachers
 
-## Issue Reporting Template
+Steps:
 
-When issues are found during testing:
+1. As `teacherA`, query `/api/projects?scope=school`.
+2. As `teacherB`, query same for School B.
 
-```
-Issue ID: [TEST-ID]-[NUMBER]
-Test Case: [Test name and ID]
-Severity: Critical/High/Medium/Low
-Environment: [Browser, OS, User Role]
+Assertions:
 
-Steps to Reproduce:
-1. [Detailed steps]
-2. [Include test data used]
+- Each teacher sees only own-school projects.
 
-Expected Result:
-[What should happen]
+## 5.4 Teams, Assignment, and Milestones
 
-Actual Result:
-[What actually happened]
+### TEAM-01 `@smoke @ui` Create team and add members
 
-Screenshots/Logs:
-[Attach if applicable]
+Steps:
 
-Additional Notes:
-[Any relevant context]
-```
+1. In project management, create team.
+2. Add `studentA1`, `studentA2`.
 
----
+Assertions:
 
-_Document Version: 2.0_
-_Last Updated: July 27, 2025_
-_Next Review: Monthly or after major releases_
+- Team created.
+- Team member list reflects both students.
 
-## Notes for Testers
+### TEAM-02 `@regression @ui` Remove and re-add team members
 
-- Always test with realistic data volumes
-- Test both happy paths and edge cases
-- Verify error messages are user-friendly
-- Check for console errors during testing
-- Test with slow network conditions
-- Validate accessibility with each new feature
-- Document any workarounds discovered
+Steps:
+
+1. Remove one member.
+2. Re-add member.
+
+Assertions:
+
+- Member list updates correctly after each action.
+
+### TEAM-03 `@regression @api-e2e` Assign students to project
+
+Steps:
+
+1. Call `POST /api/projects/:id/assign` with student IDs.
+
+Assertions:
+
+- Assigned students see project on dashboard.
+
+### MILE-01 `@regression @ui` Manual milestone CRUD
+
+Steps:
+
+1. Create milestone.
+2. Update title/description/date.
+3. Delete milestone.
+
+Assertions:
+
+- CRUD behavior is reflected in project timeline and API responses.
+
+### MILE-02 `@regression @ui` Deliverable upload and portfolio linkage
+
+Steps:
+
+1. Log in as student assigned to project.
+2. Upload milestone deliverable.
+3. Set include-in-portfolio true.
+
+Assertions:
+
+- Deliverable stored with object path.
+- Portfolio artifact is created/updated.
+
+## 5.5 Assessment Authoring and Sharing
+
+### ASSESS-01 `@smoke @ui` Create standalone assessment
+
+Steps:
+
+1. Teacher creates standalone assessment with multiple questions.
+
+Assertions:
+
+- Assessment appears in assessment list.
+- Assessment type and due date persist.
+
+### ASSESS-02 `@regression @ui` Create milestone-linked assessment
+
+Steps:
+
+1. Teacher creates assessment linked to a milestone.
+
+Assertions:
+
+- Assessment visible under milestone and teacher assessments view.
+
+### ASSESS-03 `@regression @ui` Generate AI questions during assessment creation
+
+Steps:
+
+1. Use AI question generation flow from assessment modal.
+
+Assertions:
+
+- Generated questions are inserted and editable.
+
+### ASSESS-04 `@regression @ui` AI generate assessment from skills + standards
+
+Steps:
+
+1. Provide component skills and optional standards context.
+2. Trigger generation.
+
+Assertions:
+
+- Generated assessment title/description/questions returned.
+
+### ASSESS-05 `@regression @ui` Attach PDF for AI context
+
+Steps:
+
+1. Upload assessment PDF.
+2. Generate AI assessment/questions with PDF context.
+
+Assertions:
+
+- Upload path saved to assessment.
+- Generation succeeds with PDF input.
+
+### ASSESS-06 `@smoke @ui` Generate and regenerate share code
+
+Steps:
+
+1. Generate share code for assessment.
+2. Regenerate code.
+
+Assertions:
+
+- 5-letter code created.
+- Regenerated code differs and old code invalidates/expires per backend behavior.
+
+## 5.6 Student Assessment Completion
+
+### SUBMIT-01 `@smoke @ui` Join assessment by code
+
+Steps:
+
+1. Student opens `/student/enter-code`.
+2. Enters valid share code.
+
+Assertions:
+
+- Student routed to assessment page.
+
+### SUBMIT-02 `@regression @ui` Invalid/expired code handling
+
+Steps:
+
+1. Enter invalid code.
+2. Enter expired code.
+
+Assertions:
+
+- Error message shown for invalid code.
+- Expired code path handled with clear message.
+
+### SUBMIT-03 `@smoke @ui` Submit teacher assessment
+
+Steps:
+
+1. Student answers all questions.
+2. Submit assessment.
+
+Assertions:
+
+- Submission saved.
+- Student can view status in dashboard/submission history.
+
+### SUBMIT-04 `@regression @ui` Preview feedback request limit
+
+Steps:
+
+1. Request pre-submit AI feedback 4 times.
+
+Assertions:
+
+- First 3 preview requests succeed.
+- 4th request is blocked with limit message.
+
+### SUBMIT-05 `@regression @api-e2e` Background auto-grading path
+
+Steps:
+
+1. Submit teacher assessment with no existing grades.
+2. Poll submission/grades endpoints.
+
+Assertions:
+
+- Auto-grading process creates feedback/grades asynchronously.
+
+## 5.7 Grading, Feedback, and Exports
+
+### GRADE-01 `@smoke @ui` Teacher grades submission
+
+Steps:
+
+1. Open submission review.
+2. Apply rubric levels and feedback.
+3. Save grading.
+
+Assertions:
+
+- Submission marked graded.
+- Student-visible feedback updates.
+
+### GRADE-02 `@regression @ui` Question-level AI feedback generation
+
+Steps:
+
+1. From submission review, trigger per-question feedback generation.
+
+Assertions:
+
+- Feedback text returned and usable in grading UI.
+
+### GRADE-03 `@regression @api-e2e` Export results CSV
+
+Steps:
+
+1. Call each export endpoint for an assessment:
+   - `/export-results`
+   - `/export-submissions`
+   - `/export-detailed-results`
+
+Assertions:
+
+- Response content type is CSV.
+- File includes expected row structure.
+
+### GRADE-04 `@security @api-e2e` Prevent assessment delete with submissions
+
+Steps:
+
+1. Attempt to delete assessment that already has submissions.
+
+Assertions:
+
+- Backend rejects delete with validation message.
+
+## 5.8 Self-Evaluation and AI Tutor
+
+### SELF-01 `@smoke @ui` Complete self-evaluation assessment
+
+Steps:
+
+1. Student opens self-evaluation assessment.
+2. Chooses rubric level and submits justification/examples.
+
+Assertions:
+
+- Self-evaluation record created.
+- AI improvement feedback returned.
+
+### SELF-02 `@regression @api-e2e` Retrieve self-evaluations by assessment and student
+
+Steps:
+
+1. Student requests `/api/self-evaluations/student`.
+2. Teacher requests `/api/self-evaluations/assessment/:assessmentId`.
+
+Assertions:
+
+- Student sees only own records.
+- Teacher sees assessment records they can access.
+
+### TUTOR-01 `@regression @ui` AI tutor chat happy path
+
+Steps:
+
+1. Student opens tutor in assessment flow.
+2. Sends multiple messages.
+
+Assertions:
+
+- Tutor returns response and optional suggested evaluation.
+
+### TUTOR-02 `@security @api-e2e` Tutor safety flag creates incident workflow
+
+Steps:
+
+1. Submit tutor chat payload expected to trigger safety flag.
+2. Query safety incidents and notifications.
+
+Assertions:
+
+- Incident exists with expected metadata.
+- Teacher notifications include incident-related event.
+
+## 5.9 Credentials, Portfolio, and Sharing
+
+### CRED-01 `@regression @api-e2e` Award credential and verify student visibility
+
+Steps:
+
+1. Teacher awards credential to student.
+2. Student loads dashboard and portfolio.
+
+Assertions:
+
+- Credential appears in student credential endpoints/UI.
+
+### PORT-01 `@smoke @ui` Portfolio artifact management
+
+Steps:
+
+1. Student edits artifact tags/visibility.
+2. Saves artifact.
+
+Assertions:
+
+- Artifact updates persist.
+
+### PORT-02 `@regression @ui` Replace artifact file from portfolio editor
+
+Steps:
+
+1. Student uploads replacement file for existing artifact.
+
+Assertions:
+
+- Artifact URL/type updates.
+- If milestone-linked, milestone deliverable sync path succeeds.
+
+### PORT-03 `@smoke @ui` Portfolio settings update
+
+Steps:
+
+1. Update portfolio title/description.
+
+Assertions:
+
+- Updated settings returned by `/api/portfolio/settings`.
+
+### PORT-04 `@smoke @ui` Share link + QR code generation
+
+Steps:
+
+1. Generate share link with no expiration.
+2. Generate share link with `expirationDays`.
+3. Generate QR code with and without expiration.
+
+Assertions:
+
+- Returned payload includes expected URL, slug, expiry fields, and QR data URL.
+
+## 5.10 Notifications and Safety Incidents
+
+### NOTE-01 `@smoke @ui` Notification retrieval and mark-read
+
+Steps:
+
+1. Trigger event that creates notification.
+2. Open notifications UI.
+3. Mark single notification read.
+4. Mark all read.
+
+Assertions:
+
+- Unread counts and statuses update correctly.
+
+### SAFE-01 `@regression @api-e2e` Safety incident lifecycle
+
+Steps:
+
+1. Create safety incident.
+2. Update status (admin).
+3. Resolve incident (teacher/admin).
+
+Assertions:
+
+- Status and resolution fields update correctly.
+
+### SAFE-02 `@regression @api-e2e` Flag risky self-evaluation
+
+Steps:
+
+1. Create self-evaluation record.
+2. Teacher/admin calls `POST /api/self-evaluations/:id/flag-risky`.
+
+Assertions:
+
+- Self-evaluation is marked as risky/notified per backend behavior.
+
+## 5.11 Admin Operations
+
+### ADMIN-01 `@smoke @ui` Admin users list
+
+Steps:
+
+1. Log in as `adminA`.
+2. Open admin users page.
+
+Assertions:
+
+- Only School A users shown.
+
+### ADMIN-02 `@regression @ui` Admin create single user
+
+Steps:
+
+1. Create new student user with required fields.
+
+Assertions:
+
+- User appears in admin list.
+
+### ADMIN-03 `@regression @ui` Admin bulk create users
+
+Steps:
+
+1. Upload/paste bulk user rows and submit.
+
+Assertions:
+
+- Successful and failed entries are reported correctly.
+
+### ADMIN-04 `@regression @ui` Admin delete user
+
+Steps:
+
+1. Delete non-admin user.
+
+Assertions:
+
+- User removed and no longer retrievable in list.
+
+### ADMIN-05 `@regression @ui` Admin reset user password
+
+Steps:
+
+1. Reset target user password.
+2. Login as target user with new password.
+
+Assertions:
+
+- Password reset is effective.
+
+### ADMIN-06 `@security @api-e2e` Cross-school admin restriction
+
+Steps:
+
+1. `adminA` attempts to manage `School B` user.
+
+Assertions:
+
+- Operation denied.
+
+### ADMIN-07 `@regression @api-e2e` Admin analytics endpoint
+
+Steps:
+
+1. Call `/api/admin/analytics/dashboard` and `/api/analytics/dashboard` as admin.
+
+Assertions:
+
+- Analytics payload returned for admin school scope.
+
+## 5.12 Competency and Standards Data
+
+### COMP-01 `@smoke @api-e2e` Learner outcome hierarchy retrieval
+
+Steps:
+
+1. Call `/api/competencies/learner-outcomes-hierarchy/complete` as authenticated user.
+
+Assertions:
+
+- Hierarchy payload contains learner outcomes, competencies, and component skills.
+
+### COMP-02 `@regression @api-e2e` Standards metadata and filtering
+
+Steps:
+
+1. Call `/api/competencies/best-standards/metadata`.
+2. Call `/api/competencies/best-standards` with subject/grade/search filters.
+3. Call `/api/competencies/best-standards/by-ids` for selected standards.
+
+Assertions:
+
+- Metadata fields return valid filter options.
+- Filtered standards return expected subset.
+- By-IDs lookup returns exact requested standards.
+
+## 5.13 Tier Gating and Access Control
+
+### TIER-01 `@security @api-e2e` Free-tier teacher blocked from gated teacher endpoints
+
+Steps:
+
+1. Authenticate as `teacherFree`.
+2. Call representative gated endpoints:
+   - `/api/teacher/dashboard-stats`
+   - `/api/schools/students-progress`
+   - `/api/assessments/teacher/school-skills-stats`
+
+Assertions:
+
+- Access denied for gated routes.
+
+### ACL-01 `@security @api-e2e` Teacher cannot manage other-school project resources
+
+Steps:
+
+1. `teacherB` attempts to update/delete School A project, milestones, teams, or assessments.
+
+Assertions:
+
+- Forbidden/denied responses returned.
+
+### ACL-02 `@security @api-e2e` Student cannot access another student submissions
+
+Steps:
+
+1. `studentA1` requests `studentA2` submission data endpoints.
+
+Assertions:
+
+- Access denied.
+
+## 5.14 Uploads and Object Serving
+
+### FILE-01 `@smoke @api-e2e` File upload endpoint
+
+Steps:
+
+1. Upload assessment PDF and deliverable files via `/api/uploads/file`.
+
+Assertions:
+
+- `objectPath` returned.
+
+### FILE-02 `@regression @api-e2e` Object retrieval endpoint
+
+Steps:
+
+1. Request returned `objectPath` through `/objects/*`.
+
+Assertions:
+
+- Stored object streams successfully.
+- Correct content type is set.
+
+## 5.15 Known UI/API Drift Checks
+
+These tests intentionally capture current drift and should be tracked until resolved.
+
+### DRIFT-01 `@regression @ui` Admin export button behavior
+
+Steps:
+
+1. Open admin dashboard.
+2. Click "Export Data".
+
+Assertions:
+
+- If export endpoint is unavailable, user receives failure toast and app remains stable.
+- If endpoint is implemented later, update assertion to expect successful file download.
+
+## 6. Suggested Execution Sets
+
+## PR Smoke Set
+
+- PUB-01, AUTH-03, TPROJ-01, ASSESS-01, SUBMIT-03, GRADE-01, PORT-04, ADMIN-01
+
+## Nightly Full Regression
+
+- All use cases in sections 5.1 to 5.15
+
+## Security Focused Run
+
+- AUTH-05, AUTH-06, PUB-06, TIER-01, ACL-01, ACL-02, ADMIN-06, TUTOR-02
+
+## 7. Implementation Notes for Test Authors
+
+- Prefer deterministic seed fixtures over UI setup for cross-role dependencies.
+- Use API setup/teardown hooks for heavy data creation (projects, teams, assessments).
+- Keep test IDs stable in UI components where possible; avoid brittle selectors.
+- Assert both UI state and network/API side effects for each end-to-end flow.

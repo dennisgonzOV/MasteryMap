@@ -111,8 +111,12 @@ export function useAssessmentAiGeneration({
     const selectedTypes = Object.entries(aiQuestionTypes)
       .filter(([, isSelected]) => isSelected)
       .map(([type]) => type as QuestionTypeKey);
+    const normalizedSelectedTypes =
+      selectedSkillIds.length > 1
+        ? selectedTypes.filter((type) => type !== "multiple-choice")
+        : selectedTypes;
 
-    if (selectedTypes.length === 0) {
+    if (normalizedSelectedTypes.length === 0) {
       toast({
         title: "Select Question Types",
         description: "Please select at least one question type for AI generation.",
@@ -134,7 +138,7 @@ export function useAssessmentAiGeneration({
         milestoneDueDate: form.getValues("dueDate") || new Date().toISOString(),
         componentSkills: selectedSkillsDetails,
         questionCount: aiQuestionCount,
-        questionTypes: selectedTypes,
+        questionTypes: normalizedSelectedTypes,
         pdfUrl: pdfObjectPath || undefined,
       });
 
@@ -181,9 +185,9 @@ export function useAssessmentAiGeneration({
           options?: string[];
           correctAnswer?: string;
         }> = [];
-        const questionsPerType = Math.ceil(aiQuestionCount / selectedTypes.length);
+        const questionsPerType = Math.ceil(aiQuestionCount / normalizedSelectedTypes.length);
 
-        for (const type of selectedTypes) {
+        for (const type of normalizedSelectedTypes) {
           const templates = questionTemplates[type];
           const questionsToAdd = Math.min(questionsPerType, templates.length);
           for (let i = 0; i < questionsToAdd && generatedQuestions.length < aiQuestionCount; i++) {
@@ -196,7 +200,7 @@ export function useAssessmentAiGeneration({
         }
 
         while (generatedQuestions.length < aiQuestionCount) {
-          for (const type of selectedTypes) {
+          for (const type of normalizedSelectedTypes) {
             if (generatedQuestions.length >= aiQuestionCount) break;
             const templates = questionTemplates[type];
             const templateIndex = generatedQuestions.length % templates.length;

@@ -16,9 +16,11 @@ import CredentialBadge from "@/components/credential-badge";
 import {
   Award,
   Calendar,
+  ChevronRight,
   ExternalLink,
   Eye,
   FileText,
+  FolderOpen,
   Image,
   Printer,
   Search,
@@ -56,6 +58,10 @@ interface PublicPortfolioData {
     artifactUrl: string | null;
     artifactType: string | null;
     tags: unknown;
+    projectId: number | null;
+    projectTitle: string | null;
+    milestoneId: number | null;
+    milestoneTitle: string | null;
     createdAt: string | null;
   }>;
   credentials: Array<{
@@ -142,6 +148,8 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
     return artifacts.filter((artifact) => {
       const title = artifact.title.toLowerCase();
       const description = (artifact.description || "").toLowerCase();
+      const projectTitle = (artifact.projectTitle || "").toLowerCase();
+      const milestoneTitle = (artifact.milestoneTitle || "").toLowerCase();
       const tags = normalizeTags(artifact.tags).map((tag) => tag.toLowerCase());
       const query = search.trim().toLowerCase();
 
@@ -149,6 +157,8 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
         query.length === 0 ||
         title.includes(query) ||
         description.includes(query) ||
+        projectTitle.includes(query) ||
+        milestoneTitle.includes(query) ||
         tags.some((tag) => tag.includes(query));
       const matchesType = typeFilter === ALL_TYPES || artifact.artifactType === typeFilter;
       const artifactYear = artifact.createdAt ? new Date(artifact.createdAt).getFullYear().toString() : null;
@@ -198,9 +208,13 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
     }
 
     return (
-      <div className="h-36 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-600 text-sm px-3 text-center">
-        <FileText className="h-4 w-4 mr-2" />
-        Open artifact to review source evidence
+      <div className="h-40 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-slate-600 text-sm px-3 text-center">
+        <div className="space-y-2">
+          <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-slate-200">
+            <FileText className="h-4 w-4 text-slate-600" />
+          </div>
+          <p>Open artifact to review source evidence</p>
+        </div>
       </div>
     );
   };
@@ -408,13 +422,15 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
                 No artifacts match the selected filters.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredArtifacts.map((artifact) => {
                   const Icon = getArtifactIcon(artifact.artifactType);
                   const tags = normalizeTags(artifact.tags);
+                  const projectLabel = artifact.projectTitle || "Independent evidence";
+                  const milestoneLabel = artifact.milestoneTitle || "No milestone linked";
                   return (
-                    <Card key={artifact.id} className="border border-slate-200">
-                      <CardContent className="pt-4 space-y-3">
+                    <Card key={artifact.id} className="border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                      <CardContent className="pt-4 space-y-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <Icon className="h-4 w-4 text-blue-600 shrink-0" />
@@ -423,11 +439,25 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
                           {artifact.artifactType && <Badge variant="outline" className="text-[11px]">{artifact.artifactType}</Badge>}
                         </div>
 
-                        {renderArtifactPreview(artifact)}
+                        <div className="overflow-hidden rounded-xl">
+                          {renderArtifactPreview(artifact)}
+                        </div>
 
                         {artifact.description && (
                           <p className="text-sm text-slate-600 line-clamp-3">{artifact.description}</p>
                         )}
+
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                            Traceability
+                          </p>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-800">
+                            <FolderOpen className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                            <span className="truncate">{projectLabel}</span>
+                            <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span className="truncate text-slate-600">{milestoneLabel}</span>
+                          </div>
+                        </div>
 
                         {tags.length > 0 && (
                           <div className="flex flex-wrap gap-1">
@@ -444,17 +474,28 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
                             <Calendar className="h-3 w-3 mr-1" />
                             {artifact.createdAt ? format(new Date(artifact.createdAt), "MMM d, yyyy") : "No date"}
                           </span>
-                          {artifact.artifactUrl && (
-                            <a
-                              href={artifact.artifactUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-blue-700 hover:text-blue-800"
-                            >
-                              Open
-                              <ExternalLink className="h-3 w-3 ml-1" />
-                            </a>
-                          )}
+                          <div className="flex items-center gap-3">
+                            {artifact.projectId && (
+                              <a
+                                href={`/explore/project/${artifact.projectId}`}
+                                className="inline-flex items-center text-slate-600 hover:text-slate-800"
+                              >
+                                Project
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </a>
+                            )}
+                            {artifact.artifactUrl && (
+                              <a
+                                href={artifact.artifactUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-blue-700 hover:text-blue-800"
+                              >
+                                Open
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

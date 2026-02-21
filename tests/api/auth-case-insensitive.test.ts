@@ -38,7 +38,7 @@ describe('Authentication Case Insensitivity', () => {
                 lastName: 'Case',
                 email: 'mixed@example.com',
                 schoolName: 'Test School',
-                role: 'student',
+                role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School',
                 schoolId
             });
     });

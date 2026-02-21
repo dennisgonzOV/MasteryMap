@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Navigation from "@/components/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Users,
@@ -14,20 +13,52 @@ import {
   Award,
   TrendingUp,
   Activity,
-  Settings,
-  Database,
-  Clock,
   CheckCircle,
   AlertTriangle,
-  Download
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import type { AdminAnalyticsDashboardDTO } from "@shared/contracts/api";
+
+function formatRelativeTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
 
 export default function AdminDashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
 
-  // Redirect to home if not authenticated
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+  } = useQuery<AdminAnalyticsDashboardDTO>({
+    queryKey: ["/api/admin/analytics/dashboard"],
+    enabled: isAuthenticated && user?.role === "admin",
+    retry: false,
+  });
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
@@ -35,11 +66,47 @@ export default function AdminDashboard() {
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
-      return;
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user && user.role !== "admin") {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to access this page.",
+        variant: "destructive",
+      });
+      window.location.href = `/${user.role}/dashboard`;
+    }
+  }, [isAuthenticated, isLoading, user, toast]);
+
+  useEffect(() => {
+    if (!analyticsError) {
+      return;
+    }
+
+    const message =
+      analyticsError instanceof Error
+        ? analyticsError.message
+        : "Failed to load dashboard analytics";
+
+    if (analyticsError instanceof Error && isUnauthorizedError(analyticsError)) {
+      toast({
+        title: "Session Expired",
+        description: "Please log in again to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Dashboard Error",
+      description: message,
+      variant: "destructive",
+    });
+  }, [analyticsError, toast]);
+
+  if (isLoading || (isAuthenticated && user?.role === "admin" && analyticsLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="flex items-center space-x-4">
@@ -50,135 +117,47 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'admin') {
-    // Redirect non-admin users
-    useEffect(() => {
-      if (user && user.role !== 'admin') {
-        toast({
-          title: "Access Denied",
-          description: "You don't have permission to access this page.",
-          variant: "destructive",
-        });
-        window.location.href = `/${user.role}/dashboard`;
-      }
-    }, [user, toast]);
-
+  if (!isAuthenticated || user?.role !== "admin") {
     return null;
   }
 
-  // Mock analytics data
-  const systemStats = {
-    totalUsers: 2456,
-    activeUsers: 1834,
-    totalProjects: 567,
-    activeProjects: 234,
-    totalAssessments: 1289,
-    completedAssessments: 892,
-    credentialsAwarded: 3456,
-    systemUptime: 99.97
+  const data: AdminAnalyticsDashboardDTO = analytics ?? {
+    totalUsers: 0,
+    activeUsers: 0,
+    totalProjects: 0,
+    activeProjects: 0,
+    totalAssessments: 0,
+    gradedAssessments: 0,
+    totalCredentials: 0,
+    roleDistribution: { students: 0, teachers: 0, admins: 0 },
+    gradeDistribution: [],
+    userGrowth: [],
+    weeklyActivity: [],
+    projectStatusDistribution: [],
+    needsAttention: {
+      overdueProjects: 0,
+      ungradedSubmissions: 0,
+      draftProjects: 0,
+    },
+    recentActivity: [],
   };
 
-  const userGrowthData = [
-    { month: 'Jan', users: 1200, projects: 156 },
-    { month: 'Feb', users: 1450, projects: 189 },
-    { month: 'Mar', users: 1680, projects: 234 },
-    { month: 'Apr', users: 1920, projects: 278 },
-    { month: 'May', users: 2150, projects: 345 },
-    { month: 'Jun', users: 2456, projects: 567 },
-  ];
+  const assessmentCompletionRate =
+    data.totalAssessments > 0
+      ? Math.round((data.gradedAssessments / data.totalAssessments) * 100)
+      : 0;
 
   const userDistribution = [
-    { name: 'Students', value: 2156, color: '#3B82F6' },
-    { name: 'Teachers', value: 280, color: '#10B981' },
-    { name: 'Admins', value: 20, color: '#F59E0B' },
+    { name: "Students", value: data.roleDistribution.students, color: "#3B82F6" },
+    { name: "Teachers", value: data.roleDistribution.teachers, color: "#10B981" },
+    { name: "Admins", value: data.roleDistribution.admins, color: "#F59E0B" },
   ];
 
-  const activityData = [
-    { day: 'Mon', logins: 245, submissions: 89 },
-    { day: 'Tue', logins: 312, submissions: 156 },
-    { day: 'Wed', logins: 289, submissions: 134 },
-    { day: 'Thu', logins: 356, submissions: 198 },
-    { day: 'Fri', logins: 398, submissions: 234 },
-    { day: 'Sat', logins: 178, submissions: 67 },
-    { day: 'Sun', logins: 134, submissions: 45 },
-  ];
-
-  const recentActivities = [
-    {
-      id: 1,
-      type: 'user_created',
-      message: '15 new students registered',
-      time: '2 hours ago',
-      severity: 'info'
-    },
-    {
-      id: 2,
-      type: 'project_completed',
-      message: '3 projects completed successfully',
-      time: '4 hours ago',
-      severity: 'success'
-    },
-    {
-      id: 3,
-      type: 'system_alert',
-      message: 'Database backup completed',
-      time: '6 hours ago',
-      severity: 'info'
-    },
-    {
-      id: 4,
-      type: 'error',
-      message: 'Failed API calls detected',
-      time: '8 hours ago',
-      severity: 'warning'
+  const getSeverityIcon = (severity: "info" | "success") => {
+    if (severity === "success") {
+      return <CheckCircle className="h-4 w-4 text-green-600" />;
     }
-  ];
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-orange-600" />;
-      case 'error':
-        return <AlertTriangle className="h-4 w-4 text-red-600" />;
-      default:
-        return <Activity className="h-4 w-4 text-blue-600" />;
-    }
-  };
-
-  const handleExportData = async () => {
-    try {
-      const response = await fetch('/api/admin/export-analytics', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `analytics-data-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: "Export Complete",
-        description: "Analytics data has been downloaded successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Export Failed",
-        description: "Failed to export analytics data. Please try again.",
-        variant: "destructive",
-      });
-    }
+    return <Activity className="h-4 w-4 text-blue-600" />;
   };
 
   return (
@@ -187,25 +166,13 @@ export default function AdminDashboard() {
 
       <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                System Dashboard
-              </h1>
-              <p className="text-gray-600">
-                Monitor system performance, user activity, and platform analytics.
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button onClick={handleExportData} className="bg-blue-600 text-white hover:bg-blue-700 btn-primary">
-                <Download className="h-4 w-4 mr-2" />
-                Export Data
-              </Button>
-            </div>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">System Dashboard</h1>
+            <p className="text-gray-600">
+              Live system metrics across users, projects, assessments, and credentials.
+            </p>
           </div>
 
-          {/* System Overview Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="apple-shadow border-0">
               <CardContent className="p-6">
@@ -215,11 +182,8 @@ export default function AdminDashboard() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Total Users</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemStats.totalUsers.toLocaleString()}</p>
-                    <p className="text-xs text-green-600 flex items-center">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      +12% this month
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{data.totalUsers.toLocaleString()}</p>
+                    <p className="text-xs text-blue-600">{data.activeUsers.toLocaleString()} active (30d)</p>
                   </div>
                 </div>
               </CardContent>
@@ -233,11 +197,8 @@ export default function AdminDashboard() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Active Projects</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemStats.activeProjects}</p>
-                    <p className="text-xs text-green-600 flex items-center">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      +8% this week
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{data.activeProjects.toLocaleString()}</p>
+                    <p className="text-xs text-green-600">{data.totalProjects.toLocaleString()} total projects</p>
                   </div>
                 </div>
               </CardContent>
@@ -251,10 +212,8 @@ export default function AdminDashboard() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Assessments</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemStats.totalAssessments}</p>
-                    <p className="text-xs text-blue-600">
-                      {Math.round((systemStats.completedAssessments / systemStats.totalAssessments) * 100)}% completed
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{data.totalAssessments.toLocaleString()}</p>
+                    <p className="text-xs text-blue-600">{assessmentCompletionRate}% fully graded</p>
                   </div>
                 </div>
               </CardContent>
@@ -268,27 +227,22 @@ export default function AdminDashboard() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Credentials</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemStats.credentialsAwarded.toLocaleString()}</p>
-                    <p className="text-xs text-green-600 flex items-center">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      +15% this month
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{data.totalCredentials.toLocaleString()}</p>
+                    <p className="text-xs text-orange-600">Total awards issued</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Charts and Analytics */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* User Growth Chart */}
             <Card className="apple-shadow border-0">
               <CardHeader>
-                <CardTitle>User & Project Growth</CardTitle>
+                <CardTitle>User & Project Growth (6 months)</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={userGrowthData}>
+                  <LineChart data={data.userGrowth}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
@@ -300,7 +254,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* User Distribution */}
             <Card className="apple-shadow border-0">
               <CardHeader>
                 <CardTitle>User Distribution</CardTitle>
@@ -314,8 +267,7 @@ export default function AdminDashboard() {
                       cy="50%"
                       labelLine={false}
                       label={({ name, value }) => `${name}: ${value}`}
-                      outerRadius={80}
-                      fill="#8884d8"
+                      outerRadius={84}
                       dataKey="value"
                     >
                       {userDistribution.map((entry, index) => (
@@ -329,9 +281,7 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          {/* Activity and Alerts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            {/* Weekly Activity */}
             <div className="lg:col-span-2">
               <Card className="apple-shadow border-0">
                 <CardHeader>
@@ -339,64 +289,67 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={activityData}>
+                    <BarChart data={data.weeklyActivity}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="day" />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="logins" fill="#3B82F6" />
-                      <Bar dataKey="submissions" fill="#10B981" />
+                      <Bar dataKey="users" fill="#3B82F6" name="Users Created" />
+                      <Bar dataKey="submissions" fill="#10B981" name="Submissions" />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Recent Activity Feed */}
             <Card className="apple-shadow border-0">
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                      {getSeverityIcon(activity.severity)}
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                        <p className="text-xs text-gray-600">{activity.time}</p>
+                  {data.recentActivity.length === 0 ? (
+                    <p className="text-sm text-gray-500">No recent activity yet.</p>
+                  ) : (
+                    data.recentActivity.map((activityItem) => (
+                      <div
+                        key={activityItem.id}
+                        className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        {getSeverityIcon(activityItem.severity)}
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{activityItem.message}</p>
+                          <p className="text-xs text-gray-600">{formatRelativeTime(activityItem.timestamp)}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* System Health */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="apple-shadow border-0">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Database className="h-5 w-5 text-green-600" />
-                  <span>System Health</span>
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  <span>Needs Attention</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Uptime</span>
-                    <Badge className="bg-green-100 text-green-800">
-                      {systemStats.systemUptime}%
-                    </Badge>
+                    <span className="text-sm text-gray-600">Ungraded submissions</span>
+                    <Badge className="bg-orange-100 text-orange-800">{data.needsAttention.ungradedSubmissions}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Active Users</span>
-                    <span className="text-sm font-medium">{systemStats.activeUsers}</span>
+                    <span className="text-sm text-gray-600">Overdue projects</span>
+                    <Badge className="bg-red-100 text-red-800">{data.needsAttention.overdueProjects}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Response Time</span>
-                    <Badge className="bg-green-100 text-green-800">145ms</Badge>
+                    <span className="text-sm text-gray-600">Draft projects</span>
+                    <Badge className="bg-yellow-100 text-yellow-800">{data.needsAttention.draftProjects}</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -405,24 +358,18 @@ export default function AdminDashboard() {
             <Card className="apple-shadow border-0">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5 text-blue-600" />
-                  <span>Performance</span>
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  <span>Project Status</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">API Calls/min</span>
-                    <span className="text-sm font-medium">1,234</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Success Rate</span>
-                    <Badge className="bg-green-100 text-green-800">99.2%</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Error Rate</span>
-                    <Badge className="bg-yellow-100 text-yellow-800">0.8%</Badge>
-                  </div>
+                  {data.projectStatusDistribution.map((item) => (
+                    <div key={item.status} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 capitalize">{item.status}</span>
+                      <span className="text-sm font-semibold text-gray-900">{item.count}</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -430,24 +377,24 @@ export default function AdminDashboard() {
             <Card className="apple-shadow border-0">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Activity className="h-5 w-5 text-purple-600" />
-                  <span>Usage Stats</span>
+                  <Users className="h-5 w-5 text-purple-600" />
+                  <span>Student Grades</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Storage Used</span>
-                    <span className="text-sm font-medium">2.4 TB</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Daily Uploads</span>
-                    <span className="text-sm font-medium">456 files</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Bandwidth</span>
-                    <span className="text-sm font-medium">12.3 GB</span>
-                  </div>
+                  {data.gradeDistribution.length === 0 ? (
+                    <p className="text-sm text-gray-500">No student grade assignments yet.</p>
+                  ) : (
+                    data.gradeDistribution.map((item) => (
+                      <div key={item.grade} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          {item.grade === "K" ? "Kindergarten" : `Grade ${item.grade}`}
+                        </span>
+                        <span className="text-sm font-semibold text-gray-900">{item.count}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

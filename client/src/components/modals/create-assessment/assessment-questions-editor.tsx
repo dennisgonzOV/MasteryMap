@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CircleHelp, Plus, Trash2, X } from "lucide-react";
 import type { AssessmentForm } from "./assessment-form";
 
 interface AssessmentQuestionsEditorProps {
@@ -28,6 +29,7 @@ interface AssessmentQuestionsEditorProps {
   onRemoveQuestion: (index: number) => void;
   onAddMultipleChoiceOption: (questionIndex: number) => void;
   onRemoveMultipleChoiceOption: (questionIndex: number, optionIndex: number) => void;
+  disableMultipleChoice?: boolean;
 }
 
 export function AssessmentQuestionsEditor({
@@ -37,6 +39,7 @@ export function AssessmentQuestionsEditor({
   onRemoveQuestion,
   onAddMultipleChoiceOption,
   onRemoveMultipleChoiceOption,
+  disableMultipleChoice = false,
 }: AssessmentQuestionsEditorProps) {
   return (
     <div className="space-y-4">
@@ -96,8 +99,22 @@ export function AssessmentQuestionsEditor({
               name={`questions.${index}.type`}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Question Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormLabel className="flex items-center gap-2">
+                    <span>Question Type</span>
+                    {disableMultipleChoice && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-gray-500 hover:text-gray-700">
+                            <CircleHelp className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Multiple Choice is disabled when assessing multiple component skills because a single correct answer may not represent multiple competencies.
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="focus-ring">
                         <SelectValue placeholder="Select question type" />
@@ -105,7 +122,9 @@ export function AssessmentQuestionsEditor({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="open-ended">Open-ended</SelectItem>
-                      <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                      <SelectItem value="multiple-choice" disabled={disableMultipleChoice}>
+                        Multiple Choice
+                      </SelectItem>
                       <SelectItem value="short-answer">Short Answer</SelectItem>
                     </SelectContent>
                   </Select>

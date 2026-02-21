@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { getTestApp } from '../helpers/test-app';
 import { testUsers, testSchool } from '../fixtures/users';
-import { storage } from '../../server/storage';
+import { db } from '../../server/db';
+import { schools } from '../../shared/schema';
 
 describe('Authentication API', () => {
   let app: any;
@@ -11,14 +12,15 @@ describe('Authentication API', () => {
   beforeAll(async () => {
     app = await getTestApp();
     // Ensure test school exists
-    const schools = await storage.getSchools();
-    const existingSchool = schools.find(s => s.name === testSchool.name);
+    const existingSchools = await db.select().from(schools);
+    const existingSchool = existingSchools.find(s => s.name === testSchool.name);
     if (existingSchool) {
       schoolId = existingSchool.id;
     } else {
-      const school = await storage.createSchool(testSchool);
+      const [school] = await db.insert(schools).values(testSchool).returning();
       schoolId = school.id;
     }
+
   });
 
   describe('User Registration', () => {
@@ -34,7 +36,7 @@ describe('Authentication API', () => {
       expect(response.body.user).toBeDefined();
       expect(response.body.user.username).toBe(testUsers.newTeacher.username);
       expect(response.body.user.role).toBe('teacher');
-      expect(response.body.token).toBeDefined();
+      expect(response.headers['set-cookie']).toBeDefined();
     });
 
     it('should reject registration with invalid username', async () => {
@@ -84,7 +86,7 @@ describe('Authentication API', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.user).toBeDefined();
-      expect(response.body.token).toBeDefined();
+      expect(response.headers['set-cookie']).toBeDefined();
       expect(response.headers['set-cookie']).toBeDefined();
     });
 
@@ -112,13 +114,13 @@ describe('Authentication API', () => {
           username: testUsers.teacher.username,
           password: testUsers.teacher.password
         });
-      authToken = loginResponse.body.token;
+      authToken = loginResponse.headers['set-cookie'] || [];
     });
 
     it('should access protected route with valid token', async () => {
       const response = await request(app)
         .get('/api/auth/user')
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authToken);
 
       expect(response.status).toBe(200);
       expect(response.body.username).toBe(testUsers.teacher.username);

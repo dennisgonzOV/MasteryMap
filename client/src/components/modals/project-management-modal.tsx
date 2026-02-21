@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import ProjectTeamSelectionModal from "./project-team-selection-modal";
@@ -23,7 +24,8 @@ import {
   Eye,
   X,
   Play,
-  Sparkles
+  Sparkles,
+  CircleHelp,
 } from "lucide-react";
 import ConfirmationModal from '@/components/ui/confirmation-modal';
 import {
@@ -325,8 +327,22 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
     });
 
   const selectedMilestone = milestones.find((milestone) => milestone.id === assessmentMilestoneId) ?? null;
+  const disableMultipleChoice = projectComponentSkillIds.length > 1;
   const hasSelectedQuestionType = Object.values(aiQuestionTypes).some(Boolean);
   const projectHasBestStandards = projectBestStandardIds.length > 0;
+
+  useEffect(() => {
+    if (!disableMultipleChoice) {
+      return;
+    }
+
+    setAiQuestionTypes((prev) => {
+      if (!prev["multiple-choice"]) {
+        return prev;
+      }
+      return { ...prev, "multiple-choice": false };
+    });
+  }, [disableMultipleChoice]);
 
   const createMilestoneAssessmentMutation = useMutation({
     mutationFn: async () => {
@@ -343,7 +359,7 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
       }
 
       const selectedQuestionTypes = (Object.entries(aiQuestionTypes) as Array<[QuestionTypeKey, boolean]>)
-        .filter(([, checked]) => checked)
+        .filter(([type, checked]) => checked && (!disableMultipleChoice || type !== "multiple-choice"))
         .map(([type]) => type);
 
       if (selectedQuestionTypes.length === 0) {
@@ -406,7 +422,10 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestone-assessments`] });
       setAssessmentMilestoneId(null);
       setAiQuestionCount(5);
-      setAiQuestionTypes({ ...DEFAULT_AI_QUESTION_TYPES });
+      setAiQuestionTypes({
+        ...DEFAULT_AI_QUESTION_TYPES,
+        "multiple-choice": disableMultipleChoice ? false : DEFAULT_AI_QUESTION_TYPES["multiple-choice"],
+      });
     },
     onError: (error: unknown) => {
       toast({
@@ -563,10 +582,16 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
   const handleOpenMilestoneAssessmentBuilder = (milestoneId: number) => {
     setAssessmentMilestoneId(milestoneId);
     setAiQuestionCount(5);
-    setAiQuestionTypes({ ...DEFAULT_AI_QUESTION_TYPES });
+    setAiQuestionTypes({
+      ...DEFAULT_AI_QUESTION_TYPES,
+      "multiple-choice": disableMultipleChoice ? false : DEFAULT_AI_QUESTION_TYPES["multiple-choice"],
+    });
   };
 
   const handleToggleQuestionType = (type: QuestionTypeKey, checked: boolean | "indeterminate") => {
+    if (disableMultipleChoice && type === "multiple-choice") {
+      return;
+    }
     setAiQuestionTypes((prev) => ({
       ...prev,
       [type]: checked === true,
@@ -955,16 +980,38 @@ export default function ProjectManagementModal({ projectId, isOpen, readOnly = f
                         <p className="text-sm font-medium text-blue-900">Question Types</p>
                         <div className="space-y-2">
                           {(Object.keys(QUESTION_TYPE_LABELS) as QuestionTypeKey[]).map((type) => (
-                            <div key={type} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`question-type-${type}`}
-                                checked={aiQuestionTypes[type]}
-                                onCheckedChange={(checked) => handleToggleQuestionType(type, checked)}
-                              />
-                              <Label htmlFor={`question-type-${type}`} className="font-normal">
-                                {QUESTION_TYPE_LABELS[type]}
-                              </Label>
-                            </div>
+                            disableMultipleChoice && type === "multiple-choice" ? (
+                              <Tooltip key={type}>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center space-x-2 opacity-50">
+                                    <Checkbox
+                                      id={`question-type-${type}`}
+                                      checked={aiQuestionTypes[type]}
+                                      onCheckedChange={(checked) => handleToggleQuestionType(type, checked)}
+                                      disabled
+                                    />
+                                    <Label htmlFor={`question-type-${type}`} className="font-normal">
+                                      {QUESTION_TYPE_LABELS[type]}
+                                    </Label>
+                                    <CircleHelp className="h-3.5 w-3.5 text-blue-700" />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  Multiple Choice is disabled when more than one component skill is selected because one correct answer may not reflect multiple competencies.
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <div key={type} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`question-type-${type}`}
+                                  checked={aiQuestionTypes[type]}
+                                  onCheckedChange={(checked) => handleToggleQuestionType(type, checked)}
+                                />
+                                <Label htmlFor={`question-type-${type}`} className="font-normal">
+                                  {QUESTION_TYPE_LABELS[type]}
+                                </Label>
+                              </div>
+                            )
                           ))}
                         </div>
                       </div>

@@ -60,8 +60,8 @@ describe('Admin Bulk Create API', () => {
 
     it('should bulk create valid users', async () => {
         const usersToCreate = [
-            { username: 'bulk_student_1', password: 'password123', role: 'student' },
-            { username: 'bulk_teacher_1', password: 'password123', role: 'teacher' }
+            { username: 'bulk_student_1', password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' },
+            { username: 'bulk_teacher_1', password: 'password123', role: 'teacher', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' }
         ];
 
         const response = await agent
@@ -89,8 +89,8 @@ describe('Admin Bulk Create API', () => {
     it('should handle partial failures', async () => {
         // 'bulk_student_1' already exists from previous test
         const usersToCreate = [
-            { username: 'bulk_student_1', password: 'password123', role: 'student' },
-            { username: 'bulk_student_2', password: 'password123', role: 'student' }
+            { username: 'bulk_student_1', password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' },
+            { username: 'bulk_student_2', password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' }
         ];
 
         const response = await agent
@@ -106,7 +106,7 @@ describe('Admin Bulk Create API', () => {
 
     it('should enforce limit of 50 users', async () => {
         const usersToCreate = Array.from({ length: 51 }, (_, i) => ({
-            username: `bulk_limit_${i}`, password: 'password123', role: 'student'
+            username: `bulk_limit_${i}`, password: 'password123', role: 'student', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School'
         }));
 
         const response = await agent
@@ -119,7 +119,7 @@ describe('Admin Bulk Create API', () => {
 
     it('should reject invalid roles', async () => {
         const usersToCreate = [
-            { username: 'bulk_admin_fail', password: 'password123', role: 'admin' }
+            { username: 'bulk_admin_fail', password: 'password123', role: 'admin', firstName: 'Test', lastName: 'User', email: 'test@test.com', schoolName: 'Test School' }
         ];
 
         const response = await agent

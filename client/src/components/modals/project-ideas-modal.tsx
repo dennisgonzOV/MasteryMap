@@ -45,8 +45,7 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronRight,
-  Search,
-  Download
+  Search
 } from "lucide-react";
 
 const projectIdeaSchema = z.object({
@@ -386,49 +385,6 @@ export default function ProjectIdeasModal({
       description: "You can now create a project based on this idea.",
     });
     onClose();
-  };
-
-  const handleDownloadIdea = (idea: ProjectIdea, index: number) => {
-    try {
-      const formValues = form.getValues();
-      const exportPayload = {
-        idea,
-        criteria: {
-          subject: formValues.subject,
-          topic: formValues.topic,
-          gradeLevel: formValues.gradeLevel,
-          duration: formValues.duration,
-        },
-        selectedComponentSkillIds: Array.from(selectedSkills),
-        selectedBestStandardIds: Array.from(selectedStandards),
-        exportedAt: new Date().toISOString(),
-      };
-
-      const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const safeTitle = idea.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || `project-idea-${index + 1}`;
-      a.download = `${safeTitle}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "Idea Downloaded",
-        description: "Project idea exported as JSON.",
-      });
-    } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: "Unable to export this project idea.",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleClose = () => {
@@ -885,14 +841,6 @@ export default function ProjectIdeasModal({
                       >
                         <Plus className="h-4 w-4 mr-1" />
                         Use This Idea
-                      </Button>
-                      <Button
-                        onClick={() => handleDownloadIdea(idea, index)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
                       </Button>
                     </div>
                   </div>
