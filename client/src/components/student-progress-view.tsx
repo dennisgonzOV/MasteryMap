@@ -120,7 +120,13 @@ export default function StudentProgressView() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input placeholder="Search students by username..." className="pl-10" disabled />
+            <Input
+              placeholder="Search students by username..."
+              className="pl-10"
+              value=""
+              readOnly
+              disabled
+            />
           </div>
           <Skeleton className="h-10 w-full rounded-md" />
         </div>
