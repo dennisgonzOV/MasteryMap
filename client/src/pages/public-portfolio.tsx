@@ -190,6 +190,24 @@ function normalizeCredential(credential: CredentialRecord): ParsedCredential {
   };
 }
 
+function formatArtifactTypeLabel(artifactType: string | null): string {
+  return (artifactType || "file").replace(/[-_]/g, " ");
+}
+
+function getArtifactFileName(artifactUrl: string | null): string {
+  if (!artifactUrl) {
+    return "Source artifact";
+  }
+
+  try {
+    const sanitized = artifactUrl.split("?")[0]?.split("#")[0] || artifactUrl;
+    const fileName = decodeURIComponent(sanitized.split("/").pop() || "");
+    return fileName || "Source artifact";
+  } catch {
+    return "Source artifact";
+  }
+}
+
 export default function PublicPortfolio({ params }: { params: { publicUrl: string } }) {
   const publicUrl = params.publicUrl;
   const [search, setSearch] = useState("");
@@ -395,10 +413,10 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
     window.print();
   };
 
-  const renderArtifactPreview = (artifact: PublicPortfolioData["artifacts"][number]) => {
+  const renderArtifactPreview = (artifact: PublicPortfolioData["artifacts"][number], featured = false) => {
     if (!artifact.artifactUrl) {
       return (
-        <div className="h-36 rounded-lg border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-slate-500 text-sm">
+        <div className={`${featured ? "h-56" : "h-36"} rounded-lg border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-slate-500 text-sm`}>
           No preview available
         </div>
       );
@@ -409,26 +427,54 @@ export default function PublicPortfolio({ params }: { params: { publicUrl: strin
         <img
           src={artifact.artifactUrl}
           alt={artifact.title}
-          className="h-36 w-full rounded-lg object-cover border border-slate-200"
+          className={`${featured ? "h-56" : "h-36"} w-full rounded-lg object-cover border border-slate-200`}
         />
       );
     }
 
     if (artifact.artifactType === "video") {
       return (
-        <video className="h-36 w-full rounded-lg border border-slate-200" controls preload="metadata">
+        <video className={`${featured ? "h-56" : "h-36"} w-full rounded-lg border border-slate-200`} controls preload="metadata">
           <source src={artifact.artifactUrl} />
         </video>
       );
     }
 
+    const artifactTypeLabel = formatArtifactTypeLabel(artifact.artifactType);
+    const fileName = getArtifactFileName(artifact.artifactUrl);
+
     return (
-      <div className="h-40 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-slate-600 text-sm px-3 text-center">
-        <div className="space-y-2">
-          <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-slate-200">
-            <FileText className="h-4 w-4 text-slate-600" />
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
+        <div className={`${featured ? "h-44" : "h-32"} px-4 flex items-center justify-center`}>
+          <div className="w-full text-center space-y-2">
+            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-slate-200">
+              <FileText className="h-4 w-4 text-slate-600" />
+            </div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">{artifactTypeLabel}</p>
+            <p className="text-sm text-slate-700 line-clamp-2">{fileName}</p>
           </div>
-          <p>Open artifact to review source evidence</p>
+        </div>
+        <div className="border-t border-slate-200 bg-white px-3 py-2 flex items-center justify-between gap-3 text-xs">
+          {artifact.projectId ? (
+            <a
+              href={`/explore/project/${artifact.projectId}`}
+              className="inline-flex items-center text-slate-600 hover:text-slate-900"
+            >
+              Open project
+              <ExternalLink className="h-3 w-3 ml-1" />
+            </a>
+          ) : (
+            <span className="text-slate-500">Project unavailable</span>
+          )}
+          <a
+            href={artifact.artifactUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center text-blue-700 hover:text-blue-800"
+          >
+            Open original
+            <ExternalLink className="h-3 w-3 ml-1" />
+          </a>
         </div>
       </div>
     );
