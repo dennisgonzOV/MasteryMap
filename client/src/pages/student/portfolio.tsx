@@ -32,6 +32,9 @@ import {
 } from "@/components/ui/select";
 import {
   Award,
+  Check,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Eye,
   FileText,
@@ -39,7 +42,9 @@ import {
   Image,
   Link as LinkIcon,
   Pencil,
+  QrCode,
   Search,
+  Share,
   Star,
   Trophy,
   Video,
@@ -97,6 +102,12 @@ export default function StudentPortfolio() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState<ArtifactSortValue>("newest");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+  const [qrCodeError, setQrCodeError] = useState<string>("");
+  const [isShareLoading, setIsShareLoading] = useState(false);
+  const [copiedRecently, setCopiedRecently] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
 
   const [editingArtifact, setEditingArtifact] = useState<PortfolioArtifactView | null>(null);
   const [artifactTags, setArtifactTags] = useState("");
@@ -160,6 +171,34 @@ export default function StudentPortfolio() {
     }
   }, [credentialsError, artifactsError, toast]);
 
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "student" || !user?.id) {
+      return;
+    }
+
+    const loadShareData = async () => {
+      setIsShareLoading(true);
+      try {
+        const [linkData, qrData] = await Promise.all([
+          api.getPortfolioShareLink(),
+          api.getPortfolioShareQrCode(),
+        ]);
+
+        setPortfolioUrl(linkData.portfolioUrl);
+        setQrCodeDataUrl(qrData.qrCodeUrl || "");
+        setQrCodeError("");
+      } catch (error) {
+        console.error("Error loading share metadata:", error);
+        setQrCodeDataUrl("");
+        setQrCodeError("Unable to generate share assets right now.");
+      } finally {
+        setIsShareLoading(false);
+      }
+    };
+
+    loadShareData();
+  }, [isAuthenticated, user?.id, user?.role]);
+
   const updateArtifactMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) => api.updatePortfolioArtifact(id, data),
     onSuccess: async () => {
@@ -214,6 +253,14 @@ export default function StudentPortfolio() {
     [artifacts],
   );
 
+  useEffect(() => {
+    if (!copiedRecently) {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopiedRecently(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copiedRecently]);
+
   const getArtifactIcon = (type: string) => {
     switch (type) {
       case "image":
@@ -239,6 +286,44 @@ export default function StudentPortfolio() {
     if (["pdf", "doc", "docx", "txt", "rtf"].includes(ext)) return "document";
     if (["ppt", "pptx", "key"].includes(ext)) return "presentation";
     return "file";
+  };
+
+  const handleCopyLink = async () => {
+    if (!portfolioUrl) {
+      toast({
+        title: "Share URL unavailable",
+        description: "Please wait for the portfolio link to finish generating.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(portfolioUrl);
+      setCopiedRecently(true);
+      toast({
+        title: "Link copied",
+        description: "Portfolio link copied to clipboard.",
+      });
+    } catch {
+      toast({
+        title: "Copy failed",
+        description: "Could not copy the portfolio link. Please copy it manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenPublicView = () => {
+    if (!portfolioUrl) {
+      toast({
+        title: "Share URL unavailable",
+        description: "Please wait for the portfolio link to finish generating.",
+        variant: "destructive",
+      });
+      return;
+    }
+    window.open(portfolioUrl, "_blank", "noopener,noreferrer");
   };
 
   const clearArtifactFilters = () => {
@@ -400,6 +485,68 @@ export default function StudentPortfolio() {
                     reviewers.
                   </p>
                 </div>
+
+                <div className="rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm">
+                  <p className="text-slate-800 break-all">{portfolioUrl || "Generating share URL..."}</p>
+                  <p className="text-xs text-slate-600 mt-1">This share link does not expire.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    onClick={handleCopyLink}
+                    disabled={!portfolioUrl}
+                    className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    {copiedRecently ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Share className="h-4 w-4 mr-2" />
+                        Copy Public Link
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenPublicView}
+                    disabled={!portfolioUrl}
+                    className="focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Public View
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowQrCode((current) => !current)}
+                    className="text-slate-700 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    {showQrCode ? "Hide QR" : "Show QR"}
+                    {showQrCode ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+                  </Button>
+                </div>
+
+                {showQrCode && (
+                  <div className="w-full sm:max-w-[240px] rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="text-xs font-medium text-slate-700 mb-3">Scan Portfolio QR</p>
+                    <div className="w-full aspect-square bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center">
+                      {isShareLoading ? (
+                        <div className="animate-pulse w-24 h-24 bg-slate-200 rounded" />
+                      ) : qrCodeDataUrl ? (
+                        <img src={qrCodeDataUrl} alt="Portfolio QR code" className="w-24 h-24" />
+                      ) : (
+                        <div className="text-xs text-slate-600 text-center px-2">
+                          <QrCode className="h-7 w-7 mx-auto mb-1" />
+                          QR unavailable
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 mt-2">Open with a mobile camera for quick access.</p>
+                    {qrCodeError && <p className="text-xs text-red-600 mt-1">{qrCodeError}</p>}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
